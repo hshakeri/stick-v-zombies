@@ -87,6 +87,13 @@ class InputManager {
       this.keys[e.code] = false;
     });
 
+    window.addEventListener('blur', () => {
+      this.keys = {};
+      this.keysPressed = {};
+      this.mouse.leftDown = false;
+      this.mouse.rightDown = false;
+    });
+
     // Mouse Listeners
     window.addEventListener('mousemove', (e) => {
       const rect = this.canvas.getBoundingClientRect();

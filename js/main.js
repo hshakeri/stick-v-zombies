@@ -174,16 +174,29 @@ class Game {
   }
 
   advanceStage(nextStage) {
+    this.hideAllModals();
+    this.state = 'PLAYING';
     this.stageManager.loadStage(nextStage);
     this.player.x = this.stageManager.entranceDoor.x + 30;
     this.player.y = this.groundY;
     this.player.vx = 0;
     this.player.vy = 0;
+    this.player.pose = 'idle';
+    this.player.attackTimer = 0;
+    this.player.weaponTimer = 0;
+    this.player.isRolling = false;
+    this.player.rollTimer = 0;
+    this.player.diveKick = false;
+    this.player.isGrounded = true;
+    this.player.airJuggleTarget = null;
+    this.player.squashX = 1.0;
+    this.player.squashY = 1.0;
+
     waves.startWave(nextStage);
 
     audio.playWaveStart();
     particles.addTextBanner(this.player.x, this.player.y - 70, `★ STAGE ${nextStage}: ${this.stageManager.stageName} ★`, '#ffea00');
-    this.openShop();
+    particles.addDamageText(this.player.x, this.player.y - 100, `PRESS [B] FOR UPGRADES`, false, '#38bdf8');
   }
 
   pauseGame() {
@@ -194,6 +207,7 @@ class Game {
   resumeGame() {
     this.hideModal('pause-modal');
     this.state = 'PLAYING';
+    window.focus();
   }
 
   openShop() {
@@ -205,6 +219,7 @@ class Game {
   closeShop() {
     this.hideModal('shop-modal');
     this.state = 'PLAYING';
+    window.focus();
   }
 
   gameOver() {
