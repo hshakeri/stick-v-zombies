@@ -8,23 +8,60 @@ export class ProjectileManager {
     this.projectiles = [];
     this.sketchBlocks = [];
     this.hazards = [];
+    this.isUpdatingProjectiles = false;
   }
 
   reset() {
     this.projectiles.length = 0;
     this.sketchBlocks.length = 0;
     this.hazards.length = 0;
+    this.isUpdatingProjectiles = false;
+  }
+
+  clearByOwner(owner) {
+    if (!owner) return;
+    if (this.isUpdatingProjectiles) {
+      // Boss death can be triggered inside a projectile collision callback.
+      // Mark now and sweep after iteration so indices remain stable.
+      for (const projectile of this.projectiles) {
+        if (projectile.owner === owner) projectile.pendingRemoval = true;
+      }
+      for (const hazard of this.hazards) {
+        if (hazard.owner === owner) hazard.pendingRemoval = true;
+      }
+      return;
+    }
+
+    this.removeEffectsWhere((effect) => effect.owner === owner);
+  }
+
+  clearHostileEffects() {
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      if (this.projectiles[i].isHostile) this.projectiles.splice(i, 1);
+    }
+    this.hazards.length = 0;
+  }
+
+  removeEffectsWhere(predicate) {
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      if (predicate(this.projectiles[i])) this.projectiles.splice(i, 1);
+    }
+    for (let i = this.hazards.length - 1; i >= 0; i--) {
+      if (predicate(this.hazards[i])) this.hazards.splice(i, 1);
+    }
   }
 
   update(dt, groundY, zombies, player, camera) {
     // 1. Update Projectiles
-    for (let i = this.projectiles.length - 1; i >= 0; i--) {
-      const p = this.projectiles[i];
-      p.life -= dt;
-      if (p.life <= 0) {
-        this.projectiles.splice(i, 1);
-        continue;
-      }
+    this.isUpdatingProjectiles = true;
+    try {
+      for (let i = this.projectiles.length - 1; i >= 0; i--) {
+        const p = this.projectiles[i];
+        p.life -= dt;
+        if (p.pendingRemoval || p.life <= 0) {
+          this.projectiles.splice(i, 1);
+          continue;
+        }
 
       // Landed props only need their lifetime updated. Re-applying gravity to
       // an anvil made it impact, shake, play audio, and deal damage every frame.
@@ -149,25 +186,29 @@ export class ProjectileManager {
       }
 
       // Check collision with Zombies (for friendly projectiles like Thrown Pencil / Note / Thrown Zombie)
-      if (!p.isHostile && zombies) {
-        if (!p.hitZombies) p.hitZombies = new Set();
-        for (const z of zombies) {
-          if (z.isDead || p.hitZombies.has(z)) continue;
-          const dist = Math.hypot(p.x - z.x, p.y - (z.y - 30));
-          if (dist < p.radius + z.radius) {
-            p.hitZombies.add(z);
-            z.takeDamage(p.damage, p.vx > 0 ? 1 : -1, p.knockback || 300, p.isCrit);
-            particles.createHitSparks(p.x, p.y, 8, p.sparkColor || '#ffaa00');
+        if (!p.isHostile && zombies) {
+          if (!p.hitZombies) p.hitZombies = new Set();
+          for (const z of zombies) {
+            if (z.isDead || p.hitZombies.has(z)) continue;
+            const dist = Math.hypot(p.x - z.x, p.y - (z.y - 30));
+            if (dist < p.radius + z.radius) {
+              p.hitZombies.add(z);
+              z.takeDamage(p.damage, p.vx > 0 ? 1 : -1, p.knockback || 300, p.isCrit);
+              particles.createHitSparks(p.x, p.y, 8, p.sparkColor || '#ffaa00');
 
-            if (p.pierce > 0) {
-              p.pierce--;
-            } else {
-              this.projectiles.splice(i, 1);
-              break;
+              if (p.pierce > 0) {
+                p.pierce--;
+              } else {
+                this.projectiles.splice(i, 1);
+                break;
+              }
             }
           }
         }
       }
+    } finally {
+      this.isUpdatingProjectiles = false;
+      this.removeEffectsWhere((effect) => effect.pendingRemoval === true);
     }
 
     // 2. Update Ground Hazards (Acid Puddles)
@@ -294,6 +335,25 @@ export class ProjectileManager {
         ctx.quadraticCurveTo(p.radius * 0.2, 0, 0, -p.radius * 0.4);
         ctx.closePath();
         ctx.fill();
+      } else if (p.type === 'king_block') {
+        const blockColors = {
+          gold: ['#f4c542', '#fff19a', '#9b6500'],
+          obsidian: ['#241c35', '#8f62bd', '#0c0714'],
+          netherite: ['#4f4852', '#a89ead', '#201d22']
+        };
+        const palette = blockColors[p.material] || blockColors.gold;
+        const size = p.radius * 1.5;
+        ctx.shadowColor = palette[1];
+        ctx.shadowBlur = 12;
+        ctx.fillStyle = palette[0];
+        ctx.strokeStyle = palette[2];
+        ctx.lineWidth = 3;
+        ctx.fillRect(-size / 2, -size / 2, size, size);
+        ctx.strokeRect(-size / 2, -size / 2, size, size);
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = palette[1];
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-size * 0.31, -size * 0.31, size * 0.62, size * 0.62);
       } else if (p.type === 'vira_dart') {
         // Homing / Glitchy Red Virus Dart
         ctx.fillStyle = '#ff0044';
@@ -416,6 +476,24 @@ export class ProjectileManager {
       damage,
       isHostile: true,
       life: 2.0
+    });
+  }
+
+  spawnKingBlock(x, y, facing, material = 'gold', damage = 14, owner = 'king_orange') {
+    this.projectiles.push({
+      type: 'king_block',
+      owner,
+      material,
+      x,
+      y,
+      vx: facing * (material === 'obsidian' ? 470 : 520),
+      vy: 0,
+      rotation: 0,
+      rotSpeed: facing * (material === 'obsidian' ? 2.6 : 4.2),
+      radius: material === 'obsidian' ? 21 : 18,
+      damage,
+      isHostile: true,
+      life: 3
     });
   }
 

@@ -215,7 +215,7 @@ export class DarkLord {
             projectiles.spawnViraBot(this.x + side * (60 + i * 30), this.y, side);
           }
           particles.addTextBanner(this.x, this.y - 70, 'VIRABOT SWARM!', '#ff0044');
-          speech.shout(this.x, this.y, 'darkLord');
+          speech.shout(this.x, this.y, 'darkLord', null, 1.45, { anchor: this, priority: 4 });
           this.state = 'idle';
           this.actionCooldown = 2.0;
         }

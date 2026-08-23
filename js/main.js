@@ -237,12 +237,18 @@ class Game {
     this.player.airJuggleTarget = null;
     this.player.squashX = 1.0;
     this.player.squashY = 1.0;
-    this.player.heal(this.player.maxHp * 0.18);
+    const isBossCheckpoint = [5, 10, 11, 15].includes(nextStage);
+    const baselineHeal = this.player.maxHp * 0.18;
+    const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
+    this.player.heal(isBossCheckpoint ? Math.max(baselineHeal, bossSafetyHeal) : baselineHeal);
     this.camera.snapTo(this.player);
 
     waves.startWave(nextStage);
 
     particles.addTextBanner(this.player.x, this.player.y - 70, `★ STAGE ${nextStage}: ${this.stageManager.stageName} ★`, '#ffea00');
+    if (isBossCheckpoint) {
+      particles.addDamageText(this.player.x, this.player.y - 120, 'BOSS CHECKPOINT: HP READY', false, '#34d399');
+    }
     particles.addDamageText(this.player.x, this.player.y - 100, `PRESS [B] FOR UPGRADES`, false, '#38bdf8');
   }
 
@@ -399,7 +405,7 @@ class Game {
           () => this.completeGame(),
           (stage) => this.advanceStage(stage)
         );
-      });
+      }, this.camera);
     } catch (e) { console.error('Stage update error:', e); }
 
     // 4. Update Projectiles & Hazards
@@ -476,18 +482,28 @@ class Game {
     if (bossBox && bossFill) {
       if (waves.bossZombie && !waves.bossZombie.isDead) {
         bossBox.style.display = 'flex';
+        const bossType = waves.bossZombie.type;
+        const bossClasses = ['dark-lord-boss', 'king-orange-boss', 'h4c3r-boss'];
+        bossBox.classList.remove(...bossClasses);
+        const bossClass = {
+          dark_lord: 'dark-lord-boss',
+          king_orange: 'king-orange-boss',
+          h4c3r: 'h4c3r-boss'
+        }[bossType];
+        if (bossClass) bossBox.classList.add(bossClass);
         if (bossLabel) {
-          bossLabel.innerText = waves.bossZombie.name || (waves.bossZombie.type === 'dark_lord' ? 'THE DARK LORD (TDL)' : 'TITAN UNDEAD');
-          if (waves.bossZombie.type === 'dark_lord') {
-            bossBox.classList.add('dark-lord-boss');
-          } else {
-            bossBox.classList.remove('dark-lord-boss');
-          }
+          const fallbackName = {
+            dark_lord: 'THE DARK LORD (TDL)',
+            king_orange: 'KING ORANGE',
+            h4c3r: 'H4C3R'
+          }[bossType] || 'TITAN UNDEAD';
+          bossLabel.innerText = waves.bossZombie.name || fallbackName;
         }
         const bossPct = (waves.bossZombie.hp / waves.bossZombie.maxHp) * 100;
         bossFill.style.width = `${Math.max(0, bossPct)}%`;
       } else {
         bossBox.style.display = 'none';
+        bossBox.classList.remove('dark-lord-boss', 'king-orange-boss', 'h4c3r-boss');
       }
     }
 
@@ -583,9 +599,6 @@ class Game {
 
       // 7. Draw Visual FX & Particles
       particles.draw(ctx);
-
-      // 8. Draw 80s Retro Speech Bubbles
-      speech.draw(ctx);
     } finally {
       this.camera.restore(ctx);
     }
@@ -593,6 +606,10 @@ class Game {
     // Screen-space guides stay anchored even while the camera shakes or zooms.
     waves.drawScreenIndicators?.(ctx, this.camera, width, height);
     this.stageManager.drawScreenGuide?.(ctx, this.camera, width, height);
+
+    // Dialogue is screen-space and drawn last so camera motion, enemy markers,
+    // and the exit guide never make a punchline tiny, jittery, or obscured.
+    speech.draw(ctx, this.camera, width, height);
   }
 }
 

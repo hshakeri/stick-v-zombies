@@ -2,7 +2,7 @@
 
 [![Play on GitHub Pages](https://img.shields.io/badge/Play_Online-GitHub_Pages-brightgreen?style=for-the-badge&logo=github)](https://hshakeri.github.io/stick-v-zombies/)
 
-A lightweight 2D action arena game inspired by Alan Becker's *Animator vs. Animation* and *Animation vs. Minecraft*. Play as **The Second Coming** (the orange stick figure), chaining martial arts, pencil attacks, sketch tools, and ally assists across ten desktop-themed stages.
+A lightweight 2D action arena game inspired by Alan Becker's *Animator vs. Animation* and *Animation vs. Minecraft*. Play as **The Second Coming** (the orange stick figure), chaining martial arts, pencil attacks, sketch tools, and ally assists across fifteen desktop-themed stages.
 
 > **Unofficial fan project:** This game is a non-commercial tribute made for fun and learning. It is not affiliated with or endorsed by Alan Becker, Mojang, or Microsoft. All referenced characters and properties belong to their respective owners.
 
@@ -51,7 +51,7 @@ python3 -m http.server 8088
 
 ## 🖥️ Desktop Stages & Boss Progression
 
-Ten computer-desktop stages with obstacles, platforms, a clear **Start Door**, and an **Exit Door** guide:
+Fifteen computer-desktop stages with obstacles, platforms, a clear **Start Door**, and an **Exit Door** guide:
 - **Stage 1: Main Desktop**: File explorer windows, Notepad platforms, desktop shortcut icons (`Recycle Bin`, `Minecraft.exe`).
 - **Stage 2: Adobe Animate Workspace**: Moving Timeline Scrubber platforms, layer tracks, and drawing laser pointer hazards.
 - **Stage 3: Downloads & Malware Zone**: Vertical download elevators, corrupted files, and Error 404 popup dialog hazards.
@@ -61,7 +61,12 @@ Ten computer-desktop stages with obstacles, platforms, a clear **Start Door**, a
 - **Stage 7: Minecraft Nether Core**: Obsidian and netherrack platforms with lava hazards.
 - **Stage 8: Terminal Cyber Matrix**: Hacker command-line terminal grids and cyber laser traps.
 - **Stage 9: ViraBot Infestation Nexus**: Virus incubators and malware conduits crawling with minion spiders.
-- **Stage 10: The Dark Core (TDL's Domain)**: A multi-phase boss encounter with **The Dark Lord (TDL)**, followed by a real victory screen rather than an endless stage loop.
+- **Stage 10: The Dark Core (TDL's Domain)**: A multi-phase showdown with **The Dark Lord (TDL)**.
+- **Stage 11: Command Block Throne**: Survive a corrupted replay of **King Orange**, his command staff, falling voxel volleys, and a reality-bending block sweep without undoing his redeemed story arc.
+- **Stage 12: Glitch Browser Run**: Fight through broken tabs and moving browser-card platforms.
+- **Stage 13: Corrupted Cloud Cache**: Cross drifting sync nodes while a compact malware wave closes in.
+- **Stage 14: Root Access Gateway**: Break through the last security grid guarding the zero-day mainframe.
+- **Stage 15: Zero-Day Mainframe**: The user-requested final boss **H4C3R**, a zero-day echo inspired by H4CK3R's interface powers, attacks with packet dashes, bracket walls, decoys, and a telegraphed terminal beam.
 
 ---
 
@@ -93,6 +98,8 @@ Defeated zombies drop **Ink** (✒️) which can be spent between waves in the U
 - **Responsive Canvas Framing**: Resolution-independent camera coordinates, capped pixel density, safe arena bounds, and compact portrait/landscape HUD layouts.
 - **Readable Stick Animation**: Procedural skeleton poses, silhouettes, anticipation, afterimages, and motion lines.
 - **Combat Juice**: Hitstop impact frames, dynamic camera tracking and screen shake, comic star sparks, and stylized floating damage popups.
+- **Cinematic Camera Beats**: Brief boss reveals, exit-door pans, and capped impact zooms keep encounters lively without stealing control.
+- **Readable Character Banter**: Short, character-specific quips for Orange, every ally, the bosses, and the zombie malware stay fixed in screen space.
 - **Lightweight Rendering**: Canvas 2D vectors and Web Audio only, with bounded particles and throttled continuous effects.
 
 ---

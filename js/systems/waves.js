@@ -2,8 +2,31 @@
 
 import { Zombie } from '../entities/zombies.js';
 import { DarkLord } from '../entities/dark_lord.js';
+import { KingOrange } from '../entities/king_orange.js';
+import { H4C3R } from '../entities/h4c3r.js';
 import { audio } from '../engine/audio.js';
 import { particles } from '../engine/particles.js';
+
+const BOSS_WAVES = new Set([5, 10, 11, 15]);
+
+// The post-Dark-Lord campaign uses deliberately short, authored encounters.
+// This avoids the old linear formula growing into 50-60 enemy queues and keeps
+// both update cost and the battlefield readable on phones.
+const LATE_WAVE_RECIPES = Object.freeze({
+  12: Object.freeze([
+    'runner', 'walker', 'spitter', 'runner', 'walker', 'brute', 'spitter',
+    'runner', 'walker', 'spitter', 'runner', 'walker', 'brute', 'spitter'
+  ]),
+  13: Object.freeze([
+    'spitter', 'runner', 'walker', 'runner', 'brute', 'spitter', 'runner',
+    'walker', 'spitter', 'runner', 'brute', 'spitter', 'runner', 'walker'
+  ]),
+  14: Object.freeze([
+    'runner', 'spitter', 'runner', 'brute', 'walker', 'spitter', 'runner',
+    'brute', 'walker', 'spitter', 'runner', 'brute', 'spitter', 'runner',
+    'walker', 'spitter'
+  ])
+});
 
 export class WaveDirector {
   constructor() {
@@ -19,6 +42,7 @@ export class WaveDirector {
 
     this.bossZombie = null;
     this.spawnSerial = 0;
+    this.maxActiveEnemies = 12;
   }
 
   startWave(waveNumber = 1) {
@@ -32,7 +56,7 @@ export class WaveDirector {
     this.spawnSerial = 0;
 
     audio.playWaveStart();
-    audio.setIntensity(this.currentWave % 5 === 0 ? 0.95 : 0.2);
+    audio.setIntensity(BOSS_WAVES.has(this.currentWave) ? 0.95 : (this.currentWave >= 12 ? 0.55 : 0.2));
 
     // Build spawn queue for this wave
     this.generateWaveQueue(this.currentWave);
@@ -40,12 +64,30 @@ export class WaveDirector {
 
   generateWaveQueue(wave) {
     if (wave === 10) {
-      // Ultimate Wave 10 Boss: The Dark Lord (TDL)
+      // Dark Core boss: The Dark Lord (TDL)
       this.spawnQueue.push({ type: 'dark_lord', delay: 1.2 });
       for (let i = 0; i < 8; i++) {
         this.spawnQueue.push({ type: i % 2 === 0 ? 'runner' : 'spitter', delay: 1.8 + Math.random() * 0.8 });
       }
       this.spawnQueue.push({ type: 'brute', delay: 2.8 });
+      return;
+    }
+
+    if (wave === 11) {
+      // King Orange follows the Dark Lord immediately as a focused duel.
+      this.spawnQueue.push({ type: 'king_orange', delay: 1.4 });
+      return;
+    }
+
+    if (LATE_WAVE_RECIPES[wave]) {
+      this.queueHandcraftedWave(LATE_WAVE_RECIPES[wave]);
+      return;
+    }
+
+    if (wave === 15) {
+      // H4C3R is the true finale; the boss owns its phase hazards so the wave
+      // director does not pile an additional horde onto the player.
+      this.spawnQueue.push({ type: 'h4c3r', delay: 1.4 });
       return;
     }
 
@@ -76,15 +118,32 @@ export class WaveDirector {
     this.spawnQueue.sort(() => Math.random() - 0.5);
   }
 
+  queueHandcraftedWave(types) {
+    for (let i = 0; i < types.length; i++) {
+      const type = types[i];
+      const baseDelay = type === 'brute' ? 1.65 : (type === 'spitter' ? 1.05 : 0.8);
+      this.spawnQueue.push({
+        type,
+        delay: baseDelay + (i % 3) * 0.12
+      });
+    }
+  }
+
   update(dt, player, groundY, sketchBlocks, camera, onWaveComplete, platforms = []) {
     if (!this.isWaveActive) return;
 
     // Handle Spawning
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0 && this.spawnQueue.length > 0) {
-      const nextEnemy = this.spawnQueue.shift();
-      this.spawnZombie(nextEnemy.type, player, groundY, camera);
-      this.spawnTimer = nextEnemy.delay || this.spawnInterval;
+      if (this.zombies.length >= this.maxActiveEnemies) {
+        // Poll at a low rate while capped rather than immediately replacing an
+        // enemy in the same frame it is removed.
+        this.spawnTimer = 0.2;
+      } else {
+        const nextEnemy = this.spawnQueue.shift();
+        this.spawnZombie(nextEnemy.type, player, groundY, camera);
+        this.spawnTimer = nextEnemy.delay || this.spawnInterval;
+      }
     }
 
     // Update active zombies / bosses
@@ -108,14 +167,34 @@ export class WaveDirector {
   spawnZombie(type, player, groundY, camera = null) {
     const spawnX = this.getSafeSpawnX(player);
 
-    if (type === 'dark_lord') {
-      const boss = new DarkLord(spawnX, groundY);
+    const bossConfig = {
+      dark_lord: {
+        BossClass: DarkLord,
+        color: '#ff0033',
+        banner: '⚔️ THE DARK LORD HAS ARRIVED! ⚔️'
+      },
+      king_orange: {
+        BossClass: KingOrange,
+        color: '#ff8a00',
+        banner: '♛ CORRUPTED KING ORANGE REPLAY ♛'
+      },
+      h4c3r: {
+        BossClass: H4C3R,
+        color: '#67e8f9',
+        banner: '⌁ H4C3R HAS ROOT ACCESS ⌁'
+      }
+    }[type];
+
+    if (bossConfig) {
+      const boss = new bossConfig.BossClass(spawnX, groundY);
       this.zombies.push(boss);
       this.bossZombie = boss;
       audio.playBossRoar();
-      if (camera) camera.addShake(0.8);
-      particles.addShockwave(spawnX, groundY - 30, 240, '#ff0033', 12);
-      particles.addTextBanner(spawnX, groundY - 100, '⚔️ THE DARK LORD HAS ARRIVED! ⚔️', '#ff0033');
+      camera?.addShake?.(0.8);
+      camera?.focusOn?.(spawnX, groundY - 90, 0.7, 0.9);
+      camera?.addZoomPunch?.(-0.035);
+      particles.addShockwave(spawnX, groundY - 30, 240, bossConfig.color, 12);
+      particles.addTextBanner(spawnX, groundY - 100, bossConfig.banner, bossConfig.color);
       return;
     }
 
@@ -125,7 +204,9 @@ export class WaveDirector {
     if (type === 'titan_boss') {
       this.bossZombie = zombie;
       audio.playBossRoar();
-      if (camera) camera.addShake(0.6);
+      camera?.addShake?.(0.6);
+      camera?.focusOn?.(spawnX, groundY - 105, 0.65, 0.92);
+      camera?.addZoomPunch?.(-0.025);
       particles.addTextBanner(spawnX, groundY - 80, '💀 TITAN UNDEAD SPAWNED! 💀', '#ff2244');
     }
 

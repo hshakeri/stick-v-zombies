@@ -3,9 +3,11 @@ import test from 'node:test';
 
 import { Camera } from '../js/engine/camera.js';
 import { ParticleSystem, particles } from '../js/engine/particles.js';
-import { speech } from '../js/engine/speech.js';
+import { SPEECH_CORPUS, SpeechBubbleManager, speech } from '../js/engine/speech.js';
 import { AllyManager, allies } from '../js/entities/allies.js';
 import { DarkLord } from '../js/entities/dark_lord.js';
+import { H4C3R } from '../js/entities/h4c3r.js';
+import { KingOrange } from '../js/entities/king_orange.js';
 import { Player } from '../js/entities/player.js';
 import { ProjectileManager, projectiles } from '../js/entities/projectiles.js';
 import { weapons } from '../js/entities/weapons.js';
@@ -144,6 +146,15 @@ test('Red ally ground slam damages each nearby zombie exactly once', () => {
   particles.reset();
 });
 
+test('Animator cursor prioritizes a boss over ordinary nearby enemies', () => {
+  const manager = new AllyManager();
+  const brute = { x: 20, y: 0, type: 'brute', isBoss: false, isDead: false };
+  const boss = { x: 500, y: 0, type: 'king_orange', isBoss: true, isDead: false };
+
+  assert.equal(manager.summonAlly('cursor', 0, 0, 1, [brute, boss]), true);
+  assert.equal(manager.activeCursors[0].targetZombie, boss);
+});
+
 test('enemy spawns stay safely across the arena from both entrances', () => {
   const director = new WaveDirector();
   const fromLeftEntrance = director.getSafeSpawnX({ x: -920 });
@@ -261,6 +272,49 @@ test('short-screen camera anchor keeps the ground above touch controls', () => {
   assert.ok(ground.y < 250, `ground should stay above the pad, received y=${ground.y}`);
 });
 
+test('camera focus cues and zoom punches stay brief and bounded', () => {
+  const camera = new Camera({ clientWidth: 800, clientHeight: 600 });
+  const target = { x: -300, y: 0, facing: 1, vx: 0, vy: 0 };
+
+  assert.equal(camera.focusOn(420, -180, 0.5, 0.9), true);
+  camera.addZoomPunch(5);
+  assert.ok(camera.zoomPunch <= 0.1);
+  camera.update(0.05, target, 1);
+  assert.ok(camera.targetX > target.x, 'focus should pan toward the authored cue');
+
+  for (let i = 0; i < 20; i += 1) camera.update(0.05, target, 1);
+  assert.equal(camera.focusCue, null);
+  assert.ok(Math.abs(camera.zoomPunch) < 0.001);
+});
+
+test('reachable crowd sizes still trigger the bounded horde zoom', () => {
+  const calmCamera = new Camera({ clientWidth: 800, clientHeight: 600 });
+  const hordeCamera = new Camera({ clientWidth: 800, clientHeight: 600 });
+  const target = { x: 0, y: 0, facing: 1, vx: 0, vy: 0 };
+
+  calmCamera.update(1 / 60, target, 6);
+  hordeCamera.update(1 / 60, target, 12);
+
+  assert.equal(calmCamera.targetZoom, 1);
+  assert.ok(hordeCamera.targetZoom < calmCamera.targetZoom);
+  assert.ok(hordeCamera.targetZoom >= 0.92);
+});
+
+test('reduced-motion camera focus cannot sweep across the arena', () => {
+  const camera = new Camera({ clientWidth: 800, clientHeight: 600 });
+  camera.motionScale = 0.28;
+  camera.targetX = 0;
+  camera.targetY = -100;
+  camera.targetZoom = 1;
+
+  camera.focusOn(900, -500, 1, 0.8);
+
+  assert.ok(Math.abs(camera.focusCue.x - camera.targetX) <= 90);
+  assert.ok(Math.abs(camera.focusCue.y - camera.targetY) <= 55);
+  assert.ok(camera.focusCue.duration <= 0.55);
+  assert.ok(Math.abs(camera.focusCue.zoom - camera.targetZoom) < 0.08);
+});
+
 test('the Dark Lord doom laser applies one readable full hit', () => {
   particles.reset();
   const manager = new ProjectileManager();
@@ -357,20 +411,279 @@ test('new-run resets restore upgrades and clear transient systems', () => {
   );
 });
 
-test('the final-stage exit completes the run without advancing to stage 11', () => {
+test('post-Dark-Lord stages do not wrap back to the desktop', () => {
   const manager = new StageManager();
-  manager.currentStage = 10;
-  manager.maxStage = 10;
+  manager.loadStage(11);
+
+  assert.equal(manager.currentStage, 11);
+  assert.equal(manager.maxStage, 15);
+  assert.notEqual(manager.stageName, 'Main Desktop');
+  assert.notEqual(manager.theme, 'desktop');
+});
+
+test('stage 14 advances to H4C3R and stage 15 completes the campaign', () => {
+  const manager = new StageManager();
+  manager.currentStage = 14;
   let completions = 0;
   const advancedStages = [];
 
-  const result = manager.resolveStageExit(
-    11,
+  const advanceResult = manager.resolveStageExit(
+    15,
+    () => { completions += 1; },
+    stage => advancedStages.push(stage)
+  );
+  manager.currentStage = 15;
+  const completionResult = manager.resolveStageExit(
+    16,
     () => { completions += 1; },
     stage => advancedStages.push(stage)
   );
 
-  assert.equal(result, 'complete');
+  assert.equal(advanceResult, 'advance');
+  assert.equal(completionResult, 'complete');
   assert.equal(completions, 1);
-  assert.deepEqual(advancedStages, []);
+  assert.deepEqual(advancedStages, [15]);
+});
+
+test('late campaign waves are handcrafted, capped, and route both new bosses', () => {
+  for (const stage of [11, 12, 13, 14, 15]) {
+    const director = new WaveDirector();
+    director.generateWaveQueue(stage);
+    assert.ok(director.spawnQueue.length <= 30, `stage ${stage} queued too many enemies`);
+    if (stage === 11) assert.ok(director.spawnQueue.some(entry => entry.type === 'king_orange'));
+    if (stage === 15) assert.ok(director.spawnQueue.some(entry => entry.type === 'h4c3r'));
+  }
+});
+
+test('wave director never spawns beyond its active-enemy budget', () => {
+  const director = new WaveDirector();
+  const enemyStub = () => ({ isDead: false, update() {} });
+  director.isWaveActive = true;
+  director.spawnTimer = 0;
+  director.zombies = Array.from({ length: director.maxActiveEnemies }, enemyStub);
+  director.spawnQueue = [{ type: 'walker', delay: 0.1 }];
+  let spawnCalls = 0;
+  director.spawnZombie = () => {
+    spawnCalls += 1;
+    director.zombies.push(enemyStub());
+  };
+
+  director.update(0.1, { x: 0, y: 0 }, 0, [], { addShake() {} }, () => {});
+  assert.equal(spawnCalls, 0);
+  assert.equal(director.zombies.length, director.maxActiveEnemies);
+
+  director.zombies.pop();
+  director.spawnTimer = 0;
+  director.update(0.1, { x: 0, y: 0 }, 0, [], { addShake() {} }, () => {});
+  assert.equal(spawnCalls, 1);
+  assert.equal(director.zombies.length, director.maxActiveEnemies);
+});
+
+test('stage laser hazards respect player invulnerability frames', () => {
+  const manager = new StageManager();
+  manager.loadStage(14);
+  const laser = manager.laserHazards[0];
+  let damageCalls = 0;
+  const player = {
+    x: laser.x + laser.width * 0.5,
+    y: laser.y + 30,
+    isDead: false,
+    isRolling: false,
+    isAwakened: false,
+    iFrames: 0.5,
+    takeDamage() {
+      damageCalls += 1;
+      this.iFrames = 0.8;
+    }
+  };
+  const inactiveWave = { isWaveActive: false, spawnQueue: [], zombies: [] };
+
+  manager.update(0.01, player, inactiveWave, () => {});
+  assert.equal(damageCalls, 0);
+
+  player.iFrames = 0;
+  manager.update(0.01, player, inactiveWave, () => {});
+  assert.equal(damageCalls, 1);
+});
+
+test('clearing a stage gives the exit a brief camera cue', () => {
+  projectiles.reset();
+  const manager = new StageManager();
+  manager.loadStage(12);
+  const calls = [];
+  const camera = {
+    focusOn(...args) { calls.push(['focus', ...args]); },
+    addZoomPunch(amount) { calls.push(['zoom', amount]); }
+  };
+  const player = { x: -800, y: 0, isDead: false };
+  const clearedWave = { isWaveActive: true, spawnQueue: [], zombies: [] };
+  projectiles.projectiles.push(
+    { type: 'enemy_shot', isHostile: true },
+    { type: 'pencil_spear', isHostile: false }
+  );
+  projectiles.hazards.push({ type: 'acid' });
+
+  manager.update(0.016, player, clearedWave, () => {}, camera);
+
+  assert.equal(manager.exitDoor.isOpen, true);
+  assert.equal(calls[0][0], 'focus');
+  assert.equal(calls[1][0], 'zoom');
+  assert.deepEqual(projectiles.projectiles.map((entry) => entry.type), ['pencil_spear']);
+  assert.equal(projectiles.hazards.length, 0);
+  projectiles.reset();
+});
+
+test('the final exit waits for H4C3R defeat framing to finish', () => {
+  projectiles.reset();
+  const manager = new StageManager();
+  manager.loadStage(15);
+  const calls = [];
+  const camera = {
+    focusOn(...args) { calls.push(['focus', ...args]); },
+    addZoomPunch(amount) { calls.push(['zoom', amount]); }
+  };
+  const player = { x: -800, y: 0, isDead: false };
+  const clearedWave = { isWaveActive: true, spawnQueue: [], zombies: [] };
+
+  manager.update(0.016, player, clearedWave, () => {}, camera);
+  assert.equal(manager.exitDoor.isOpen, true);
+  assert.deepEqual(calls, [], 'the exit pan must not overwrite the boss defeat focus');
+
+  for (let i = 0; i < 60; i += 1) manager.update(0.016, player, clearedWave, () => {}, camera);
+  assert.equal(calls[0][0], 'focus');
+  assert.equal(calls[1][0], 'zoom');
+});
+
+test('new boss renderers are pure and expose the wave-director contract', () => {
+  particles.reset();
+  const bosses = [new KingOrange(10, 0), new H4C3R(-10, 0)];
+  const { context } = createCanvasContextMock();
+
+  for (const boss of bosses) {
+    boss.renderer.draw = () => {};
+    assert.equal(boss.isBoss, true);
+    assert.ok(Number.isFinite(boss.x));
+    assert.ok(Number.isFinite(boss.y));
+    assert.ok(Number.isFinite(boss.radius));
+    assert.ok(Number.isFinite(boss.maxHp) && boss.maxHp > 0);
+    for (let i = 0; i < 10; i += 1) boss.draw(context);
+  }
+
+  assert.equal(particles.particles.length, 0);
+});
+
+test('boss telegraphs stay grounded and H4C3R has one wave-owned intro', () => {
+  const player = new Player(0, 0);
+  const bossTarget = {
+    x: 20,
+    y: 0,
+    radius: 30,
+    height: 84,
+    isDead: false,
+    isBoss: true,
+    vy: 0,
+    takeDamage() {}
+  };
+
+  player.checkMeleeHits([bossTarget], 110, 1, 0, false, '#fff', null, true);
+  assert.equal(bossTarget.vy, 0);
+  assert.equal(player.airJuggleTarget, null);
+
+  const h4c3r = new H4C3R(300, 0);
+  h4c3r.actionCooldown = 10;
+  const focusCalls = [];
+  h4c3r.update(
+    0.016,
+    0,
+    { x: -300, y: 0, vx: 0, isDead: false, isRolling: false, isAwakened: false },
+    [],
+    { focusOn(...args) { focusCalls.push(args); } },
+    []
+  );
+  assert.equal(focusCalls.length, 0, 'the wave director owns the only boss intro focus');
+});
+
+test('freeze slows King Orange time and movement by the same factor', () => {
+  const simulateDash = (frozen) => {
+    const boss = new KingOrange(0, 0);
+    boss.state = 'gold_dash';
+    boss.stateTimer = 0.24;
+    boss.vx = 610;
+    boss.facing = 1;
+    if (frozen) boss.freezeTimer = 1;
+    const player = { x: -900, y: 0, isDead: false, isRolling: false, isAwakened: false };
+    let frames = 0;
+    while (boss.state === 'gold_dash' && frames < 100) {
+      boss.update(0.01, 0, player, [], null, []);
+      frames += 1;
+    }
+    return boss.x;
+  };
+
+  const normalDistance = simulateDash(false);
+  const frozenDistance = simulateDash(true);
+  assert.ok(Math.abs(normalDistance - frozenDistance) < 6, `${normalDistance} vs ${frozenDistance}`);
+});
+
+test('boss-owned cleanup cannot strand the projectile that dealt the final hit', () => {
+  projectiles.reset();
+  const boss = new KingOrange(0, 0);
+  boss.hp = 1;
+  projectiles.projectiles.push(
+    {
+      type: 'king_block', owner: boss.projectileOwner, x: 400, y: -30,
+      vx: 0, vy: 0, radius: 18, damage: 1, isHostile: true, life: 1
+    },
+    {
+      type: 'pencil_spear', x: 0, y: -30, vx: 0, vy: 0,
+      radius: 18, damage: 20, isHostile: false, life: 1, pierce: 0
+    }
+  );
+
+  projectiles.update(0.016, 0, [boss], null, { addShake() {} });
+
+  assert.equal(boss.isDead, true);
+  assert.deepEqual(projectiles.projectiles, []);
+  projectiles.reset();
+});
+
+test('speech corpus gives every ally terse, character-specific banter', () => {
+  const allyNames = ['red', 'blue', 'yellow', 'green', 'cursor'];
+  for (const allyName of allyNames) {
+    const lines = SPEECH_CORPUS.allies[allyName];
+    assert.ok(Array.isArray(lines) && lines.length >= 3, `${allyName} needs its own quips`);
+    assert.ok(lines.every(line => line.length <= 24), `${allyName} has an unreadably long quip`);
+  }
+
+  let now = 1000;
+  const manager = new SpeechBubbleManager(() => now);
+  assert.equal(manager.shout(0, 0, 'allies', 'red'), true);
+  assert.equal(manager.shout(20, 0, 'allies', 'blue'), true, 'one ally must not silence another');
+  assert.equal(manager.shout(0, 0, 'allies', 'red'), false, 'the same speaker should still be throttled');
+  now += 400;
+  assert.equal(manager.shout(0, 0, 'allies', 'red'), true);
+});
+
+test('three simultaneous speech bubbles occupy distinct readable lanes', () => {
+  const manager = new SpeechBubbleManager(() => 1000);
+  manager.spawnBubble(400, 300, 'ONE!', 'ally-red', 1.4, { speakerKey: 'one', cooldownMs: 0 });
+  manager.spawnBubble(400, 300, 'TWO!', 'ally-blue', 1.4, { speakerKey: 'two', cooldownMs: 0 });
+  manager.spawnBubble(400, 300, 'THREE!', 'ally-green', 1.4, { speakerKey: 'three', cooldownMs: 0 });
+  const { calls, context } = createCanvasContextMock();
+
+  manager.draw(context, null, 800, 600);
+
+  const bubbleYs = calls.translate.slice(-3).map(([, y]) => y);
+  assert.equal(new Set(bubbleYs).size, 3);
+  assert.ok(bubbleYs.every((y) => y >= 180), 'bubbles should stay below the two-row compact HUD');
+});
+
+test('an empty speech layer performs no canvas work', () => {
+  const manager = new SpeechBubbleManager();
+  const { calls, context } = createCanvasContextMock();
+
+  manager.draw(context, null, 800, 600);
+
+  assert.equal(calls.save, 0);
+  assert.equal(calls.restore, 0);
 });

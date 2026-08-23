@@ -344,7 +344,7 @@ export class Player {
       audio.playWhoosh();
       audio.playBassDrop();
       particles.addComicPopup(this.x, this.y - 15, 'DIVE!', '#ff3300', '#ffff00');
-      if (Math.random() < 0.4) speech.shout(this.x, this.y, 'playerAttack');
+      if (Math.random() < 0.4) speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
       return;
     }
 
@@ -408,7 +408,10 @@ export class Player {
       target.takeDamage(85 * this.damageMultiplier, this.facing, 420, true);
       particles.addShockwave(target.x, target.y - 30, 110, '#ff7700', 8);
       particles.addComicPopup(target.x, target.y - 60, 'PROCESS BREAK!', '#ff6600', '#ffffff');
-      if (camera) camera.addShake(0.45);
+      if (camera) {
+        camera.addShake(0.45);
+        camera.addZoomPunch?.(0.045);
+      }
       return true;
     }
 
@@ -427,6 +430,7 @@ export class Player {
     if (camera) {
       camera.addShake(0.65);
       camera.addHitstop(0.12);
+      camera.addZoomPunch?.(0.07);
     }
     particles.triggerSpeedlines(0.35);
 
@@ -461,7 +465,7 @@ export class Player {
     // 5. Instantly kill target and spawn lower body bowling projectile that wipes out enemy lines
     target.die(true);
     projectiles.spawnThrownZombie(this.x + this.facing * 40, this.y - 30, this.facing, 140);
-    speech.shout(this.x, this.y, 'playerAttack');
+    speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
     return true;
   }
 
@@ -474,10 +478,11 @@ export class Player {
     audio.playSlash();
     audio.playBassDrop();
     camera.addShake(0.35);
+    camera.addZoomPunch?.(0.04);
     particles.triggerSpeedlines(0.22);
     particles.addComicPopup(this.x + this.facing * 60, this.y - 30, 'KRAK!', '#ff6600', '#ffffff');
     projectiles.spawnJavelin(this.x + this.facing * 40, this.y - 30, this.facing, 95);
-    speech.shout(this.x, this.y, 'playerAttack');
+    speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
   }
 
   executeAirChase(zombies, camera) {
@@ -511,13 +516,14 @@ export class Player {
     this.vx = this.facing * 120;
     this.pose = 'attack_air_flurry';
     camera.addShake(0.35);
+    camera.addZoomPunch?.(0.045);
 
     // Multi-hit aerial damage and launch meteor slam
     const damage = 65 * (this.damageMultiplier || 1.0);
     target.takeDamage(damage, this.facing, 450, true);
     target.vy = 850; // Slam zombie to floor!
     particles.createHitSparks(target.x, target.y, 14, '#ffdd00');
-    speech.shout(this.x, this.y, 'playerAttack');
+    speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
   }
 
   executeRisingUppercut(zombies, camera) {
@@ -535,7 +541,7 @@ export class Player {
     particles.addShockwave(this.x, this.y - 20, 60, '#ffbb00', 6);
     particles.addSlashArc(this.x, this.y - 40, 80, -Math.PI / 2, this.facing, '#ffea00', 8);
     particles.addComicPopup(this.x + this.facing * 30, this.y - 50, 'SHORYU!', '#ffaa00', '#ffffff');
-    speech.shout(this.x, this.y, 'playerAttack');
+    speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
 
     const damage = 42 * (this.damageMultiplier || 1.0);
     this.checkMeleeHits(zombies, 110, damage, 580, true, '#ffee00', camera, true);
@@ -564,7 +570,7 @@ export class Player {
     audio.playSlash();
     particles.createDust(this.x, this.y, 8, this.facing);
     particles.addSlashArc(this.x, this.y - 8, 90, 0, this.facing, '#ff7700', 8);
-    speech.shout(this.x, this.y, 'playerAttack');
+    speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
 
     const damage = 38 * (this.damageMultiplier || 1.0);
     this.checkMeleeHits(zombies, 130, damage, 600, true, '#ffaa00', camera);
@@ -618,6 +624,7 @@ export class Player {
       audio.playFinisherImpact();
       audio.playPunch('heavy');
       camera.addShake(0.4);
+      camera.addZoomPunch?.(0.05);
       damage *= 3.4;
       knockback = 800;
       hitRadius = 155;
@@ -628,7 +635,7 @@ export class Player {
       particles.addShockwave(this.x, this.y - 25, 120, '#ff7700', 8);
 
       // Trigger hilarious 80s speech shout on combo finisher!
-      speech.shout(this.x, this.y, 'playerAttack');
+      speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
     }
 
     this.checkMeleeHits(zombies, hitRadius, damage, knockback, isCrit, hitSparkColor, camera);
@@ -651,7 +658,7 @@ export class Player {
       audio.playPlayerEffort();
       camera.addShake(0.3);
       particles.addSlashArc(this.x, this.y - 25, 130, 0, this.facing, '#ffaa00', 9);
-      speech.shout(this.x, this.y, 'playerAttack');
+      speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
       this.checkMeleeHits(zombies, 140, baseDamage * 1.5, 680, true, '#ffbb00', camera);
       return;
     } else if (this.comboStep === 2) {
@@ -664,7 +671,7 @@ export class Player {
       audio.playFinisherImpact();
       camera.addShake(0.35);
       particles.createPencilLeadTrail(this.x + this.facing * 45, this.y - 30, 12, this.facing);
-      speech.shout(this.x, this.y, 'playerAttack');
+      speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
       this.checkMeleeHits(zombies, 150, baseDamage * 1.8, 720, true, '#ffcc00', camera);
       return;
     }
@@ -684,7 +691,7 @@ export class Player {
       particles.createPencilLeadTrail(this.x + this.facing * 40, this.y - 30, 8, this.facing);
     }
     if (Math.random() < 0.3) {
-      speech.shout(this.x, this.y, 'playerAttack');
+      speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
     }
 
     this.checkMeleeHits(zombies, range, baseDamage, 650, true, '#ffaa00', camera);
@@ -732,8 +739,9 @@ export class Player {
         combat.registerHit(damage, isCrit);
         particles.createHitSparks(z.x, z.y - (z.height || 50) * 0.5, isCrit ? 12 : 6, sparkColor);
 
-        // Uppercut launches enemy high into the air for Air-Chase juggles
-        if (isUppercut) {
+        // Boss telegraphs are ground-authored and must stay aligned with their
+        // damage zones. Regular enemies still launch into the full air chase.
+        if (isUppercut && !z.isBoss) {
           z.vy = -720;
           this.airJuggleTarget = z;
         }
@@ -759,6 +767,7 @@ export class Player {
 
     if (hitAny && camera) {
       camera.addHitstop(isCrit ? 0.08 : 0.04);
+      if (isCrit) camera.addZoomPunch?.(0.035);
     }
   }
 
@@ -794,10 +803,13 @@ export class Player {
     this.awakenedTimer = this.awakenedDuration;
     this.superMeter = 0;
     audio.playAwakening();
-    if (camera) camera.addShake(0.6);
+    if (camera) {
+      camera.addShake(0.6);
+      camera.addZoomPunch?.(0.08);
+    }
     particles.addShockwave(this.x, this.y - 30, 200, '#ffee00', 12);
     particles.addTextBanner(this.x, this.y - 80, '⚡ GOD MODE AWAKENED! ⚡', '#ffee00');
-    speech.shout(this.x, this.y, 'playerAwakened', null, 3.0);
+    speech.shout(this.x, this.y, 'playerAwakened', null, 2.4, { anchor: this, priority: 3 });
   }
 
   deactivateAwakening() {
@@ -959,7 +971,7 @@ export class Player {
     particles.addDamageText(this.x, this.y - 40, amount, false, '#ff3344');
     particles.createHitSparks(this.x, this.y - 30, 8, '#ff3344');
     if (Math.random() < 0.45) {
-      speech.shout(this.x, this.y, 'playerHurt', null, 2.0);
+      speech.shout(this.x, this.y, 'playerHurt', null, 1.6, { anchor: this });
     }
 
     if (this.hp <= 0) {

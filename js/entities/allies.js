@@ -84,6 +84,7 @@ export class AllyManager {
             ally.hasActed = true;
             // Slam shockwave
             camera.addShake(0.7);
+            camera.addZoomPunch?.(0.055);
             audio.playPunch('heavy');
             particles.addShockwave(ally.x, groundY, 240, '#ff3344', 14);
             particles.createHitSparks(ally.x, groundY, 24, '#ff5533');
@@ -94,6 +95,10 @@ export class AllyManager {
                 z.takeDamage(140, ally.x < z.x ? 1 : -1, 800, true);
               }
             }
+            speech.shout(ally.x, ally.y, 'allies', 'red', 1.35, {
+              anchor: ally,
+              priority: 2
+            });
           }
         } else if (ally.hasActed && ally.timer > 1.2) {
           // Exit after exactly one landing impact.
@@ -120,6 +125,10 @@ export class AllyManager {
             }
           }
           particles.addTextBanner(ally.x, ally.y - 50, 'POTION SPLASH!', '#2299ff');
+          speech.shout(ally.x, ally.y, 'allies', 'blue', 1.35, {
+            anchor: ally,
+            priority: 2
+          });
         } else if (ally.timer > 1.4) {
           ally.y -= 900 * dt;
         }
@@ -140,6 +149,10 @@ export class AllyManager {
             damage: 26
           });
           particles.addTextBanner(ally.x, ally.y - 50, 'REDSTONE TURRET ACTIVE!', '#ffcc00');
+          speech.shout(ally.x, ally.y, 'allies', 'yellow', 1.35, {
+            anchor: ally,
+            priority: 2
+          });
         } else if (ally.timer > 1.2) {
           ally.y -= 900 * dt;
         }
@@ -159,6 +172,11 @@ export class AllyManager {
             }
           }
           particles.addTextBanner(ally.x, ally.y - 50, 'SONIC NOTE WAVE!', '#33dd66');
+          camera.addZoomPunch?.(0.025);
+          speech.shout(ally.x, ally.y, 'allies', 'green', 1.35, {
+            anchor: ally,
+            priority: 2
+          });
         } else if (ally.timer > 1.4) {
           ally.y -= 900 * dt;
         }
@@ -236,6 +254,7 @@ export class AllyManager {
         audio.playMouseClick();
         audio.playRecycleBinDelete();
         camera.addShake(0.5);
+        camera.addZoomPunch?.(0.045);
 
         // Delete ordinary malware; bosses instead take a powerful interrupt so
         // a single cooldown cannot skip the entire finale.
@@ -256,6 +275,11 @@ export class AllyManager {
             }
           }
         }
+        speech.shout(c.x, c.y, 'allies', 'cursor', 1.25, {
+          anchor: c,
+          anchorOffsetY: -12,
+          priority: 2
+        });
       } else if (c.timer > 0.95) {
         // Phase 4: Zoom away
         c.showMenu = false;
@@ -397,16 +421,21 @@ export class AllyManager {
       let targetZombie = null;
       let minDist = 9999;
       if (zombies && zombies.length > 0) {
-        for (const z of zombies) {
-          if (z.isDead) continue;
-          const dist = Math.abs(z.x - targetX);
-          if (z.type === 'brute' || z.type === 'titan_boss') {
-            targetZombie = z; // prioritize big zombies
-            break;
-          }
-          if (dist < minDist) {
-            minDist = dist;
-            targetZombie = z;
+        // Bosses always outrank ordinary brutes, even if a brute appears first
+        // in the wave array.
+        targetZombie = zombies.find((z) => !z.isDead && z.isBoss) || null;
+        if (!targetZombie) {
+          for (const z of zombies) {
+            if (z.isDead) continue;
+            const dist = Math.abs(z.x - targetX);
+            if (z.type === 'brute' || z.type === 'titan_boss') {
+              targetZombie = z; // prioritize big ordinary enemies
+              break;
+            }
+            if (dist < minDist) {
+              minDist = dist;
+              targetZombie = z;
+            }
           }
         }
       }
@@ -429,7 +458,6 @@ export class AllyManager {
         life: 1.6
       });
 
-      speech.shout(spawnX, spawnY, 'allies', 'cursor');
       return true;
     }
 
@@ -447,7 +475,6 @@ export class AllyManager {
       hasActed: false
     });
 
-    speech.shout(spawnX, targetY - 60, 'allies', type);
     return true;
   }
 }

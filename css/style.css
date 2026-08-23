@@ -292,6 +292,36 @@ body, html {
   100% { box-shadow: 0 0 35px rgba(255, 0, 50, 0.9), inset 0 0 20px rgba(255, 0, 50, 0.4); }
 }
 
+.boss-health-container.king-orange-boss {
+  border-color: #ff9d1e;
+  box-shadow: 0 0 26px rgba(255, 143, 25, 0.62), inset 0 0 14px rgba(255, 196, 62, 0.18);
+}
+
+.boss-health-container.king-orange-boss .boss-name {
+  color: #ffd166;
+  text-shadow: 0 0 10px #ff8f19;
+}
+
+.boss-health-container.king-orange-boss .boss-bar-fill {
+  background: linear-gradient(90deg, #7a3200, #ff8f19, #ffe09a);
+  box-shadow: 0 0 16px rgba(255, 143, 25, 0.92);
+}
+
+.boss-health-container.h4c3r-boss {
+  border-color: #32f5c7;
+  box-shadow: 0 0 28px rgba(50, 245, 199, 0.55), inset 0 0 14px rgba(255, 62, 126, 0.16);
+}
+
+.boss-health-container.h4c3r-boss .boss-name {
+  color: #67ffdc;
+  text-shadow: 2px 0 #ff3e7e, -2px 0 #3aa8ff, 0 0 12px #32f5c7;
+}
+
+.boss-health-container.h4c3r-boss .boss-bar-fill {
+  background: linear-gradient(90deg, #123d49, #32f5c7 55%, #ff3e7e);
+  box-shadow: 0 0 18px rgba(50, 245, 199, 0.92);
+}
+
 /* Top Right Score & Ink Currency */
 .hud-score-box {
   display: flex;

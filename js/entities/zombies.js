@@ -255,7 +255,7 @@ export class Zombie {
       // Horde Flocking / Separation Force (Prevents single-file smearing)
       if (zombies && Array.isArray(zombies)) {
         for (const other of zombies) {
-          if (other !== this && !other.isDead && other.type !== 'titan_boss' && other.type !== 'dark_lord') {
+          if (other !== this && !other.isDead && !other.isBoss) {
             const sepDx = this.x - other.x;
             const sepDist = Math.abs(sepDx);
             const minDist = (this.radius + other.radius) + 10;
@@ -417,7 +417,10 @@ export class Zombie {
     particles.createStickLimbExplosion(this.x, this.y, 0, this.color);
 
     if (Math.random() < 0.38) {
-      speech.shout(this.x, this.y - 10, 'zombieGroan', null, 2.0);
+      speech.shout(this.x, this.y - 10, 'zombieGroan', null, 1.35, {
+        anchor: this,
+        anchorOffsetY: -54
+      });
     }
   }
 

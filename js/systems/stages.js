@@ -2,11 +2,12 @@
 
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
+import { projectiles } from '../entities/projectiles.js';
 
 export class StageManager {
   constructor() {
     this.currentStage = 1;
-    this.maxStage = 10;
+    this.maxStage = 15;
     this.stageName = 'Main Desktop';
     this.theme = 'desktop'; // 'desktop', 'animate', 'downloads', 'firewall', 'bsod'
 
@@ -31,16 +32,21 @@ export class StageManager {
     // Objective state
     this.isObjectiveComplete = false;
     this.doorTransitionTimer = 0;
+    this.exitFocusTimer = -1;
 
     // Build Stage 1 on init
     this.loadStage(1);
   }
 
   loadStage(stageNum) {
-    this.currentStage = stageNum;
+    this.maxStage = 15;
+    const numericStage = Number.isFinite(stageNum) ? Math.trunc(stageNum) : 1;
+    const stage = Math.max(1, Math.min(this.maxStage, numericStage));
+    this.currentStage = stage;
     this.isObjectiveComplete = false;
     this.exitDoor.isOpen = false;
     this.doorTransitionTimer = 0;
+    this.exitFocusTimer = -1;
 
     // Reset collections
     this.platforms = [];
@@ -48,9 +54,6 @@ export class StageManager {
     this.desktopIcons = [];
     this.laserHazards = [];
     this.errorPopups = [];
-
-    this.maxStage = 10;
-    const stage = ((stageNum - 1) % 10) + 1;
 
     switch (stage) {
       case 1:
@@ -82,6 +85,21 @@ export class StageManager {
         break;
       case 10:
         this.buildStage10DarkCore();
+        break;
+      case 11:
+        this.buildStage11CommandThrone();
+        break;
+      case 12:
+        this.buildStage12GlitchBrowser();
+        break;
+      case 13:
+        this.buildStage13CloudCache();
+        break;
+      case 14:
+        this.buildStage14RootGateway();
+        break;
+      case 15:
+        this.buildStage15ZeroDayMainframe();
         break;
     }
   }
@@ -449,7 +467,7 @@ export class StageManager {
     this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
     this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 
-    // Ultimate Boss Arena Layout
+    // Dark Lord boss arena layout
     this.platforms = [
       { x: -560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_ALPHA [CRITICAL]', appType: 'dark_core' },
       { x: 560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_OMEGA [CRITICAL]', appType: 'dark_core' },
@@ -466,7 +484,133 @@ export class StageManager {
     });
   }
 
-  update(dt, player, wavesDirector, onStageExit) {
+  buildStage11CommandThrone() {
+    this.stageName = 'King Orange: Corrupted Replay';
+    this.theme = 'command_realm';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    // A broad, uncluttered duel floor with three useful escape platforms.
+    this.platforms = [
+      { x: -560, y: -170, width: 260, height: 24, title: 'GOLD_BLOCK_RAMPART', appType: 'command' },
+      { x: 0, y: -310, width: 340, height: 26, title: 'COMMAND_BLOCK_THRONE', appType: 'command' },
+      { x: 560, y: -170, width: 260, height: 24, title: 'NETHERITE_RAMPART', appType: 'command' }
+    ];
+
+    this.desktopIcons = [
+      { x: -850, y: -115, label: 'gold_block.dat', icon: '🟨' },
+      { x: 850, y: -115, label: 'command_block.exe', icon: '🟧' }
+    ];
+  }
+
+  buildStage12GlitchBrowser() {
+    this.stageName = 'Glitch Browser Run';
+    this.theme = 'browser_glitch';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    this.platforms = [
+      { x: -620, y: -165, width: 250, height: 22, title: 'Tab: definitely_safe.exe', appType: 'browser' },
+      { x: 0, y: -270, width: 300, height: 22, title: '404_REALITY_NOT_FOUND', appType: 'browser' },
+      { x: 620, y: -165, width: 250, height: 22, title: 'Tab: close_me_now.js', appType: 'browser' }
+    ];
+
+    this.movingPlatforms.push({
+      x: 0, y: -390, width: 190, height: 20, title: 'Loading… 99%', appType: 'browser',
+      minX: -300, maxX: 300, speed: 150, dir: 1, axis: 'x'
+    });
+
+    this.errorPopups.push({
+      x: -360, y: -120, width: 150, height: 72, title: '⚠ POP-UP', msg: 'You won a zombie!'
+    });
+    this.errorPopups.push({
+      x: 380, y: -120, width: 150, height: 72, title: 'COOKIE ERROR', msg: 'Brains accepted.'
+    });
+  }
+
+  buildStage13CloudCache() {
+    this.stageName = 'Corrupted Cloud Cache';
+    this.theme = 'cloud_cache';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    this.platforms = [
+      { x: -650, y: -150, width: 220, height: 22, title: 'CACHE_SHARD_A', appType: 'cloud' },
+      { x: -220, y: -280, width: 190, height: 22, title: 'SYNC_CONFLICT_01', appType: 'cloud' },
+      { x: 220, y: -280, width: 190, height: 22, title: 'SYNC_CONFLICT_02', appType: 'cloud' },
+      { x: 650, y: -150, width: 220, height: 22, title: 'CACHE_SHARD_B', appType: 'cloud' }
+    ];
+
+    this.movingPlatforms.push({
+      x: 0, y: -165, width: 180, height: 20, title: 'Cloud Sync', appType: 'cloud',
+      minY: -370, maxY: -120, speed: 115, dir: -1, axis: 'y'
+    });
+
+    this.desktopIcons = [
+      { x: -850, y: -105, label: 'backup_old.zip', icon: '☁️' },
+      { x: 850, y: -105, label: 'sync_failed.log', icon: '⚡' }
+    ];
+  }
+
+  buildStage14RootGateway() {
+    this.stageName = 'Root Access Gateway';
+    this.theme = 'root_gateway';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    this.platforms = [
+      { x: -590, y: -185, width: 250, height: 22, title: 'AUTH_GATE_LEFT', appType: 'terminal' },
+      { x: 0, y: -310, width: 320, height: 24, title: 'sudo ./open_root --please', appType: 'terminal' },
+      { x: 590, y: -185, width: 250, height: 22, title: 'AUTH_GATE_RIGHT', appType: 'terminal' }
+    ];
+
+    // Alternating lanes keep movement lively without layering many hazards.
+    this.laserHazards.push({
+      x: -470, y: -95, width: 260, height: 9, timer: 0,
+      cycleDuration: 3.2, activeDuration: 1.15, damage: 20
+    });
+    this.laserHazards.push({
+      x: 210, y: -95, width: 260, height: 9, timer: 1.6,
+      cycleDuration: 3.2, activeDuration: 1.15, damage: 20
+    });
+  }
+
+  buildStage15ZeroDayMainframe() {
+    this.stageName = 'Zero-Day Mainframe';
+    this.theme = 'zero_day';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    // Keep the finale readable: H4C3R supplies the moving threats.
+    this.platforms = [
+      { x: -570, y: -180, width: 260, height: 24, title: 'FREE_TRANSFORM_LEFT', appType: 'zero_day' },
+      { x: 0, y: -325, width: 360, height: 26, title: 'ROOT://H4C3R/CONTROL', appType: 'zero_day' },
+      { x: 570, y: -180, width: 260, height: 24, title: 'FREE_TRANSFORM_RIGHT', appType: 'zero_day' }
+    ];
+
+    this.desktopIcons = [
+      { x: -850, y: -110, label: 'memory.scan', icon: '◫' },
+      { x: 850, y: -110, label: 'root.key', icon: '⌘' }
+    ];
+  }
+
+  update(dt, player, wavesDirector, onStageExit, camera = null) {
+    // Let the final boss's defeat camera land before revealing the exit. Other
+    // stages keep the immediate door pan that helps players navigate onward.
+    if (this.exitFocusTimer > 0) {
+      this.exitFocusTimer -= dt;
+      if (this.exitFocusTimer <= 0) {
+        this.exitFocusTimer = -1;
+        camera?.focusOn?.(this.exitDoor.x, this.exitDoor.y - 45, 0.45, 0.96);
+        camera?.addZoomPunch?.(0.03);
+      }
+    }
+
     // 1. Update Moving Platforms
     for (const p of this.movingPlatforms) {
       if (p.axis === 'x') {
@@ -486,7 +630,7 @@ export class StageManager {
       const isActive = laser.timer < laser.activeDuration;
 
       // Damage player if walking into active laser beam
-      if (isActive && player && !player.isRolling && !player.isAwakened) {
+      if (!this.isObjectiveComplete && isActive && player && (player.iFrames || 0) <= 0 && !player.isRolling && !player.isAwakened) {
         if (player.x >= laser.x - 20 && player.x <= laser.x + laser.width + 20 &&
             Math.abs(player.y - 30 - laser.y) < 25) {
           audio.playLaserZap();
@@ -504,9 +648,16 @@ export class StageManager {
     if (allEnemiesDefeated && !this.isObjectiveComplete) {
       this.isObjectiveComplete = true;
       this.exitDoor.isOpen = true;
+      projectiles.clearHostileEffects?.();
       audio.playDoorUnlock();
       particles.addTextBanner(this.exitDoor.x, this.exitDoor.y - 120, '★ EXIT DOOR OPEN! ★', '#33ff88');
       particles.addShockwave(this.exitDoor.x, this.exitDoor.y - 45, 120, '#33ff88', 8);
+      if (this.currentStage === this.maxStage) {
+        this.exitFocusTimer = 0.9;
+      } else {
+        camera?.focusOn?.(this.exitDoor.x, this.exitDoor.y - 45, 0.45, 0.96);
+        camera?.addZoomPunch?.(0.03);
+      }
     }
 
     // 4. Check if player enters Exit Door
@@ -701,7 +852,111 @@ export class StageManager {
       ctx.shadowBlur = 12;
       ctx.fillText(">>> CRITICAL THREAT: THE_DARK_LORD.EXE HAS CORRUPTED THE CORE <<<", minX + 60, minY + 80);
       ctx.fillText(">>> SYSTEM INTEGRITY: 0% | VIRABOT POWER LEVEL: MAXIMUM <<<", minX + 60, minY + 110);
-      ctx.fillText(">>> DEFEAT THE DARK LORD TO RESTORE THE DESKTOP <<<", minX + 60, minY + 140);
+      ctx.fillText(">>> DEFEAT THE DARK LORD TO OPEN THE OUTERNET PATH <<<", minX + 60, minY + 140);
+    } else if (this.theme === 'command_realm') {
+      // A corrupted playback of King Orange's command-block arena.
+      paintBackdrop('#241306');
+      ctx.strokeStyle = 'rgba(255, 157, 35, 0.26)';
+      ctx.lineWidth = 2;
+      for (let x = minX; x <= maxX; x += 80) {
+        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
+      }
+      for (let y = minY; y <= maxY; y += 80) {
+        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(255, 192, 66, 0.18)';
+      for (let i = 0; i < 12; i++) {
+        const x = minX + 90 + i * 180;
+        const y = minY + 110 + (i % 3) * 145;
+        ctx.fillRect(x, y, 38, 38);
+        ctx.strokeRect(x + 7, y + 7, 24, 24);
+      }
+      ctx.fillStyle = '#ffb13b';
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText('ARCHIVE://KING_ORANGE — CORRUPTED REPLAY', minX + 60, minY + 70);
+      ctx.fillText('BREAK THE LOOP. SAVE THE KING.', minX + 60, minY + 100);
+    } else if (this.theme === 'browser_glitch') {
+      paintBackdrop('#10192d');
+      ctx.fillStyle = '#202c47';
+      ctx.fillRect(minX, minY + 34, maxX - minX, 58);
+      for (let i = 0; i < 8; i++) {
+        const x = minX + 25 + i * 280;
+        ctx.fillStyle = i % 2 ? '#2d3a58' : '#334767';
+        ctx.fillRect(x, minY + 48, 245, 34);
+        ctx.fillStyle = i % 3 === 0 ? '#ff5f56' : '#6ee7ff';
+        ctx.fillRect(x + 12, minY + 62, 8, 8);
+      }
+      ctx.strokeStyle = 'rgba(83, 212, 255, 0.2)';
+      ctx.lineWidth = 4;
+      for (let i = 0; i < 10; i++) {
+        const y = minY + 130 + i * 55;
+        const skew = (i % 2 ? 1 : -1) * 80;
+        ctx.beginPath();
+        ctx.moveTo(minX + 40, y);
+        ctx.lineTo(maxX - 40, y + skew);
+        ctx.stroke();
+      }
+    } else if (this.theme === 'cloud_cache') {
+      paintBackdrop('#102942');
+      ctx.fillStyle = 'rgba(150, 220, 255, 0.1)';
+      ctx.strokeStyle = 'rgba(133, 216, 255, 0.22)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 12; i++) {
+        const x = minX + 70 + i * 190;
+        const y = minY + 90 + (i % 4) * 130;
+        ctx.beginPath();
+        ctx.ellipse(x, y, 68, 25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.setLineDash([10, 14]);
+      for (let y = minY + 145; y < maxY; y += 130) {
+        ctx.beginPath(); ctx.moveTo(minX + 40, y); ctx.lineTo(maxX - 40, y); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#b9e9ff';
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText('CLOUD_SYNC: CONFLICTS DETECTED', minX + 60, minY + 55);
+    } else if (this.theme === 'root_gateway') {
+      paintBackdrop('#020d08');
+      ctx.strokeStyle = 'rgba(55, 255, 128, 0.19)';
+      ctx.lineWidth = 1;
+      for (let x = minX; x <= maxX; x += 64) {
+        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
+      }
+      for (let y = minY; y <= maxY; y += 64) {
+        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(52, 255, 123, 0.32)';
+      ctx.font = '13px monospace';
+      const commands = ['sudo unlock --root', 'AUTH FAILED', 'retrying…', 'port 31337 open'];
+      for (let i = 0; i < 12; i++) {
+        ctx.fillText(commands[i % commands.length], minX + 55 + (i % 3) * 720, minY + 65 + Math.floor(i / 3) * 120);
+      }
+    } else if (this.theme === 'zero_day') {
+      paintBackdrop('#070a12');
+      ctx.fillStyle = 'rgba(102, 232, 255, 0.08)';
+      for (let y = minY; y < maxY; y += 34) {
+        ctx.fillRect(minX, y, maxX - minX, 2);
+      }
+      ctx.strokeStyle = 'rgba(103, 232, 249, 0.38)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([7, 7]);
+      for (let i = 0; i < 6; i++) {
+        const width = 170 + (i % 3) * 70;
+        const height = 95 + (i % 2) * 45;
+        const x = minX + 90 + i * 350;
+        const y = minY + 90 + (i % 3) * 150;
+        ctx.strokeRect(x, y, width, height);
+        ctx.fillStyle = '#d8fbff';
+        ctx.fillRect(x - 4, y - 4, 8, 8);
+        ctx.fillRect(x + width - 4, y + height - 4, 8, 8);
+      }
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#67e8f9';
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText('ROOT ACCESS GRANTED TO: H4C3R', minX + 60, minY + 58);
+      ctx.fillText('FREE_TRANSFORM.sys ACTIVE', minX + 60, minY + 84);
     } else if (this.theme === 'terminal') {
       // Hacker Terminal Green Grid
       paintBackdrop('#051108');
