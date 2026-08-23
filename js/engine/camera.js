@@ -18,6 +18,7 @@ export class Camera {
 
     // Hitstop / Freeze-frame
     this.hitstopTimer = 0;
+    this.hitstopCooldown = 0;
 
     // Arena Bounds
     this.minX = -1050;
@@ -30,6 +31,9 @@ export class Camera {
     // Handle Hitstop (freeze-frames on heavy impacts)
     if (this.hitstopTimer > 0) {
       this.hitstopTimer -= dt;
+    }
+    if (this.hitstopCooldown > 0) {
+      this.hitstopCooldown -= dt;
     }
 
     if (target) {
@@ -78,8 +82,10 @@ export class Camera {
     this.trauma = Math.min(1.0, this.trauma + amount);
   }
 
-  addHitstop(duration = 0.08) {
-    this.hitstopTimer = Math.max(this.hitstopTimer, duration);
+  addHitstop(duration = 0.05) {
+    if (this.hitstopCooldown > 0) return;
+    this.hitstopTimer = Math.min(0.06, duration);
+    this.hitstopCooldown = 0.18; // Prevents stacking slow-mo freeze
   }
 
   isHitstopped() {

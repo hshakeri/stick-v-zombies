@@ -247,6 +247,9 @@ export class Zombie {
             this.pose = 'zombie_idle';
           }
         }
+      } else if (this.type === 'titan_boss') {
+        // Boss AI
+        this.updateBossAI(dt, dist, player, camera);
       }
 
       // Horde Flocking / Separation Force (Prevents single-file smearing)
@@ -262,9 +265,6 @@ export class Zombie {
             }
           }
         }
-      } else if (this.type === 'titan_boss') {
-        // Boss AI
-        this.updateBossAI(dt, dist, player, camera);
       }
     } else {
       this.vx = 0;

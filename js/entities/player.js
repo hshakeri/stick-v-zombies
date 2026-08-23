@@ -161,6 +161,15 @@ export class Player {
       }
     }
 
+    if (this.diveKick) {
+      this.diveKickTimer = (this.diveKickTimer || 0.5) - dt;
+      if (this.diveKickTimer <= 0 || this.isGrounded) {
+        this.diveKick = false;
+        this.diveKickTimer = 0;
+        this.pose = 'idle';
+      }
+    }
+
     if (this.rollTimer > 0) {
       this.rollTimer -= dt;
       if (this.rollTimer <= 0) {
@@ -435,6 +444,8 @@ export class Player {
   executeAirChase(zombies, camera) {
     const target = this.airJuggleTarget;
     this.airJuggleTarget = null;
+    if (!target || target.isDead || typeof target.x !== 'number') return;
+
     this.attackTimer = 0.35;
 
     // Flash-step teleport right beside airborne target

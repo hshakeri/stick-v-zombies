@@ -290,8 +290,8 @@ class Game {
     // Camera Shake and Hitstop
     this.camera.update(dt, this.player, waves.zombies.length);
 
-    // Apply slow-mo on hitstop rather than returning early
-    const simDt = this.camera.isHitstopped() ? dt * 0.15 : dt;
+    // Apply fluid slow-mo on hitstop rather than returning early or freezing
+    const simDt = this.camera.isHitstopped() ? dt * 0.5 : dt;
 
     const currentPlatforms = this.stageManager.getAllSolidPlatforms();
 

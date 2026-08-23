@@ -458,6 +458,7 @@ export class ParticleSystem {
   }
 
   addShockwave(x, y, maxRadius = 120, color = '#ff7700', thickness = 8) {
+    if (this.shockwaves.length >= 8) this.shockwaves.shift();
     this.shockwaves.push({
       x,
       y,
@@ -472,8 +473,9 @@ export class ParticleSystem {
   }
 
   addDamageText(x, y, amount, isCrit = false, customColor = null) {
+    if (this.damageTexts.length >= 25) this.damageTexts.shift();
     let color = '#ffffff';
-    let text = `${Math.round(amount)}`;
+    let text = typeof amount === 'number' ? `${Math.round(amount)}` : `${amount}`;
 
     if (customColor) {
       color = customColor;
@@ -496,6 +498,7 @@ export class ParticleSystem {
   }
 
   addTextBanner(x, y, text, color = '#ff8800') {
+    if (this.damageTexts.length >= 25) this.damageTexts.shift();
     this.damageTexts.push({
       x,
       y: y - 40,
@@ -510,6 +513,7 @@ export class ParticleSystem {
   }
 
   addComicPopup(x, y, text = 'POW!', bgColor = '#ff1744', textColor = '#ffee00') {
+    if (this.comicPopups.length >= 6) this.comicPopups.shift();
     this.comicPopups.push({
       x,
       y: y - 25,
@@ -528,6 +532,9 @@ export class ParticleSystem {
   }
 
   createStickLimbExplosion(x, y, groundY = 0, color = '#2e7d32') {
+    while (this.limbDebris.length > 20) {
+      this.limbDebris.shift();
+    }
     // 1. Head circle piece
     this.limbDebris.push({
       x,

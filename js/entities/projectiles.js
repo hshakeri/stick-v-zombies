@@ -129,12 +129,14 @@ export class ProjectileManager {
         }
       }
 
-      // Check collision with Zombies (for friendly projectiles like Thrown Pencil / Note)
+      // Check collision with Zombies (for friendly projectiles like Thrown Pencil / Note / Thrown Zombie)
       if (!p.isHostile && zombies) {
+        if (!p.hitZombies) p.hitZombies = new Set();
         for (const z of zombies) {
-          if (z.isDead) continue;
+          if (z.isDead || p.hitZombies.has(z)) continue;
           const dist = Math.hypot(p.x - z.x, p.y - (z.y - 30));
           if (dist < p.radius + z.radius) {
+            p.hitZombies.add(z);
             z.takeDamage(p.damage, p.vx > 0 ? 1 : -1, p.knockback || 300, p.isCrit);
             particles.createHitSparks(p.x, p.y, 8, p.sparkColor || '#ffaa00');
 
