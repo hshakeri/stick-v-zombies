@@ -11,6 +11,7 @@ import { shop } from './systems/shop.js';
 import { stages } from './systems/stages.js';
 import { projectiles } from './entities/projectiles.js';
 import { allies } from './entities/allies.js';
+import { speech } from './engine/speech.js';
 
 class Game {
   constructor() {
@@ -321,7 +322,12 @@ class Game {
       particles.update(simDt);
     } catch (e) { console.error('Particles update error:', e); }
 
-    // 8. Update HUD Overlay
+    // 8. Update 80s Retro Speech Bubbles
+    try {
+      speech.update(simDt);
+    } catch (e) { console.error('Speech update error:', e); }
+
+    // 9. Update HUD Overlay
     this.syncHUD();
   }
 
@@ -462,6 +468,9 @@ class Game {
 
     // 7. Draw Visual FX & Particles
     particles.draw(ctx);
+
+    // 8. Draw 80s Retro Speech Bubbles
+    speech.draw(ctx);
 
     // Restore Camera Transform
     this.camera.restore(ctx);

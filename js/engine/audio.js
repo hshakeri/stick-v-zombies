@@ -152,6 +152,26 @@ class SoundEngine {
     this.playWhoosh();
   }
 
+  playSpeechChirp() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      this.resume();
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      const baseFreq = 950 + Math.random() * 450;
+      osc.frequency.setValueAtTime(baseFreq, t);
+      osc.frequency.linearRampToValueAtTime(baseFreq * 1.5, t + 0.03);
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.linearRampToValueAtTime(0, t + 0.04);
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+      osc.start(t);
+      osc.stop(t + 0.045);
+    } catch (e) {}
+  }
+
   playMouseClick() {
     if (!this.enabled || !this.ctx) return;
     try {

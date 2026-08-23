@@ -496,6 +496,25 @@ export class StickFigureRenderer {
         break;
       }
 
+      case 'attack_axe_kick': {
+        // Overhead Somersault Axe Kick Slam
+        bones.head.x += 14;
+        bones.head.y -= 10;
+        bones.neck.x += 12;
+        bones.hip.x += 6;
+        bones.elbowL = { x: -16, y: -48 };
+        bones.handL = { x: -24, y: -58 };
+        bones.elbowR = { x: 14, y: -44 };
+        bones.handR = { x: 22, y: -52 };
+        // Front axe leg slamming down from above
+        bones.kneeL = { x: 28, y: -45 };
+        bones.footL = { x: 38, y: 8 };
+        // Plant leg
+        bones.kneeR = { x: -12, y: -10 };
+        bones.footR = { x: -16, y: 0 };
+        break;
+      }
+
       case 'attack_spin': {
         // 360 Hurricane Spin Kick
         const spin = Math.sin(timer * 20);
@@ -509,6 +528,87 @@ export class StickFigureRenderer {
         bones.handL = { x: -spin * 28, y: -45 };
         bones.elbowR = { x: spin * 18, y: -45 };
         bones.handR = { x: spin * 28, y: -45 };
+        break;
+      }
+
+      case 'attack_uppercut': {
+        // Rising Dragon Uppercut
+        bones.head.x += 6;
+        bones.head.y -= 14;
+        bones.neck.y -= 10;
+        bones.elbowL = { x: -14, y: -32 };
+        bones.handL = { x: -12, y: -20 };
+        bones.elbowR = { x: 16, y: -55 };
+        bones.handR = { x: 20, y: -80 }; // Firing straight up
+        bones.kneeL = { x: -4, y: -14 };
+        bones.footL = { x: -6, y: -4 };
+        bones.kneeR = { x: 12, y: -24 };
+        bones.footR = { x: 16, y: -14 };
+        break;
+      }
+
+      case 'attack_drill_thrust': {
+        // High-Speed Pencil Corkscrew Drill Thrust
+        bones.head.x += 20;
+        bones.neck.x += 18;
+        bones.hip.x += 10;
+        bones.elbowL = { x: 14, y: -36 };
+        bones.handL = { x: 26, y: -36 };
+        bones.elbowR = { x: 30, y: -34 };
+        bones.handR = { x: 48, y: -34 }; // Both hands driving pencil forward
+        bones.kneeL = { x: 16, y: -6 };
+        bones.footL = { x: 24, y: 0 };
+        bones.kneeR = { x: -14, y: -8 };
+        bones.footR = { x: -22, y: 0 };
+        break;
+      }
+
+      case 'attack_vault_kick': {
+        // Pencil Ground Vault Dropkick
+        bones.head.x += 16;
+        bones.head.y += 6;
+        bones.elbowL = { x: 8, y: -20 };
+        bones.handL = { x: 14, y: 0 }; // Planting pencil into ground
+        bones.elbowR = { x: -12, y: -35 };
+        bones.handR = { x: -18, y: -45 };
+        // Both legs vaulted forward in dropkick
+        bones.kneeL = { x: 32, y: -14 };
+        bones.footL = { x: 50, y: -10 };
+        bones.kneeR = { x: 28, y: -22 };
+        bones.footR = { x: 46, y: -18 };
+        break;
+      }
+
+      case 'attack_air_flurry': {
+        // Rapid Mid-Air Lightning Kicks
+        const alt = Math.sin(timer * 25);
+        bones.head.x += 8;
+        bones.elbowL = { x: -16, y: -38 };
+        bones.handL = { x: -22, y: -30 };
+        bones.elbowR = { x: 12, y: -38 };
+        bones.handR = { x: 18, y: -30 };
+        bones.kneeL = { x: 20 + alt * 12, y: -24 };
+        bones.footL = { x: 42 + alt * 18, y: -22 };
+        bones.kneeR = { x: 14 - alt * 10, y: -14 };
+        bones.footR = { x: 28 - alt * 16, y: -10 };
+        break;
+      }
+
+      case 'attack_slide': {
+        // Low Sweeping Slide Kick
+        bones.head.x -= 8;
+        bones.head.y += 18;
+        bones.neck.y += 16;
+        bones.hip.y += 14;
+        bones.elbowL = { x: -16, y: 4 };
+        bones.handL = { x: -20, y: 12 };
+        bones.elbowR = { x: 8, y: -10 };
+        bones.handR = { x: 16, y: -6 };
+        // Slide leg extended forward along floor
+        bones.kneeL = { x: 28, y: 6 };
+        bones.footL = { x: 48, y: 8 };
+        bones.kneeR = { x: -12, y: 2 };
+        bones.footR = { x: -18, y: 6 };
         break;
       }
 

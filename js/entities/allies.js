@@ -1,9 +1,8 @@
-// Stick Figure Allies (Red, Blue, Yellow, Green) and The Animator's Mouse Cursor Pointer
-
 import { StickFigureRenderer } from './stickman.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
 import { projectiles } from './projectiles.js';
+import { speech } from '../engine/speech.js';
 
 export class AllyManager {
   constructor() {
@@ -413,14 +412,16 @@ export class AllyManager {
         life: 1.6
       });
 
+      speech.shout(spawnX, spawnY, 'allies', 'cursor');
       return true;
     }
 
     const spawnY = type === 'red' ? targetY - 450 : targetY - 300;
+    const spawnX = targetX + (type === 'red' ? 60 * facing : -40 * facing);
 
     this.activeAllies.push({
       type,
-      x: targetX + (type === 'red' ? 60 * facing : -40 * facing),
+      x: spawnX,
       y: spawnY,
       facing,
       pose: type === 'red' ? 'dive_kick' : 'jump_rise',
@@ -429,6 +430,7 @@ export class AllyManager {
       hasActed: false
     });
 
+    speech.shout(spawnX, targetY - 60, 'allies', type);
     return true;
   }
 }

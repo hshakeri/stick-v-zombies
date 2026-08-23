@@ -5,6 +5,7 @@ import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
 import { projectiles } from './projectiles.js';
 import { combat } from '../systems/combat.js';
+import { speech } from '../engine/speech.js';
 
 export class Zombie {
   constructor(x, y, type = 'walker', wave = 1) {
@@ -413,6 +414,9 @@ export class Zombie {
     audio.playZombieDeath();
     particles.createZombieSplatter(this.x, this.y - this.height * 0.5, 24, this.color);
     particles.addShockwave(this.x, this.y - 20, 60, this.color, 4);
+    if (Math.random() < 0.38) {
+      speech.shout(this.x, this.y - 10, 'zombieGroan', null, 2.0);
+    }
   }
 
   draw(ctx) {

@@ -1,10 +1,9 @@
-// The Dark Lord (TDL) - Ultimate Wave 10 Boss Entity (Alan Becker AvA Lore)
-
 import { StickFigureRenderer } from './stickman.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
 import { projectiles } from './projectiles.js';
 import { combat } from '../systems/combat.js';
+import { speech } from '../engine/speech.js';
 
 export class DarkLord {
   constructor(x, y) {
@@ -203,6 +202,7 @@ export class DarkLord {
             projectiles.spawnViraBot(this.x + side * (60 + i * 30), this.y, side);
           }
           particles.addTextBanner(this.x, this.y - 70, 'VIRABOT SWARM!', '#ff0044');
+          speech.shout(this.x, this.y, 'darkLord');
           this.state = 'idle';
           this.actionCooldown = 2.0;
         }

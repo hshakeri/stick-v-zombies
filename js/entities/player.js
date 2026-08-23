@@ -1,5 +1,3 @@
-// Player Entity: The Second Coming (Orange Stick Figure)
-
 import { StickFigureRenderer } from './stickman.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
@@ -7,6 +5,7 @@ import { projectiles } from './projectiles.js';
 import { weapons } from './weapons.js';
 import { allies } from './allies.js';
 import { combat } from '../systems/combat.js';
+import { speech } from '../engine/speech.js';
 
 export class Player {
   constructor(x = 0, y = 0) {
@@ -271,39 +270,106 @@ export class Player {
   }
 
   handleCombatInputs(input, zombies, camera, groundY) {
-    // 1. Air Dive Kick (Space/Down + Attack)
+    // 1. Air Dive Kick (Mid-air + Down + Attack/Weapon)
     if (!this.isGrounded && input.actions.down && (input.actions.attackPressed || input.actions.weaponPressed)) {
       this.diveKick = true;
-      this.vy = 850;
-      this.vx = this.facing * 350;
+      this.vy = 880;
+      this.vx = this.facing * 380;
       this.pose = 'dive_kick';
+      this.squashX = 0.85;
+      this.squashY = 1.25;
       audio.playWhoosh();
+      if (Math.random() < 0.35) speech.shout(this.x, this.y, 'playerAttack');
       return;
     }
 
-    // 2. Light Martial Arts Combo Chain (J / Left Click)
+    // 2. Rising Dragon Uppercut (Up + Attack)
+    if (input.actions.up && input.actions.attackPressed && this.attackTimer <= 0) {
+      this.executeRisingUppercut(zombies, camera);
+      return;
+    }
+
+    // 3. Mid-Air Flurry Kicks (In mid-air + Attack)
+    if (!this.isGrounded && input.actions.attackPressed && this.attackTimer <= 0) {
+      this.executeAirFlurry(zombies, camera);
+      return;
+    }
+
+    // 4. Dodge Roll Follow-up Slide Sweep (Rolling + Attack/Weapon)
+    if (this.isRolling && (input.actions.attackPressed || input.actions.weaponPressed)) {
+      this.executeSlideSweep(zombies, camera);
+      return;
+    }
+
+    // 5. Light Martial Arts Combo Chain (Q / J / Left Click)
     if (input.actions.attackPressed && this.attackTimer <= 0) {
       this.executeLightCombo(zombies, camera);
     }
 
-    // 3. Heavy / Weapon Attack (K / Right Click)
+    // 6. Heavy / Hybrid Weapon Attack (W / K / Right Click)
     if (input.actions.weaponPressed && this.weaponTimer <= 0) {
       this.executeWeaponAttack(zombies, camera);
     }
 
-    // 4. Awakening Mode Laser / Screen Blast
+    // 7. Awakening Mode Laser / Screen Blast
     if (this.isAwakened && input.actions.weapon) {
       this.fireAwakeningLaser(zombies, camera);
     }
   }
 
+  executeRisingUppercut(zombies, camera) {
+    this.attackTimer = 0.32;
+    this.pose = 'attack_uppercut';
+    this.vy = -540; // Launch airborne
+    this.vx = this.facing * 180;
+    this.isGrounded = false;
+    this.squashX = 0.82;
+    this.squashY = 1.28;
+    audio.playFinisherImpact();
+    camera.addShake(0.3);
+    particles.addShockwave(this.x, this.y - 20, 60, '#ffbb00', 6);
+    particles.addSlashArc(this.x, this.y - 40, 80, -Math.PI / 2, this.facing, '#ffea00', 8);
+    speech.shout(this.x, this.y, 'playerAttack');
+
+    const damage = 42 * (this.damageMultiplier || 1.0);
+    this.checkMeleeHits(zombies, 110, damage, 450, true, '#ffee00', camera);
+  }
+
+  executeAirFlurry(zombies, camera) {
+    this.attackTimer = 0.22;
+    this.pose = 'attack_air_flurry';
+    this.vy = Math.min(this.vy, -60); // Brief float suspension
+    this.vx = this.facing * 220;
+    audio.playWhoosh();
+    audio.playPunch('light');
+    particles.createHitSparks(this.x + this.facing * 35, this.y - 25, 6, '#ffaa00');
+
+    const damage = 28 * (this.damageMultiplier || 1.0);
+    this.checkMeleeHits(zombies, 115, damage, 380, false, '#ffaa00', camera);
+  }
+
+  executeSlideSweep(zombies, camera) {
+    this.isRolling = false;
+    this.attackTimer = 0.28;
+    this.pose = 'attack_slide';
+    this.vx = this.facing * 520;
+    this.squashX = 1.35;
+    this.squashY = 0.72;
+    audio.playSlash();
+    particles.createDust(this.x, this.y, 8, this.facing);
+    particles.addSlashArc(this.x, this.y - 8, 90, 0, this.facing, '#ff7700', 8);
+    speech.shout(this.x, this.y, 'playerAttack');
+
+    const damage = 38 * (this.damageMultiplier || 1.0);
+    this.checkMeleeHits(zombies, 130, damage, 600, true, '#ffaa00', camera);
+  }
+
   executeLightCombo(zombies, camera) {
-    this.comboStep = (this.comboStep % 4) + 1;
-    this.comboResetTimer = 0.9;
+    this.comboStep = (this.comboStep % 5) + 1;
+    this.comboResetTimer = 0.95;
     this.attackTimer = 0.18;
 
-    // Small forward step impulse
-    this.vx = this.facing * 140;
+    this.vx = this.facing * 150;
 
     let damage = 22 * (this.damageMultiplier || 1.0);
     let knockback = 380;
@@ -319,54 +385,103 @@ export class Player {
       this.pose = 'attack_cross';
       audio.playPunch('light');
       audio.playPlayerEffort();
-      damage *= 1.4;
+      damage *= 1.35;
       hitRadius = 105;
-      knockback = 480;
-      this.vx = this.facing * 200;
+      knockback = 460;
+      this.vx = this.facing * 220;
     } else if (this.comboStep === 3) {
       this.pose = 'attack_kick';
       audio.playWhoosh();
       audio.playPunch('light');
       audio.playPlayerEffort();
-      damage *= 1.8;
+      damage *= 1.7;
       hitRadius = 125;
-      knockback = 580;
+      knockback = 560;
     } else if (this.comboStep === 4) {
+      this.pose = 'attack_axe_kick';
+      audio.playPunch('heavy');
+      camera.addShake(0.25);
+      damage *= 2.2;
+      hitRadius = 135;
+      knockback = 650;
+      this.squashX = 1.25;
+      this.squashY = 0.8;
+      particles.addSlashArc(this.x, this.y - 20, 85, Math.PI / 3, this.facing, '#ff9900', 8);
+    } else if (this.comboStep === 5) {
       this.pose = 'attack_spin';
       audio.playFinisherImpact();
       audio.playPunch('heavy');
-      camera.addShake(0.35);
-      damage *= 3.0;
-      knockback = 750;
-      hitRadius = 145;
+      camera.addShake(0.4);
+      damage *= 3.4;
+      knockback = 800;
+      hitRadius = 155;
       isCrit = true;
-      this.iFrames = 0.2; // Hyper-armor on spin finisher
-      hitSparkColor = '#ff5533';
-      particles.addSlashArc(this.x, this.y - 30, 95, 0, this.facing, '#ffaa00', 8);
+      this.iFrames = 0.25; // Hyper-armor on spin finisher
+      hitSparkColor = '#ff3344';
+      particles.addSlashArc(this.x, this.y - 30, 110, 0, this.facing, '#ff5522', 10);
+      particles.addShockwave(this.x, this.y - 25, 120, '#ff7700', 8);
+
+      // Trigger hilarious 80s speech shout on combo finisher!
+      speech.shout(this.x, this.y, 'playerAttack');
     }
 
-    // Hit detection for zombies
     this.checkMeleeHits(zombies, hitRadius, damage, knockback, isCrit, hitSparkColor, camera);
   }
 
   executeWeaponAttack(zombies, camera) {
     const stats = weapons.getWeaponStats(this.weaponType);
+    const baseDamage = (stats.damage || 45) * (this.damageMultiplier || 1.0) * (this.isAwakened ? 2.0 : 1.0);
+
+    // Hybrid Branching Weapon Cancels
+    if (this.comboStep === 1) {
+      // Branch 1: Pencil Vault Dropkick
+      this.weaponTimer = 0.32;
+      this.pose = 'attack_vault_kick';
+      this.vx = this.facing * 420;
+      this.vy = -180;
+      this.isGrounded = false;
+      this.comboStep = 0;
+      audio.playSlash();
+      audio.playPlayerEffort();
+      camera.addShake(0.3);
+      particles.addSlashArc(this.x, this.y - 25, 130, 0, this.facing, '#ffaa00', 9);
+      speech.shout(this.x, this.y, 'playerAttack');
+      this.checkMeleeHits(zombies, 140, baseDamage * 1.5, 680, true, '#ffbb00', camera);
+      return;
+    } else if (this.comboStep === 2) {
+      // Branch 2: Pencil Drill Corkscrew Thrust
+      this.weaponTimer = 0.35;
+      this.pose = 'attack_drill_thrust';
+      this.vx = this.facing * 360;
+      this.comboStep = 0;
+      audio.playSlash();
+      audio.playFinisherImpact();
+      camera.addShake(0.35);
+      particles.createPencilLeadTrail(this.x + this.facing * 45, this.y - 30, 12, this.facing);
+      speech.shout(this.x, this.y, 'playerAttack');
+      this.checkMeleeHits(zombies, 150, baseDamage * 1.8, 720, true, '#ffcc00', camera);
+      return;
+    }
+
+    // Standard Heavy Weapon Slash
     this.weaponTimer = stats.cooldown || 0.35;
     this.pose = 'weapon_slash';
     this.vx = this.facing * 240;
-    this.iFrames = 0.2; // Brief hyper-armor
+    this.iFrames = 0.2;
 
     audio.playSlash();
     audio.playPlayerEffort();
     camera.addShake(0.3);
-    const range = 160; // Wide reach for giant pencil
+    const range = 160;
     particles.addSlashArc(this.x, this.y - 30, range * 0.85, 0, this.facing, '#ff7700', 10);
     if (this.weaponType === 'pencil') {
       particles.createPencilLeadTrail(this.x + this.facing * 40, this.y - 30, 8, this.facing);
     }
+    if (Math.random() < 0.3) {
+      speech.shout(this.x, this.y, 'playerAttack');
+    }
 
-    const damage = (stats.damage || 45) * (this.damageMultiplier || 1.0) * (this.isAwakened ? 2.0 : 1.0);
-    this.checkMeleeHits(zombies, range, damage, 650, true, '#ffaa00', camera);
+    this.checkMeleeHits(zombies, range, baseDamage, 650, true, '#ffaa00', camera);
   }
 
   fireAwakeningLaser(zombies, camera) {
@@ -447,6 +562,23 @@ export class Player {
     if (input.actions.ally3) allies.summonAlly('yellow', this.x, groundY, this.facing, zombies);
     if (input.actions.ally4) allies.summonAlly('green', this.x, groundY, this.facing, zombies);
     if (input.actions.ally5) allies.summonAlly('cursor', this.x, groundY, this.facing, zombies);
+  }
+
+  activateAwakening(camera) {
+    this.isAwakened = true;
+    this.awakenedTimer = this.awakenedDuration;
+    this.superMeter = 0;
+    audio.playSuperActivate();
+    if (camera) camera.addShake(0.6);
+    particles.addShockwave(this.x, this.y - 30, 200, '#ffee00', 12);
+    particles.addTextBanner(this.x, this.y - 80, '⚡ GOD MODE AWAKENED! ⚡', '#ffee00');
+    speech.shout(this.x, this.y, 'playerAwakened', null, 3.0);
+  }
+
+  deactivateAwakening() {
+    this.isAwakened = false;
+    this.awakenedTimer = 0;
+    particles.createDust(this.x, this.y, 8);
   }
 
   applyPhysics(dt, groundY, sketchBlocks) {
@@ -585,6 +717,9 @@ export class Player {
     audio.playPunch('heavy');
     particles.addDamageText(this.x, this.y - 40, amount, false, '#ff3344');
     particles.createHitSparks(this.x, this.y - 30, 8, '#ff3344');
+    if (Math.random() < 0.45) {
+      speech.shout(this.x, this.y, 'playerHurt', null, 2.0);
+    }
 
     if (this.hp <= 0) {
       this.die();
