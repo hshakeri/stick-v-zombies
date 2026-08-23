@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Orange Stickman vs Zombies - The Second Coming</title>
+  <link rel="stylesheet" href="css/style.css?v=1.7">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23ff7700%22 stroke=%22white%22 stroke-width=%228%22/></svg>">
+</head>
+<body>
+  <div id="game-container">
+    <!-- Main Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+    
+    <!-- Screen Vignette -->
+    <div class="screen-vignette"></div>
+
+    <!-- HUD Overlay -->
+    <div id="hud-overlay">
+      <!-- Top HUD Area -->
+      <div class="hud-top">
+        <!-- Player HP & Awakening Bar -->
+        <div class="hud-player-stats">
+          <div class="player-identity">
+            <div class="player-icon">II</div>
+            <div class="player-name">The Second Coming</div>
+          </div>
+          <div class="bar-container">
+            <div class="bar-label">
+              <span>HP</span>
+              <span id="hud-hp-text">100 / 100</span>
+            </div>
+            <div class="hp-bar-bg">
+              <div id="hud-hp-fill" class="hp-bar-fill" style="width: 100%;"></div>
+            </div>
+          </div>
+          <div class="bar-container">
+            <div class="bar-label">
+              <span>Awakening Power</span>
+              <span id="hud-super-text">0%</span>
+            </div>
+            <div class="super-bar-bg">
+              <div id="hud-super-fill" class="super-bar-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center: Wave & Boss Info -->
+        <div class="hud-center">
+          <div class="wave-badge">
+            <div class="wave-title">WAVE <span id="hud-wave-number" class="wave-count">1</span></div>
+            <div id="hud-zombies-count" class="zombies-left-text">Zombies: 0</div>
+          </div>
+
+          <!-- Boss Health Bar (Appears on Boss waves) -->
+          <div id="boss-health-box" class="boss-health-container">
+            <div id="boss-name-label" class="boss-name">TITAN UNDEAD</div>
+            <div class="boss-bar-bg">
+              <div id="boss-hp-fill" class="boss-bar-fill" style="width: 100%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Score & Ink Currency -->
+        <div class="hud-score-box">
+          <div class="score-display">SCORE: <span id="hud-score">0</span></div>
+          <div class="ink-currency-display">
+            <span class="ink-icon">✒️</span>
+            <span id="hud-ink">0</span> INK
+          </div>
+        </div>
+      </div>
+
+      <!-- Combo Counter Overlay (Left side) -->
+      <div id="hud-combo" class="hud-combo-container">
+        <div id="combo-hit-count" class="combo-hits">12 HITS</div>
+        <div id="combo-rank-title" class="combo-title">STICK-TACULAR!</div>
+        <div class="combo-bar-bg">
+          <div id="combo-timer-fill" class="combo-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- Bottom HUD Area -->
+      <div class="hud-bottom">
+        <!-- Weapon / Skill Hotbar -->
+        <div class="hud-skills">
+          <div class="skill-slot ready" title="Light Attack Combo (Q)">
+            <div class="skill-icon">👊</div>
+            <div class="skill-key">Q</div>
+          </div>
+          <div class="skill-slot ready" title="Giant Pencil Slash (W)">
+            <div class="skill-icon">✏️</div>
+            <div class="skill-key">W</div>
+          </div>
+          <div class="skill-slot ready" id="skill-roll" title="Dodge Roll (Shift / L)">
+            <div class="skill-icon">💨</div>
+            <div class="skill-key">SHIFT</div>
+            <div id="cd-roll-overlay" class="skill-cd-overlay"></div>
+          </div>
+          <div class="skill-slot ready" id="skill-block" title="Spawn Sketch Block / Anvil (E)">
+            <div class="skill-icon">🧱</div>
+            <div class="skill-key">E</div>
+            <div id="cd-block-overlay" class="skill-cd-overlay"></div>
+          </div>
+          <div class="skill-slot" id="skill-super" title="Awakening God Mode (R)">
+            <div class="skill-icon">⚡</div>
+            <div class="skill-key">R</div>
+            <div id="cd-super-overlay" class="skill-cd-overlay">READY</div>
+          </div>
+        </div>
+
+        <!-- Summon Stick Allies & Mouse Cursor Hotbar -->
+        <div class="hud-allies">
+          <div class="ally-slot red" id="ally-red-slot" title="Summon Red (Brawler Punch - Key 1)">
+            <div class="ally-badge red">R</div>
+            <div class="skill-key">1</div>
+          </div>
+          <div class="ally-slot blue" id="ally-blue-slot" title="Summon Blue (Freeze Net / Potions - Key 2)">
+            <div class="ally-badge blue">B</div>
+            <div class="skill-key">2</div>
+          </div>
+          <div class="ally-slot yellow" id="ally-yellow-slot" title="Summon Yellow (Redstone Turret - Key 3)">
+            <div class="ally-badge yellow">Y</div>
+            <div class="skill-key">3</div>
+          </div>
+          <div class="ally-slot green" id="ally-green-slot" title="Summon Green (Stun Music Wave - Key 4)">
+            <div class="ally-badge green">G</div>
+            <div class="skill-key">4</div>
+          </div>
+          <div class="ally-slot" id="ally-cursor-slot" style="border-color: #00d2ff;" title="Summon Animator Cursor Pointer (Deletes Zombie - Key 5)">
+            <div class="ally-badge" style="background: #00d2ff; color: #000; font-size: 14px;">🖱️</div>
+            <div class="skill-key">5</div>
+          </div>
+        </div>
+
+        <!-- Quick Action Buttons -->
+        <div class="hud-quick-buttons">
+          <button id="btn-open-shop" class="hud-btn">🛒 Upgrades (B)</button>
+          <button id="btn-pause" class="hud-btn">⏸️ Pause (Esc)</button>
+          <button id="btn-audio-toggle" class="hud-btn" title="Toggle Sound / BGM">🔊 Audio: ON</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Title / Start Screen Modal -->
+    <div id="title-screen" class="modal-overlay active">
+      <div class="title-logo-container">
+        <h1 class="game-main-title">STICK VS ZOMBIES</h1>
+        <h2 class="game-sub-title">THE SECOND COMING - DESKTOP ADVENTURE</h2>
+      </div>
+
+      <div class="title-actions">
+        <button id="btn-start-game" class="primary-btn" style="font-size: 20px; padding: 14px 28px;">▶ PLAY NOW</button>
+        <button id="btn-how-to-play" class="secondary-btn">📖 Controls & Tips</button>
+      </div>
+
+      <div class="controls-guide-card">
+        <h4>⚡ HOW TO PLAY & CONTROLS</h4>
+        <div class="controls-row"><span>Move:</span> <span class="key-badge">← / →</span> or <span class="key-badge">A / D</span></div>
+        <div class="controls-row"><span>Jump / Double Jump / Wall Jump:</span> <span class="key-badge">↑</span> or <span class="key-badge">SPACE</span></div>
+        <div class="controls-row"><span>Crouch / Drop Down Platforms:</span> <span class="key-badge">↓</span> or <span class="key-badge">S</span></div>
+        <div class="controls-row"><span>Martial Arts Combo:</span> <span class="key-badge">Q</span></div>
+        <div class="controls-row"><span>Giant Pencil Slash:</span> <span class="key-badge">W</span></div>
+        <div class="controls-row"><span>Dodge Roll (Invulnerable):</span> <span class="key-badge">SHIFT</span></div>
+        <div class="controls-row"><span>Place Block / Drop Anvil:</span> <span class="key-badge">E</span></div>
+        <div class="controls-row"><span>AWAKENING GOD MODE (Full Meter):</span> <span class="key-badge">R</span></div>
+        <div class="controls-row"><span>Summon Stick Allies:</span> <span class="key-badge">1</span>, <span class="key-badge">2</span>, <span class="key-badge">3</span>, <span class="key-badge">4</span></div>
+        <div class="controls-row"><span>Summon Animator Mouse Cursor (Delete Zombie):</span> <span class="key-badge">5</span></div>
+      </div>
+    </div>
+
+    <!-- Upgrade Shop Modal -->
+    <div id="shop-modal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-header">
+          <div class="modal-title">🛒 ANIMATOR WORKSHOP & UPGRADES</div>
+          <button id="btn-close-shop" class="secondary-btn" style="padding: 6px 14px;">✕ Close</button>
+        </div>
+        
+        <div class="shop-currency-bar">
+          <div>AVAILABLE INK: <span id="shop-ink-display" style="color: #44ddff;">0</span> ✒️</div>
+          <div style="font-size: 13px; color: #a4abbc;">Power up your Orange Stickman!</div>
+        </div>
+
+        <div class="modal-content">
+          <div id="upgrades-container" class="upgrades-grid">
+            <!-- Dynamically populated by shop.js -->
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-resume-from-shop" class="primary-btn">Continue Next Wave ➔</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause Menu Modal -->
+    <div id="pause-modal" class="modal-overlay">
+      <div class="modal-box" style="max-width: 440px; text-align: center;">
+        <div class="modal-title" style="margin-bottom: 20px;">⏸️ GAME PAUSED</div>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <button id="btn-resume-game" class="primary-btn">Resume</button>
+          <button id="btn-pause-shop" class="secondary-btn">Open Upgrades</button>
+          <button id="btn-restart-game" class="secondary-btn">Restart Wave 1</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="gameover-modal" class="modal-overlay">
+      <div class="modal-box" style="max-width: 500px; text-align: center;">
+        <div class="modal-title" style="color: #ff3344; margin-bottom: 8px;">💀 YOU WERE OVERWHELMED</div>
+        <p style="color: #a0a4be; margin-bottom: 20px;">The stick zombie horde conquered the desktop...</p>
+        
+        <div style="background: #14151f; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #33364d; text-align: left; font-family: 'Bungee', cursive;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>SURVIVED:</span> <span id="gameover-wave" style="color: #ffea00;">WAVE 1</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>FINAL SCORE:</span> <span id="gameover-score" style="color: #fff;">0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>ZOMBIES ERADICATED:</span> <span id="gameover-kills" style="color: #44dd66;">0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span>MAX COMBO:</span> <span id="gameover-combo" style="color: var(--orange-glow);">0</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button id="btn-try-again" class="primary-btn">⚔️ PLAY AGAIN</button>
+          <button id="btn-menu-from-gameover" class="secondary-btn">Main Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- On-screen Virtual Mobile Controls (Visible on mobile/touch screens) -->
+    <div id="mobile-controls">
+      <div class="d-pad">
+        <div></div>
+        <button class="virtual-btn" id="vbtn-up">⬆</button>
+        <div></div>
+        <button class="virtual-btn" id="vbtn-left">⬅</button>
+        <button class="virtual-btn" id="vbtn-down">⬇</button>
+        <button class="virtual-btn" id="vbtn-right">➡</button>
+      </div>
+
+      <div class="action-pad">
+        <button class="virtual-btn" id="vbtn-attack" style="background: rgba(255, 119, 0, 0.7);">👊</button>
+        <button class="virtual-btn" id="vbtn-weapon" style="background: rgba(255, 200, 0, 0.7);">✏️</button>
+        <button class="virtual-btn" id="vbtn-super" style="background: rgba(255, 50, 50, 0.7);">⚡</button>
+        <button class="virtual-btn" id="vbtn-roll">💨</button>
+        <button class="virtual-btn" id="vbtn-block">🧱</button>
+        <button class="virtual-btn" id="vbtn-jump">⤴</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Modules -->
+  <script type="module" src="js/main.js?v=1.7"></script>
+</body>
+</html>

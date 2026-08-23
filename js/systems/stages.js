@@ -1,0 +1,903 @@
+// Stage Progression, Desktop Level Generator, Obstacle Courses, and Door Portals
+
+import { particles } from '../engine/particles.js';
+import { audio } from '../engine/audio.js';
+
+export class StageManager {
+  constructor() {
+    this.currentStage = 1;
+    this.maxStage = 5;
+    this.stageName = 'Main Desktop';
+    this.theme = 'desktop'; // 'desktop', 'animate', 'downloads', 'firewall', 'bsod'
+
+    // Arena World Boundaries
+    this.bounds = {
+      minX: -1100,
+      maxX: 1100,
+      minY: -700,
+      maxY: 100,
+      groundY: 0
+    };
+
+    // Stage Entities
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+    this.platforms = [];
+    this.movingPlatforms = [];
+    this.desktopIcons = [];
+    this.laserHazards = [];
+    this.errorPopups = [];
+
+    // Objective state
+    this.isObjectiveComplete = false;
+    this.doorTransitionTimer = 0;
+
+    // Build Stage 1 on init
+    this.loadStage(1);
+  }
+
+  loadStage(stageNum) {
+    this.currentStage = stageNum;
+    this.isObjectiveComplete = false;
+    this.exitDoor.isOpen = false;
+    this.doorTransitionTimer = 0;
+
+    // Reset collections
+    this.platforms = [];
+    this.movingPlatforms = [];
+    this.desktopIcons = [];
+    this.laserHazards = [];
+    this.errorPopups = [];
+
+    this.maxStage = 10;
+    const stage = ((stageNum - 1) % 10) + 1;
+
+    switch (stage) {
+      case 1:
+        this.buildStage1Desktop();
+        break;
+      case 2:
+        this.buildStage2Animate();
+        break;
+      case 3:
+        this.buildStage3Downloads();
+        break;
+      case 4:
+        this.buildStage4Firewall();
+        break;
+      case 5:
+        this.buildStage5BSOD();
+        break;
+      case 6:
+        this.buildStage6Recycle();
+        break;
+      case 7:
+        this.buildStage7Minecraft();
+        break;
+      case 8:
+        this.buildStage8Terminal();
+        break;
+      case 9:
+        this.buildStage9VirabotNexus();
+        break;
+      case 10:
+        this.buildStage10DarkCore();
+        break;
+    }
+  }
+
+  // --- STAGE BUILDERS ---
+
+  buildStage1Desktop() {
+    this.stageName = 'Main Desktop';
+    this.theme = 'desktop';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    // Desktop App Windows as Platforms
+    this.platforms = [
+      { x: -650, y: -160, width: 220, height: 20, title: 'Notepad.exe - Notes.txt', appType: 'notepad' },
+      { x: -350, y: -280, width: 200, height: 20, title: 'Calculator.exe', appType: 'calc' },
+      { x: 0, y: -180, width: 260, height: 22, title: 'File Explorer - C:/Users/Alan', appType: 'folder' },
+      { x: 380, y: -280, width: 220, height: 20, title: 'Paint.exe - Drawing', appType: 'paint' },
+      { x: 680, y: -160, width: 200, height: 20, title: 'Command_Prompt.cmd', appType: 'cmd' }
+    ];
+
+    // Desktop Shortcut Icons
+    this.desktopIcons = [
+      { x: -850, y: -80, label: 'Recycle Bin', icon: '🗑️' },
+      { x: -850, y: -200, label: 'My Computer', icon: '💻' },
+      { x: -850, y: -320, label: 'Chrome.exe', icon: '🌐' },
+      { x: -500, y: -420, label: 'Minecraft.exe', icon: '⛏️' },
+      { x: 200, y: -420, label: 'Stickman_v2.fla', icon: '🎬' },
+      { x: 850, y: -80, label: 'Exit_Portal.exe', icon: '🚪' },
+      { x: 850, y: -200, label: 'Secret_Folder', icon: '📁' }
+    ];
+
+    // 1 Horizontal moving platform (Media Player)
+    this.movingPlatforms.push({
+      x: -100,
+      y: -360,
+      width: 180,
+      height: 18,
+      title: 'Media_Player.exe',
+      appType: 'media',
+      minX: -260,
+      maxX: 260,
+      speed: 120,
+      dir: 1,
+      axis: 'x'
+    });
+  }
+
+  buildStage2Animate() {
+    this.stageName = 'Adobe Animate Timeline';
+    this.theme = 'animate';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    // Timeline Scrubber & Canvas Tool Platforms
+    this.platforms = [
+      { x: -700, y: -180, width: 200, height: 20, title: 'Toolbox - Brush & Pencil', appType: 'tools' },
+      { x: -250, y: -160, width: 240, height: 20, title: 'Layer 1: Stick Animation', appType: 'layer' },
+      { x: 250, y: -160, width: 240, height: 20, title: 'Layer 2: Zombie Horde', appType: 'layer' },
+      { x: 700, y: -200, width: 200, height: 20, title: 'Color Swatches Palette', appType: 'palette' }
+    ];
+
+    // Moving Timeline Scrubbers (Horizontal and Vertical)
+    this.movingPlatforms.push({
+      x: 0,
+      y: -320,
+      width: 220,
+      height: 20,
+      title: 'Timeline Frame [ 48 ]',
+      appType: 'timeline',
+      minX: -220,
+      maxX: 220,
+      speed: 160,
+      dir: 1,
+      axis: 'x'
+    });
+
+    this.movingPlatforms.push({
+      x: -480,
+      y: -240,
+      width: 150,
+      height: 18,
+      title: 'Audio Track 1',
+      appType: 'timeline',
+      minY: -380,
+      maxY: -140,
+      speed: 100,
+      dir: 1,
+      axis: 'y'
+    });
+
+    // Drawing Laser Hazards (Timed security pointer beams)
+    this.laserHazards.push({
+      x: -120,
+      y: -240,
+      width: 240,
+      height: 8,
+      timer: 0,
+      cycleDuration: 3.5,
+      activeDuration: 1.6,
+      damage: 15
+    });
+
+    this.desktopIcons = [
+      { x: -850, y: -120, label: 'Keyframes.fla', icon: '🎞️' },
+      { x: 850, y: -120, label: 'Export_Movie.exe', icon: '🎬' },
+      { x: 0, y: -480, label: 'V-Cam Tool', icon: '📹' }
+    ];
+  }
+
+  buildStage3Downloads() {
+    this.stageName = 'Downloads & Malware Zone';
+    this.theme = 'downloads';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    // Download bars and corrupted archive platforms
+    this.platforms = [
+      { x: -680, y: -180, width: 220, height: 20, title: 'Download_1: Cheats.zip (98%)', appType: 'download' },
+      { x: -280, y: -240, width: 190, height: 20, title: 'Corrupted_Script.js', appType: 'glitch' },
+      { x: 280, y: -240, width: 190, height: 20, title: 'Free_RAM_Installer.exe', appType: 'malware' },
+      { x: 680, y: -180, width: 220, height: 20, title: 'Download_2: Patch.iso (100%)', appType: 'download' }
+    ];
+
+    // Vertical Download Elevator
+    this.movingPlatforms.push({
+      x: 0,
+      y: -200,
+      width: 200,
+      height: 20,
+      title: 'Cloud_Sync_Elevator',
+      appType: 'cloud',
+      minY: -420,
+      maxY: -120,
+      speed: 130,
+      dir: 1,
+      axis: 'y'
+    });
+
+    // Error 404 Popup Dialogs that act as bouncy/hazardous popups
+    this.errorPopups.push({
+      x: -460,
+      y: -140,
+      width: 140,
+      height: 70,
+      title: '⚠️ WARNING',
+      msg: 'Malware Detected!'
+    });
+
+    this.errorPopups.push({
+      x: 460,
+      y: -140,
+      width: 140,
+      height: 70,
+      title: '❌ ERROR 404',
+      msg: 'Zombie File Found!'
+    });
+
+    this.desktopIcons = [
+      { x: -850, y: -100, label: 'Trojan.bat', icon: '☣️' },
+      { x: -850, y: -220, label: 'Antivirus.exe', icon: '🛡️' },
+      { x: 850, y: -100, label: 'Quarantine', icon: '🔒' }
+    ];
+  }
+
+  buildStage4Firewall() {
+    this.stageName = 'Firewall Security Grid';
+    this.theme = 'firewall';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    this.platforms = [
+      { x: -700, y: -200, width: 220, height: 20, title: 'Firewall_Node_A', appType: 'security' },
+      { x: -300, y: -300, width: 200, height: 20, title: 'Port 8080 Bridge', appType: 'security' },
+      { x: 300, y: -300, width: 200, height: 20, title: 'SSL Certificate Vault', appType: 'security' },
+      { x: 700, y: -200, width: 220, height: 20, title: 'Firewall_Node_B', appType: 'security' }
+    ];
+
+    // Fast moving security scanners
+    this.movingPlatforms.push({
+      x: 0,
+      y: -220,
+      width: 180,
+      height: 20,
+      title: 'Packet Scanner',
+      appType: 'scanner',
+      minX: -260,
+      maxX: 260,
+      speed: 180,
+      dir: 1,
+      axis: 'x'
+    });
+
+    // Timed Firewall Lasers
+    this.laserHazards.push({
+      x: -500,
+      y: -100,
+      width: 200,
+      height: 10,
+      timer: 0,
+      cycleDuration: 3.0,
+      activeDuration: 1.5,
+      damage: 20
+    });
+
+    this.laserHazards.push({
+      x: 300,
+      y: -100,
+      width: 200,
+      height: 10,
+      timer: 1.5,
+      cycleDuration: 3.0,
+      activeDuration: 1.5,
+      damage: 20
+    });
+  }
+
+  buildStage5BSOD() {
+    this.stageName = 'Blue Screen of Death (BSOD)';
+    this.theme = 'bsod';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    // Big Boss Arena layout with elevated crash dump platforms
+    this.platforms = [
+      { x: -550, y: -180, width: 240, height: 22, title: '*** STOP: 0x0000007B (MEMORY DUMP)', appType: 'bsod' },
+      { x: 550, y: -180, width: 240, height: 22, title: '*** CRASH_DUMP: SYSTEM_OVERHEAT', appType: 'bsod' },
+      { x: 0, y: -300, width: 300, height: 22, title: 'FATAL EXCEPTION: TITAN_UNDEAD.EXE', appType: 'bsod' }
+    ];
+
+    this.movingPlatforms.push({
+      x: -250,
+      y: -160,
+      width: 160,
+      height: 18,
+      title: 'Memory Stack A',
+      appType: 'bsod',
+      minY: -320,
+      maxY: -120,
+      speed: 120,
+      dir: 1,
+      axis: 'y'
+    });
+
+    this.movingPlatforms.push({
+      x: 250,
+      y: -160,
+      width: 160,
+      height: 18,
+      title: 'Memory Stack B',
+      appType: 'bsod',
+      minY: -320,
+      maxY: -120,
+      speed: 120,
+      dir: -1,
+      axis: 'y'
+    });
+  }
+
+  buildStage6Recycle() {
+    this.stageName = 'Corrupted Recycle Bin';
+    this.theme = 'recycle';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    this.platforms = [
+      { x: -500, y: -160, width: 220, height: 22, title: 'Corrupted_Script.js', appType: 'explorer' },
+      { x: 500, y: -160, width: 220, height: 22, title: 'Deleted_Save.dat', appType: 'explorer' },
+      { x: 0, y: -280, width: 280, height: 24, title: 'Recycle_Bin_Master_Dump', appType: 'explorer' }
+    ];
+
+    this.movingPlatforms.push({
+      x: -220, y: -180, width: 140, height: 18, title: 'Shredder Bar L', appType: 'scanner',
+      minY: -300, maxY: -100, speed: 130, dir: 1, axis: 'y'
+    });
+    this.movingPlatforms.push({
+      x: 220, y: -180, width: 140, height: 18, title: 'Shredder Bar R', appType: 'scanner',
+      minY: -300, maxY: -100, speed: 130, dir: -1, axis: 'y'
+    });
+  }
+
+  buildStage7Minecraft() {
+    this.stageName = 'Minecraft Nether Core';
+    this.theme = 'minecraft';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    this.platforms = [
+      { x: -600, y: -140, width: 220, height: 24, title: 'Obsidian Platform West', appType: 'paint' },
+      { x: 600, y: -140, width: 220, height: 24, title: 'Obsidian Platform East', appType: 'paint' },
+      { x: -200, y: -260, width: 180, height: 24, title: 'Nether Fortress Pillar', appType: 'paint' },
+      { x: 200, y: -260, width: 180, height: 24, title: 'Nether Fortress Pillar', appType: 'paint' }
+    ];
+
+    this.movingPlatforms.push({
+      x: 0, y: -340, width: 200, height: 20, title: 'Floating Netherrack', appType: 'paint',
+      minX: -250, maxX: 250, speed: 140, dir: 1, axis: 'x'
+    });
+  }
+
+  buildStage8Terminal() {
+    this.stageName = 'Terminal Cyber Matrix';
+    this.theme = 'terminal';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    this.platforms = [
+      { x: -550, y: -180, width: 240, height: 20, title: 'root@matrix:~# ./killall', appType: 'terminal' },
+      { x: 550, y: -180, width: 240, height: 20, title: 'root@matrix:~# sudo firewall', appType: 'terminal' },
+      { x: 0, y: -290, width: 320, height: 22, title: 'BUFFER_OVERFLOW_SHIELD.SYS', appType: 'terminal' }
+    ];
+
+    this.laserHazards.push({
+      x: -400, y: -100, width: 180, height: 10, timer: 0, cycleDuration: 2.6, activeDuration: 1.3, damage: 22
+    });
+    this.laserHazards.push({
+      x: 220, y: -100, width: 180, height: 10, timer: 1.3, cycleDuration: 2.6, activeDuration: 1.3, damage: 22
+    });
+  }
+
+  buildStage9VirabotNexus() {
+    this.stageName = 'ViraBot Infestation Nexus';
+    this.theme = 'virabot';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    this.platforms = [
+      { x: -500, y: -160, width: 240, height: 22, title: 'VIRUS_INCUBATOR_ALPHA', appType: 'bsod' },
+      { x: 500, y: -160, width: 240, height: 22, title: 'VIRUS_INCUBATOR_BETA', appType: 'bsod' },
+      { x: 0, y: -300, width: 320, height: 22, title: 'MALWARE_CONDUIT_CENTRAL', appType: 'bsod' }
+    ];
+
+    this.movingPlatforms.push({
+      x: -240, y: -200, width: 150, height: 18, title: 'Infected Node L', appType: 'scanner',
+      minY: -340, maxY: -120, speed: 150, dir: 1, axis: 'y'
+    });
+    this.movingPlatforms.push({
+      x: 240, y: -200, width: 150, height: 18, title: 'Infected Node R', appType: 'scanner',
+      minY: -340, maxY: -120, speed: 150, dir: -1, axis: 'y'
+    });
+  }
+
+  buildStage10DarkCore() {
+    this.stageName = "The Dark Core (TDL's Domain)";
+    this.theme = 'dark_core';
+
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+
+    // Ultimate Boss Arena Layout
+    this.platforms = [
+      { x: -560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_ALPHA [CRITICAL]', appType: 'dark_core' },
+      { x: 560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_OMEGA [CRITICAL]', appType: 'dark_core' },
+      { x: 0, y: -310, width: 360, height: 26, title: 'DARK_SINGULARITY_CORE (TDL)', appType: 'dark_core' }
+    ];
+
+    this.movingPlatforms.push({
+      x: -260, y: -180, width: 160, height: 20, title: 'Crimson Surge L', appType: 'dark_core',
+      minY: -340, maxY: -100, speed: 160, dir: 1, axis: 'y'
+    });
+    this.movingPlatforms.push({
+      x: 260, y: -180, width: 160, height: 20, title: 'Crimson Surge R', appType: 'dark_core',
+      minY: -340, maxY: -100, speed: 160, dir: -1, axis: 'y'
+    });
+  }
+
+  update(dt, player, wavesDirector, onStageExit) {
+    // 1. Update Moving Platforms
+    for (const p of this.movingPlatforms) {
+      if (p.axis === 'x') {
+        p.x += p.speed * p.dir * dt;
+        if (p.x >= p.maxX) { p.x = p.maxX; p.dir = -1; }
+        else if (p.x <= p.minX) { p.x = p.minX; p.dir = 1; }
+      } else if (p.axis === 'y') {
+        p.y += p.speed * p.dir * dt;
+        if (p.y >= p.maxY) { p.y = p.maxY; p.dir = -1; }
+        else if (p.y <= p.minY) { p.y = p.minY; p.dir = 1; }
+      }
+    }
+
+    // 2. Update Laser Hazards
+    for (const laser of this.laserHazards) {
+      laser.timer = (laser.timer + dt) % laser.cycleDuration;
+      const isActive = laser.timer < laser.activeDuration;
+
+      // Damage player if walking into active laser beam
+      if (isActive && player && !player.isRolling && !player.isAwakened) {
+        if (player.x >= laser.x - 20 && player.x <= laser.x + laser.width + 20 &&
+            Math.abs(player.y - 30 - laser.y) < 25) {
+          audio.playLaserZap();
+          player.takeDamage(laser.damage, player.x < laser.x + laser.width / 2 ? -1 : 1, 350);
+          particles.createHitSparks(player.x, laser.y, 8, '#ff2244');
+        }
+      }
+    }
+
+    // 3. Check Objective / Exit Door Unlock
+    const allEnemiesDefeated = wavesDirector && wavesDirector.isWaveActive &&
+                               wavesDirector.spawnQueue.length === 0 &&
+                               wavesDirector.zombies.length === 0;
+
+    if (allEnemiesDefeated && !this.isObjectiveComplete) {
+      this.isObjectiveComplete = true;
+      this.exitDoor.isOpen = true;
+      audio.playDoorUnlock();
+      particles.addTextBanner(this.exitDoor.x, this.exitDoor.y - 120, '★ EXIT DOOR OPEN! ★', '#33ff88');
+      particles.addShockwave(this.exitDoor.x, this.exitDoor.y - 45, 120, '#33ff88', 8);
+    }
+
+    // 4. Check if player enters Exit Door
+    if (this.exitDoor.isOpen && player && !player.isDead) {
+      const distToExit = Math.hypot(player.x - this.exitDoor.x, player.y - this.exitDoor.y);
+      if (distToExit < 60) {
+        this.doorTransitionTimer += dt;
+        particles.createAwakeningAura(this.exitDoor.x, this.exitDoor.y - 45, 2);
+
+        if (this.doorTransitionTimer > 0.4) {
+          // Transition to next stage
+          this.doorTransitionTimer = -999;
+          this.exitDoor.isOpen = false;
+          audio.playDoorEnter();
+          if (onStageExit) {
+            onStageExit(this.currentStage + 1);
+          }
+        }
+      } else {
+        if (this.doorTransitionTimer > 0) this.doorTransitionTimer = 0;
+      }
+    }
+  }
+
+  getAllSolidPlatforms() {
+    return [...this.platforms, ...this.movingPlatforms];
+  }
+
+  // --- RENDERING ---
+
+  draw(ctx, groundY) {
+    // 1. Draw Desktop Wallpaper & Grid Background
+    this.drawDesktopBackground(ctx, groundY);
+
+    // 2. Draw Desktop Icons
+    this.drawDesktopIcons(ctx);
+
+    // 3. Draw Error Popups
+    this.drawErrorPopups(ctx);
+
+    // 4. Draw Doors (Entrance & Exit)
+    this.drawDoors(ctx, groundY);
+
+    // 5. Draw Platforms & Moving Windows
+    this.drawPlatforms(ctx);
+
+    // 6. Draw Laser Hazards
+    this.drawLaserHazards(ctx);
+
+    // 7. Draw Windows Taskbar at bottom
+    this.drawTaskbar(ctx, groundY);
+  }
+
+  drawDesktopBackground(ctx, groundY) {
+    const minX = this.bounds.minX;
+    const maxX = this.bounds.maxX;
+    const minY = this.bounds.minY;
+    const maxY = groundY;
+
+    ctx.save();
+
+    if (this.theme === 'animate') {
+      // Dark Charcoal Flash/Animate Workspace
+      ctx.fillStyle = '#2d2f3a';
+      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+
+      // Grid Lines
+      ctx.strokeStyle = 'rgba(70, 75, 95, 0.4)';
+      ctx.lineWidth = 1;
+      for (let x = minX; x <= maxX; x += 50) {
+        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
+      }
+      for (let y = minY; y <= maxY; y += 50) {
+        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
+      }
+      // Ruler at top
+      ctx.fillStyle = '#1e2029';
+      ctx.fillRect(minX, minY, maxX - minX, 24);
+      ctx.fillStyle = '#888ea6';
+      ctx.font = "10px monospace";
+      for (let x = minX; x <= maxX; x += 100) {
+        ctx.fillText(`${x}`, x + 5, minY + 16);
+      }
+    } else if (this.theme === 'bsod') {
+      // Blue Screen of Death (BSOD) Wallpaper
+      ctx.fillStyle = '#0047b3';
+      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+
+      // BSOD Crash Dump Text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = "14px monospace";
+      ctx.fillText(":( A problem has been detected and the OS has been shut down.", minX + 60, minY + 80);
+      ctx.fillText("TECHNICAL INFORMATION:", minX + 60, minY + 120);
+      ctx.fillText("*** STOP: 0x000000D1 (0x0000000C, 0x00000002, 0x00000000, 0xF86B5A89)", minX + 60, minY + 145);
+      ctx.fillText("*** ALAN_BECKER_STICKMAN_SYS - ADDRESS F86B5A89 BASE AT F86B4000", minX + 60, minY + 170);
+      ctx.fillText(">>> DEFEAT THE TITAN UNDEAD TO REBOOT SYSTEM <<<", minX + 60, minY + 210);
+    } else if (this.theme === 'firewall') {
+      // Neon Security Grid
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+      ctx.strokeStyle = '#ff3344';
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.2;
+      for (let x = minX; x <= maxX; x += 60) {
+        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
+      }
+      for (let y = minY; y <= maxY; y += 60) {
+        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
+      }
+      ctx.globalAlpha = 1.0;
+    } else if (this.theme === 'dark_core') {
+      // The Dark Core - Corrupted Red Cyber Void (TDL Boss Arena)
+      ctx.fillStyle = '#140005';
+      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+
+      // Crimson Glitch Grid
+      ctx.strokeStyle = 'rgba(255, 0, 50, 0.25)';
+      ctx.lineWidth = 1;
+      for (let x = minX; x <= maxX; x += 50) {
+        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
+      }
+      for (let y = minY; y <= maxY; y += 50) {
+        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
+      }
+
+      // Warning matrix text
+      ctx.fillStyle = '#ff1133';
+      ctx.font = "bold 14px monospace";
+      ctx.shadowColor = '#ff0033';
+      ctx.shadowBlur = 12;
+      ctx.fillText(">>> CRITICAL THREAT: THE_DARK_LORD.EXE HAS CORRUPTED THE CORE <<<", minX + 60, minY + 80);
+      ctx.fillText(">>> SYSTEM INTEGRITY: 0% | VIRABOT POWER LEVEL: MAXIMUM <<<", minX + 60, minY + 110);
+      ctx.fillText(">>> DEFEAT THE DARK LORD TO RESTORE THE DESKTOP <<<", minX + 60, minY + 140);
+    } else if (this.theme === 'terminal') {
+      // Hacker Terminal Green Grid
+      ctx.fillStyle = '#051108';
+      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+      ctx.strokeStyle = 'rgba(50, 255, 100, 0.2)';
+      ctx.lineWidth = 1;
+      for (let x = minX; x <= maxX; x += 50) {
+        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
+      }
+      for (let y = minY; y <= maxY; y += 50) {
+        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
+      }
+      ctx.fillStyle = '#33ff77';
+      ctx.font = "14px monospace";
+      ctx.fillText("root@desktop:~$ ./firewall_purge --force", minX + 60, minY + 80);
+    } else {
+      // Classic Desktop Theme (Slate / Windows blue)
+      ctx.fillStyle = '#262c3e';
+      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+
+      // Desktop grid
+      ctx.strokeStyle = 'rgba(55, 62, 85, 0.6)';
+      ctx.lineWidth = 1;
+      for (let x = minX; x <= maxX; x += 60) {
+        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
+      }
+      for (let y = minY; y <= maxY; y += 60) {
+        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
+      }
+    }
+
+    // Ground Line
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(minX, groundY);
+    ctx.lineTo(maxX, groundY);
+    ctx.stroke();
+
+    // Boundary walls
+    ctx.strokeStyle = '#ff3344';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(minX, minY); ctx.lineTo(minX, groundY);
+    ctx.moveTo(maxX, minY); ctx.lineTo(maxX, groundY);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  drawDesktopIcons(ctx) {
+    for (const icon of this.desktopIcons) {
+      ctx.save();
+      // Icon Box
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.lineWidth = 1;
+      ctx.fillRect(icon.x - 30, icon.y - 40, 60, 50);
+      ctx.strokeRect(icon.x - 30, icon.y - 40, 60, 50);
+
+      // Emoji / Icon Glyph
+      ctx.font = "24px sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icon.icon, icon.x, icon.y - 15);
+
+      // Label
+      ctx.fillStyle = '#ffffff';
+      ctx.font = "bold 10px 'Nunito', sans-serif";
+      ctx.fillText(icon.label, icon.x, icon.y + 20);
+      ctx.restore();
+    }
+  }
+
+  drawErrorPopups(ctx) {
+    for (const pop of this.errorPopups) {
+      ctx.save();
+      // Window Body
+      ctx.fillStyle = '#ece9d8';
+      ctx.strokeStyle = '#0055ea';
+      ctx.lineWidth = 2;
+      ctx.fillRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, pop.height);
+      ctx.strokeRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, pop.height);
+
+      // Title bar
+      ctx.fillStyle = '#0055ea';
+      ctx.fillRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, 18);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = "bold 10px sans-serif";
+      ctx.textAlign = 'left';
+      ctx.fillText(pop.title, pop.x - pop.width / 2 + 6, pop.y - pop.height / 2 + 13);
+
+      // Message
+      ctx.fillStyle = '#000000';
+      ctx.font = "bold 11px sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillText(pop.msg, pop.x, pop.y + 12);
+      ctx.restore();
+    }
+  }
+
+  drawDoors(ctx, groundY) {
+    // 1. Entrance Door (Start Portal)
+    ctx.save();
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3;
+    ctx.fillRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
+    ctx.strokeRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = "bold 11px 'Bungee', cursive";
+    ctx.textAlign = 'center';
+    ctx.fillText("START", this.entranceDoor.x, groundY - this.entranceDoor.height - 8);
+    ctx.restore();
+
+    // 2. Exit Door (Goal Portal)
+    ctx.save();
+    const isOpen = this.exitDoor.isOpen;
+    ctx.fillStyle = isOpen ? '#064e3b' : '#3f1118';
+    ctx.strokeStyle = isOpen ? '#10b981' : '#ef4444';
+    ctx.lineWidth = 4;
+    ctx.fillRect(this.exitDoor.x - 30, groundY - this.exitDoor.height, 60, this.exitDoor.height);
+    ctx.strokeRect(this.exitDoor.x - 30, groundY - this.exitDoor.height, 60, this.exitDoor.height);
+
+    // Glow if open
+    if (isOpen) {
+      ctx.shadowColor = '#10b981';
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = '#34d399';
+      ctx.fillRect(this.exitDoor.x - 22, groundY - this.exitDoor.height + 8, 44, this.exitDoor.height - 16);
+
+      // Bouncing Guide Arrow above door
+      const bounce = Math.sin(Date.now() * 0.008) * 8;
+      ctx.fillStyle = '#ffea00';
+      ctx.font = "bold 14px 'Bungee', cursive";
+      ctx.textAlign = 'center';
+      ctx.fillText("⬇ ENTER EXIT ⬇", this.exitDoor.x, groundY - this.exitDoor.height - 18 + bounce);
+    } else {
+      // Locked Icon
+      ctx.fillStyle = '#ef4444';
+      ctx.font = "bold 11px 'Bungee', cursive";
+      ctx.textAlign = 'center';
+      ctx.fillText("🔒 LOCKED", this.exitDoor.x, groundY - this.exitDoor.height - 8);
+    }
+    ctx.restore();
+  }
+
+  drawPlatforms(ctx) {
+    const allPlatforms = this.getAllSolidPlatforms();
+    for (const p of allPlatforms) {
+      ctx.save();
+      const halfW = p.width / 2;
+      const topY = p.y - p.height;
+
+      // Window Background
+      if (p.appType === 'dark_core') {
+        ctx.fillStyle = '#1c0006';
+        ctx.strokeStyle = '#ff0033';
+        ctx.shadowColor = '#ff0033';
+        ctx.shadowBlur = 10;
+      } else if (p.appType === 'bsod') {
+        ctx.fillStyle = '#003399';
+        ctx.strokeStyle = '#ffffff';
+      } else {
+        ctx.fillStyle = '#1e202d';
+        ctx.strokeStyle = '#4f5578';
+      }
+
+      ctx.lineWidth = 2;
+      ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+      ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+
+      // Window Title Bar (Top 6px)
+      ctx.fillStyle = p.appType === 'dark_core' ? '#ff0033' : (p.appType === 'bsod' ? '#ffffff' : '#333852');
+      ctx.fillRect(p.x - halfW, topY, p.width, 6);
+
+      // Window Controls [ - ][ □ ][ X ]
+      ctx.fillStyle = '#ff4444';
+      ctx.beginPath();
+      ctx.arc(p.x + halfW - 8, topY + 3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Title Text
+      ctx.fillStyle = p.appType === 'dark_core' ? '#ff8899' : (p.appType === 'bsod' ? '#ffffff' : '#c5cbe8');
+      ctx.font = "bold 9px 'Nunito', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillText(p.title, p.x, p.y - 4);
+
+      ctx.restore();
+    }
+  }
+
+  drawLaserHazards(ctx) {
+    for (const laser of this.laserHazards) {
+      const isActive = laser.timer < laser.activeDuration;
+      ctx.save();
+      if (isActive) {
+        // Lethal Red Security Beam
+        ctx.fillStyle = '#ff2244';
+        ctx.shadowColor = '#ff2244';
+        ctx.shadowBlur = 14;
+        ctx.fillRect(laser.x, laser.y - laser.height / 2, laser.width, laser.height);
+
+        // Core white ray
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(laser.x, laser.y - 2, laser.width, 4);
+      } else {
+        // Warning Dotted Laser Line
+        ctx.strokeStyle = 'rgba(255, 68, 68, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(laser.x, laser.y);
+        ctx.lineTo(laser.x + laser.width, laser.y);
+        ctx.stroke();
+      }
+
+      // Emitter nodes at left and right
+      ctx.fillStyle = '#444';
+      ctx.fillRect(laser.x - 8, laser.y - 8, 8, 16);
+      ctx.fillRect(laser.x + laser.width, laser.y - 8, 8, 16);
+      ctx.restore();
+    }
+  }
+
+  drawTaskbar(ctx, groundY) {
+    const minX = this.bounds.minX;
+    const maxX = this.bounds.maxX;
+
+    ctx.save();
+    // Windows Taskbar bar
+    ctx.fillStyle = '#11131c';
+    ctx.strokeStyle = '#2d3147';
+    ctx.lineWidth = 2;
+    ctx.fillRect(minX, groundY, maxX - minX, 40);
+    ctx.strokeRect(minX, groundY, maxX - minX, 40);
+
+    // Start Button
+    ctx.fillStyle = '#0078d7';
+    ctx.fillRect(minX + 10, groundY + 5, 80, 30);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = "bold 12px 'Nunito', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText("🪟 START", minX + 50, groundY + 24);
+
+    // Active Taskbar App Tabs
+    const tabs = ['Stick_vs_Zombies.exe', 'Animation_v2.fla', 'Zombies_Horde.cmd'];
+    tabs.forEach((tab, i) => {
+      const tx = minX + 100 + i * 160;
+      ctx.fillStyle = i === 0 ? '#262a3e' : '#181a26';
+      ctx.fillRect(tx, groundY + 6, 150, 28);
+      ctx.fillStyle = '#a5accb';
+      ctx.font = "11px 'Nunito', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillText(tab, tx + 75, groundY + 23);
+    });
+
+    // Right System Tray Clock
+    ctx.fillStyle = '#ffffff';
+    ctx.font = "bold 12px monospace";
+    ctx.textAlign = 'right';
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    ctx.fillText(`🔊 100% | 📅 ${timeStr}`, maxX - 20, groundY + 24);
+
+    ctx.restore();
+  }
+}
+
+export const stages = new StageManager();
