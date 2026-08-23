@@ -172,8 +172,9 @@ class InputManager {
     // Bottom HUD skill slot buttons (clickable on desktop and touch)
     bindBtn('skill-punch', 'attack');
     bindBtn('skill-pencil', 'weapon');
+    bindBtn('skill-grab', 'grab');
     bindBtn('skill-roll', 'roll');
-    bindBtn('skill-anvil', 'block');
+    bindBtn('skill-block', 'block');
     bindBtn('skill-super', 'super');
   }
 

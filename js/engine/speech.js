@@ -118,12 +118,20 @@ export const SPEECH_CORPUS = {
 export class SpeechBubbleManager {
   constructor() {
     this.bubbles = [];
+    this.lastShoutTime = 0;
   }
 
   // Spawn retro speech bubble above character
-  spawnBubble(x, y, text, speakerType = 'player', duration = 2.4) {
-    // Limit max bubbles on screen to prevent clutter
-    if (this.bubbles.length >= 4) {
+  spawnBubble(x, y, text, speakerType = 'player', duration = 2.0) {
+    const now = Date.now();
+    if (now - this.lastShoutTime < 350) return; // Prevent spam overload
+    this.lastShoutTime = now;
+
+    // Remove any existing bubble nearby to prevent visual stacking
+    this.bubbles = this.bubbles.filter(b => Math.abs(b.x - x) > 100);
+
+    // Limit max bubbles on screen to 2 for clean readability
+    if (this.bubbles.length >= 2) {
       this.bubbles.shift();
     }
 
@@ -133,7 +141,7 @@ export class SpeechBubbleManager {
     this.bubbles.push({
       x,
       y: y - 55,
-      targetY: y - 75,
+      targetY: y - 80,
       text,
       speakerType,
       life: duration,

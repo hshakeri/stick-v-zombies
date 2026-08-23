@@ -161,10 +161,16 @@ export class Player {
       }
     }
 
-    if (this.isRolling) {
+    if (this.rollTimer > 0) {
+      this.rollTimer -= dt;
       if (this.rollTimer <= 0) {
         this.isRolling = false;
       }
+    }
+
+    if (this.isRolling) {
+      this.vx = this.facing * 480;
+      this.pose = 'roll';
     } else {
       // 2. Normal Movement & Controls
       this.handleMovement(dt, input, groundY, sketchBlocks);
@@ -342,7 +348,7 @@ export class Player {
   executeGrabAndThrow(zombies, camera) {
     if (!zombies || !Array.isArray(zombies)) return false;
     let target = null;
-    let minDist = 75;
+    let minDist = 135; // Generous grab range
 
     for (const z of zombies) {
       if (z.isDead) continue;
@@ -355,22 +361,58 @@ export class Player {
 
     if (!target) return false;
 
-    // Grab execution
-    this.attackTimer = 0.35;
-    this.pose = 'attack_axe_kick';
-    this.vx = this.facing * 180;
-    this.squashX = 1.3;
-    this.squashY = 0.75;
-    audio.playGrabThrow();
-    audio.playBassDrop();
-    camera.addShake(0.4);
-    particles.triggerSpeedlines(0.28);
-    particles.addShockwave(this.x, this.y - 20, 100, '#ff1144', 8);
-    particles.addComicPopup(this.x + this.facing * 50, this.y - 35, 'STRIKE!!', '#ff0033', '#ffffff');
+    // Turn toward target
+    this.facing = target.x >= this.x ? 1 : -1;
 
-    // Despawn/damage grabbed zombie and convert into a bowling projectile
-    target.takeDamage(120, this.facing, 900, true);
-    projectiles.spawnThrownZombie(this.x + this.facing * 35, this.y - 30, this.facing, 110);
+    // Grab & Rip Apart execution
+    this.attackTimer = 0.35;
+    this.pose = 'attack_spin';
+    this.vx = this.facing * 220;
+    this.squashX = 1.4;
+    this.squashY = 0.7;
+
+    // Audio & Camera Shake Juice
+    audio.playSlash();
+    audio.playFinisherImpact();
+    audio.playBassDrop();
+    audio.playGrabThrow();
+    if (camera) {
+      camera.addShake(0.65);
+      camera.addHitstop(0.12);
+    }
+    particles.triggerSpeedlines(0.35);
+
+    // 1. Violent Blood Ink Fountain & Shockwaves
+    particles.addShockwave(target.x, target.y - 20, 160, '#ff1133', 12);
+    particles.createZombieSplatter(target.x, target.y - 25, 45, target.color);
+
+    // 2. RIP APART: Exploding severed stick limbs & torso flying in all directions
+    particles.createStickLimbExplosion(target.x, target.y, 0, target.color);
+
+    // 3. Severed head launched high into the air
+    particles.limbDebris.push({
+      x: target.x,
+      y: target.y - 45,
+      vx: this.facing * (450 + Math.random() * 250),
+      vy: -400 - Math.random() * 250,
+      groundY: 0,
+      rotation: 0,
+      rotSpeed: this.facing * 25,
+      isHead: true,
+      radius: 11,
+      color: target.color,
+      life: 2.2,
+      maxLife: 2.2
+    });
+
+    // 4. Comic Onomatopoeia Banner
+    const ripBanners = ['RIPPED APART!!', 'BRUTAL TEAR!!', 'FATALITY!!', 'DISMEMBERED!!'];
+    const bannerText = ripBanners[Math.floor(Math.random() * ripBanners.length)];
+    particles.addComicPopup(this.x + this.facing * 60, this.y - 45, bannerText, '#ff0033', '#ffffff');
+
+    // 5. Instantly kill target and spawn lower body bowling projectile that wipes out enemy lines
+    target.die(true);
+    projectiles.spawnThrownZombie(this.x + this.facing * 40, this.y - 30, this.facing, 140);
     speech.shout(this.x, this.y, 'playerAttack');
     return true;
   }

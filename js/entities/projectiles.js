@@ -62,6 +62,14 @@ export class ProjectileManager {
           // Anvil stays briefly as obstacle then despawns
           p.life = Math.min(p.life, 2.0);
           p.isLanded = true;
+        } else if (p.type === 'thrown_zombie') {
+          p.y = groundY;
+          p.vy = -Math.abs(p.vy) * 0.45;
+          p.vx *= 0.82;
+          audio.playPunch('heavy');
+          particles.createDust(p.x, groundY, 8);
+          particles.createZombieSplatter(p.x, groundY, 8, '#2e7d32');
+          if (camera) camera.addShake(0.25);
         }
       }
 
