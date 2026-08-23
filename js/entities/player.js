@@ -75,6 +75,9 @@ export class Player {
     // Pose & Renderer
     this.pose = 'idle';
     this.animTimer = 0;
+    this.squashX = 1.0;
+    this.squashY = 1.0;
+    this.leanAngle = 0;
     this.renderer = new StickFigureRenderer('#ff7700', 5.5, 1.0, true); // Hollow head for Orange!
 
     // Ghost Trails for Dodge Roll / Awakening
@@ -97,6 +100,14 @@ export class Player {
 
     this.platforms = platforms;
     this.animTimer += dt;
+
+    // Smooth Squash & Stretch elastic recovery
+    this.squashX += (1.0 - this.squashX) * Math.min(1, 14.0 * dt);
+    this.squashY += (1.0 - this.squashY) * Math.min(1, 14.0 * dt);
+
+    // Dynamic sprint lean angle
+    const targetLean = this.isGrounded ? (this.vx / 450) * 0.16 : (this.vx / 600) * 0.08;
+    this.leanAngle += (targetLean - this.leanAngle) * Math.min(1, 12.0 * dt);
 
     // Update Timers
     if (this.hurtTimer > 0) {
@@ -224,6 +235,8 @@ export class Player {
         this.coyoteTimer = 0;
         this.jumpBuffer = 0;
         this.canDoubleJump = true;
+        this.squashX = 0.82;
+        this.squashY = 1.22;
         audio.playJump();
         particles.createDust(this.x, this.y, 6);
       } else if (this.isWallSliding) {
@@ -234,6 +247,8 @@ export class Player {
         this.isWallSliding = false;
         this.jumpBuffer = 0;
         this.canDoubleJump = true;
+        this.squashX = 0.85;
+        this.squashY = 1.20;
         audio.playJump();
         particles.createDust(this.x, this.y - 20, 8, this.facing);
       } else if (this.canDoubleJump) {
@@ -241,8 +256,11 @@ export class Player {
         this.vy = -this.jumpForce * 0.88;
         this.canDoubleJump = false;
         this.jumpBuffer = 0;
+        this.squashX = 0.80;
+        this.squashY = 1.26;
         audio.playJump();
-        particles.createHitSparks(this.x, this.y, 6, '#ffa500');
+        particles.addShockwave(this.x, this.y - 20, 50, '#ffa500', 4);
+        particles.createHitSparks(this.x, this.y, 8, '#ffa500');
       }
     }
 
@@ -343,6 +361,9 @@ export class Player {
     camera.addShake(0.3);
     const range = 160; // Wide reach for giant pencil
     particles.addSlashArc(this.x, this.y - 30, range * 0.85, 0, this.facing, '#ff7700', 10);
+    if (this.weaponType === 'pencil') {
+      particles.createPencilLeadTrail(this.x + this.facing * 40, this.y - 30, 8, this.facing);
+    }
 
     const damage = (stats.damage || 45) * (this.damageMultiplier || 1.0) * (this.isAwakened ? 2.0 : 1.0);
     this.checkMeleeHits(zombies, range, damage, 650, true, '#ffaa00', camera);
@@ -456,6 +477,8 @@ export class Player {
       if (!this.isGrounded && this.vy > 100) {
         audio.playLand();
         particles.createDust(this.x, groundY, 4);
+        this.squashX = Math.min(1.35, 1.0 + (this.vy / 1600));
+        this.squashY = Math.max(0.72, 1.0 - (this.vy / 2000));
       }
       this.y = groundY;
       this.vy = 0;
@@ -641,7 +664,10 @@ export class Player {
       isAwakened: this.isAwakened,
       weaponType: this.weaponType,
       scale: 1.0,
-      alpha: 1.0
+      alpha: 1.0,
+      squashX: this.squashX,
+      squashY: this.squashY,
+      leanAngle: this.leanAngle
     });
 
     // Awakening Laser Beam Ray

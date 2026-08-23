@@ -300,6 +300,9 @@ export class Zombie {
   applyPhysics(dt, groundY, sketchBlocks) {
     // Gravity
     this.vy += 950 * dt;
+    if (this.hurtTimer > 0) {
+      this.vx *= Math.pow(0.88, dt * 60);
+    }
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
@@ -433,6 +436,26 @@ export class Zombie {
       alpha: 1.0
     });
 
+    // Spitter: Bubbling toxic acid vapor
+    if (this.type === 'spitter') {
+      ctx.fillStyle = '#64dd17';
+      ctx.shadowColor = '#76ff03';
+      ctx.shadowBlur = 8;
+      const bubbleY = this.y - 35 + Math.sin(this.animTimer * 6) * 3;
+      ctx.beginPath();
+      ctx.arc(this.x + this.facing * 8, bubbleY, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (this.type === 'brute') {
+      // Brute: Heavy fist spikes
+      ctx.fillStyle = '#37474f';
+      ctx.strokeStyle = '#cfd8dc';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(this.x + this.facing * 16, this.y - 20, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
     // Stunned stars above head
     if (isStunned) {
       ctx.fillStyle = '#ffea00';
@@ -444,17 +467,20 @@ export class Zombie {
 
     // Health bar above head for all non-boss damaged zombies
     if (this.type !== 'titan_boss' && this.hp < this.maxHp && this.hp > 0) {
-      const barWidth = Math.max(42, 38 * this.scale);
-      const barHeight = 6;
-      const barY = this.y - this.height - 16;
+      const barWidth = Math.max(44, 40 * this.scale);
+      const barHeight = 5;
+      const barY = this.y - this.height - 14;
 
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      // Background border
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
       ctx.fillRect(this.x - barWidth / 2 - 1, barY - 1, barWidth + 2, barHeight + 2);
 
-      ctx.fillStyle = '#ff2233';
+      // Red damage underfill
+      ctx.fillStyle = '#d50000';
       ctx.fillRect(this.x - barWidth / 2, barY, barWidth, barHeight);
 
-      ctx.fillStyle = isFrozen ? '#22aaff' : '#33ee44';
+      // Green active HP fill
+      ctx.fillStyle = isFrozen ? '#00e5ff' : '#00e676';
       const fillW = Math.max(0, barWidth * (this.hp / this.maxHp));
       ctx.fillRect(this.x - barWidth / 2, barY, fillW, barHeight);
     }

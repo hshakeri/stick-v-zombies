@@ -735,7 +735,7 @@ export class StageManager {
   drawDoors(ctx, groundY) {
     // 1. Entrance Door (Start Portal)
     ctx.save();
-    ctx.fillStyle = '#1e293b';
+    ctx.fillStyle = '#0f172a';
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 3;
     ctx.fillRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
@@ -749,25 +749,35 @@ export class StageManager {
     // 2. Exit Door (Goal Portal)
     ctx.save();
     const isOpen = this.exitDoor.isOpen;
-    ctx.fillStyle = isOpen ? '#064e3b' : '#3f1118';
+    ctx.fillStyle = isOpen ? '#022c22' : '#3f1118';
     ctx.strokeStyle = isOpen ? '#10b981' : '#ef4444';
     ctx.lineWidth = 4;
-    ctx.fillRect(this.exitDoor.x - 30, groundY - this.exitDoor.height, 60, this.exitDoor.height);
-    ctx.strokeRect(this.exitDoor.x - 30, groundY - this.exitDoor.height, 60, this.exitDoor.height);
+    ctx.fillRect(this.exitDoor.x - 32, groundY - this.exitDoor.height, 64, this.exitDoor.height);
+    ctx.strokeRect(this.exitDoor.x - 32, groundY - this.exitDoor.height, 64, this.exitDoor.height);
 
-    // Glow if open
+    // Glowing Interactive Vortex if open
     if (isOpen) {
       ctx.shadowColor = '#10b981';
-      ctx.shadowBlur = 18;
-      ctx.fillStyle = '#34d399';
-      ctx.fillRect(this.exitDoor.x - 22, groundY - this.exitDoor.height + 8, 44, this.exitDoor.height - 16);
+      ctx.shadowBlur = 24;
+      ctx.fillStyle = '#10b981';
+      ctx.fillRect(this.exitDoor.x - 24, groundY - this.exitDoor.height + 8, 48, this.exitDoor.height - 16);
+
+      // Swirling inner cyber vortex
+      const time = Date.now() * 0.006;
+      ctx.fillStyle = '#6ee7b7';
+      for (let i = 0; i < 4; i++) {
+        const vy = (groundY - this.exitDoor.height + 14) + ((time * 25 + i * 15) % (this.exitDoor.height - 28));
+        ctx.beginPath();
+        ctx.arc(this.exitDoor.x + Math.sin(time + i) * 12, vy, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Bouncing Guide Arrow above door
       const bounce = Math.sin(Date.now() * 0.008) * 8;
       ctx.fillStyle = '#ffea00';
-      ctx.font = "bold 14px 'Bungee', cursive";
+      ctx.font = "bold 13px 'Bungee', cursive";
       ctx.textAlign = 'center';
-      ctx.fillText("⬇ ENTER EXIT ⬇", this.exitDoor.x, groundY - this.exitDoor.height - 18 + bounce);
+      ctx.fillText("⬇ ENTER EXIT ⬇", this.exitDoor.x, groundY - this.exitDoor.height - 16 + bounce);
     } else {
       // Locked Icon
       ctx.fillStyle = '#ef4444';
@@ -785,40 +795,42 @@ export class StageManager {
       const halfW = p.width / 2;
       const topY = p.y - p.height;
 
-      // Window Background
+      // Window Platform Body
       if (p.appType === 'dark_core') {
-        ctx.fillStyle = '#1c0006';
+        ctx.fillStyle = '#180006';
         ctx.strokeStyle = '#ff0033';
         ctx.shadowColor = '#ff0033';
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 12;
       } else if (p.appType === 'bsod') {
-        ctx.fillStyle = '#003399';
-        ctx.strokeStyle = '#ffffff';
+        ctx.fillStyle = '#002277';
+        ctx.strokeStyle = '#38bdf8';
       } else {
-        ctx.fillStyle = '#1e202d';
-        ctx.strokeStyle = '#4f5578';
+        ctx.fillStyle = 'rgba(26, 29, 44, 0.94)';
+        ctx.strokeStyle = '#475569';
       }
 
       ctx.lineWidth = 2;
       ctx.fillRect(p.x - halfW, topY, p.width, p.height);
       ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
 
-      // Window Title Bar (Top 6px)
-      ctx.fillStyle = p.appType === 'dark_core' ? '#ff0033' : (p.appType === 'bsod' ? '#ffffff' : '#333852');
-      ctx.fillRect(p.x - halfW, topY, p.width, 6);
+      // Window Titlebar Header (Top 8px)
+      ctx.fillStyle = p.appType === 'dark_core' ? '#3b000d' : (p.appType === 'bsod' ? '#003399' : '#334155');
+      ctx.fillRect(p.x - halfW, topY, p.width, 9);
 
-      // Window Controls [ - ][ □ ][ X ]
-      ctx.fillStyle = '#ff4444';
-      ctx.beginPath();
-      ctx.arc(p.x + halfW - 8, topY + 3, 2.5, 0, Math.PI * 2);
-      ctx.fill();
+      // Authentic Traffic-Light Window Controls [ Red | Yellow | Green ]
+      const ctrlY = topY + 4.5;
+      ctx.fillStyle = '#ff5f56';
+      ctx.beginPath(); ctx.arc(p.x + halfW - 20, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffbd2e';
+      ctx.beginPath(); ctx.arc(p.x + halfW - 13, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#27c93f';
+      ctx.beginPath(); ctx.arc(p.x + halfW - 6, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
 
       // Title Text
-      ctx.fillStyle = p.appType === 'dark_core' ? '#ff8899' : (p.appType === 'bsod' ? '#ffffff' : '#c5cbe8');
+      ctx.fillStyle = p.appType === 'dark_core' ? '#ff6688' : (p.appType === 'bsod' ? '#ffffff' : '#94a3b8');
       ctx.font = "bold 9px 'Nunito', sans-serif";
-      ctx.textAlign = 'center';
-      ctx.fillText(p.title, p.x, p.y - 4);
-
+      ctx.textAlign = 'left';
+      ctx.fillText(p.title, p.x - halfW + 8, topY + 7);
       ctx.restore();
     }
   }

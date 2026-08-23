@@ -15,21 +15,23 @@ export class StickFigureRenderer {
   draw(ctx, state) {
     const {
       x, y, facing, pose, animTimer, isGrounded, isHurt,
-      isAwakened, weaponType, weaponAngle, scale = 1.0, alpha = 1.0
+      isAwakened, weaponType, weaponAngle, scale = 1.0, alpha = 1.0,
+      squashX = 1.0, squashY = 1.0, leanAngle = 0
     } = state;
 
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(x, y);
-    ctx.scale(facing * scale * this.scale, scale * this.scale);
+    ctx.rotate(leanAngle * (facing >= 0 ? 1 : -1));
+    ctx.scale(facing * scale * this.scale * squashX, scale * this.scale * squashY);
 
-    // Awakening God Mode Glow
+    // Awakening God Mode Multi-Tier Glow
     if (isAwakened) {
-      ctx.shadowColor = '#ffaa00';
-      ctx.shadowBlur = 24;
+      ctx.shadowColor = '#ffbb00';
+      ctx.shadowBlur = 28;
     } else if (this.isZombie) {
-      ctx.shadowColor = 'rgba(20, 100, 20, 0.4)';
-      ctx.shadowBlur = 8;
+      ctx.shadowColor = 'rgba(30, 160, 30, 0.45)';
+      ctx.shadowBlur = 10;
     }
 
     ctx.strokeStyle = this.color;
@@ -44,11 +46,15 @@ export class StickFigureRenderer {
     this.drawLimb(ctx, bones.hip, bones.kneeL, bones.footL);
     this.drawLimb(ctx, bones.hip, bones.kneeR, bones.footR);
 
-    // 2. Draw Torso / Spine
+    // 2. Draw Torso / Curved Spine (Alan Becker dynamic spine flex)
     ctx.beginPath();
     ctx.moveTo(bones.hip.x, bones.hip.y);
     if (this.isHunched) {
-      ctx.quadraticCurveTo(bones.hip.x + 10, (bones.hip.y + bones.neck.y) / 2, bones.neck.x, bones.neck.y);
+      ctx.quadraticCurveTo(bones.hip.x + 12, (bones.hip.y + bones.neck.y) * 0.5, bones.neck.x, bones.neck.y);
+    } else if (pose === 'run' || pose === 'jump_rise') {
+      ctx.quadraticCurveTo((bones.hip.x + bones.neck.x) * 0.5 + 4, (bones.hip.y + bones.neck.y) * 0.5, bones.neck.x, bones.neck.y);
+    } else if (pose === 'attack_kick' || pose === 'dive_kick') {
+      ctx.quadraticCurveTo((bones.hip.x + bones.neck.x) * 0.5 - 5, (bones.hip.y + bones.neck.y) * 0.5, bones.neck.x, bones.neck.y);
     } else {
       ctx.lineTo(bones.neck.x, bones.neck.y);
     }
@@ -58,7 +64,7 @@ export class StickFigureRenderer {
     this.drawLimb(ctx, bones.shoulder, bones.elbowL, bones.handL);
     this.drawLimb(ctx, bones.shoulder, bones.elbowR, bones.handR);
 
-    // 4. Draw Head (Hollow for Orange, Solid Filled for Allies and Zombies)
+    // 4. Draw Head (Hollow Ring for Orange, Solid Filled for Allies and Zombies)
     ctx.beginPath();
     ctx.arc(bones.head.x, bones.head.y, bones.headRadius, 0, Math.PI * 2);
     if (this.isHollowHead) {
@@ -71,27 +77,38 @@ export class StickFigureRenderer {
 
     // Facial expressions (Eyes / Angry Brow / God Eyes / Zombie Eyes)
     if (isAwakened) {
-      // Radiant Glowing Eyes
+      // Radiant Glowing Eyes with Divine Spark
       ctx.fillStyle = '#ffffff';
       ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 14;
       ctx.beginPath();
-      ctx.arc(bones.head.x + 4, bones.head.y - 2, 3.5, 0, Math.PI * 2);
+      ctx.arc(bones.head.x + 4, bones.head.y - 2, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffea00';
+      ctx.beginPath();
+      ctx.arc(bones.head.x + 5, bones.head.y - 2, 2, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.isZombie) {
       // Menacing Glowing Red Zombie Eyes
       ctx.fillStyle = '#ff1122';
       ctx.shadowColor = '#ff0000';
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = 10;
       ctx.beginPath();
       ctx.arc(bones.head.x + 4, bones.head.y - 3, 3.5, 0, Math.PI * 2);
       ctx.fill();
+      // Glowing Eye Slit Pupil
+      ctx.fillStyle = '#ffee33';
+      ctx.beginPath();
+      ctx.arc(bones.head.x + 5, bones.head.y - 3, 1.5, 0, Math.PI * 2);
+      ctx.fill();
       // Snarl Fangs
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
       ctx.moveTo(bones.head.x + 2, bones.head.y + 4);
       ctx.lineTo(bones.head.x + 6, bones.head.y + 3);
+      ctx.moveTo(bones.head.x + 4, bones.head.y + 3);
+      ctx.lineTo(bones.head.x + 4, bones.head.y + 6);
       ctx.stroke();
     } else if (isHurt) {
       // Hurt 'X' Eyes
@@ -104,11 +121,11 @@ export class StickFigureRenderer {
       ctx.lineTo(bones.head.x + 2, bones.head.y);
       ctx.stroke();
     } else if (pose.startsWith('attack') || pose === 'weapon_slash' || pose === 'dive_kick') {
-      // Determined / Fierce Eyes
+      // Determined / Fierce Combat Eyebrow & Focused Slits
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
-      ctx.moveTo(bones.head.x + 2, bones.head.y - 3);
+      ctx.moveTo(bones.head.x + 1, bones.head.y - 4);
       ctx.lineTo(bones.head.x + 7, bones.head.y - 1);
       ctx.stroke();
     }
@@ -144,83 +161,111 @@ export class StickFigureRenderer {
     ctx.rotate(angle);
 
     if (weaponType === 'pencil') {
-      // Giant Alan Becker Pencil
-      // Wooden Body
-      ctx.fillStyle = isAwakened ? '#ffee33' : '#ffaa00';
-      ctx.fillRect(-6, -65, 12, 65);
+      // Giant Alan Becker Pencil with 3D Facet Shading
+      // Wooden Body Left Side (Highlight)
+      ctx.fillStyle = isAwakened ? '#fff176' : '#ffb74d';
+      ctx.fillRect(-7, -68, 4, 68);
+      // Wooden Body Middle (Base)
+      ctx.fillStyle = isAwakened ? '#ffee33' : '#ff9800';
+      ctx.fillRect(-3, -68, 6, 68);
+      // Wooden Body Right Side (Shadow)
+      ctx.fillStyle = isAwakened ? '#fbc02d' : '#e65100';
+      ctx.fillRect(3, -68, 4, 68);
 
-      // Pencil stripe facets
-      ctx.strokeStyle = isAwakened ? '#ffcc00' : '#e08800';
-      ctx.lineWidth = 1.5;
+      // Pencil Wood Grain Lines
+      ctx.strokeStyle = isAwakened ? '#f57f17' : '#bf360c';
+      ctx.lineWidth = 1.2;
       ctx.beginPath();
-      ctx.moveTo(-2, -65); ctx.lineTo(-2, 0);
-      ctx.moveTo(2, -65); ctx.lineTo(2, 0);
+      ctx.moveTo(-3, -68); ctx.lineTo(-3, 0);
+      ctx.moveTo(3, -68); ctx.lineTo(3, 0);
       ctx.stroke();
 
-      // Sharpened Wooden Cone
-      ctx.fillStyle = '#f4c28d';
+      // Sharpened Wooden Cone (Cedar Wood Texture)
+      ctx.fillStyle = '#ffcc80';
       ctx.beginPath();
-      ctx.moveTo(-6, -65);
-      ctx.lineTo(6, -65);
-      ctx.lineTo(0, -86);
+      ctx.moveTo(-7, -68);
+      ctx.lineTo(7, -68);
+      ctx.lineTo(0, -92);
       ctx.closePath();
       ctx.fill();
 
-      // Sharp Dark Graphite Tip
-      ctx.fillStyle = '#1e1e1e';
+      // Sharp Dark Graphite Lead Tip
+      ctx.fillStyle = '#212121';
       ctx.beginPath();
-      ctx.moveTo(-3, -75);
-      ctx.lineTo(3, -75);
-      ctx.lineTo(0, -86);
+      ctx.moveTo(-3.5, -78);
+      ctx.lineTo(3.5, -78);
+      ctx.lineTo(0, -92);
       ctx.closePath();
       ctx.fill();
 
-      // Metal Ferrule & Pink Eraser at bottom
-      ctx.fillStyle = '#cfd8dc';
-      ctx.fillRect(-6, 0, 12, 7);
-      ctx.fillStyle = '#ff5577';
-      ctx.fillRect(-6, 7, 12, 14);
+      // Graphite Tip Specular Shine
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-0.5, -84, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Silver Metal Ferrule with Crimp Bands
+      ctx.fillStyle = '#b0bec5';
+      ctx.fillRect(-7, 0, 14, 8);
+      ctx.fillStyle = '#78909c';
+      ctx.fillRect(-7, 3, 14, 2);
+
+      // Pink Rubber Eraser
+      ctx.fillStyle = '#ff80ab';
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(-7, 8, 14, 14, [0, 0, 4, 4]) : ctx.fillRect(-7, 8, 14, 14);
+      ctx.fill();
     } else if (weaponType === 'staff') {
       // Red Martial Arts Staff / Fighting Stick
-      ctx.fillStyle = isAwakened ? '#ffea00' : '#dd3322';
-      ctx.fillRect(-4, -65, 8, 130);
-      // Staff Caps
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-5, -65, 10, 10);
-      ctx.fillRect(-5, 55, 10, 10);
+      ctx.fillStyle = isAwakened ? '#ffee33' : '#d32f2f';
+      ctx.fillRect(-4.5, -70, 9, 140);
+      // Gold Trim Bands
+      ctx.fillStyle = '#ffd700';
+      ctx.fillRect(-5.5, -70, 11, 12);
+      ctx.fillRect(-5.5, 58, 11, 12);
+      ctx.fillRect(-5.5, -6, 11, 12); // Center grip band
+      // Center Grip Wrap pattern
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-5.5, -4); ctx.lineTo(5.5, 4);
+      ctx.moveTo(-5.5, 0); ctx.lineTo(5.5, 8);
+      ctx.stroke();
     } else if (weaponType === 'eraser') {
-      // Giant Pink Eraser
-      ctx.fillStyle = '#ff7799';
-      ctx.fillRect(-16, -40, 32, 50);
+      // Giant Pink Eraser with bevel
+      ctx.fillStyle = '#ff80ab';
+      ctx.fillRect(-18, -44, 36, 54);
+      ctx.fillStyle = '#f50057';
+      ctx.fillRect(14, -44, 4, 54);
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
-      ctx.strokeRect(-16, -40, 32, 50);
+      ctx.strokeRect(-18, -44, 36, 54);
     } else if (weaponType === 'vira_blades') {
       // The Dark Lord's Dual Red Vira-Blades (AvA Lore)
       ctx.fillStyle = '#111111';
-      ctx.fillRect(-3, -10, 6, 20);
+      ctx.fillRect(-3, -12, 6, 22);
       ctx.fillStyle = '#ff0033';
-      ctx.fillRect(-6, -10, 12, 4);
+      ctx.fillRect(-7, -12, 14, 5);
 
-      // Blazing Crimson Energy Blade
+      // Blazing Crimson Energy Plasma Blade
       ctx.shadowColor = '#ff0033';
-      ctx.shadowBlur = 18;
-      ctx.fillStyle = '#ff1133';
+      ctx.shadowBlur = 22;
+      ctx.fillStyle = '#ff1744';
       ctx.beginPath();
-      ctx.moveTo(-4, -10);
-      ctx.lineTo(4, -10);
-      ctx.lineTo(1, -78);
-      ctx.lineTo(-1, -78);
+      ctx.moveTo(-5, -12);
+      ctx.lineTo(5, -12);
+      ctx.lineTo(1.5, -84);
+      ctx.lineTo(-1.5, -84);
       ctx.closePath();
       ctx.fill();
 
-      // White Pure Energy Core
+      // Pure White Energy Core
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.moveTo(-1.5, -10);
-      ctx.lineTo(1.5, -10);
-      ctx.lineTo(0.5, -72);
-      ctx.lineTo(-0.5, -72);
+      ctx.moveTo(-2, -12);
+      ctx.lineTo(2, -12);
+      ctx.lineTo(0.8, -78);
+      ctx.lineTo(-0.8, -78);
       ctx.closePath();
       ctx.fill();
     }

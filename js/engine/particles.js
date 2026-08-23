@@ -300,6 +300,26 @@ export class ParticleSystem {
     });
   }
 
+  createPencilLeadTrail(x, y, count = 6, facing = 1) {
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.random() - 0.5) * 1.2 + (facing > 0 ? 0 : Math.PI);
+      const speed = 60 + Math.random() * 140;
+      this.particles.push({
+        type: 'line',
+        x: x + (Math.random() - 0.5) * 20,
+        y: y + (Math.random() - 0.5) * 20,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 20,
+        color: '#333333',
+        lineWidth: 2.5,
+        life: 0.16,
+        maxLife: 0.16,
+        initialAlpha: 0.85,
+        fade: true
+      });
+    }
+  }
+
   addShockwave(x, y, maxRadius = 120, color = '#ff7700', thickness = 8) {
     this.shockwaves.push({
       x,
