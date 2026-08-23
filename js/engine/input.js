@@ -206,9 +206,13 @@ class InputManager {
     this.actions.block = !!(this.keys['KeyE'] || this.keys['KeyV'] || this.touch.block);
     this.actions.blockPressed = !!(this.keysPressed['KeyE'] || this.keysPressed['KeyV'] || this.touch.blockPressed);
 
-    // Awakening Super (R, F)
-    this.actions.super = !!(this.keys['KeyR'] || this.keys['KeyF'] || this.touch.super);
-    this.actions.superPressed = !!(this.keysPressed['KeyR'] || this.keysPressed['KeyF'] || this.touch.superPressed);
+    // Grab & Throw (F, G)
+    this.actions.grab = !!(this.keys['KeyF'] || this.keys['KeyG']);
+    this.actions.grabPressed = !!(this.keysPressed['KeyF'] || this.keysPressed['KeyG']);
+
+    // Awakening Super (R)
+    this.actions.super = !!(this.keys['KeyR'] || this.touch.super);
+    this.actions.superPressed = !!(this.keysPressed['KeyR'] || this.touch.superPressed);
 
     // Allies (1, 2, 3, 4, 5)
     this.actions.ally1 = !!this.keysPressed['Digit1'];
@@ -262,6 +266,7 @@ class InputManager {
     this.actions.rollPressed = false;
     this.actions.blockPressed = false;
     this.actions.superPressed = false;
+    this.actions.grabPressed = false;
     this.actions.ally1 = false;
     this.actions.ally2 = false;
     this.actions.ally3 = false;

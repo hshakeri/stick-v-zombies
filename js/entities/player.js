@@ -81,6 +81,7 @@ export class Player {
 
     // Ghost Trails for Dodge Roll / Awakening
     this.ghostTrails = [];
+    this.airJuggleTarget = null;
   }
 
   update(dt, input, groundY, sketchBlocks, zombies, camera, platforms = []) {
@@ -270,7 +271,26 @@ export class Player {
   }
 
   handleCombatInputs(input, zombies, camera, groundY) {
-    // 1. Air Dive Kick (Mid-air + Down + Attack/Weapon)
+    // 1. Zombie Vector Grab & Bowling Throw (F / G or Q+W in melee range)
+    if (input.actions.grabPressed || (input.actions.attackPressed && input.actions.weaponPressed)) {
+      if (this.executeGrabAndThrow(zombies, camera)) {
+        return;
+      }
+    }
+
+    // 2. EX Charged Pencil Javelin (Down + W / Weapon)
+    if (input.actions.down && input.actions.weaponPressed && this.weaponTimer <= 0) {
+      this.executeJavelinThrow(zombies, camera);
+      return;
+    }
+
+    // 3. Air-Chase Flash Step (Jump or Attack during Airborne Juggle)
+    if (!this.isGrounded && (input.actions.jumpPressed || input.actions.attackPressed) && this.airJuggleTarget && !this.airJuggleTarget.isDead) {
+      this.executeAirChase(zombies, camera);
+      return;
+    }
+
+    // 4. Air Dive Kick (Mid-air + Down + Attack/Weapon)
     if (!this.isGrounded && input.actions.down && (input.actions.attackPressed || input.actions.weaponPressed)) {
       this.diveKick = true;
       this.vy = 880;
@@ -279,60 +299,154 @@ export class Player {
       this.squashX = 0.85;
       this.squashY = 1.25;
       audio.playWhoosh();
-      if (Math.random() < 0.35) speech.shout(this.x, this.y, 'playerAttack');
+      audio.playBassDrop();
+      particles.addComicPopup(this.x, this.y - 15, 'DIVE!', '#ff3300', '#ffff00');
+      if (Math.random() < 0.4) speech.shout(this.x, this.y, 'playerAttack');
       return;
     }
 
-    // 2. Rising Dragon Uppercut (Up + Attack)
+    // 5. Rising Dragon Uppercut (Up + Attack)
     if (input.actions.up && input.actions.attackPressed && this.attackTimer <= 0) {
       this.executeRisingUppercut(zombies, camera);
       return;
     }
 
-    // 3. Mid-Air Flurry Kicks (In mid-air + Attack)
+    // 6. Mid-Air Flurry Kicks (In mid-air + Attack)
     if (!this.isGrounded && input.actions.attackPressed && this.attackTimer <= 0) {
       this.executeAirFlurry(zombies, camera);
       return;
     }
 
-    // 4. Dodge Roll Follow-up Slide Sweep (Rolling + Attack/Weapon)
+    // 7. Dodge Roll Follow-up Slide Sweep (Rolling + Attack/Weapon)
     if (this.isRolling && (input.actions.attackPressed || input.actions.weaponPressed)) {
       this.executeSlideSweep(zombies, camera);
       return;
     }
 
-    // 5. Light Martial Arts Combo Chain (Q / J / Left Click)
+    // 8. Light Martial Arts Combo Chain (Q / J / Left Click)
     if (input.actions.attackPressed && this.attackTimer <= 0) {
       this.executeLightCombo(zombies, camera);
     }
 
-    // 6. Heavy / Hybrid Weapon Attack (W / K / Right Click)
+    // 9. Heavy / Hybrid Weapon Attack (W / K / Right Click)
     if (input.actions.weaponPressed && this.weaponTimer <= 0) {
       this.executeWeaponAttack(zombies, camera);
     }
 
-    // 7. Awakening Mode Laser / Screen Blast
+    // 10. Awakening Mode Laser / Screen Blast
     if (this.isAwakened && input.actions.weapon) {
       this.fireAwakeningLaser(zombies, camera);
     }
   }
 
+  executeGrabAndThrow(zombies, camera) {
+    if (!zombies || !Array.isArray(zombies)) return false;
+    let target = null;
+    let minDist = 75;
+
+    for (const z of zombies) {
+      if (z.isDead) continue;
+      const dist = Math.hypot(z.x - this.x, z.y - this.y);
+      if (dist < minDist) {
+        minDist = dist;
+        target = z;
+      }
+    }
+
+    if (!target) return false;
+
+    // Grab execution
+    this.attackTimer = 0.35;
+    this.pose = 'attack_axe_kick';
+    this.vx = this.facing * 180;
+    this.squashX = 1.3;
+    this.squashY = 0.75;
+    audio.playGrabThrow();
+    audio.playBassDrop();
+    camera.addShake(0.4);
+    particles.triggerSpeedlines(0.28);
+    particles.addShockwave(this.x, this.y - 20, 100, '#ff1144', 8);
+    particles.addComicPopup(this.x + this.facing * 50, this.y - 35, 'STRIKE!!', '#ff0033', '#ffffff');
+
+    // Despawn/damage grabbed zombie and convert into a bowling projectile
+    target.takeDamage(120, this.facing, 900, true);
+    projectiles.spawnThrownZombie(this.x + this.facing * 35, this.y - 30, this.facing, 110);
+    speech.shout(this.x, this.y, 'playerAttack');
+    return true;
+  }
+
+  executeJavelinThrow(zombies, camera) {
+    this.weaponTimer = 0.45;
+    this.pose = 'attack_drill_thrust';
+    this.vx = -this.facing * 120; // Recoil step
+    this.squashX = 0.8;
+    this.squashY = 1.25;
+    audio.playSlash();
+    audio.playBassDrop();
+    camera.addShake(0.35);
+    particles.triggerSpeedlines(0.22);
+    particles.addComicPopup(this.x + this.facing * 60, this.y - 30, 'KRAK!', '#ff6600', '#ffffff');
+    projectiles.spawnJavelin(this.x + this.facing * 40, this.y - 30, this.facing, 95);
+    speech.shout(this.x, this.y, 'playerAttack');
+  }
+
+  executeAirChase(zombies, camera) {
+    const target = this.airJuggleTarget;
+    this.airJuggleTarget = null;
+    this.attackTimer = 0.35;
+
+    // Flash-step teleport right beside airborne target
+    audio.playFlashStep();
+    audio.playBassDrop();
+    particles.triggerSpeedlines(0.25);
+    particles.addComicPopup(target.x, target.y - 30, 'AIR RAVE!!', '#00e5ff', '#ffffff');
+
+    // Spawn afterimages
+    for (let i = 0; i < 3; i++) {
+      this.ghostTrails.push({
+        x: this.x + (target.x - this.x) * (i / 3),
+        y: this.y + (target.y - this.y) * (i / 3),
+        facing: this.facing,
+        pose: 'attack_air_flurry',
+        timer: this.animTimer,
+        alpha: 0.8
+      });
+    }
+
+    this.x = target.x - this.facing * 25;
+    this.y = target.y - 30;
+    this.vy = -180;
+    this.vx = this.facing * 120;
+    this.pose = 'attack_air_flurry';
+    camera.addShake(0.35);
+
+    // Multi-hit aerial damage and launch meteor slam
+    const damage = 65 * (this.damageMultiplier || 1.0);
+    target.takeDamage(damage, this.facing, 450, true);
+    target.vy = 850; // Slam zombie to floor!
+    particles.createHitSparks(target.x, target.y, 14, '#ffdd00');
+    speech.shout(this.x, this.y, 'playerAttack');
+  }
+
   executeRisingUppercut(zombies, camera) {
     this.attackTimer = 0.32;
     this.pose = 'attack_uppercut';
-    this.vy = -540; // Launch airborne
+    this.vy = -560; // Launch airborne
     this.vx = this.facing * 180;
     this.isGrounded = false;
     this.squashX = 0.82;
     this.squashY = 1.28;
     audio.playFinisherImpact();
+    audio.playBassDrop();
     camera.addShake(0.3);
+    particles.triggerSpeedlines(0.18);
     particles.addShockwave(this.x, this.y - 20, 60, '#ffbb00', 6);
     particles.addSlashArc(this.x, this.y - 40, 80, -Math.PI / 2, this.facing, '#ffea00', 8);
+    particles.addComicPopup(this.x + this.facing * 30, this.y - 50, 'SHORYU!', '#ffaa00', '#ffffff');
     speech.shout(this.x, this.y, 'playerAttack');
 
     const damage = 42 * (this.damageMultiplier || 1.0);
-    this.checkMeleeHits(zombies, 110, damage, 450, true, '#ffee00', camera);
+    this.checkMeleeHits(zombies, 110, damage, 580, true, '#ffee00', camera, true);
   }
 
   executeAirFlurry(zombies, camera) {
@@ -508,7 +622,7 @@ export class Player {
     }
   }
 
-  checkMeleeHits(zombies, range, damage, knockback, isCrit, sparkColor, camera) {
+  checkMeleeHits(zombies, range, damage, knockback, isCrit, sparkColor, camera, isUppercut = false) {
     if (!zombies || !Array.isArray(zombies)) return;
     let hitAny = false;
 
@@ -525,6 +639,20 @@ export class Player {
         z.takeDamage(damage, this.facing, knockback, isCrit);
         combat.registerHit(damage, isCrit);
         particles.createHitSparks(z.x, z.y - (z.height || 50) * 0.5, isCrit ? 12 : 6, sparkColor);
+
+        // Uppercut launches enemy high into the air for Air-Chase juggles
+        if (isUppercut) {
+          z.vy = -720;
+          this.airJuggleTarget = z;
+        }
+
+        // Trigger comic action badge and speedlines on big impacts
+        if (isCrit || damage >= 40) {
+          const words = ['POW!', 'KRAK!', 'SLASH!', 'SMASH!', 'WHAM!', 'ORA!'];
+          particles.addComicPopup(z.x, z.y - 30, words[Math.floor(Math.random() * words.length)], '#ff0044', '#ffee00');
+          particles.triggerSpeedlines(0.22);
+          audio.playBassDrop();
+        }
 
         // Add Awakening Super charge
         this.addSuper(5.0 * this.superGainRate);

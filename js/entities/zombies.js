@@ -407,13 +407,15 @@ export class Zombie {
     this.stunTimer = Math.max(this.stunTimer, duration);
   }
 
-  die() {
+  die(isFinisher = false) {
     this.isDead = true;
     this.hp = 0;
     combat.registerKill(this);
     audio.playZombieDeath();
     particles.createZombieSplatter(this.x, this.y - this.height * 0.5, 24, this.color);
     particles.addShockwave(this.x, this.y - 20, 60, this.color, 4);
+    particles.createStickLimbExplosion(this.x, this.y, 0, this.color);
+
     if (Math.random() < 0.38) {
       speech.shout(this.x, this.y - 10, 'zombieGroan', null, 2.0);
     }

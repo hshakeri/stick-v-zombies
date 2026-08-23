@@ -300,8 +300,34 @@ export class ProjectileManager {
         ctx.beginPath();
         ctx.moveTo(-6, 4); ctx.lineTo(-14, 12 + Math.sin(legT) * 4);
         ctx.moveTo(6, 4); ctx.lineTo(14, 12 - Math.sin(legT) * 4);
-        ctx.moveTo(-4, -4); ctx.lineTo(-12, -10 + Math.cos(legT) * 3);
-        ctx.moveTo(4, -4); ctx.lineTo(12, -10 - Math.cos(legT) * 3);
+      } else if (p.type === 'javelin') {
+        // High-Tech Energized Graphite Javelin
+        ctx.shadowColor = '#ffbb00';
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillRect(-45, -5, 90, 10);
+        // Razor Graphite Spear Head
+        ctx.fillStyle = '#212121';
+        ctx.beginPath();
+        ctx.moveTo(45, -8);
+        ctx.lineTo(68, 0);
+        ctx.lineTo(45, 8);
+        ctx.closePath();
+        ctx.fill();
+        // Glowing Core
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-35, -2, 70, 4);
+      } else if (p.type === 'thrown_zombie') {
+        // Tumbling Zombie Bowling Ball Projectile
+        ctx.strokeStyle = '#2e7d32';
+        ctx.fillStyle = '#2e7d32';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 14, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-16, -16); ctx.lineTo(16, 16);
+        ctx.moveTo(-16, 16); ctx.lineTo(16, -16);
         ctx.stroke();
       }
     }
@@ -475,6 +501,54 @@ export class ProjectileManager {
         life: 1.2
       });
     }
+  }
+
+  spawnJavelin(x, y, facing, damage = 85) {
+    audio.playSlash();
+    audio.playBassDrop();
+    particles.triggerSpeedlines(0.2);
+    particles.addComicPopup(x + facing * 80, y, 'KRAK!', '#ff5500', '#ffffff');
+    this.projectiles.push({
+      type: 'javelin',
+      x,
+      y,
+      vx: facing * 1350,
+      vy: 0,
+      rotation: facing > 0 ? 0 : Math.PI,
+      radius: 24,
+      damage,
+      pierce: 99, // Pierces all enemies
+      isHostile: false,
+      isCrit: true,
+      sparkColor: '#ffaa00',
+      knockback: 750,
+      life: 1.4
+    });
+  }
+
+  spawnThrownZombie(x, y, facing, damage = 110) {
+    audio.playGrabThrow();
+    audio.playBassDrop();
+    particles.triggerSpeedlines(0.25);
+    particles.addComicPopup(x + facing * 60, y - 20, 'STRIKE!!', '#ff0055', '#ffff00');
+    this.projectiles.push({
+      type: 'thrown_zombie',
+      x,
+      y,
+      vx: facing * 920,
+      vy: -140,
+      gravity: 550,
+      rotSpeed: facing * 18,
+      rotation: 0,
+      radius: 28,
+      damage,
+      pierce: 10,
+      isHostile: false,
+      isCrit: true,
+      sparkColor: '#44ee55',
+      knockback: 850,
+      life: 2.0
+    });
   }
 }
 

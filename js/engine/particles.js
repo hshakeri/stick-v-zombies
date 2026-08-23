@@ -6,9 +6,22 @@ export class ParticleSystem {
     this.damageTexts = [];
     this.slashArcs = [];
     this.shockwaves = [];
+    this.comicPopups = [];
+    this.limbDebris = [];
+    this.speedlinesTimer = 0;
+    this.speedlinesMax = 0;
+  }
+
+  triggerSpeedlines(duration = 0.25) {
+    this.speedlinesTimer = duration;
+    this.speedlinesMax = duration;
   }
 
   update(dt) {
+    if (this.speedlinesTimer > 0) {
+      this.speedlinesTimer -= dt;
+    }
+
     // Update general particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
@@ -25,6 +38,39 @@ export class ParticleSystem {
         p.vy *= Math.pow(p.drag, dt * 60);
       }
       if (p.rotSpeed) p.rotation += p.rotSpeed * dt;
+    }
+
+    // Update Limb Debris (Bouncing Stick Figure Bones)
+    for (let i = this.limbDebris.length - 1; i >= 0; i--) {
+      const limb = this.limbDebris[i];
+      limb.life -= dt;
+      if (limb.life <= 0) {
+        this.limbDebris.splice(i, 1);
+        continue;
+      }
+      limb.vy += 950 * dt;
+      limb.x += limb.vx * dt;
+      limb.y += limb.vy * dt;
+      limb.rotation += limb.rotSpeed * dt;
+      if (limb.y >= limb.groundY) {
+        limb.y = limb.groundY;
+        limb.vy = -limb.vy * 0.45;
+        limb.vx *= 0.75;
+      }
+    }
+
+    // Update Comic Action SFX Popups (POW!, KRAK!, SLASH!)
+    for (let i = this.comicPopups.length - 1; i >= 0; i--) {
+      const c = this.comicPopups[i];
+      c.life -= dt;
+      if (c.life <= 0) {
+        this.comicPopups.splice(i, 1);
+        continue;
+      }
+      c.x += c.vx * dt;
+      c.y += c.vy * dt;
+      c.rotation += c.rotSpeed * dt;
+      if (c.scale < 1.0) c.scale = Math.min(1.0, c.scale + dt * 12);
     }
 
     // Update Floating Damage Texts
@@ -155,7 +201,77 @@ export class ParticleSystem {
       ctx.restore();
     }
 
-    // 4. Draw Floating Damage Numbers
+    // 4. Draw Stick Figure Bone & Limb Debris
+    for (const limb of this.limbDebris) {
+      const progress = 1 - limb.life / limb.maxLife;
+      const alpha = limb.life < 0.4 ? limb.life / 0.4 : 1.0;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.translate(limb.x, limb.y);
+      ctx.rotate(limb.rotation);
+      ctx.strokeStyle = limb.color;
+      ctx.fillStyle = limb.color;
+      ctx.lineWidth = limb.width || 4;
+      ctx.lineCap = 'round';
+
+      if (limb.isHead) {
+        ctx.beginPath();
+        ctx.arc(0, 0, limb.radius || 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(-limb.length / 2, 0);
+        ctx.lineTo(limb.length / 2, 0);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 5. Draw Comic Action SFX Popups (POW!, KRAK!, SMASH!)
+    for (const c of this.comicPopups) {
+      const progress = 1 - c.life / c.maxLife;
+      const alpha = c.life < 0.2 ? c.life / 0.2 : 1.0;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rotation);
+      ctx.scale(c.scale, c.scale);
+
+      // 1. Spiky Starburst Comic Badge
+      const spikes = 10;
+      const outerR = c.size || 38;
+      const innerR = outerR * 0.55;
+      ctx.fillStyle = c.bgColor || '#ff1744';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (i * Math.PI) / spikes;
+        const px = Math.cos(angle) * r;
+        const py = Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 2. Comic Text
+      ctx.font = "900 18px 'Bungee', 'Impact', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 5;
+      ctx.strokeText(c.text, 0, 0);
+      ctx.fillStyle = c.textColor || '#ffee00';
+      ctx.fillText(c.text, 0, 0);
+
+      ctx.restore();
+    }
+
+    // 6. Draw Floating Damage Numbers
     for (const t of this.damageTexts) {
       const progress = 1 - t.life / t.maxLife;
       const alpha = 1 - Math.pow(progress, 2);
@@ -180,6 +296,27 @@ export class ParticleSystem {
       ctx.fillStyle = t.color;
       ctx.fillText(t.text, 0, 0);
 
+      ctx.restore();
+    }
+
+    // 7. Draw Anime Radial Speedlines on Mega Finisher Impacts
+    if (this.speedlinesTimer > 0) {
+      const alpha = Math.min(0.65, (this.speedlinesTimer / this.speedlinesMax) * 0.7);
+      ctx.save();
+      ctx.strokeStyle = '#ffffff';
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 2.5;
+
+      const numLines = 24;
+      const centerDist = 240;
+      const outerDist = 950;
+      for (let i = 0; i < numLines; i++) {
+        const angle = (i / numLines) * Math.PI * 2 + (Math.random() - 0.5) * 0.08;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * centerDist, Math.sin(angle) * centerDist);
+        ctx.lineTo(Math.cos(angle) * outerDist, Math.sin(angle) * outerDist);
+        ctx.stroke();
+      }
       ctx.restore();
     }
   }
@@ -370,6 +507,62 @@ export class ParticleSystem {
       life: 1.2,
       maxLife: 1.2
     });
+  }
+
+  addComicPopup(x, y, text = 'POW!', bgColor = '#ff1744', textColor = '#ffee00') {
+    this.comicPopups.push({
+      x,
+      y: y - 25,
+      vx: (Math.random() - 0.5) * 40,
+      vy: -70 - Math.random() * 50,
+      rotation: (Math.random() - 0.5) * 0.4,
+      rotSpeed: (Math.random() - 0.5) * 0.8,
+      scale: 0.2,
+      text,
+      bgColor,
+      textColor,
+      size: 42,
+      life: 0.55,
+      maxLife: 0.55
+    });
+  }
+
+  createStickLimbExplosion(x, y, groundY = 0, color = '#2e7d32') {
+    // 1. Head circle piece
+    this.limbDebris.push({
+      x,
+      y: y - 30,
+      vx: (Math.random() - 0.5) * 350,
+      vy: -280 - Math.random() * 220,
+      groundY,
+      rotation: 0,
+      rotSpeed: (Math.random() - 0.5) * 12,
+      isHead: true,
+      radius: 9,
+      color,
+      life: 1.8,
+      maxLife: 1.8
+    });
+
+    // 2. Torso and 4 limbs
+    const lengths = [26, 18, 18, 20, 20];
+    for (const len of lengths) {
+      this.limbDebris.push({
+        x: x + (Math.random() - 0.5) * 16,
+        y: y - 20,
+        vx: (Math.random() - 0.5) * 420,
+        vy: -220 - Math.random() * 260,
+        groundY,
+        rotation: Math.random() * Math.PI,
+        rotSpeed: (Math.random() - 0.5) * 15,
+        isHead: false,
+        length: len,
+        width: 4.5,
+        color,
+        life: 1.8,
+        maxLife: 1.8
+      });
+    }
   }
 }
 
