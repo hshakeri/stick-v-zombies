@@ -439,15 +439,23 @@ export class StickFigureRenderer {
       }
 
       case 'roll': {
-        // Full 360 ball roll
-        const rot = timer * Math.PI * 4;
-        bones.head = { x: Math.cos(rot) * 16, y: -20 + Math.sin(rot) * 16 };
-        bones.kneeL = { x: Math.cos(rot + 2) * 14, y: -20 + Math.sin(rot + 2) * 14 };
-        bones.footL = { x: Math.cos(rot + 2.5) * 18, y: -20 + Math.sin(rot + 2.5) * 18 };
-        bones.kneeR = { x: Math.cos(rot + 3.5) * 14, y: -20 + Math.sin(rot + 3.5) * 14 };
-        bones.footR = { x: Math.cos(rot + 4) * 18, y: -20 + Math.sin(rot + 4) * 18 };
-        bones.handL = { x: Math.cos(rot + 1) * 16, y: -20 + Math.sin(rot + 1) * 16 };
-        bones.handR = { x: Math.cos(rot + 5) * 16, y: -20 + Math.sin(rot + 5) * 16 };
+        // Dynamic tumbling somersault roll
+        const rot = timer * Math.PI * 6;
+        const cx = 0;
+        const cy = -22;
+        const r = 16;
+        bones.hip = { x: cx + Math.cos(rot + Math.PI) * 8, y: cy + Math.sin(rot + Math.PI) * 8 };
+        bones.neck = { x: cx + Math.cos(rot) * 12, y: cy + Math.sin(rot) * 12 };
+        bones.shoulder = { ...bones.neck };
+        bones.head = { x: cx + Math.cos(rot) * 20, y: cy + Math.sin(rot) * 20 };
+        bones.kneeL = { x: cx + Math.cos(rot + 2.2) * r, y: cy + Math.sin(rot + 2.2) * r };
+        bones.footL = { x: cx + Math.cos(rot + 2.6) * (r + 4), y: cy + Math.sin(rot + 2.6) * (r + 4) };
+        bones.kneeR = { x: cx + Math.cos(rot + 3.4) * r, y: cy + Math.sin(rot + 3.4) * r };
+        bones.footR = { x: cx + Math.cos(rot + 3.8) * (r + 4), y: cy + Math.sin(rot + 3.8) * (r + 4) };
+        bones.elbowL = { x: cx + Math.cos(rot + 0.8) * (r - 2), y: cy + Math.sin(rot + 0.8) * (r - 2) };
+        bones.handL = { x: cx + Math.cos(rot + 1.2) * r, y: cy + Math.sin(rot + 1.2) * r };
+        bones.elbowR = { x: cx + Math.cos(rot + 5.2) * (r - 2), y: cy + Math.sin(rot + 5.2) * (r - 2) };
+        bones.handR = { x: cx + Math.cos(rot + 5.6) * r, y: cy + Math.sin(rot + 5.6) * r };
         break;
       }
 
@@ -596,35 +604,36 @@ export class StickFigureRenderer {
 
       case 'attack_slide': {
         // Low Sweeping Slide Kick
-        bones.head.x -= 8;
-        bones.head.y += 18;
-        bones.neck.y += 16;
-        bones.hip.y += 14;
-        bones.elbowL = { x: -16, y: 4 };
-        bones.handL = { x: -20, y: 12 };
-        bones.elbowR = { x: 8, y: -10 };
-        bones.handR = { x: 16, y: -6 };
+        bones.head = { x: -16, y: -26 };
+        bones.neck = { x: -8, y: -20 };
+        bones.shoulder = { ...bones.neck };
+        bones.hip = { x: 0, y: -10 };
+        bones.elbowL = { x: -18, y: -14 };
+        bones.handL = { x: -24, y: -2 };
+        bones.elbowR = { x: 4, y: -18 };
+        bones.handR = { x: 12, y: -8 };
         // Slide leg extended forward along floor
-        bones.kneeL = { x: 28, y: 6 };
-        bones.footL = { x: 48, y: 8 };
-        bones.kneeR = { x: -12, y: 2 };
-        bones.footR = { x: -18, y: 6 };
+        bones.kneeL = { x: 22, y: -4 };
+        bones.footL = { x: 40, y: 0 };
+        bones.kneeR = { x: -8, y: -6 };
+        bones.footR = { x: -14, y: 0 };
         break;
       }
 
       case 'dive_kick': {
-        // Downward diagonal diving kick
-        bones.head.x += 16;
-        bones.head.y += 12;
-        bones.neck.x += 12;
-        bones.kneeL = { x: 26, y: 16 };
-        bones.footL = { x: 44, y: 32 };
-        bones.kneeR = { x: 4, y: -6 };
-        bones.footR = { x: -10, y: -14 };
-        bones.elbowL = { x: -14, y: -30 };
-        bones.handL = { x: -24, y: -20 };
-        bones.elbowR = { x: -8, y: -34 };
-        bones.handR = { x: -16, y: -24 };
+        // Downward aerodynamic diagonal diving kick
+        bones.head = { x: 14, y: -36 };
+        bones.neck = { x: 8, y: -28 };
+        bones.shoulder = { ...bones.neck };
+        bones.hip = { x: -6, y: -16 };
+        bones.kneeL = { x: 18, y: -6 };
+        bones.footL = { x: 34, y: 0 };
+        bones.kneeR = { x: 4, y: -14 };
+        bones.footR = { x: -4, y: -20 };
+        bones.elbowL = { x: -14, y: -24 };
+        bones.handL = { x: -22, y: -18 };
+        bones.elbowR = { x: -6, y: -26 };
+        bones.handR = { x: -14, y: -20 };
         break;
       }
 

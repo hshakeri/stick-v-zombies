@@ -752,23 +752,11 @@ export class Player {
   }
 
   applyPhysics(dt, groundY, sketchBlocks) {
-    // Dive Kick Ground Collision
-    if (this.diveKick) {
-      this.y += this.vy * dt;
-      if (this.y >= groundY) {
-        this.y = groundY;
-        this.vy = 0;
-        this.diveKick = false;
-        audio.playPunch('heavy');
-        particles.addShockwave(this.x, groundY, 150, '#ffaa00', 10);
-        particles.createDust(this.x, groundY, 14);
-      }
-      return;
-    }
-
     // Gravity
     const gravity = this.isAwakened ? 600 : 1300;
-    this.vy += gravity * dt;
+    if (!this.diveKick) {
+      this.vy += gravity * dt;
+    }
 
     // Movement integration
     this.x += this.vx * dt;
@@ -776,7 +764,13 @@ export class Player {
 
     // Ground collision
     if (this.y >= groundY) {
-      if (!this.isGrounded && this.vy > 100) {
+      if (this.diveKick) {
+        this.diveKick = false;
+        this.pose = 'idle';
+        audio.playPunch('heavy');
+        particles.addShockwave(this.x, groundY, 150, '#ffaa00', 10);
+        particles.createDust(this.x, groundY, 14);
+      } else if (!this.isGrounded && this.vy > 100) {
         audio.playLand();
         particles.createDust(this.x, groundY, 4);
         this.squashX = Math.min(1.35, 1.0 + (this.vy / 1600));
@@ -823,10 +817,17 @@ export class Player {
         const halfW = (b.width || 60) / 2;
         const bH = b.height || 60;
         const bTop = b.y - bH;
-        if (this.x + 12 > b.x - halfW &&
-            this.x - 12 < b.x + halfW &&
-            this.y >= bTop && this.y <= bTop + 18) {
-          if (!this.isGrounded && this.vy > 100) audio.playLand();
+        if (this.x + 14 > b.x - halfW &&
+            this.x - 14 < b.x + halfW &&
+            this.y >= bTop && this.y <= bTop + 24) {
+          if (this.diveKick) {
+            this.diveKick = false;
+            this.pose = 'idle';
+            audio.playPunch('heavy');
+            particles.addShockwave(this.x, bTop, 120, '#ffaa00', 8);
+          } else if (!this.isGrounded && this.vy > 100) {
+            audio.playLand();
+          }
           this.y = bTop;
           this.vy = 0;
           this.isGrounded = true;

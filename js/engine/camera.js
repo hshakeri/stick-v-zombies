@@ -22,8 +22,8 @@ export class Camera {
     // Arena Bounds
     this.minX = -1050;
     this.maxX = 1050;
-    this.minY = -600;
-    this.maxY = -80;
+    this.minY = -550;
+    this.maxY = -160;
   }
 
   update(dt, target, zombieCount = 0) {
@@ -36,7 +36,7 @@ export class Camera {
       // Look slightly ahead based on player velocity / facing direction
       const leadX = target.facing * 70;
       this.targetX = target.x + leadX;
-      this.targetY = target.y - 120;
+      this.targetY = target.y - 180;
 
       // Dynamic Zoom based on player speed and zombie count
       const speed = Math.hypot(target.vx || 0, target.vy || 0);

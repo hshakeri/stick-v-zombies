@@ -869,29 +869,33 @@ export class StageManager {
   }
 
   drawTaskbar(ctx, groundY) {
-    const minX = this.bounds.minX;
-    const maxX = this.bounds.maxX;
+    const minX = this.bounds.minX - 500;
+    const maxX = this.bounds.maxX + 500;
 
     ctx.save();
+    // Solid Ground Substrate foundation below groundY
+    ctx.fillStyle = '#0b0d13';
+    ctx.fillRect(minX, groundY, maxX - minX, 1000);
+
     // Windows Taskbar bar
     ctx.fillStyle = '#11131c';
     ctx.strokeStyle = '#2d3147';
     ctx.lineWidth = 2;
-    ctx.fillRect(minX, groundY, maxX - minX, 40);
-    ctx.strokeRect(minX, groundY, maxX - minX, 40);
+    ctx.fillRect(this.bounds.minX, groundY, this.bounds.maxX - this.bounds.minX, 42);
+    ctx.strokeRect(this.bounds.minX, groundY, this.bounds.maxX - this.bounds.minX, 42);
 
     // Start Button
     ctx.fillStyle = '#0078d7';
-    ctx.fillRect(minX + 10, groundY + 5, 80, 30);
+    ctx.fillRect(this.bounds.minX + 10, groundY + 6, 80, 30);
     ctx.fillStyle = '#ffffff';
     ctx.font = "bold 12px 'Nunito', sans-serif";
     ctx.textAlign = 'center';
-    ctx.fillText("🪟 START", minX + 50, groundY + 24);
+    ctx.fillText("🪟 START", this.bounds.minX + 50, groundY + 25);
 
     // Active Taskbar App Tabs
     const tabs = ['Stick_vs_Zombies.exe', 'Animation_v2.fla', 'Zombies_Horde.cmd'];
     tabs.forEach((tab, i) => {
-      const tx = minX + 100 + i * 160;
+      const tx = this.bounds.minX + 100 + i * 160;
       ctx.fillStyle = i === 0 ? '#262a3e' : '#181a26';
       ctx.fillRect(tx, groundY + 6, 150, 28);
       ctx.fillStyle = '#a5accb';
@@ -906,7 +910,7 @@ export class StageManager {
     ctx.textAlign = 'right';
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    ctx.fillText(`🔊 100% | 📅 ${timeStr}`, maxX - 20, groundY + 24);
+    ctx.fillText(`🔊 100% | 📅 ${timeStr}`, this.bounds.maxX - 20, groundY + 25);
 
     ctx.restore();
   }
