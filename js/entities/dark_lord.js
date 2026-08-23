@@ -16,7 +16,7 @@ export class DarkLord {
     this.type = 'dark_lord';
     this.name = 'THE DARK LORD (TDL)';
     this.isBoss = true;
-    this.maxHp = 300;
+    this.maxHp = 950;
     this.hp = this.maxHp;
     this.speed = 190;
     this.radius = 28;
@@ -43,6 +43,8 @@ export class DarkLord {
     // Attack Step Sub-state
     this.comboStep = 0;
     this.teleportTargetX = 0;
+    this.doomLaserFired = false;
+    this.auraParticleTimer = 0;
 
     // Rewards
     this.inkReward = 350;
@@ -58,6 +60,17 @@ export class DarkLord {
 
     this.animTimer += dt;
     this.platforms = platforms;
+
+    this.auraParticleTimer -= dt;
+    if ((this.isAwakened || this.state === 'doom_laser') && this.auraParticleTimer <= 0) {
+      this.auraParticleTimer = 0.08;
+      particles.createHitSparks(
+        this.x + (Math.random() - 0.5) * 30,
+        this.y - 30 + (Math.random() - 0.5) * 40,
+        1,
+        '#ff0033'
+      );
+    }
 
     // Check Phase 2 Transition (< 50% HP)
     if (this.phase === 1 && this.hp <= this.maxHp * 0.5) {
@@ -219,6 +232,13 @@ export class DarkLord {
           particles.createHitSparks(this.x + this.facing * 25, this.y - 45, 3, '#ff0033');
         }
 
+        if (!this.doomLaserFired && this.stateTimer <= 1.3) {
+          this.doomLaserFired = true;
+          // Aim through a grounded player's center while leaving enough space
+          // above the beam for a clearly timed jump or roll escape.
+          projectiles.spawnDarkDoomLaser(this.x + this.facing * 20, this.y - 20, this.facing, 1.2, 35);
+        }
+
         if (this.stateTimer <= 0) {
           this.state = 'idle';
           this.actionCooldown = 2.2;
@@ -355,16 +375,11 @@ export class DarkLord {
   startDoomLaser(player) {
     this.state = 'doom_laser';
     this.stateTimer = 2.0;
+    this.doomLaserFired = false;
     this.y -= 35; // Hover in air
     this.vy = 0;
     audio.playDoomLaserCharge();
     particles.addTextBanner(this.x, this.y - 70, '⚡ DOOM LASER! ⚡', '#ff0033');
-
-    setTimeout(() => {
-      if (!this.isDead && this.state === 'doom_laser') {
-        projectiles.spawnDarkDoomLaser(this.x + this.facing * 20, this.y - 45, this.facing, 1.2, 50);
-      }
-    }, 700);
   }
 
   applyPhysics(dt, groundY, sketchBlocks) {
@@ -424,13 +439,6 @@ export class DarkLord {
 
   draw(ctx) {
     if (this.isDead) return;
-
-    // Dark crimson aura particles
-    if (this.isAwakened || this.state === 'doom_laser') {
-      if (Math.random() < 0.6) {
-        particles.createHitSparks(this.x + (Math.random() - 0.5) * 30, this.y - 30 + (Math.random() - 0.5) * 40, 1, '#ff0033');
-      }
-    }
 
     // Draw Dark Lord Stick Figure with Dual Vira-Blades
     this.renderer.draw(ctx, {

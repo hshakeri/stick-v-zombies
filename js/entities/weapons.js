@@ -2,6 +2,10 @@
 
 export class WeaponManager {
   constructor() {
+    this.reset();
+  }
+
+  reset() {
     this.pencilSharpness = 1;
     this.staffRadiusBonus = 0;
     this.anvilDamage = 150;

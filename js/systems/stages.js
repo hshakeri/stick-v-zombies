@@ -6,7 +6,7 @@ import { audio } from '../engine/audio.js';
 export class StageManager {
   constructor() {
     this.currentStage = 1;
-    this.maxStage = 5;
+    this.maxStage = 10;
     this.stageName = 'Main Desktop';
     this.theme = 'desktop'; // 'desktop', 'animate', 'downloads', 'firewall', 'bsod'
 
@@ -84,6 +84,15 @@ export class StageManager {
         this.buildStage10DarkCore();
         break;
     }
+  }
+
+  resolveStageExit(nextStage, onComplete, onAdvance) {
+    if (this.currentStage >= this.maxStage) {
+      if (onComplete) onComplete();
+      return 'complete';
+    }
+    if (onAdvance) onAdvance(nextStage);
+    return 'advance';
   }
 
   // --- STAGE BUILDERS ---
@@ -556,13 +565,25 @@ export class StageManager {
     const maxX = this.bounds.maxX;
     const minY = this.bounds.minY;
     const maxY = groundY;
+    const backdropMinX = minX - 1600;
+    const backdropMaxX = maxX + 1600;
+    const backdropMinY = minY - 1000;
 
     ctx.save();
 
+    const paintBackdrop = (color) => {
+      ctx.fillStyle = color;
+      ctx.fillRect(
+        backdropMinX,
+        backdropMinY,
+        backdropMaxX - backdropMinX,
+        maxY - backdropMinY
+      );
+    };
+
     if (this.theme === 'animate') {
       // Dark Charcoal Flash/Animate Workspace
-      ctx.fillStyle = '#2d2f3a';
-      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+      paintBackdrop('#2d2f3a');
 
       // Grid Lines
       ctx.strokeStyle = 'rgba(70, 75, 95, 0.4)';
@@ -583,8 +604,7 @@ export class StageManager {
       }
     } else if (this.theme === 'bsod') {
       // Blue Screen of Death (BSOD) Wallpaper
-      ctx.fillStyle = '#0047b3';
-      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+      paintBackdrop('#0047b3');
 
       // BSOD Crash Dump Text
       ctx.fillStyle = '#ffffff';
@@ -596,8 +616,7 @@ export class StageManager {
       ctx.fillText(">>> DEFEAT THE TITAN UNDEAD TO REBOOT SYSTEM <<<", minX + 60, minY + 210);
     } else if (this.theme === 'firewall') {
       // Neon Security Grid
-      ctx.fillStyle = '#111827';
-      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+      paintBackdrop('#111827');
       ctx.strokeStyle = '#ff3344';
       ctx.lineWidth = 1;
       ctx.globalAlpha = 0.2;
@@ -608,10 +627,62 @@ export class StageManager {
         ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
       }
       ctx.globalAlpha = 1.0;
+    } else if (this.theme === 'downloads') {
+      // Download manager / quarantine zone with readable transfer lanes.
+      paintBackdrop('#17243a');
+      for (let y = minY + 70; y < maxY - 40; y += 95) {
+        ctx.fillStyle = 'rgba(72, 137, 205, 0.12)';
+        ctx.fillRect(minX + 55, y, maxX - minX - 110, 28);
+        ctx.fillStyle = 'rgba(46, 204, 113, 0.22)';
+        const progress = 0.3 + ((y - minY) % 260) / 400;
+        ctx.fillRect(minX + 62, y + 7, (maxX - minX - 124) * progress, 14);
+      }
+    } else if (this.theme === 'recycle') {
+      // Recycle-bin interior: cool metal panels and descending data scraps.
+      paintBackdrop('#172b35');
+      ctx.strokeStyle = 'rgba(117, 214, 218, 0.18)';
+      ctx.lineWidth = 2;
+      for (let x = minX; x <= maxX; x += 100) {
+        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x + 180, maxY); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(139, 233, 236, 0.22)';
+      ctx.font = '18px monospace';
+      for (let i = 0; i < 18; i++) {
+        ctx.fillText(i % 2 ? '01' : '{}', minX + 80 + i * 118, minY + 70 + (i % 4) * 110);
+      }
+    } else if (this.theme === 'minecraft') {
+      // Original voxel-like Nether-inspired data cavern. Large tiles keep the
+      // reference legible without loading any bitmap assets.
+      paintBackdrop('#29151d');
+      const tile = 80;
+      for (let y = minY; y < maxY; y += tile) {
+        for (let x = minX; x < maxX; x += tile) {
+          const alternate = ((x / tile + y / tile) & 1) === 0;
+          ctx.fillStyle = alternate ? 'rgba(128, 47, 54, 0.18)' : 'rgba(49, 25, 58, 0.2)';
+          ctx.fillRect(x + 2, y + 2, tile - 4, tile - 4);
+        }
+      }
+      ctx.fillStyle = 'rgba(255, 88, 20, 0.34)';
+      ctx.fillRect(minX, minY + 95, maxX - minX, 12);
+    } else if (this.theme === 'virabot') {
+      // Infection nexus: a sparse pulsing network instead of particle spam.
+      paintBackdrop('#180a24');
+      const pulse = 0.35 + Math.sin(Date.now() * 0.003) * 0.08;
+      ctx.strokeStyle = `rgba(255, 35, 104, ${pulse})`;
+      ctx.fillStyle = 'rgba(255, 35, 104, 0.2)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < 16; i++) {
+        const x = minX + 80 + i * 135;
+        const y = minY + 90 + (i % 5) * 105;
+        ctx.moveTo(x, y); ctx.lineTo(x + 115, y + ((i % 3) - 1) * 80);
+        ctx.moveTo(x + 6, y); ctx.arc(x, y, 7, 0, Math.PI * 2);
+      }
+      ctx.stroke();
+      ctx.fill();
     } else if (this.theme === 'dark_core') {
       // The Dark Core - Corrupted Red Cyber Void (TDL Boss Arena)
-      ctx.fillStyle = '#140005';
-      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+      paintBackdrop('#140005');
 
       // Crimson Glitch Grid
       ctx.strokeStyle = 'rgba(255, 0, 50, 0.25)';
@@ -633,8 +704,7 @@ export class StageManager {
       ctx.fillText(">>> DEFEAT THE DARK LORD TO RESTORE THE DESKTOP <<<", minX + 60, minY + 140);
     } else if (this.theme === 'terminal') {
       // Hacker Terminal Green Grid
-      ctx.fillStyle = '#051108';
-      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+      paintBackdrop('#051108');
       ctx.strokeStyle = 'rgba(50, 255, 100, 0.2)';
       ctx.lineWidth = 1;
       for (let x = minX; x <= maxX; x += 50) {
@@ -648,8 +718,7 @@ export class StageManager {
       ctx.fillText("root@desktop:~$ ./firewall_purge --force", minX + 60, minY + 80);
     } else {
       // Classic Desktop Theme (Slate / Windows blue)
-      ctx.fillStyle = '#262c3e';
-      ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+      paintBackdrop('#262c3e');
 
       // Desktop grid
       ctx.strokeStyle = 'rgba(55, 62, 85, 0.6)';
@@ -912,6 +981,35 @@ export class StageManager {
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     ctx.fillText(`🔊 100% | 📅 ${timeStr}`, this.bounds.maxX - 20, groundY + 25);
 
+    ctx.restore();
+  }
+
+  drawScreenGuide(ctx, camera, viewportWidth, viewportHeight) {
+    if (!this.exitDoor.isOpen || !camera) return;
+    const screen = camera.worldToScreen(this.exitDoor.x, this.exitDoor.y - 50);
+    if (screen.x >= 24 && screen.x <= viewportWidth - 24) return;
+
+    const isLeft = screen.x < 0;
+    const x = isLeft ? 54 : viewportWidth - 54;
+    const y = Math.max(120, Math.min(viewportHeight - 118, screen.y));
+    ctx.save();
+    ctx.fillStyle = 'rgba(2, 44, 34, 0.94)';
+    ctx.strokeStyle = '#34d399';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect?.(x - 34, y - 16, 68, 32, 10);
+    if (ctx.roundRect) {
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillRect(x - 34, y - 16, 68, 32);
+      ctx.strokeRect(x - 34, y - 16, 68, 32);
+    }
+    ctx.fillStyle = '#d1fae5';
+    ctx.font = "900 11px 'Nunito', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isLeft ? '◀ EXIT' : 'EXIT ▶', x, y);
     ctx.restore();
   }
 }

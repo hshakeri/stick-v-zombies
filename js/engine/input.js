@@ -31,6 +31,8 @@ class InputManager {
       rollPressed: false,
       block: false,
       blockPressed: false,
+      grab: false,
+      grabPressed: false,
       super: false,
       superPressed: false
     };
@@ -51,6 +53,8 @@ class InputManager {
       rollPressed: false,
       block: false,
       blockPressed: false,
+      grab: false,
+      grabPressed: false,
       super: false,
       superPressed: false,
       ally1: false,
@@ -63,6 +67,7 @@ class InputManager {
 
     this.canvas = null;
     this.camera = null;
+    this.gamepadButtonStates = [];
   }
 
   init(canvas, camera) {
@@ -88,10 +93,7 @@ class InputManager {
     });
 
     window.addEventListener('blur', () => {
-      this.keys = {};
-      this.keysPressed = {};
-      this.mouse.leftDown = false;
-      this.mouse.rightDown = false;
+      this.resetHeldInputs();
     });
 
     // Mouse Listeners
@@ -160,8 +162,10 @@ class InputManager {
       };
       btn.addEventListener('touchstart', start, { passive: false });
       btn.addEventListener('touchend', end, { passive: false });
+      btn.addEventListener('touchcancel', end, { passive: false });
       btn.addEventListener('mousedown', start);
       btn.addEventListener('mouseup', end);
+      btn.addEventListener('mouseleave', end);
     };
 
     // Mobile virtual buttons
@@ -175,6 +179,7 @@ class InputManager {
     bindBtn('vbtn-super', 'super');
     bindBtn('vbtn-roll', 'roll');
     bindBtn('vbtn-block', 'block');
+    bindBtn('vbtn-grab', 'grab');
 
     // Bottom HUD skill slot buttons (clickable on desktop and touch)
     bindBtn('skill-punch', 'attack');
@@ -215,8 +220,8 @@ class InputManager {
     this.actions.blockPressed = !!(this.keysPressed['KeyE'] || this.keysPressed['KeyV'] || this.touch.blockPressed);
 
     // Grab & Throw (F, G)
-    this.actions.grab = !!(this.keys['KeyF'] || this.keys['KeyG']);
-    this.actions.grabPressed = !!(this.keysPressed['KeyF'] || this.keysPressed['KeyG']);
+    this.actions.grab = !!(this.keys['KeyF'] || this.keys['KeyG'] || this.touch.grab);
+    this.actions.grabPressed = !!(this.keysPressed['KeyF'] || this.keysPressed['KeyG'] || this.touch.grabPressed);
 
     // Awakening Super (R)
     this.actions.super = !!(this.keys['KeyR'] || this.touch.super);
@@ -239,8 +244,13 @@ class InputManager {
 
   pollGamepad() {
     const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-    if (!gamepads || !gamepads[0]) return;
+    if (!gamepads || !gamepads[0]) {
+      this.gamepadButtonStates = [];
+      return;
+    }
     const gp = gamepads[0];
+    const isPressed = (index) => !!(gp.buttons[index] && gp.buttons[index].pressed);
+    const wasPressed = (index) => !!this.gamepadButtonStates[index];
 
     // Left Stick / D-Pad
     if (gp.axes[0] < -0.3 || (gp.buttons[14] && gp.buttons[14].pressed)) this.actions.left = true;
@@ -248,13 +258,36 @@ class InputManager {
     if (gp.axes[1] < -0.3 || (gp.buttons[12] && gp.buttons[12].pressed)) this.actions.up = true;
     if (gp.axes[1] > 0.3 || (gp.buttons[13] && gp.buttons[13].pressed)) this.actions.down = true;
 
-    // Face buttons: A = Jump, X = Attack (Q), Y = Weapon (W), B = Roll
-    if (gp.buttons[0] && gp.buttons[0].pressed) this.actions.jumpPressed = true;
-    if (gp.buttons[2] && gp.buttons[2].pressed) this.actions.attackPressed = true;
-    if (gp.buttons[3] && gp.buttons[3].pressed) this.actions.weaponPressed = true;
-    if (gp.buttons[1] && gp.buttons[1].pressed) this.actions.rollPressed = true;
-    if (gp.buttons[5] && gp.buttons[5].pressed) this.actions.blockPressed = true; // RB
-    if (gp.buttons[7] && gp.buttons[7].pressed) this.actions.superPressed = true; // RT
+    // Face buttons: A = Jump, X = Attack (Q), Y = Weapon (W), B = Roll.
+    // Held and single-press states are tracked separately so holding a button
+    // never retriggers jump, dodge, block, or super every animation frame.
+    const heldBindings = [
+      [0, 'jump'],
+      [2, 'attack'],
+      [3, 'weapon'],
+      [1, 'roll'],
+      [5, 'block'],
+      [4, 'grab'],
+      [7, 'super']
+    ];
+    for (const [index, action] of heldBindings) {
+      const pressed = isPressed(index);
+      if (pressed) this.actions[action] = true;
+      if (pressed && !wasPressed(index)) this.actions[`${action}Pressed`] = true;
+    }
+
+    this.gamepadButtonStates = gp.buttons.map(button => !!button.pressed);
+  }
+
+  resetHeldInputs() {
+    this.keys = {};
+    this.keysPressed = {};
+    this.mouse.leftDown = false;
+    this.mouse.rightDown = false;
+    this.mouse.leftPressed = false;
+    this.mouse.rightPressed = false;
+    for (const key of Object.keys(this.touch)) this.touch[key] = false;
+    this.gamepadButtonStates = [];
   }
 
   // Clear single-frame "Pressed" events at end of update cycle
@@ -267,6 +300,7 @@ class InputManager {
     this.touch.weaponPressed = false;
     this.touch.rollPressed = false;
     this.touch.blockPressed = false;
+    this.touch.grabPressed = false;
     this.touch.superPressed = false;
     this.actions.jumpPressed = false;
     this.actions.attackPressed = false;

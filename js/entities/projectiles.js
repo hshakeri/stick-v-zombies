@@ -10,6 +10,12 @@ export class ProjectileManager {
     this.hazards = [];
   }
 
+  reset() {
+    this.projectiles.length = 0;
+    this.sketchBlocks.length = 0;
+    this.hazards.length = 0;
+  }
+
   update(dt, groundY, zombies, player, camera) {
     // 1. Update Projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
@@ -19,6 +25,16 @@ export class ProjectileManager {
         this.projectiles.splice(i, 1);
         continue;
       }
+
+      // Landed props only need their lifetime updated. Re-applying gravity to
+      // an anvil made it impact, shake, play audio, and deal damage every frame.
+      if (p.isLanded) continue;
+
+      // Beam-style projectiles intentionally have no velocity. Keep all
+      // integration finite so one missing component can never poison canvas
+      // coordinates with NaN.
+      if (!Number.isFinite(p.vx)) p.vx = 0;
+      if (!Number.isFinite(p.vy)) p.vy = 0;
 
       p.x += p.vx * dt;
       p.y += p.vy * dt;
@@ -62,6 +78,7 @@ export class ProjectileManager {
           // Anvil stays briefly as obstacle then despawns
           p.life = Math.min(p.life, 2.0);
           p.isLanded = true;
+          continue;
         } else if (p.type === 'thrown_zombie') {
           p.y = groundY;
           p.vy = -Math.abs(p.vy) * 0.45;
@@ -107,8 +124,10 @@ export class ProjectileManager {
       if (p.type === 'doom_laser') {
         if (player && !player.isDead && !player.isRolling && !player.isAwakened) {
           const inBeamX = p.facing > 0 ? (player.x >= p.x && player.x <= p.x + 1800) : (player.x <= p.x && player.x >= p.x - 1800);
-          if (inBeamX && Math.abs((player.y - 30) - p.y) < p.beamWidth + 15) {
-            player.takeDamage(p.damage * dt * 2.5, p.facing, 450);
+          const inBeamY = Math.abs((player.y - 30) - p.y) < p.beamWidth + 15;
+          if (!p.hitPlayer && player.iFrames <= 0 && inBeamX && inBeamY) {
+            p.hitPlayer = true;
+            player.takeDamage(p.damage, p.facing, 450);
             particles.createHitSparks(player.x, p.y, 4, '#ff0033');
             camera.addShake(0.15);
           }
@@ -310,6 +329,21 @@ export class ProjectileManager {
         ctx.beginPath();
         ctx.moveTo(-6, 4); ctx.lineTo(-14, 12 + Math.sin(legT) * 4);
         ctx.moveTo(6, 4); ctx.lineTo(14, 12 - Math.sin(legT) * 4);
+        ctx.moveTo(-5, 7); ctx.lineTo(-11, 17 - Math.sin(legT) * 3);
+        ctx.moveTo(5, 7); ctx.lineTo(11, 17 + Math.sin(legT) * 3);
+        ctx.stroke();
+      } else if (p.type === 'music_note') {
+        // Green's sound-wave projectiles were functional but invisible.
+        ctx.fillStyle = '#66ff99';
+        ctx.strokeStyle = '#062d1b';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#33ffaa';
+        ctx.shadowBlur = 12;
+        ctx.font = "bold 30px sans-serif";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeText('♪', 0, 0);
+        ctx.fillText('♪', 0, 0);
       } else if (p.type === 'javelin') {
         // High-Tech Energized Graphite Javelin
         ctx.shadowColor = '#ffbb00';
@@ -340,6 +374,10 @@ export class ProjectileManager {
         ctx.moveTo(-16, 16); ctx.lineTo(16, -16);
         ctx.stroke();
       }
+      // Every projectile owns exactly one canvas state frame. The missing
+      // restore here previously compounded translations and leaked the state
+      // stack until the game appeared offset or frozen.
+      ctx.restore();
     }
 
     // 4. Draw Doom Laser Beams
@@ -426,6 +464,7 @@ export class ProjectileManager {
       damage,
       duration,
       isHostile: true,
+      hitPlayer: false,
       life: duration
     });
   }

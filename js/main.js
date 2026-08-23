@@ -23,8 +23,10 @@ class Game {
     this.stageManager = stages;
     this.player = new Player(this.stageManager.entranceDoor.x + 30, this.groundY);
 
-    this.state = 'TITLE'; // 'TITLE', 'PLAYING', 'SHOP', 'PAUSED', 'GAMEOVER'
+    this.state = 'TITLE'; // 'TITLE', 'PLAYING', 'SHOP', 'PAUSED', 'GAMEOVER', 'VICTORY'
     this.lastTime = 0;
+    this.lastStaticRender = 0;
+    this.reportedErrors = new Set();
   }
 
   init() {
@@ -41,14 +43,27 @@ class Game {
 
   setupResize() {
     const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      this.canvas.width = window.innerWidth * dpr;
-      this.canvas.height = window.innerHeight * dpr;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      // Cap both pixel density and total backing pixels. This keeps 4K/5K
+      // displays from allocating a 30M+ pixel canvas while retaining crisp
+      // rendering on phones and ordinary desktop screens.
+      const dpr = this.camera.getRenderPixelRatio(window.devicePixelRatio || 1);
+      this.canvas.width = Math.round(width * dpr);
+      this.canvas.height = Math.round(height * dpr);
+      this.canvas.style.width = `${width}px`;
+      this.canvas.style.height = `${height}px`;
       this.ctx.resetTransform?.();
       this.ctx.scale(dpr, dpr);
+      this.camera.clampToArena();
     };
     window.addEventListener('resize', resize);
     resize();
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.state === 'PLAYING') this.pauseGame();
+      this.lastTime = performance.now();
+    });
   }
 
   bindUIEvents() {
@@ -81,10 +96,25 @@ class Game {
       });
     }
 
+    const btnMenuFromGameOver = document.getElementById('btn-menu-from-gameover');
+    if (btnMenuFromGameOver) btnMenuFromGameOver.addEventListener('click', () => this.showTitleScreen());
+
+    const btnVictoryReplay = document.getElementById('btn-victory-replay');
+    if (btnVictoryReplay) btnVictoryReplay.addEventListener('click', () => this.startGame());
+
+    const btnVictoryMenu = document.getElementById('btn-victory-menu');
+    if (btnVictoryMenu) btnVictoryMenu.addEventListener('click', () => this.showTitleScreen());
+
     // Shop Buttons
     const btnOpenShop = document.getElementById('btn-open-shop');
     if (btnOpenShop) {
       btnOpenShop.addEventListener('click', () => {
+        if (this.state === 'PLAYING') this.openShop();
+      });
+    }
+    const btnTouchShop = document.getElementById('btn-touch-shop');
+    if (btnTouchShop) {
+      btnTouchShop.addEventListener('click', () => {
         if (this.state === 'PLAYING') this.openShop();
       });
     }
@@ -103,6 +133,12 @@ class Game {
       btnPause.addEventListener('click', () => {
         if (this.state === 'PLAYING') this.pauseGame();
         else if (this.state === 'PAUSED') this.resumeGame();
+      });
+    }
+    const btnTouchPause = document.getElementById('btn-touch-pause');
+    if (btnTouchPause) {
+      btnTouchPause.addEventListener('click', () => {
+        if (this.state === 'PLAYING') this.pauseGame();
       });
     }
 
@@ -159,12 +195,17 @@ class Game {
   startGame() {
     this.hideAllModals();
     this.state = 'PLAYING';
+    input.resetHeldInputs();
+    projectiles.reset();
+    allies.reset(true);
+    particles.reset();
+    speech.reset();
+    shop.reset();
+    combat.resetRun(50);
     this.stageManager.loadStage(1);
     this.player = new Player(this.stageManager.entranceDoor.x + 30, this.groundY);
-    combat.score = 0;
-    combat.ink = 50; // Starting ink bonus
-    combat.totalKills = 0;
-    combat.resetCombo();
+    this.player.isGrounded = true;
+    this.camera.snapTo(this.player);
     waves.startWave(1);
   }
 
@@ -177,6 +218,11 @@ class Game {
     this.hideAllModals();
     this.state = 'PLAYING';
     this.stageManager.loadStage(nextStage);
+    projectiles.reset();
+    allies.reset(false);
+    particles.reset();
+    speech.reset();
+    combat.clearArena();
     this.player.x = this.stageManager.entranceDoor.x + 30;
     this.player.y = this.groundY;
     this.player.vx = 0;
@@ -191,12 +237,38 @@ class Game {
     this.player.airJuggleTarget = null;
     this.player.squashX = 1.0;
     this.player.squashY = 1.0;
+    this.player.heal(this.player.maxHp * 0.18);
+    this.camera.snapTo(this.player);
 
     waves.startWave(nextStage);
 
-    audio.playWaveStart();
     particles.addTextBanner(this.player.x, this.player.y - 70, `★ STAGE ${nextStage}: ${this.stageManager.stageName} ★`, '#ffea00');
     particles.addDamageText(this.player.x, this.player.y - 100, `PRESS [B] FOR UPGRADES`, false, '#38bdf8');
+  }
+
+  completeGame() {
+    this.state = 'VICTORY';
+    audio.setIntensity(0);
+    projectiles.reset();
+    allies.reset(false);
+
+    const score = document.getElementById('victory-score');
+    const kills = document.getElementById('victory-kills');
+    const combo = document.getElementById('victory-combo');
+    if (score) score.innerText = combat.score;
+    if (kills) kills.innerText = combat.totalKills;
+    if (combo) combo.innerText = `${combat.maxCombo} HITS`;
+    this.showModal('victory-modal');
+  }
+
+  showTitleScreen() {
+    this.hideAllModals();
+    this.state = 'TITLE';
+    input.resetHeldInputs();
+    audio.setIntensity(0);
+    const titleScreen = document.getElementById('title-screen');
+    if (titleScreen) titleScreen.scrollTop = 0;
+    this.showModal('title-screen');
   }
 
   pauseGame() {
@@ -275,12 +347,21 @@ class Game {
         this.update(dt);
       }
 
-      // Render Scene
-      this.render();
-
-      input.endFrame();
+      // Modal states do not need a full 60 FPS canvas redraw.
+      if (this.state === 'PLAYING' || timestamp - this.lastStaticRender >= 120) {
+        this.render();
+        this.lastStaticRender = timestamp;
+      }
     } catch (err) {
-      console.error('GameLoop error caught:', err);
+      const signature = err && err.message ? err.message : String(err);
+      if (!this.reportedErrors.has(signature)) {
+        this.reportedErrors.add(signature);
+        console.error('GameLoop error caught:', err);
+      }
+    } finally {
+      // One-frame actions must be released even if a future update or draw
+      // throws, otherwise the same attack can remain armed indefinitely.
+      input.endFrame();
     }
 
     requestAnimationFrame((t) => this.gameLoop(t));
@@ -313,7 +394,11 @@ class Game {
     // 3. Update Stage Progression, Obstacles, and Doors
     try {
       this.stageManager.update(simDt, this.player, waves, (nextStage) => {
-        this.advanceStage(nextStage);
+        this.stageManager.resolveStageExit(
+          nextStage,
+          () => this.completeGame(),
+          (stage) => this.advanceStage(stage)
+        );
       });
     } catch (e) { console.error('Stage update error:', e); }
 
@@ -342,8 +427,6 @@ class Game {
       speech.update(simDt);
     } catch (e) { console.error('Speech update error:', e); }
 
-    // 9. Update HUD Overlay
-    this.syncHUD();
   }
 
   syncHUD() {
@@ -448,47 +531,68 @@ class Game {
     syncAlly('ally-yellow-slot', 'yellow');
     syncAlly('ally-green-slot', 'green');
     syncAlly('ally-cursor-slot', 'cursor');
+
+    const syncSkillCooldown = (slotId, overlayId, remaining) => {
+      const slot = document.getElementById(slotId);
+      const overlay = document.getElementById(overlayId);
+      const coolingDown = remaining > 0;
+      if (slot) {
+        slot.classList.toggle('cooldown', coolingDown);
+        slot.classList.toggle('ready', !coolingDown);
+      }
+      if (overlay) {
+        overlay.style.opacity = coolingDown ? '1' : '0';
+        overlay.innerText = coolingDown ? Math.max(1, Math.ceil(remaining)) : '';
+      }
+    };
+    syncSkillCooldown('skill-roll', 'cd-roll-overlay', this.player.rollCooldown);
+    syncSkillCooldown('skill-block', 'cd-block-overlay', this.player.blockCooldown);
   }
 
   render() {
     this.syncHUD();
     const ctx = this.ctx;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+    const width = this.canvas.clientWidth || window.innerWidth;
+    const height = this.canvas.clientHeight || window.innerHeight;
 
     // Clear Screen
     ctx.fillStyle = '#1e212d';
     ctx.fillRect(0, 0, width, height);
 
-    // Apply Camera Transform
+    // Keep the canvas transform balanced even if a future entity renderer
+    // throws midway through the world pass.
     this.camera.apply(ctx);
+    try {
+      // 1. Draw Desktop GUI Environment, Doors, App Platforms, Obstacles, and Taskbar
+      this.stageManager.draw(ctx, this.groundY);
 
-    // 1. Draw Desktop GUI Environment, Doors, App Platforms, Obstacles, and Taskbar
-    this.stageManager.draw(ctx, this.groundY);
+      // 2. Draw Projectiles & Hazards
+      projectiles.draw(ctx);
 
-    // 2. Draw Projectiles & Hazards
-    projectiles.draw(ctx);
+      // 3. Draw Ink Drops
+      combat.draw(ctx);
 
-    // 3. Draw Ink Drops
-    combat.draw(ctx);
+      // 4. Draw Zombies
+      waves.draw(ctx);
 
-    // 4. Draw Zombies
-    waves.draw(ctx);
+      // 5. Draw Allies & Mouse Cursor
+      allies.draw(ctx);
 
-    // 5. Draw Allies & Mouse Cursor
-    allies.draw(ctx);
+      // 6. Draw Player
+      this.player.draw(ctx);
 
-    // 6. Draw Player
-    this.player.draw(ctx);
+      // 7. Draw Visual FX & Particles
+      particles.draw(ctx);
 
-    // 7. Draw Visual FX & Particles
-    particles.draw(ctx);
+      // 8. Draw 80s Retro Speech Bubbles
+      speech.draw(ctx);
+    } finally {
+      this.camera.restore(ctx);
+    }
 
-    // 8. Draw 80s Retro Speech Bubbles
-    speech.draw(ctx);
-
-    // Restore Camera Transform
-    this.camera.restore(ctx);
+    // Screen-space guides stay anchored even while the camera shakes or zooms.
+    waves.drawScreenIndicators?.(ctx, this.camera, width, height);
+    this.stageManager.drawScreenGuide?.(ctx, this.camera, width, height);
   }
 }
 

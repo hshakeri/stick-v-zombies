@@ -53,6 +53,9 @@ export class Player {
     this.isAwakened = false;
     this.awakenedTimer = 0;
     this.awakenedDuration = 12.0;
+    this.awakeningAuraTimer = 0;
+    this.laserTickTimer = 0;
+    this.isFiringLaser = false;
 
     // Dodge Roll
     this.isRolling = false;
@@ -81,6 +84,7 @@ export class Player {
 
     // Ghost Trails for Dodge Roll / Awakening
     this.ghostTrails = [];
+    this.ghostTrailTimer = 0;
     this.airJuggleTarget = null;
   }
 
@@ -99,7 +103,10 @@ export class Player {
     }
 
     this.platforms = platforms;
+    this.currentZombies = zombies;
+    this.currentCamera = camera;
     this.animTimer += dt;
+    this.isFiringLaser = false;
 
     // Smooth Squash & Stretch elastic recovery
     this.squashX += (1.0 - this.squashX) * Math.min(1, 14.0 * dt);
@@ -117,6 +124,8 @@ export class Player {
     if (this.iFrames > 0) this.iFrames -= dt;
     if (this.rollCooldown > 0) this.rollCooldown -= dt;
     if (this.blockCooldown > 0) this.blockCooldown -= dt;
+    if (this.laserTickTimer > 0) this.laserTickTimer -= dt;
+    if (this.ghostTrailTimer > 0) this.ghostTrailTimer -= dt;
     if (this.coyoteTimer > 0) this.coyoteTimer -= dt;
     if (this.jumpBuffer > 0) this.jumpBuffer -= dt;
 
@@ -131,7 +140,11 @@ export class Player {
     // Handle Awakening Mode
     if (this.isAwakened) {
       this.awakenedTimer -= dt;
-      particles.createAwakeningAura(this.x, this.y - 30, 2);
+      this.awakeningAuraTimer -= dt;
+      if (this.awakeningAuraTimer <= 0) {
+        this.awakeningAuraTimer = 0.05;
+        particles.createAwakeningAura(this.x, this.y - 30, 1);
+      }
 
       if (this.awakenedTimer <= 0) {
         this.deactivateAwakening();
@@ -149,7 +162,8 @@ export class Player {
 
     // Spawn new ghost trail when rolling or awakened or high speed
     if (this.isRolling || this.isAwakened || Math.abs(this.vx) > 350) {
-      if (this.ghostTrails.length < 6 && Math.random() > 0.4) {
+      if (this.ghostTrails.length < 6 && this.ghostTrailTimer <= 0) {
+        this.ghostTrailTimer = 0.055;
         this.ghostTrails.push({
           x: this.x,
           y: this.y,
@@ -180,6 +194,9 @@ export class Player {
     if (this.isRolling) {
       this.vx = this.facing * 480;
       this.pose = 'roll';
+      if (input.actions.attackPressed || input.actions.weaponPressed) {
+        this.executeSlideSweep(zombies, camera);
+      }
     } else {
       // 2. Normal Movement & Controls
       this.handleMovement(dt, input, groundY, sketchBlocks);
@@ -286,6 +303,17 @@ export class Player {
   }
 
   handleCombatInputs(input, zombies, camera, groundY) {
+    // In Awakening, either primary combat button channels a throttled beam.
+    // This runs before normal attacks so holding Q/W has one clear meaning.
+    if (this.isAwakened && (input.actions.weapon || input.actions.attack)) {
+      this.isFiringLaser = true;
+      if (this.laserTickTimer <= 0) {
+        this.laserTickTimer = 0.12;
+        this.fireAwakeningLaser(zombies, camera);
+      }
+      return;
+    }
+
     // 1. Zombie Vector Grab & Bowling Throw (F / G or Q+W in melee range)
     if (input.actions.grabPressed || (input.actions.attackPressed && input.actions.weaponPressed)) {
       if (this.executeGrabAndThrow(zombies, camera)) {
@@ -348,10 +376,6 @@ export class Player {
       this.executeWeaponAttack(zombies, camera);
     }
 
-    // 10. Awakening Mode Laser / Screen Blast
-    if (this.isAwakened && input.actions.weapon) {
-      this.fireAwakeningLaser(zombies, camera);
-    }
   }
 
   executeGrabAndThrow(zombies, camera) {
@@ -372,6 +396,21 @@ export class Player {
 
     // Turn toward target
     this.facing = target.x >= this.x ? 1 : -1;
+
+    // Bosses can be grabbed for a powerful interrupt, but never deleted by a
+    // single utility move.
+    if (target.isBoss) {
+      this.attackTimer = 0.4;
+      this.pose = 'attack_spin';
+      this.iFrames = 0.25;
+      audio.playGrabThrow();
+      audio.playFinisherImpact();
+      target.takeDamage(85 * this.damageMultiplier, this.facing, 420, true);
+      particles.addShockwave(target.x, target.y - 30, 110, '#ff7700', 8);
+      particles.addComicPopup(target.x, target.y - 60, 'PROCESS BREAK!', '#ff6600', '#ffffff');
+      if (camera) camera.addShake(0.45);
+      return true;
+    }
 
     // Grab & Rip Apart execution
     this.attackTimer = 0.35;
@@ -724,10 +763,15 @@ export class Player {
   }
 
   handleSkillsAndAllies(input, groundY, camera, zombies) {
-    // 1. Spawn Sketch Block / Anvil (E)
+    // 1. Spawn Sketch Block / Anvil (E). Place cover on the ground; hold Down
+    // (or use E in mid-air) to drop the upgradeable anvil instead.
     if (input.actions.blockPressed && this.blockCooldown <= 0) {
       this.blockCooldown = 3.5;
-      projectiles.spawnSketchBlock(this.x + this.facing * 75, this.y - 120, this.facing);
+      if (input.actions.down || !this.isGrounded) {
+        projectiles.spawnAnvil(this.x + this.facing * 85, groundY, weapons.anvilDamage);
+      } else {
+        projectiles.spawnSketchBlock(this.x + this.facing * 75, groundY, 'obsidian');
+      }
       audio.playBlockPlace();
       audio.playPlayerEffort();
     }
@@ -749,7 +793,7 @@ export class Player {
     this.isAwakened = true;
     this.awakenedTimer = this.awakenedDuration;
     this.superMeter = 0;
-    audio.playSuperActivate();
+    audio.playAwakening();
     if (camera) camera.addShake(0.6);
     particles.addShockwave(this.x, this.y - 30, 200, '#ffee00', 12);
     particles.addTextBanner(this.x, this.y - 80, '⚡ GOD MODE AWAKENED! ⚡', '#ffee00');
@@ -781,6 +825,7 @@ export class Player {
         audio.playPunch('heavy');
         particles.addShockwave(this.x, groundY, 150, '#ffaa00', 10);
         particles.createDust(this.x, groundY, 14);
+        this.applyGroundSlamDamage(this.currentZombies, 150, 48);
       } else if (!this.isGrounded && this.vy > 100) {
         audio.playLand();
         particles.createDust(this.x, groundY, 4);
@@ -798,7 +843,7 @@ export class Player {
     }
 
     // Arena Boundary Clamping and Wall Sliding
-    const arenaBound = 1180;
+    const arenaBound = 1075;
     if (this.x <= -arenaBound) {
       this.x = -arenaBound;
       if (!this.isGrounded && this.vy > 0) {
@@ -836,6 +881,7 @@ export class Player {
             this.pose = 'idle';
             audio.playPunch('heavy');
             particles.addShockwave(this.x, bTop, 120, '#ffaa00', 8);
+            this.applyGroundSlamDamage(this.currentZombies, 125, 42);
           } else if (!this.isGrounded && this.vy > 100) {
             audio.playLand();
           }
@@ -847,6 +893,19 @@ export class Player {
         }
       }
     }
+  }
+
+  applyGroundSlamDamage(zombies, radius, baseDamage) {
+    if (!Array.isArray(zombies)) return;
+    for (const z of zombies) {
+      if (z.isDead || Math.hypot(z.x - this.x, z.y - this.y) > radius + (z.radius || 20)) continue;
+      const direction = z.x >= this.x ? 1 : -1;
+      const damage = baseDamage * this.damageMultiplier;
+      z.takeDamage(damage, direction, 620, true);
+      combat.registerHit(damage, true);
+      particles.createHitSparks(z.x, z.y - 25, 8, '#ffaa00');
+    }
+    if (this.currentCamera) this.currentCamera.addShake(0.35);
   }
 
   updatePose() {
@@ -988,7 +1047,7 @@ export class Player {
     });
 
     // Awakening Laser Beam Ray
-    if (this.isAwakened && this.pose !== 'roll') {
+    if (this.isAwakened && this.isFiringLaser && this.pose !== 'roll') {
       ctx.save();
       ctx.strokeStyle = '#ffffff';
       ctx.shadowColor = '#ffee00';

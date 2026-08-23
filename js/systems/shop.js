@@ -108,6 +108,11 @@ export class ShopSystem {
     ];
   }
 
+  reset() {
+    for (const upgrade of this.upgrades) upgrade.level = 0;
+    weapons.reset();
+  }
+
   getCost(upgrade) {
     return Math.round(upgrade.baseCost * Math.pow(upgrade.costMultiplier, upgrade.level));
   }

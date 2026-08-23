@@ -44,6 +44,22 @@ export class AllyManager {
     };
   }
 
+  reset(resetUpgrades = false) {
+    this.activeAllies.length = 0;
+    this.turrets.length = 0;
+    this.activeCursors.length = 0;
+    for (const key of Object.keys(this.cooldowns)) this.cooldowns[key] = 0;
+    if (resetUpgrades) {
+      Object.assign(this.maxCooldowns, {
+        red: 10,
+        blue: 12,
+        yellow: 14,
+        green: 12,
+        cursor: 8
+      });
+    }
+  }
+
   update(dt, groundY, zombies, player, camera) {
     // Decrease cooldowns
     for (const key of Object.keys(this.cooldowns)) {
@@ -60,11 +76,12 @@ export class AllyManager {
 
       if (ally.type === 'red') {
         // Red dives down fast and executes explosive ground slam
-        if (ally.y < groundY) {
+        if (!ally.hasActed && ally.y < groundY) {
           ally.y += 1400 * dt;
           if (ally.y >= groundY) {
             ally.y = groundY;
             ally.pose = 'attack_cross';
+            ally.hasActed = true;
             // Slam shockwave
             camera.addShake(0.7);
             audio.playPunch('heavy');
@@ -78,12 +95,10 @@ export class AllyManager {
               }
             }
           }
-        } else {
-          // Stay briefly then jump away
-          if (ally.timer > 1.2) {
-            ally.y -= 1000 * dt;
-            ally.pose = 'jump_rise';
-          }
+        } else if (ally.hasActed && ally.timer > 1.2) {
+          // Exit after exactly one landing impact.
+          ally.y -= 1000 * dt;
+          ally.pose = 'jump_rise';
         }
       } else if (ally.type === 'blue') {
         // Blue drops in, throws healing potions to player and freeze webs
@@ -99,7 +114,7 @@ export class AllyManager {
           }
           // Slow down all zombies on screen
           for (const z of zombies) {
-            if (!z.isDead) {
+            if (!z.isDead && typeof z.applyFreeze === 'function') {
               z.applyFreeze(6.0); // Slow for 6 seconds
               particles.createHitSparks(z.x, z.y - 30, 8, '#2299ff');
             }
@@ -139,7 +154,7 @@ export class AllyManager {
           projectiles.spawnMusicNoteWave(ally.x, groundY - 30, -ally.facing);
           // Stun all zombies
           for (const z of zombies) {
-            if (!z.isDead) {
+            if (!z.isDead && typeof z.applyStun === 'function') {
               z.applyStun(4.0);
             }
           }
@@ -222,17 +237,19 @@ export class AllyManager {
         audio.playRecycleBinDelete();
         camera.addShake(0.5);
 
-        // Vaporize target zombie
+        // Delete ordinary malware; bosses instead take a powerful interrupt so
+        // a single cooldown cannot skip the entire finale.
         if (c.targetZombie && !c.targetZombie.isDead) {
-          c.targetZombie.takeDamage(9999, 1, 0, true);
+          const isBoss = !!c.targetZombie.isBoss;
+          c.targetZombie.takeDamage(isBoss ? 90 : 9999, 1, 0, true);
           particles.createHitSparks(tx, ty, 20, '#00d2ff');
           particles.addShockwave(tx, ty, 140, '#0099ff', 10);
-          particles.addTextBanner(tx, ty - 60, '🗑️ [FILE DELETED]', '#00d2ff');
+          particles.addTextBanner(tx, ty - 60, isBoss ? '⚠️ [PROCESS INTERRUPTED]' : '🗑️ [FILE DELETED]', '#00d2ff');
         } else {
           // Fallback: Delete closest zombie
           for (const z of zombies) {
             if (!z.isDead && Math.abs(z.x - c.x) < 140) {
-              z.takeDamage(9999, 1, 0, true);
+              z.takeDamage(z.isBoss ? 90 : 9999, 1, 0, true);
               particles.createHitSparks(z.x, z.y - 30, 20, '#00d2ff');
               particles.addTextBanner(z.x, z.y - 60, '🗑️ [FILE DELETED]', '#00d2ff');
               break;

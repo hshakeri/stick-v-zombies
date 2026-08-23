@@ -2,7 +2,9 @@
 
 [![Play on GitHub Pages](https://img.shields.io/badge/Play_Online-GitHub_Pages-brightgreen?style=for-the-badge&logo=github)](https://hshakeri.github.io/stick-v-zombies/)
 
-A high-octane 2D action arena combat game inspired by Alan Becker's iconic series (*Animation vs. Animator* / *Animation vs. Minecraft*). Play as **The Second Coming** (the orange stick figure), wielding fluid martial arts combos, giant pencils, red fighting staves, anvil drops, summonable stick allies, and a devastating **Awakening God Mode** against endless hordes of stick zombies and **The Dark Lord (TDL)**!
+A lightweight 2D action arena game inspired by Alan Becker's *Animator vs. Animation* and *Animation vs. Minecraft*. Play as **The Second Coming** (the orange stick figure), chaining martial arts, pencil attacks, sketch tools, and ally assists across ten desktop-themed stages.
+
+> **Unofficial fan project:** This game is a non-commercial tribute made for fun and learning. It is not affiliated with or endorsed by Alan Becker, Mojang, or Microsoft. All referenced characters and properties belong to their respective owners.
 
 ---
 
@@ -32,13 +34,16 @@ python3 -m http.server 8088
 ### Combat & Skills (Left Side of Keyboard)
 | Action | Key / Input | Notes |
 | :--- | :--- | :--- |
-| **Martial Arts Combo** | `Q` | 4-Hit combo: Jab ➔ Cross ➔ High Kick ➔ 360° Hurricane Spin Kick |
-| **Giant Pencil Slash** | `W` | Sweeping Giant Pencil slash that cleaves through packs of zombies |
+| **Martial Arts Combo / Air Chase** | `Q`, `J`, or left click | 5-hit chain with an uppercut launcher and airborne follow-up |
+| **Giant Pencil Slash** | `W`, `K`, or right click | Sweeping pencil slash; use `↓` + `W` for an EX javelin |
+| **Rising Dragon** | `↑` + `Q` | Launches nearby enemies into an aerial combo |
 | **Dive Kick / Ground Slam** | In mid-air: `↓` + `Q` / `W` | Plummets down and explodes into a shockwave on landing |
-| **Anvil Drop / Block Spawn** | `E` | Drops a heavy iron anvil to crush zombies under you |
-| **⚡ AWAKENING GOD MODE** | `R` (When meter is 100%) | Radiant golden-orange God Mode: hold `W` or `Q` for screen lasers! |
+| **Grab & Throw** | `F`, `G`, or `Q` + `W` | Grabs a nearby zombie and turns it into a crowd-clearing projectile |
+| **Sketch Block / Anvil Drop** | `E`; `↓` + `E` or airborne `E` | Places a ground block, or drops an upgraded anvil from above |
+| **Roll Follow-up** | `Shift` / `L`, then `Q` or `W` | Converts a dodge into a low slide sweep |
+| **⚡ AWAKENING GOD MODE** | `R` (when meter is 100%) | Enter Awakening, then hold `W` or `Q` for the beam |
 | **Summon Stick Allies** | `1`, `2`, `3`, `4` | Red (Meteor), Blue (Heal/Freeze), Yellow (Turret), Green (Stun) |
-| **Summon Mouse Cursor (Delete Zombie)** | `5` | Animator's mouse pointer flies in, box-selects & deletes a zombie! |
+| **Summon Animator Cursor** | `5` | The cursor deletes a regular zombie or heavily damages a boss |
 | **Open Upgrades Shop** | `B` | Spend collected Ink to upgrade stats and unlock allies |
 | **Pause Game** | `Esc` or `P` | Pause menu |
 
@@ -46,17 +51,17 @@ python3 -m http.server 8088
 
 ## 🖥️ Desktop Stages & Boss Progression
 
-10 Computer Desktop Stages with obstacles, platforms, and a **Start Door** ➔ **Exit Door**:
+Ten computer-desktop stages with obstacles, platforms, a clear **Start Door**, and an **Exit Door** guide:
 - **Stage 1: Main Desktop**: File explorer windows, Notepad platforms, desktop shortcut icons (`Recycle Bin`, `Minecraft.exe`).
 - **Stage 2: Adobe Animate Workspace**: Moving Timeline Scrubber platforms, layer tracks, and drawing laser pointer hazards.
 - **Stage 3: Downloads & Malware Zone**: Vertical download elevators, corrupted files, and Error 404 popup dialog hazards.
 - **Stage 4: Firewall Security Grid**: Timed security laser barriers, packet scanners, and rapid runner swarms.
-- **Stage 5: Blue Screen of Death (BSOD)**: The Titan Undead Boss fight on an ominous glowing blue error screen!
+- **Stage 5: Blue Screen of Death (BSOD)**: The Titan Undead boss fight on an ominous glowing blue error screen.
 - **Stage 6: Corrupted Recycle Bin**: Discarded script windows and hazardous shredder platforms.
 - **Stage 7: Minecraft Nether Core**: Obsidian and netherrack platforms with lava hazards.
 - **Stage 8: Terminal Cyber Matrix**: Hacker command-line terminal grids and cyber laser traps.
 - **Stage 9: ViraBot Infestation Nexus**: Virus incubators and malware conduits crawling with minion spiders.
-- **Stage 10: The Dark Core (TDL's Domain)**: The ultimate multi-phase boss encounter with **The Dark Lord (TDL)** wielding dual glowing crimson Vira-Blades, Doom Lasers, and meteor plunges!
+- **Stage 10: The Dark Core (TDL's Domain)**: A multi-phase boss encounter with **The Dark Lord (TDL)**, followed by a real victory screen rather than an endless stage loop.
 
 ---
 
@@ -66,7 +71,7 @@ python3 -m http.server 8088
 2. **Agile Runners**: Four-legged fast sprinters that leap through the air to ambush you.
 3. **Toxic Spitters**: Ranged zombies that maintain their distance and launch hazardous acid puddles.
 4. **Heavy Brutes**: Massive armored tank zombies that smash the ground causing shockwaves.
-5. **The Titan Undead (Boss)**: Multi-phase giant boss appearing on wave 5, 10, 15... with enrage phases, seismic stomps, and minion swarms!
+5. **The Titan Undead (Boss)**: A multi-phase giant boss with enrage phases, seismic stomps, and minion swarms.
 
 ---
 
@@ -85,5 +90,17 @@ Defeated zombies drop **Ink** (✒️) which can be spent between waves in the U
 
 ## 🎨 Visual & Audio Features
 - **100% Procedural Web Audio Synthesizer**: Crunchy punch impacts, whooshes, monster snarls, laser beams, and dynamic battle music.
-- **Alan Becker Animation Physics**: Procedural bone skeleton with smooth joint kinematics, expressions, and motion lines.
+- **Responsive Canvas Framing**: Resolution-independent camera coordinates, capped pixel density, safe arena bounds, and compact portrait/landscape HUD layouts.
+- **Readable Stick Animation**: Procedural skeleton poses, silhouettes, anticipation, afterimages, and motion lines.
 - **Combat Juice**: Hitstop impact frames, dynamic camera tracking and screen shake, comic star sparks, and stylized floating damage popups.
+- **Lightweight Rendering**: Canvas 2D vectors and Web Audio only, with bounded particles and throttled continuous effects.
+
+---
+
+## ✅ Development Checks
+
+The repository includes zero-dependency regression tests for canvas state safety, one-shot impacts, safe spawning, particle and pixel budgets, responsive camera framing, replay resets, and the final victory path.
+
+```bash
+npm test
+```

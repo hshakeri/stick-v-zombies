@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Orange Stickman vs Zombies - The Second Coming</title>
-  <link rel="stylesheet" href="css/style.css?v=2.5">
+  <link rel="stylesheet" href="css/style.css?v=3.0">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23ff7700%22 stroke=%22white%22 stroke-width=%228%22/></svg>">
 </head>
 <body>
@@ -92,7 +92,7 @@
             <div class="skill-icon">✏️</div>
             <div class="skill-key">W</div>
           </div>
-          <div class="skill-slot ready" id="skill-grab" title="Zombie Vector Grab & Bowling Throw (F)">
+          <div class="skill-slot ready" id="skill-grab" title="Zombie Vector Grab &amp; Bowling Throw (F / G)">
             <div class="skill-icon">🤼</div>
             <div class="skill-key">F</div>
           </div>
@@ -149,27 +149,84 @@
     <!-- Title / Start Screen Modal -->
     <div id="title-screen" class="modal-overlay active">
       <div class="title-logo-container">
-        <h1 class="game-main-title">STICK VS ZOMBIES</h1>
-        <h2 class="game-sub-title">THE SECOND COMING - DESKTOP ADVENTURE</h2>
+        <div class="title-kicker">ORANGE STICKMAN • THE SECOND COMING</div>
+        <h1 class="game-main-title">
+          <span>STICK</span><span class="title-vs">VS</span><span>ZOMBIES</span>
+        </h1>
+        <h2 class="game-sub-title">DESKTOP ADVENTURE</h2>
+        <p class="title-tagline">Draw fast. Fight smart. Save the desktop.</p>
       </div>
 
       <div class="title-actions">
         <button id="btn-start-game" class="primary-btn" style="font-size: 20px; padding: 14px 28px;">▶ PLAY NOW</button>
-        <button id="btn-how-to-play" class="secondary-btn">📖 Controls & Tips</button>
+        <button id="btn-how-to-play" class="secondary-btn">📖 Controls &amp; Tips</button>
       </div>
 
       <div class="controls-guide-card">
-        <h4>⚡ HOW TO PLAY & CONTROLS</h4>
-        <div class="controls-row"><span>Move:</span> <span class="key-badge">← / →</span> or <span class="key-badge">A / D</span></div>
-        <div class="controls-row"><span>Jump / Double Jump / Wall Jump:</span> <span class="key-badge">↑</span> or <span class="key-badge">SPACE</span></div>
-        <div class="controls-row"><span>Crouch / Drop Down Platforms:</span> <span class="key-badge">↓</span> or <span class="key-badge">S</span></div>
-        <div class="controls-row"><span>Martial Arts Combo:</span> <span class="key-badge">Q</span></div>
-        <div class="controls-row"><span>Giant Pencil Slash:</span> <span class="key-badge">W</span></div>
-        <div class="controls-row"><span>Dodge Roll (Invulnerable):</span> <span class="key-badge">SHIFT</span></div>
-        <div class="controls-row"><span>Place Block / Drop Anvil:</span> <span class="key-badge">E</span></div>
-        <div class="controls-row"><span>AWAKENING GOD MODE (Full Meter):</span> <span class="key-badge">R</span></div>
-        <div class="controls-row"><span>Summon Stick Allies:</span> <span class="key-badge">1</span>, <span class="key-badge">2</span>, <span class="key-badge">3</span>, <span class="key-badge">4</span></div>
-        <div class="controls-row"><span>Summon Animator Mouse Cursor (Delete Zombie):</span> <span class="key-badge">5</span></div>
+        <h4>⚡ HOW TO PLAY &amp; CONTROLS</h4>
+        <p class="controls-intro">Keyboard, mouse, or the on-screen controls all work.</p>
+        <div class="controls-list">
+          <div class="controls-row">
+            <span>Move</span>
+            <span class="control-keys"><kbd class="key-badge">← / →</kbd><span>or</span><kbd class="key-badge">A / D</kbd></span>
+          </div>
+          <div class="controls-row">
+            <span>Jump / wall jump</span>
+            <span class="control-keys"><kbd class="key-badge">↑</kbd><span>or</span><kbd class="key-badge">SPACE</kbd></span>
+          </div>
+          <div class="controls-row">
+            <span>Crouch / drop through</span>
+            <span class="control-keys"><kbd class="key-badge">↓</kbd><span>or</span><kbd class="key-badge">S</kbd></span>
+          </div>
+          <div class="controls-row">
+            <span>Combo / air chase</span>
+            <span class="control-keys"><kbd class="key-badge">Q / J</kbd><span>or</span><kbd class="key-badge">CLICK</kbd></span>
+          </div>
+          <div class="controls-row">
+            <span>Pencil slash / laser</span>
+            <span class="control-keys"><kbd class="key-badge">W / K</kbd><span>or</span><kbd class="key-badge">R-CLICK</kbd></span>
+          </div>
+          <div class="controls-row">
+            <span>Grab &amp; throw</span>
+            <span class="control-keys"><kbd class="key-badge">F / G</kbd><span>or</span><kbd class="key-badge">Q + W</kbd></span>
+          </div>
+          <div class="controls-row advanced-control">
+            <span>Rising Dragon</span>
+            <span class="control-keys"><kbd class="key-badge">↑ + Q</kbd></span>
+          </div>
+          <div class="controls-row advanced-control">
+            <span>Dive kick (airborne)</span>
+            <span class="control-keys"><kbd class="key-badge">↓ + Q / W</kbd></span>
+          </div>
+          <div class="controls-row advanced-control">
+            <span>EX pencil javelin</span>
+            <span class="control-keys"><kbd class="key-badge">↓ + W</kbd></span>
+          </div>
+          <div class="controls-row advanced-control">
+            <span>Dodge / slide sweep</span>
+            <span class="control-keys"><kbd class="key-badge">SHIFT / L</kbd><span>+</span><kbd class="key-badge">Q / W</kbd></span>
+          </div>
+          <div class="controls-row">
+            <span>Sketch block</span>
+            <span class="control-keys"><kbd class="key-badge">E</kbd></span>
+          </div>
+          <div class="controls-row advanced-control">
+            <span>Anvil drop</span>
+            <span class="control-keys"><kbd class="key-badge">↓ + E</kbd><span>or</span><kbd class="key-badge">AIR + E</kbd></span>
+          </div>
+          <div class="controls-row">
+            <span>Awakening / beam</span>
+            <span class="control-keys"><kbd class="key-badge">R</kbd><span>then hold</span><kbd class="key-badge">Q / W</kbd></span>
+          </div>
+          <div class="controls-row">
+            <span>Allies + Animator cursor</span>
+            <span class="control-keys"><kbd class="key-badge">1</kbd><kbd class="key-badge">2</kbd><kbd class="key-badge">3</kbd><kbd class="key-badge">4</kbd><kbd class="key-badge">5</kbd></span>
+          </div>
+          <div class="controls-row">
+            <span>Workshop / pause</span>
+            <span class="control-keys"><kbd class="key-badge">B</kbd><span>/</span><kbd class="key-badge">ESC / P</kbd></span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -177,7 +234,7 @@
     <div id="shop-modal" class="modal-overlay">
       <div class="modal-box">
         <div class="modal-header">
-          <div class="modal-title">🛒 ANIMATOR WORKSHOP & UPGRADES</div>
+          <div class="modal-title">🛒 ANIMATOR WORKSHOP &amp; UPGRADES</div>
           <button id="btn-close-shop" class="secondary-btn" style="padding: 6px 14px;">✕ Close</button>
         </div>
         
@@ -193,7 +250,7 @@
         </div>
 
         <div class="modal-footer">
-          <button id="btn-resume-from-shop" class="primary-btn">Continue Next Wave ➔</button>
+          <button id="btn-resume-from-shop" class="primary-btn">Back to Battle ➔</button>
         </div>
       </div>
     </div>
@@ -205,7 +262,7 @@
         <div style="display: flex; flex-direction: column; gap: 14px;">
           <button id="btn-resume-game" class="primary-btn">Resume</button>
           <button id="btn-pause-shop" class="secondary-btn">Open Upgrades</button>
-          <button id="btn-restart-game" class="secondary-btn">Restart Wave 1</button>
+          <button id="btn-restart-game" class="secondary-btn">Restart Campaign</button>
         </div>
       </div>
     </div>
@@ -218,7 +275,7 @@
         
         <div style="background: #14151f; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #33364d; text-align: left; font-family: 'Bungee', cursive;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-            <span>SURVIVED:</span> <span id="gameover-wave" style="color: #ffea00;">WAVE 1</span>
+            <span>STAGE REACHED:</span> <span id="gameover-wave" style="color: #ffea00;">STAGE 1</span>
           </div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
             <span>FINAL SCORE:</span> <span id="gameover-score" style="color: #fff;">0</span>
@@ -238,8 +295,41 @@
       </div>
     </div>
 
+    <!-- Campaign Victory Modal -->
+    <div id="victory-modal" class="modal-overlay">
+      <div class="modal-box victory-modal-box">
+        <div class="victory-kicker">DESKTOP SAVED</div>
+        <div class="modal-title victory-title">🏆 THE SECOND COMING TRIUMPHS!</div>
+        <p class="victory-message">The Dark Core is broken and the zombie malware has been erased.</p>
+
+        <div class="victory-stats">
+          <div class="victory-stat-row">
+            <span>FINAL SCORE</span>
+            <span id="victory-score">0</span>
+          </div>
+          <div class="victory-stat-row">
+            <span>ZOMBIES ERASED</span>
+            <span id="victory-kills">0</span>
+          </div>
+          <div class="victory-stat-row">
+            <span>BEST COMBO</span>
+            <span id="victory-combo">0</span>
+          </div>
+        </div>
+
+        <div class="victory-actions">
+          <button id="btn-victory-replay" class="primary-btn">⚔️ PLAY AGAIN</button>
+          <button id="btn-victory-menu" class="secondary-btn">Main Menu</button>
+        </div>
+      </div>
+    </div>
+
     <!-- On-screen Virtual Mobile Controls (Visible on mobile/touch screens) -->
     <div id="mobile-controls">
+      <div class="touch-utility-controls" aria-label="Game menu controls">
+        <button class="touch-utility-btn" id="btn-touch-shop" aria-label="Open upgrades" title="Open upgrades">🛒</button>
+        <button class="touch-utility-btn" id="btn-touch-pause" aria-label="Pause game" title="Pause game">Ⅱ</button>
+      </div>
       <div class="d-pad">
         <div></div>
         <button class="virtual-btn" id="vbtn-up">⬆</button>
@@ -252,6 +342,7 @@
       <div class="action-pad">
         <button class="virtual-btn" id="vbtn-attack" style="background: rgba(255, 119, 0, 0.7);">👊</button>
         <button class="virtual-btn" id="vbtn-weapon" style="background: rgba(255, 200, 0, 0.7);">✏️</button>
+        <button class="virtual-btn virtual-grab" id="vbtn-grab" aria-label="Grab and throw" title="Grab &amp; throw">🤼</button>
         <button class="virtual-btn" id="vbtn-super" style="background: rgba(255, 50, 50, 0.7);">⚡</button>
         <button class="virtual-btn" id="vbtn-roll">💨</button>
         <button class="virtual-btn" id="vbtn-block">🧱</button>
@@ -261,6 +352,6 @@
   </div>
 
   <!-- Game Modules -->
-  <script type="module" src="js/main.js?v=2.5"></script>
+  <script type="module" src="js/main.js?v=3.0"></script>
 </body>
 </html>

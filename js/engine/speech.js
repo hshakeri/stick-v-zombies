@@ -121,6 +121,11 @@ export class SpeechBubbleManager {
     this.lastShoutTime = 0;
   }
 
+  reset() {
+    this.bubbles.length = 0;
+    this.lastShoutTime = 0;
+  }
+
   // Spawn retro speech bubble above character
   spawnBubble(x, y, text, speakerType = 'player', duration = 2.0) {
     const now = Date.now();

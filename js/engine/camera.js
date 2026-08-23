@@ -20,11 +20,78 @@ export class Camera {
     this.hitstopTimer = 0;
     this.hitstopCooldown = 0;
 
-    // Arena Bounds
-    this.minX = -1050;
-    this.maxX = 1050;
+    // Arena Bounds. These describe the world edges; the camera center is
+    // clamped against the current viewport so blank space never enters frame.
+    this.minX = -1100;
+    this.maxX = 1100;
     this.minY = -550;
-    this.maxY = -160;
+    this.maxY = -70;
+  }
+
+  getViewportSize() {
+    return {
+      width: this.canvas.clientWidth || window.innerWidth || 1280,
+      height: this.canvas.clientHeight || window.innerHeight || 720
+    };
+  }
+
+  getMinimumZoom() {
+    const { width } = this.getViewportSize();
+    const arenaWidth = Math.max(1, this.maxX - this.minX);
+    // Keep both arena walls inside wide displays. A small safety margin also
+    // absorbs screen shake without revealing an unpainted canvas edge.
+    return Math.max(0.78, width / Math.max(1, arenaWidth - 64));
+  }
+
+  getRenderPixelRatio(devicePixelRatio = globalThis.window?.devicePixelRatio || 1, maxBackingPixels = 10_000_000) {
+    const { width, height } = this.getViewportSize();
+    const budgetRatio = Math.sqrt(maxBackingPixels / Math.max(1, width * height));
+    return Math.max(0.75, Math.min(2, devicePixelRatio, budgetRatio));
+  }
+
+  getTargetPosition(target) {
+    const { height } = this.getViewportSize();
+    const leadX = target.facing * 70;
+    // Keep the ground near 74% of the screen. This leaves room for the HUD on
+    // short landscape screens without making jumps feel vertically cramped.
+    // On short landscape screens, lift the ground above the two-row touch pad.
+    const groundOffset = height <= 500
+      ? Math.max(36, height * 0.1)
+      : Math.max(82, Math.min(190, height * 0.24));
+    return {
+      x: target.x + leadX,
+      y: target.y - groundOffset
+    };
+  }
+
+  clampToArena() {
+    const { width } = this.getViewportSize();
+    const halfView = width / (2 * Math.max(0.01, this.zoom));
+    const edgeInset = 24;
+    const minCenter = this.minX + halfView - edgeInset;
+    const maxCenter = this.maxX - halfView + edgeInset;
+
+    if (minCenter > maxCenter) {
+      this.x = (this.minX + this.maxX) * 0.5;
+    } else {
+      this.x = Math.max(minCenter, Math.min(maxCenter, this.x));
+    }
+    this.y = Math.max(this.minY, Math.min(this.maxY, this.y));
+  }
+
+  snapTo(target) {
+    if (!target) return;
+    const next = this.getTargetPosition(target);
+    this.targetX = next.x;
+    this.targetY = next.y;
+    this.x = next.x;
+    this.y = next.y;
+    const minimumZoom = this.getMinimumZoom();
+    this.zoom = Math.max(1, minimumZoom);
+    this.targetZoom = this.zoom;
+    this.trauma = 0;
+    this.hitstopTimer = 0;
+    this.clampToArena();
   }
 
   update(dt, target, zombieCount = 0) {
@@ -38,16 +105,16 @@ export class Camera {
 
     if (target) {
       // Look slightly ahead based on player velocity / facing direction
-      const leadX = target.facing * 70;
-      this.targetX = target.x + leadX;
-      this.targetY = target.y - 180;
+      const next = this.getTargetPosition(target);
+      this.targetX = next.x;
+      this.targetY = next.y;
 
       // Dynamic Zoom based on player speed and zombie count
       const speed = Math.hypot(target.vx || 0, target.vy || 0);
       let desiredZoom = 1.0 - Math.min(speed / 1400, 0.15);
       if (zombieCount > 15) desiredZoom *= 0.92;
       if (target.isAwakened) desiredZoom = 0.95;
-      this.targetZoom = Math.max(0.78, Math.min(1.15, desiredZoom));
+      this.targetZoom = Math.max(this.getMinimumZoom(), Math.min(1.15, desiredZoom));
     }
 
     // Smooth Lerp tracking
@@ -55,10 +122,10 @@ export class Camera {
     this.x += (this.targetX - this.x) * Math.min(1, lerpSpeed * dt);
     this.y += (this.targetY - this.y) * Math.min(1, lerpSpeed * dt);
     this.zoom += (this.targetZoom - this.zoom) * Math.min(1, 4.0 * dt);
+    this.zoom = Math.max(this.getMinimumZoom(), this.zoom);
 
-    // Apply Arena Bounds
-    this.x = Math.max(this.minX, Math.min(this.maxX, this.x));
-    this.y = Math.max(this.minY, Math.min(this.maxY, this.y));
+    // Apply viewport-aware arena bounds.
+    this.clampToArena();
 
     // Screen Shake calculations
     if (this.trauma > 0) {
@@ -94,9 +161,9 @@ export class Camera {
 
   apply(ctx) {
     ctx.save();
-    const dpr = window.devicePixelRatio || 1;
-    const cx = (this.canvas.width / dpr) / 2;
-    const cy = (this.canvas.height / dpr) / 2;
+    const { width, height } = this.getViewportSize();
+    const cx = width / 2;
+    const cy = height / 2;
 
     ctx.translate(cx + this.shakeOffsetX, cy + this.shakeOffsetY);
     if (this.shakeRotation !== 0) {
@@ -111,9 +178,9 @@ export class Camera {
   }
 
   screenToWorld(screenX, screenY) {
-    const dpr = window.devicePixelRatio || 1;
-    const cx = (this.canvas.width / dpr) / 2;
-    const cy = (this.canvas.height / dpr) / 2;
+    const { width, height } = this.getViewportSize();
+    const cx = width / 2;
+    const cy = height / 2;
 
     const relX = (screenX - cx - this.shakeOffsetX) / this.zoom;
     const relY = (screenY - cy - this.shakeOffsetY) / this.zoom;
@@ -125,8 +192,9 @@ export class Camera {
   }
 
   worldToScreen(worldX, worldY) {
-    const cx = this.canvas.width / 2;
-    const cy = this.canvas.height / 2;
+    const { width, height } = this.getViewportSize();
+    const cx = width / 2;
+    const cy = height / 2;
 
     const relX = (worldX - this.x) * this.zoom;
     const relY = (worldY - this.y) * this.zoom;

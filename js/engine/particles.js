@@ -10,6 +10,18 @@ export class ParticleSystem {
     this.limbDebris = [];
     this.speedlinesTimer = 0;
     this.speedlinesMax = 0;
+    this.maxParticles = 360;
+  }
+
+  reset() {
+    this.particles.length = 0;
+    this.damageTexts.length = 0;
+    this.slashArcs.length = 0;
+    this.shockwaves.length = 0;
+    this.comicPopups.length = 0;
+    this.limbDebris.length = 0;
+    this.speedlinesTimer = 0;
+    this.speedlinesMax = 0;
   }
 
   triggerSpeedlines(duration = 0.25) {
@@ -104,6 +116,11 @@ export class ParticleSystem {
         continue;
       }
       sw.radius += sw.growSpeed * dt;
+    }
+
+    // A hard ceiling keeps effect-heavy supers stable on low-power phones.
+    if (this.particles.length > this.maxParticles) {
+      this.particles.splice(0, this.particles.length - this.maxParticles);
     }
   }
 

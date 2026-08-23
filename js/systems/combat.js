@@ -17,6 +17,21 @@ export class CombatSystem {
     this.inkDrops = [];
   }
 
+  resetRun(startingInk = 0) {
+    this.score = 0;
+    this.ink = startingInk;
+    this.combo = 0;
+    this.maxCombo = 0;
+    this.comboTimer = 0;
+    this.totalKills = 0;
+    this.inkDrops.length = 0;
+  }
+
+  clearArena() {
+    this.resetCombo();
+    this.inkDrops.length = 0;
+  }
+
   update(dt, player) {
     // Update Combo Timer
     if (this.combo > 0) {
