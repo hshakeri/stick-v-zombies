@@ -96,6 +96,12 @@ class InputManager {
     });
 
     window.addEventListener('mousedown', (e) => {
+      // Ensure game window always keeps keyboard focus
+      window.focus();
+      if (document.activeElement && document.activeElement.tagName === 'BUTTON') {
+        document.activeElement.blur();
+      }
+
       if (e.target !== this.canvas && !this.canvas.contains(e.target)) return;
       if (e.button === 0) { // Left click
         this.mouse.leftDown = true;
@@ -117,7 +123,7 @@ class InputManager {
       }
     });
 
-    // Touch Virtual Buttons
+    // Touch and HUD Buttons
     this.initTouchControls();
   }
 
@@ -135,11 +141,14 @@ class InputManager {
       if (!btn) return;
       const start = (e) => {
         e.preventDefault();
+        btn.blur();
+        window.focus();
         this.touch[actionName] = true;
         this.touch[actionName + 'Pressed'] = true;
       };
       const end = (e) => {
         e.preventDefault();
+        btn.blur();
         this.touch[actionName] = false;
       };
       btn.addEventListener('touchstart', start, { passive: false });
@@ -148,6 +157,7 @@ class InputManager {
       btn.addEventListener('mouseup', end);
     };
 
+    // Mobile virtual buttons
     bindBtn('vbtn-left', 'left');
     bindBtn('vbtn-right', 'right');
     bindBtn('vbtn-up', 'up');
@@ -158,6 +168,13 @@ class InputManager {
     bindBtn('vbtn-super', 'super');
     bindBtn('vbtn-roll', 'roll');
     bindBtn('vbtn-block', 'block');
+
+    // Bottom HUD skill slot buttons (clickable on desktop and touch)
+    bindBtn('skill-punch', 'attack');
+    bindBtn('skill-pencil', 'weapon');
+    bindBtn('skill-roll', 'roll');
+    bindBtn('skill-anvil', 'block');
+    bindBtn('skill-super', 'super');
   }
 
   update() {

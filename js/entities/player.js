@@ -99,7 +99,10 @@ export class Player {
     this.animTimer += dt;
 
     // Update Timers
-    if (this.hurtTimer > 0) this.hurtTimer -= dt;
+    if (this.hurtTimer > 0) {
+      this.hurtTimer -= dt;
+      if (this.hurtTimer <= 0) this.isHurt = false;
+    }
     if (this.iFrames > 0) this.iFrames -= dt;
     if (this.rollCooldown > 0) this.rollCooldown -= dt;
     if (this.blockCooldown > 0) this.blockCooldown -= dt;
