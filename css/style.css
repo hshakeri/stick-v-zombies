@@ -12,6 +12,7 @@
   --canvas-bg: #2b2d38;
   --panel-bg: rgba(24, 25, 31, 0.92);
   --panel-border: #44475a;
+  --font-pop-art: Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif;
 }
 
 * {
@@ -95,14 +96,14 @@ body, html {
 
 .mission-strip strong {
   color: #fff7d6;
-  font-family: 'Bungee', Impact, 'Arial Black', sans-serif;
+  font-family: var(--font-pop-art);
   font-size: clamp(13px, 1.7vw, 19px);
   letter-spacing: 0.04em;
 }
 
 .mission-strip-act,
 .mission-strip-lesson {
-  font-family: 'Bungee', Impact, 'Arial Black', sans-serif;
+  font-family: var(--font-pop-art);
   font-size: 10px;
   letter-spacing: 0.09em;
 }
@@ -170,13 +171,13 @@ body, html {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 14px;
   color: #fff;
 }
 
 .player-name {
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 16px;
   letter-spacing: 0.5px;
   color: var(--orange-bright);
@@ -258,7 +259,7 @@ body, html {
 }
 
 .wave-title {
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 20px;
   color: #fff;
   letter-spacing: 1px;
@@ -292,7 +293,7 @@ body, html {
 }
 
 .boss-name {
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 14px;
   color: #ff4466;
   letter-spacing: 1px;
@@ -383,7 +384,7 @@ body, html {
 }
 
 .score-display {
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 22px;
   color: #ffffff;
   white-space: nowrap;
@@ -393,7 +394,7 @@ body, html {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 16px;
   color: #44ddff;
 }
@@ -422,7 +423,7 @@ body, html {
 }
 
 .combo-hits {
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 42px;
   color: #ffea00;
   text-shadow: 0 0 16px rgba(255, 234, 0, 0.8), 3px 3px 0 #000;
@@ -430,11 +431,13 @@ body, html {
 }
 
 .combo-title {
-  font-family: 'Permanent Marker', cursive;
+  font-family: var(--font-pop-art);
   font-size: 22px;
   color: #ff5533;
   text-shadow: 2px 2px 0 #000;
-  letter-spacing: 1px;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .combo-bar-bg {
@@ -631,7 +634,7 @@ body, html {
   background: #252838;
   border: 2px solid #585d7c;
   color: #fff;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 13px;
   padding: 8px 16px;
   border-radius: 10px;
@@ -701,7 +704,7 @@ body, html {
 }
 
 .modal-title {
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 26px;
   color: var(--orange-bright);
   letter-spacing: 1px;
@@ -736,7 +739,7 @@ body, html {
   border-radius: 10px;
   margin-bottom: 18px;
   border: 1px solid #383c55;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
 }
 
 .upgrades-grid {
@@ -779,7 +782,7 @@ body, html {
 }
 
 .upgrade-name {
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 14px;
   color: #fff;
 }
@@ -802,7 +805,7 @@ body, html {
   background: linear-gradient(180deg, #ff7700, #d95500);
   border: none;
   color: #fff;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 13px;
   padding: 8px 12px;
   border-radius: 8px;
@@ -837,7 +840,7 @@ body, html {
   background: linear-gradient(180deg, #ff8800, #cc5500);
   color: #fff;
   border: none;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 16px;
   padding: 10px 24px;
   border-radius: 10px;
@@ -855,7 +858,7 @@ body, html {
   background: #2b2e40;
   color: #c0c5de;
   border: 2px solid #4b506e;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 15px;
   padding: 8px 20px;
   border-radius: 10px;
@@ -886,7 +889,7 @@ body, html {
   border: 1px solid rgba(255, 221, 68, 0.55);
   border-radius: 999px;
   color: #fff0a1;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 10px;
   letter-spacing: 1.5px;
 }
@@ -917,7 +920,7 @@ body, html {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 13px;
   text-align: left;
 }
@@ -973,7 +976,7 @@ body, html {
 }
 
 .game-main-title {
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: clamp(2rem, 5vw, 3.5rem);
   color: var(--orange-bright);
   text-shadow: 0 0 24px rgba(255, 119, 0, 0.8), 4px 4px 0 #000;
@@ -994,7 +997,7 @@ body, html {
   border-radius: 999px;
   background: rgba(8, 9, 14, 0.55);
   color: #fff2a2;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 11px;
   letter-spacing: 1.5px;
 }
@@ -1014,12 +1017,14 @@ body, html {
 }
 
 .game-sub-title {
-  font-family: 'Permanent Marker', cursive;
+  font-family: var(--font-pop-art);
   font-size: 26px;
   color: #44ee66;
   text-shadow: 2px 2px 0 #000;
   margin-top: 8px;
-  letter-spacing: 1px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .title-tagline {
@@ -1054,7 +1059,7 @@ body, html {
 }
 
 .controls-guide-card h4 {
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   color: var(--orange-bright);
   font-size: 14px;
   margin-bottom: 2px;
@@ -1147,7 +1152,7 @@ body, html {
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   color: #fff;
-  font-family: 'Bungee', cursive;
+  font-family: var(--font-pop-art);
   font-size: 15px;
   display: flex;
   align-items: center;

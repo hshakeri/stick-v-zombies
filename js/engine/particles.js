@@ -364,7 +364,7 @@ export class ParticleSystem {
       ctx.stroke();
 
       // 2. Comic Text
-      ctx.font = "900 18px 'Bungee', 'Impact', sans-serif";
+      ctx.font = "900 18px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.strokeStyle = '#000000';
@@ -388,7 +388,9 @@ export class ParticleSystem {
       const scale = t.isCrit ? Math.max(1, 1.6 - progress * 0.6) : Math.max(0.8, 1.2 - progress * 0.4);
       ctx.scale(scale, scale);
 
-      ctx.font = t.isCrit ? "bold 22px 'Bungee', cursive" : "bold 16px 'Nunito', sans-serif";
+      ctx.font = t.isCrit
+        ? "900 22px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif"
+        : "bold 16px 'Nunito', sans-serif";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 

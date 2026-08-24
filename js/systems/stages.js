@@ -1,7 +1,7 @@
 
-import { particles } from '../engine/particles.js?v=8.2';
-import { audio } from '../engine/audio.js?v=8.2';
-import { projectiles } from '../entities/projectiles.js?v=8.2';
+import { particles } from '../engine/particles.js?v=8.3';
+import { audio } from '../engine/audio.js?v=8.3';
+import { projectiles } from '../entities/projectiles.js?v=8.3';
 
 const freezeBeat = (beat) => Object.freeze({
   ...beat,
@@ -1251,7 +1251,7 @@ export class StageManager {
     ctx.fillRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
     ctx.strokeRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
     ctx.fillStyle = '#38bdf8';
-    ctx.font = "bold 11px 'Bungee', cursive";
+    ctx.font = "900 11px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
     ctx.textAlign = 'center';
     ctx.fillText("START", this.entranceDoor.x, groundY - this.entranceDoor.height - 8);
     ctx.restore();
@@ -1281,12 +1281,12 @@ export class StageManager {
 
       const bounce = Math.sin(this.stageTime * 8) * 8;
       ctx.fillStyle = '#ffea00';
-      ctx.font = "bold 13px 'Bungee', cursive";
+      ctx.font = "900 13px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
       ctx.textAlign = 'center';
       ctx.fillText("⬇ ENTER EXIT ⬇", this.exitDoor.x, groundY - this.exitDoor.height - 16 + bounce);
     } else {
       ctx.fillStyle = '#ef4444';
-      ctx.font = "bold 11px 'Bungee', cursive";
+      ctx.font = "900 11px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
       ctx.textAlign = 'center';
       ctx.fillText("🔒 LOCKED", this.exitDoor.x, groundY - this.exitDoor.height - 8);
     }

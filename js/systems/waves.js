@@ -1,12 +1,12 @@
 // Wave Director and Enemy Spawning Manager
 
-import { Zombie } from '../entities/zombies.js?v=8.2';
-import { DarkLord } from '../entities/dark_lord.js?v=8.2';
-import { KingOrange } from '../entities/king_orange.js?v=8.2';
-import { H4C3R } from '../entities/h4c3r.js?v=8.2';
-import { audio } from '../engine/audio.js?v=8.2';
-import { particles } from '../engine/particles.js?v=8.2';
-import { speech } from '../engine/speech.js?v=8.2';
+import { Zombie } from '../entities/zombies.js?v=8.3';
+import { DarkLord } from '../entities/dark_lord.js?v=8.3';
+import { KingOrange } from '../entities/king_orange.js?v=8.3';
+import { H4C3R } from '../entities/h4c3r.js?v=8.3';
+import { audio } from '../engine/audio.js?v=8.3';
+import { particles } from '../engine/particles.js?v=8.3';
+import { speech } from '../engine/speech.js?v=8.3';
 
 const BOSS_WAVES = new Set([5, 10, 11, 15]);
 export const ABSOLUTE_ACTIVE_ENEMY_CAP = 12;

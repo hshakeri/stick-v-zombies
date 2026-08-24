@@ -1,7 +1,7 @@
 // Compact comic speech bubbles. The figures are mostly visual performers, so
 // their voices are deliberately tiny punchlines rather than paragraphs.
 
-import { audio } from './audio.js?v=8.2';
+import { audio } from './audio.js?v=8.3';
 
 export const MAX_SPEECH_CHARS = 24;
 export const MAX_SPEECH_LINES = 2;

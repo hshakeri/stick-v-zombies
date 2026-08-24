@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=8.2';
-import { IMPACT_PROFILES, ParticleSystem, particles } from '../js/engine/particles.js?v=8.2';
+import { Camera } from '../js/engine/camera.js?v=8.3';
+import { IMPACT_PROFILES, ParticleSystem, particles } from '../js/engine/particles.js?v=8.3';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,19 +14,19 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=8.2';
-import { AllyManager, allies } from '../js/entities/allies.js?v=8.2';
-import { DarkLord } from '../js/entities/dark_lord.js?v=8.2';
-import { H4C3R } from '../js/entities/h4c3r.js?v=8.2';
-import { KingOrange } from '../js/entities/king_orange.js?v=8.2';
-import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.2';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.2';
-import { Zombie } from '../js/entities/zombies.js?v=8.2';
-import { weapons } from '../js/entities/weapons.js?v=8.2';
-import { combat } from '../js/systems/combat.js?v=8.2';
-import { shop } from '../js/systems/shop.js?v=8.2';
-import { Game } from '../js/main.js?v=8.2';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.2';
+} from '../js/engine/speech.js?v=8.3';
+import { AllyManager, allies } from '../js/entities/allies.js?v=8.3';
+import { DarkLord } from '../js/entities/dark_lord.js?v=8.3';
+import { H4C3R } from '../js/entities/h4c3r.js?v=8.3';
+import { KingOrange } from '../js/entities/king_orange.js?v=8.3';
+import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.3';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.3';
+import { Zombie } from '../js/entities/zombies.js?v=8.3';
+import { weapons } from '../js/entities/weapons.js?v=8.3';
+import { combat } from '../js/systems/combat.js?v=8.3';
+import { shop } from '../js/systems/shop.js?v=8.3';
+import { Game } from '../js/main.js?v=8.3';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.3';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -37,9 +37,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=8.2';
+} from '../js/systems/waves.js?v=8.3';
 
-const RELEASE_MODULE_VERSION = '8.2';
+const RELEASE_MODULE_VERSION = '8.3';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -70,6 +70,19 @@ test('browser module graph uses one coherent cache version', () => {
   const html = readFileSync(fileURLToPath(new URL('../index.html', import.meta.url)), 'utf8');
   assert.match(html, new RegExp(`js/main\\.js\\?v=${RELEASE_MODULE_VERSION}`));
   assert.ok(importCount >= 60, `expected the complete module graph, found ${importCount} imports`);
+});
+
+test('display typography uses an asset-free retro pop-art stack', () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const css = readFileSync(join(root, 'css/style.css'), 'utf8');
+  const html = readFileSync(join(root, 'index.html'), 'utf8');
+  const canvasSources = [
+    readFileSync(join(root, 'js/engine/particles.js'), 'utf8'),
+    readFileSync(join(root, 'js/systems/stages.js'), 'utf8')
+  ].join('\n');
+
+  assert.match(css, /--font-pop-art:\s*Impact,/);
+  assert.doesNotMatch(`${css}\n${html}\n${canvasSources}`, /Permanent Marker|Bungee|cursive/i);
 });
 
 function createCanvasContextMock() {

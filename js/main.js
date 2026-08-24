@@ -1,16 +1,16 @@
 
-import { audio } from './engine/audio.js?v=8.2';
-import { input } from './engine/input.js?v=8.2';
-import { Camera } from './engine/camera.js?v=8.2';
-import { particles } from './engine/particles.js?v=8.2';
-import { Player } from './entities/player.js?v=8.2';
-import { waves } from './systems/waves.js?v=8.2';
-import { combat } from './systems/combat.js?v=8.2';
-import { shop } from './systems/shop.js?v=8.2';
-import { stages } from './systems/stages.js?v=8.2';
-import { projectiles } from './entities/projectiles.js?v=8.2';
-import { allies } from './entities/allies.js?v=8.2';
-import { speech } from './engine/speech.js?v=8.2';
+import { audio } from './engine/audio.js?v=8.3';
+import { input } from './engine/input.js?v=8.3';
+import { Camera } from './engine/camera.js?v=8.3';
+import { particles } from './engine/particles.js?v=8.3';
+import { Player } from './entities/player.js?v=8.3';
+import { waves } from './systems/waves.js?v=8.3';
+import { combat } from './systems/combat.js?v=8.3';
+import { shop } from './systems/shop.js?v=8.3';
+import { stages } from './systems/stages.js?v=8.3';
+import { projectiles } from './entities/projectiles.js?v=8.3';
+import { allies } from './entities/allies.js?v=8.3';
+import { speech } from './engine/speech.js?v=8.3';
 
 export class Game {
   constructor() {

@@ -1,7 +1,7 @@
 // Combat and Combo Score Management Engine
 
-import { audio } from '../engine/audio.js?v=8.2';
-import { particles } from '../engine/particles.js?v=8.2';
+import { audio } from '../engine/audio.js?v=8.3';
+import { particles } from '../engine/particles.js?v=8.3';
 
 export class CombatSystem {
   constructor() {
