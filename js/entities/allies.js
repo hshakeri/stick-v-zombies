@@ -1,9 +1,8 @@
-import { StickFigureRenderer } from './stickman.js?v=8.4';
-import { particles } from '../engine/particles.js?v=8.4';
-import { audio } from '../engine/audio.js?v=8.4';
-import { projectiles } from './projectiles.js?v=8.4';
-import { speech } from '../engine/speech.js?v=8.4';
-
+import { StickFigureRenderer } from './stickman.js?v=8.5';
+import { particles } from '../engine/particles.js?v=8.5';
+import { audio } from '../engine/audio.js?v=8.5';
+import { projectiles } from './projectiles.js?v=8.5';
+import { speech } from '../engine/speech.js?v=8.5';
 const ALLY_ARENA_BOUND = 1030;
 const ALLY_READY_TIME = 0.55;
 const ALLY_EFFECT_RADIUS = Object.freeze({
@@ -18,10 +17,8 @@ const ALLY_COLORS = Object.freeze({
   yellow: '#ffcc00',
   green: '#33dd66'
 });
-
 export class AllyManager {
   constructor() {
-    // Unlocked by default so player can summon friends anytime!
     this.unlocked = {
       red: true,
       blue: true,
@@ -29,7 +26,6 @@ export class AllyManager {
       green: true,
       cursor: true
     };
-
     this.cooldowns = {
       red: 0,
       blue: 0,
@@ -37,7 +33,6 @@ export class AllyManager {
       green: 0,
       cursor: 0
     };
-
     this.maxCooldowns = {
       red: 10,
       blue: 12,
@@ -45,8 +40,6 @@ export class AllyManager {
       green: 12,
       cursor: 8
     };
-
-    // True while an injured ally is doing the longer trip back into battle.
     this.recoveryStates = {
       red: false,
       blue: false,
@@ -54,14 +47,11 @@ export class AllyManager {
       green: false,
       cursor: false
     };
-
     this.activeAllies = [];
     this.turrets = [];
     this.activeCursors = [];
     this.combatTargets = [];
     this.summonTargets = [];
-
-    // Renderers for allies (Solid filled heads for Red, Blue, Yellow, Green!)
     this.renderers = {
       red: new StickFigureRenderer('#ff3344', 5, 1.0, false),
       blue: new StickFigureRenderer('#2299ff', 5, 1.0, false),
@@ -69,7 +59,6 @@ export class AllyManager {
       green: new StickFigureRenderer('#33dd66', 5, 1.0, false)
     };
   }
-
   reset(resetUpgrades = false, preserveRecovery = false) {
     const savedRecovery = {};
     if (preserveRecovery) {
@@ -96,17 +85,13 @@ export class AllyManager {
       });
     }
   }
-
   update(dt, groundY, zombies, player, camera) {
-    // Decrease cooldowns
     for (const key of Object.keys(this.cooldowns)) {
       if (this.cooldowns[key] > 0) {
         this.cooldowns[key] = Math.max(0, this.cooldowns[key] - dt);
         if (this.cooldowns[key] === 0) this.recoveryStates[key] = false;
       }
     }
-
-    // 1. Update Active Stick Figure Allies
     for (let i = this.activeAllies.length - 1; i >= 0; i--) {
       const ally = this.activeAllies[i];
       ally.timer += dt;
@@ -115,10 +100,6 @@ export class AllyManager {
         ally.hurtTimer -= dt;
         if (ally.hurtTimer <= 0) ally.isHurt = false;
       }
-
-      // Allies can be intercepted during the last part of their entrance and
-      // throughout their action. A hit sends them home; it never mutates this
-      // array while zombie/projectile code may still hold the target reference.
       if (!ally.retreating && ally.y >= groundY - 120) ally.isTargetable = true;
       if (ally.retreating) {
         ally.isTargetable = false;
@@ -127,9 +108,7 @@ export class AllyManager {
         if (ally.life <= 0) this.activeAllies.splice(i, 1);
         continue;
       }
-
       if (ally.type === 'red') {
-        // Red dives down fast and executes explosive ground slam
         if (!ally.hasActed && ally.y < groundY) {
           ally.y = Math.min(groundY, ally.y + 1400 * dt);
         }
@@ -140,14 +119,11 @@ export class AllyManager {
           if (ally.readyTimer >= ALLY_READY_TIME) {
             ally.pose = 'attack_cross';
             ally.hasActed = true;
-            // Slam shockwave
             camera.addShake(0.7);
             camera.addZoomPunch?.(0.055);
             audio.playPunch('heavy');
             particles.addShockwave(ally.x, groundY, 240, '#ff3344', 14);
             particles.createHitSparks(ally.x, groundY, 24, '#ff5533');
-
-            // Damage and launch all nearby zombies
             for (const z of zombies) {
               if (!z.isDead && Math.abs(z.x - ally.x) < ALLY_EFFECT_RADIUS.red) {
                 z.takeDamage(140, ally.x < z.x ? 1 : -1, 800, true);
@@ -160,13 +136,11 @@ export class AllyManager {
             this.beginReturn(ally);
           }
         } else if (ally.hasActed && ally.timer > 1.2) {
-          // Exit after exactly one landing impact.
           this.beginReturn(ally);
           ally.y -= 1000 * dt;
           ally.pose = 'jump_rise';
         }
       } else if (ally.type === 'blue') {
-        // Blue drops in, throws healing potions to player and freeze webs
         if (!ally.hasActed && ally.y < groundY) {
           ally.y = Math.min(groundY, ally.y + 900 * dt);
         }
@@ -177,13 +151,10 @@ export class AllyManager {
           if (ally.readyTimer >= ALLY_READY_TIME) {
             ally.hasActed = true;
             audio.playUpgradeBuy();
-            // Heal player
             if (player) {
               player.heal(45);
               particles.addDamageText(player.x, player.y - 40, '+45 HP', false, '#33ff88');
             }
-            // Blue's potion cloud is powerful, but placement matters: only
-            // enemies inside the visible cast radius are frozen.
             for (const z of zombies) {
               if (!z.isDead
                   && Math.hypot(z.x - ally.x, z.y - ally.y) <= ALLY_EFFECT_RADIUS.blue
@@ -204,7 +175,6 @@ export class AllyManager {
           ally.y -= 900 * dt;
         }
       } else if (ally.type === 'yellow') {
-        // Yellow drops in, quickly builds a redstone turret, then teleports out
         if (!ally.hasActed && ally.y < groundY) {
           ally.y = Math.min(groundY, ally.y + 900 * dt);
         }
@@ -248,7 +218,6 @@ export class AllyManager {
           ally.y -= 900 * dt;
         }
       } else if (ally.type === 'green') {
-        // Green plays music staff wave
         if (!ally.hasActed && ally.y < groundY) {
           ally.y = Math.min(groundY, ally.y + 900 * dt);
         }
@@ -273,8 +242,6 @@ export class AllyManager {
               ALLY_EFFECT_RADIUS.green,
               groundY
             );
-            // The note projectiles can travel farther, while the guaranteed
-            // stun is limited to Green's visible performance circle.
             for (const z of zombies) {
               if (!z.isDead
                   && Math.hypot(z.x - ally.x, z.y - ally.y) <= ALLY_EFFECT_RADIUS.green
@@ -295,19 +262,15 @@ export class AllyManager {
           ally.y -= 900 * dt;
         }
       }
-
       if (ally.life <= 0) {
         this.activeAllies.splice(i, 1);
       }
     }
-
-    // 2. Update Redstone Turrets
     for (let i = this.turrets.length - 1; i >= 0; i--) {
       const turret = this.turrets[i];
       turret.duration -= dt;
       turret.fireTimer -= dt;
       turret.hurtTimer = Math.max(0, turret.hurtTimer - dt);
-
       if (turret.isDead || turret.duration <= 0) {
         turret.isDead = true;
         turret.isTargetable = false;
@@ -315,12 +278,9 @@ export class AllyManager {
         this.turrets.splice(i, 1);
         continue;
       }
-
-      // Auto-target closest zombie
       if (turret.fireTimer <= 0 && zombies) {
         let closestZombie = null;
         let minDist = turret.range;
-
         for (const z of zombies) {
           if (z.isDead) continue;
           const dist = Math.hypot(z.x - turret.x, z.y - (turret.y - 30));
@@ -329,7 +289,6 @@ export class AllyManager {
             closestZombie = z;
           }
         }
-
         if (closestZombie) {
           turret.fireTimer = 0.25; // Rapid fire
           audio.playSlash();
@@ -339,32 +298,24 @@ export class AllyManager {
         }
       }
     }
-
-    // 3. Update Animator Mouse Cursor Allies
     for (let i = this.activeCursors.length - 1; i >= 0; i--) {
       const c = this.activeCursors[i];
       c.timer += dt;
       c.life -= dt;
-
-      // Track target position
       const tx = c.targetZombie && !c.targetZombie.isDead ? c.targetZombie.x : c.startX;
       const ty = c.targetZombie && !c.targetZombie.isDead ? c.targetZombie.y - 30 : c.startY;
-
       if (c.timer < 0.25) {
-        // Phase 1: Fly in to top-left of target
         const p = c.timer / 0.25;
         c.x = c.startX + (tx - 40 - c.startX) * p;
         c.y = c.startY + (ty - 50 - c.startY) * p;
         c.dragX = c.x;
         c.dragY = c.y;
       } else if (c.timer < 0.65) {
-        // Phase 2: Drag blue selection box over zombie
         const p = (c.timer - 0.25) / 0.4;
         c.x = tx - 40 + 80 * p;
         c.y = ty - 50 + 80 * p;
         c.isSelecting = true;
       } else if (!c.hasDeleted) {
-        // Phase 3: Right click -> Delete!
         c.hasDeleted = true;
         c.isSelecting = false;
         c.showMenu = true;
@@ -372,9 +323,6 @@ export class AllyManager {
         audio.playRecycleBinDelete();
         camera.addShake(0.5);
         camera.addZoomPunch?.(0.045);
-
-        // Delete ordinary malware; bosses instead take a powerful interrupt so
-        // a single cooldown cannot skip the entire finale.
         if (c.targetZombie && !c.targetZombie.isDead) {
           const isBoss = !!c.targetZombie.isBoss;
           c.targetZombie.takeDamage(isBoss ? 90 : 9999, 1, 0, true);
@@ -382,7 +330,6 @@ export class AllyManager {
           particles.addShockwave(tx, ty, 140, '#0099ff', 10);
           particles.addTextBanner(tx, ty - 60, isBoss ? '⚠️ [PROCESS INTERRUPTED]' : '🗑️ [FILE DELETED]', '#00d2ff');
         } else {
-          // Fallback: Delete closest zombie
           for (const z of zombies) {
             if (!z.isDead && Math.abs(z.x - c.x) < 140) {
               z.takeDamage(z.isBoss ? 90 : 9999, 1, 0, true);
@@ -398,25 +345,21 @@ export class AllyManager {
           priority: 2
         });
       } else if (c.timer > 0.95) {
-        // Phase 4: Zoom away
         c.showMenu = false;
         c.x += 800 * dt;
         c.y -= 700 * dt;
       }
-
       if (c.life <= 0) {
         this.activeCursors.splice(i, 1);
       }
     }
   }
-
   beginReturn(ally) {
     if (!ally || ally.retreating) return;
     ally.retreating = true;
     ally.isTargetable = false;
     ally.pose = 'jump_rise';
   }
-
   damageTurret(turret, amount = 1) {
     if (!turret || turret.isDead || turret.isTargetable !== true) return false;
     turret.hitsRemaining = Math.max(0, turret.hitsRemaining - 1);
@@ -431,25 +374,19 @@ export class AllyManager {
     }
     return true;
   }
-
   injureAlly(ally, amount = 1, knockbackDir = 0) {
     if (!ally || ally.retreating || ally.isTargetable !== true) return false;
-
     ally.isHurt = true;
     ally.hurtTimer = 0.45;
     ally.retreating = true;
     ally.isTargetable = false;
     ally.life = Math.min(ally.life, 0.72);
     ally.x += Math.sign(knockbackDir || 0) * Math.min(18, Math.max(0, Number(amount) || 0));
-
-    // Restart recovery from the moment of injury. Adding four seconds to the
-    // base timer is visible and meaningful even after cooldown upgrades.
     this.cooldowns[ally.type] = Math.max(
       this.cooldowns[ally.type] || 0,
       (this.maxCooldowns[ally.type] || 10) + 4
     );
     this.recoveryStates[ally.type] = true;
-
     const color = ALLY_COLORS[ally.type] || '#ffffff';
     audio.playPlayerHurt();
     particles.createHitSparks(ally.x, ally.y - 30, 9, color);
@@ -461,10 +398,7 @@ export class AllyManager {
     });
     return true;
   }
-
   getCombatTargets() {
-    // Reuse one small array: this is requested twice per frame by the game
-    // loop, and target collection should not create avoidable garbage.
     this.combatTargets.length = 0;
     for (const ally of this.activeAllies) {
       if (ally.isAlly === true
@@ -481,38 +415,28 @@ export class AllyManager {
     }
     return this.combatTargets;
   }
-
   draw(ctx, crowded = false) {
-    // 1. Draw Turrets
     for (const t of this.turrets) {
       ctx.save();
       if (t.hurtTimer > 0) {
         ctx.globalAlpha = 0.6 + Math.sin(t.hurtTimer * 80) * 0.25;
       }
-      // Turret base
       ctx.fillStyle = '#444';
       ctx.fillRect(t.x - 14, t.y - 20, 28, 20);
-      // Redstone wire / torch
       ctx.fillStyle = '#ff2222';
       ctx.beginPath();
       ctx.arc(t.x, t.y - 25, 6, 0, Math.PI * 2);
       ctx.fill();
-      // Barrel
       ctx.fillStyle = '#777';
       ctx.fillRect(t.x - 4, t.y - 32, 8, 12);
-      // Duration bar
       ctx.fillStyle = '#ffcc00';
       ctx.fillRect(t.x - 15, t.y - 40, 30 * (t.duration / t.maxDuration), 4);
-      // Three simple armor pips make its destructibility readable without a
-      // second health-bar system.
       for (let hit = 0; hit < t.maxHits; hit++) {
         ctx.fillStyle = hit < t.hitsRemaining ? '#fff06a' : '#4c4652';
         ctx.fillRect(t.x - 14 + hit * 10, t.y - 48, 7, 4);
       }
       ctx.restore();
     }
-
-    // 2. Draw Active Allies
     for (const ally of this.activeAllies) {
       if (!ally.retreating && !ally.hasActed && ally.readyTimer > 0) {
         const color = ALLY_COLORS[ally.type] || '#ffffff';
@@ -550,18 +474,13 @@ export class AllyManager {
         });
       }
     }
-
-    // 3. Draw Active Animator Mouse Cursors & Selection Boxes
     for (const c of this.activeCursors) {
       ctx.save();
-
-      // Drag Selection Box
       if (c.isSelecting) {
         const boxX = Math.min(c.dragX, c.x);
         const boxY = Math.min(c.dragY, c.y);
         const boxW = Math.abs(c.x - c.dragX);
         const boxH = Math.abs(c.y - c.dragY);
-
         ctx.fillStyle = 'rgba(0, 120, 215, 0.25)';
         ctx.fillRect(boxX, boxY, boxW, boxH);
         ctx.strokeStyle = 'rgba(0, 150, 255, 0.9)';
@@ -569,8 +488,6 @@ export class AllyManager {
         ctx.setLineDash([4, 4]);
         ctx.strokeRect(boxX, boxY, boxW, boxH);
       }
-
-      // Context Menu Popup ("Delete")
       if (c.showMenu) {
         const menuX = c.x > ALLY_ARENA_BOUND - 100 ? c.x - 100 : c.x + 15;
         const menuY = c.y - 20;
@@ -579,32 +496,24 @@ export class AllyManager {
         ctx.lineWidth = 1;
         ctx.fillRect(menuX, menuY, 85, 55);
         ctx.strokeRect(menuX, menuY, 85, 55);
-
-        // Menu items
         ctx.fillStyle = '#333';
         ctx.font = "10px sans-serif";
         ctx.fillText("Open", menuX + 8, menuY + 14);
         ctx.fillText("Copy", menuX + 8, menuY + 28);
-
-        // Highlighted Delete Bar
         ctx.fillStyle = '#0078d7';
         ctx.fillRect(menuX + 1, menuY + 34, 83, 16);
         ctx.fillStyle = '#ffffff';
         ctx.font = "bold 10px sans-serif";
         ctx.fillText("🗑️ Delete", menuX + 8, menuY + 46);
       }
-
-      // Draw OS Mouse Pointer Arrow
       ctx.translate(c.x, c.y);
       ctx.shadowColor = 'rgba(0,0,0,0.5)';
       ctx.shadowBlur = crowded ? 0 : 8;
       ctx.shadowOffsetX = 3;
       ctx.shadowOffsetY = 3;
-
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 2.5;
-
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(0, 24);
@@ -616,13 +525,9 @@ export class AllyManager {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-
       ctx.restore();
     }
   }
-
-  // --- Summon Methods ---
-
   summonAlly(type, targetX, targetY, facing = 1, zombies = []) {
     if (!this.unlocked[type] || this.cooldowns[type] > 0) {
       if (this.cooldowns[type] > 0) {
@@ -630,13 +535,10 @@ export class AllyManager {
       }
       return false;
     }
-
     this.cooldowns[type] = this.maxCooldowns[type];
     this.recoveryStates[type] = false;
     audio.playWhoosh();
-
     if (type === 'cursor') {
-      // Find highest threat living zombie
       let targetZombie = null;
       let minDist = 9999;
       const summonTargets = this.summonTargets;
@@ -644,8 +546,6 @@ export class AllyManager {
       for (const zombie of zombies || []) summonTargets.push(zombie);
       projectiles.collectHostileTargets?.(summonTargets);
       if (summonTargets.length > 0) {
-        // Bosses always outrank ordinary brutes, even if a brute appears first
-        // in the wave array.
         targetZombie = summonTargets.find((z) => !z.isDead && z.isBoss) || null;
         if (!targetZombie) {
           for (const z of summonTargets) {
@@ -662,11 +562,9 @@ export class AllyManager {
           }
         }
       }
-
       const desiredCursorX = targetZombie ? targetZombie.x + 180 : targetX + 200;
       const spawnX = Math.max(-ALLY_ARENA_BOUND, Math.min(ALLY_ARENA_BOUND, desiredCursorX));
       const spawnY = targetZombie ? targetZombie.y - 250 : targetY - 250;
-
       this.activeCursors.push({
         startX: spawnX,
         startY: spawnY,
@@ -681,16 +579,11 @@ export class AllyManager {
         timer: 0,
         life: 1.6
       });
-
       return true;
     }
-
     const spawnY = type === 'red' ? targetY - 450 : targetY - 300;
-    // Land on Orange's facing side so placement is deliberate: call an ally
-    // into open space, or risk a nearby zombie intercepting the entrance.
     const desiredSpawnX = targetX + (type === 'red' ? 60 : 45) * facing;
     const spawnX = Math.max(-ALLY_ARENA_BOUND, Math.min(ALLY_ARENA_BOUND, desiredSpawnX));
-
     const ally = {
       type,
       x: spawnX,
@@ -712,9 +605,7 @@ export class AllyManager {
     };
     ally.takeDamage = (amount, knockbackDir = 0) => this.injureAlly(ally, amount, knockbackDir);
     this.activeAllies.push(ally);
-
     return true;
   }
 }
-
 export const allies = new AllyManager();

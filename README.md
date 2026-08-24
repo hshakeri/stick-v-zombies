@@ -2,9 +2,9 @@
 
 [![Play on GitHub Pages](https://img.shields.io/badge/Play_Online-GitHub_Pages-brightgreen?style=for-the-badge&logo=github)](https://hshakeri.github.io/stick-v-zombies/)
 
-A lightweight 2D action arena game inspired by Alan Becker's *Animator vs. Animation* and *Animation vs. Minecraft*. Play as **The Second Coming** (the orange stick figure), chaining martial arts, pencil attacks, sketch tools, and ally assists across fifteen desktop-themed stages.
+A lightweight 2D action arena game inspired by Alan Becker's *Animator vs. Animation* and *Animation vs. Minecraft*. Play as **The Second Coming** (the orange stick figure), chaining martial arts, pencil attacks, sketch tools, and ally assists across sixteen desktop-themed stages.
 
-H4C3R has split and stolen `RESTORE.KEY`, then weaponized corrupted battle replays to hide its three pieces. Orange and the whole stick squad follow the trace through the desktop, deleted files, browser tabs, cloud cache, and the root system.
+H4C3R has split and stolen `RESTORE.KEY`, then weaponized corrupted battle replays to hide its three pieces. Orange and the whole stick squad follow the trace through the desktop, deleted files, browser tabs, cloud cache, a rigged Lucky Orb encounter, and the root system.
 
 > **Unofficial fan project:** This game is a non-commercial tribute made for fun and learning. It is not affiliated with or endorsed by Alan Becker, Mojang, or Microsoft. All referenced characters and properties belong to their respective owners.
 
@@ -56,7 +56,7 @@ On defeat, **Retry Current Stage** keeps the stage, upgrades, Ink, and run stati
 
 ## 🖥️ Desktop Stages & Boss Progression
 
-Fifteen computer-desktop stages with obstacles, platforms, a clear **Start Door**, and an **Exit Door** guide:
+Sixteen computer-desktop stages with obstacles, platforms, a clear **Start Door**, and an **Exit Door** guide:
 - **Stage 1: Main Desktop**: File explorer windows, Notepad platforms, desktop shortcut icons (`Recycle Bin`, `Minecraft.exe`).
 - **Stage 2: Adobe Animate Workspace**: Moving Timeline Scrubber platforms, layer tracks, and drawing laser pointer hazards.
 - **Stage 3: Downloads & Malware Zone**: Vertical download elevators, corrupted files, and Error 404 popup dialog hazards.
@@ -71,7 +71,8 @@ Fifteen computer-desktop stages with obstacles, platforms, a clear **Start Door*
 - **Stage 12: Glitch Browser Run**: Fight through broken tabs and moving browser-card platforms, with an 18-second stunning eraser pickup.
 - **Stage 13: Corrupted Cloud Cache**: Cross drifting sync nodes while a compact malware wave closes in.
 - **Stage 14: Root Access Gateway**: Break through the last security grid guarding the zero-day mainframe.
-- **Stage 15: Zero-Day Mainframe**: The original zero-day editor **H4C3R** attacks with packet dashes, bracket walls, decoys, and a telegraphed terminal beam.
+- **Stage 15: Lucky Dimension Cache**: Outplay **The Lucky Orb**, a radiant chance engine with readable roulette rolls, bouncing sweeps, and three marked drop zones. A heavy final impact sends it home instead of destroying it.
+- **Stage 16: Zero-Day Mainframe**: The original zero-day editor **H4C3R** attacks with packet dashes, bracket walls, decoys, and a telegraphed terminal beam.
 
 ---
 

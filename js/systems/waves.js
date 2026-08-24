@@ -1,13 +1,14 @@
 
-import { Zombie } from '../entities/zombies.js?v=8.4';
-import { DarkLord } from '../entities/dark_lord.js?v=8.4';
-import { KingOrange } from '../entities/king_orange.js?v=8.4';
-import { H4C3R } from '../entities/h4c3r.js?v=8.4';
-import { audio } from '../engine/audio.js?v=8.4';
-import { particles } from '../engine/particles.js?v=8.4';
-import { speech } from '../engine/speech.js?v=8.4';
+import { Zombie } from '../entities/zombies.js?v=8.5';
+import { DarkLord } from '../entities/dark_lord.js?v=8.5';
+import { KingOrange } from '../entities/king_orange.js?v=8.5';
+import { H4C3R } from '../entities/h4c3r.js?v=8.5';
+import { LuckyOrb } from '../entities/lucky_orb.js?v=8.5';
+import { audio } from '../engine/audio.js?v=8.5';
+import { particles } from '../engine/particles.js?v=8.5';
+import { speech } from '../engine/speech.js?v=8.5';
 
-const BOSS_WAVES = new Set([5, 10, 11, 15]);
+const BOSS_WAVES = new Set([5, 10, 11, 15, 16]);
 export const ABSOLUTE_ACTIVE_ENEMY_CAP = 12;
 export const NORMAL_ACTIVE_ENEMY_CAP = 8;
 export const MIN_RECIPE_PACK_SIZE = 3;
@@ -17,7 +18,7 @@ export const MAX_BOSS_HELPERS = 4;
 export const WAVE_RECIPE_TOTALS = Object.freeze({
   1: 6, 2: 9, 3: 12, 4: 14, 5: 4,
   6: 15, 7: 15, 8: 16, 9: 17, 10: 5,
-  11: 1, 12: 15, 13: 17, 14: 20, 15: 1
+  11: 1, 12: 15, 13: 17, 14: 20, 15: 1, 16: 1
 });
 
 const makePack = (gap, enemies) => {
@@ -112,6 +113,9 @@ export const WAVE_RECIPES = Object.freeze({
     makePack(1.2, ['runner', 'shieldbearer', 'crawler', 'spitter', 'boom_bug'])
   ]),
   15: makeRecipe(WAVE_RECIPE_TOTALS[15], [
+    makeSoloBossPack(1.2, 'lucky_orb')
+  ]),
+  16: makeRecipe(WAVE_RECIPE_TOTALS[16], [
     makeSoloBossPack(1.2, 'h4c3r')
   ])
 });
@@ -152,7 +156,7 @@ export class WaveDirector {
   }
 
   generateWaveQueue(wave) {
-    const stage = Math.max(1, Math.min(15, Math.trunc(Number(wave)) || 1));
+    const stage = Math.max(1, Math.min(16, Math.trunc(Number(wave)) || 1));
     this.queueWaveRecipe(WAVE_RECIPES[stage]);
   }
 
@@ -230,6 +234,11 @@ export class WaveDirector {
         color: '#ff8a00',
         banner: '♛ KING ORANGE // REPLAY ♛'
       },
+      lucky_orb: {
+        BossClass: LuckyOrb,
+        color: '#ffd43b',
+        banner: '✦ THE LUCKY ORB ✦'
+      },
       h4c3r: {
         BossClass: H4C3R,
         color: '#67e8f9',
@@ -247,7 +256,7 @@ export class WaveDirector {
       camera?.addZoomPunch?.(-0.035);
       particles.addShockwave(spawnX, groundY - 30, 240, bossConfig.color, 12);
       particles.addTextBanner(spawnX, groundY - 100, bossConfig.banner, bossConfig.color);
-      const speechKey = type === 'dark_lord' ? 'darkLord' : (type === 'king_orange' ? 'kingOrange' : 'h4c3r');
+      const speechKey = { dark_lord: 'darkLord', king_orange: 'kingOrange', lucky_orb: 'luckyOrb', h4c3r: 'h4c3r' }[type];
       speech.shoutBoss(spawnX, groundY, speechKey, 'intro', 1.55, {
         anchor: boss,
         speakerKey: speechKey,

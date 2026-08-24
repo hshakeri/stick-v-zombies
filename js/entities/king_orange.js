@@ -1,40 +1,29 @@
-import { StickFigureRenderer } from './stickman.js?v=8.4';
-import { particles } from '../engine/particles.js?v=8.4';
-import { audio } from '../engine/audio.js?v=8.4';
-import { projectiles } from './projectiles.js?v=8.4';
-import { combat } from '../systems/combat.js?v=8.4';
-import { speech } from '../engine/speech.js?v=8.4';
-
+import { StickFigureRenderer } from './stickman.js?v=8.5';
+import { particles } from '../engine/particles.js?v=8.5';
+import { audio } from '../engine/audio.js?v=8.5';
+import { projectiles } from './projectiles.js?v=8.5';
+import { combat } from '../systems/combat.js?v=8.5';
+import { speech } from '../engine/speech.js?v=8.5';
 const ARENA_LEFT = -980;
 const ARENA_RIGHT = 980;
-
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
-
 function playerCanBeHit(player) {
   return player && !player.isDead && !player.isRolling && !player.isAwakened;
 }
 
-/**
- * King Orange appears here as a malware-corrupted combat replay, not as a
- * reversal of his canonical redemption. His moves borrow the readable block,
- * staff, command-grid and singularity language of the AvM fight while staying
- * light enough for the existing Canvas engine.
- */
 export class KingOrange {
   constructor(x, y) {
     this.x = x;
     this.y = y;
     this.vx = 0;
     this.vy = 0;
-
     this.type = 'king_orange';
     this.name = 'KING ORANGE // REPLAY';
     this.isBoss = true;
     this.isCorruptedReplay = true;
     this.projectileOwner = 'king_orange';
-
     this.maxHp = 1180;
     this.hp = this.maxHp;
     this.speed = 155;
@@ -45,7 +34,6 @@ export class KingOrange {
     this.scale = 1.22;
     this.inkReward = 420;
     this.scoreReward = 7200;
-
     this.facing = -1;
     this.pose = 'idle';
     this.animTimer = 0;
@@ -57,7 +45,6 @@ export class KingOrange {
     this.stunTimer = 0;
     this.freezeResistance = 0.88;
     this.stunResistance = 0.94;
-
     this.phase = 1;
     this.state = 'idle';
     this.stateTimer = 0;
@@ -69,36 +56,25 @@ export class KingOrange {
     this.commandXs = [];
     this.singularityTick = 0;
     this.auraTimer = 0;
-
     this.renderer = new StickFigureRenderer(this.color, this.strokeWidth, this.scale, false);
   }
-
   update(dt, groundY, player, sketchBlocks, camera, platforms = [], enemies = [], friendlyTargets = []) {
     if (this.isDead) return;
-
     this.animTimer += dt;
     this.platforms = platforms;
     this.friendlyTargets = friendlyTargets;
     this.auraTimer -= dt;
-
     if (this.hurtTimer > 0) {
       this.hurtTimer -= dt;
       if (this.hurtTimer <= 0) this.isHurt = false;
     }
     if (this.freezeTimer > 0) this.freezeTimer -= dt;
     if (this.stunTimer > 0) this.stunTimer -= dt;
-
     this.updatePhase(camera);
-
-    // Allies remain useful against bosses without turning long summons into a
-    // total lockout. Freeze and stun slow the state machine only modestly.
     const statusScale = this.stunTimer > 0 ? 0.62 : (this.freezeTimer > 0 ? 0.76 : 1);
     const stepDt = dt * statusScale;
     this.updateAI(stepDt, groundY, player, camera);
-    // Status effects slow both the action clock and displacement. Advancing
-    // physics at full speed made a frozen dash last longer and travel farther.
     this.applyPhysics(stepDt, groundY, sketchBlocks);
-
     if (this.phase >= 2 && this.auraTimer <= 0) {
       this.auraTimer = 0.16;
       particles.createHitSparks(
@@ -109,7 +85,6 @@ export class KingOrange {
       );
     }
   }
-
   updatePhase(camera) {
     const ratio = this.hp / this.maxHp;
     if (this.phase === 1 && ratio <= 0.66) {
@@ -136,20 +111,17 @@ export class KingOrange {
       this.sayEvent('VOID: OPEN.', 'phase-three');
     }
   }
-
   updateAI(dt, groundY, player, camera) {
     if (!player || player.isDead) {
       this.pose = 'idle';
       this.vx *= Math.pow(0.02, dt);
       return;
     }
-
     const dx = player.x - this.x;
     const dist = Math.abs(dx);
     if (this.state === 'idle' || this.state === 'recovery') {
       this.facing = dx >= 0 ? 1 : -1;
     }
-
     switch (this.state) {
       case 'idle': {
         this.pose = dist > 250 ? 'run' : 'idle';
@@ -161,11 +133,9 @@ export class KingOrange {
         } else {
           this.vx *= Math.pow(0.02, dt);
         }
-
         if (this.actionCooldown <= 0) this.chooseAttack(player);
         break;
       }
-
       case 'gold_windup': {
         this.pose = 'attack_cross';
         this.vx = 0;
@@ -180,7 +150,6 @@ export class KingOrange {
         }
         break;
       }
-
       case 'gold_dash': {
         this.pose = 'weapon_slash';
         this.stateTimer -= dt;
@@ -198,7 +167,6 @@ export class KingOrange {
         if (this.stateTimer <= 0) this.beginRecovery(0.45);
         break;
       }
-
       case 'slam_windup': {
         this.pose = 'awakening_god';
         this.vx = 0;
@@ -222,7 +190,6 @@ export class KingOrange {
         }
         break;
       }
-
       case 'volley_windup': {
         this.pose = 'awakening_god';
         this.vx = 0;
@@ -235,7 +202,6 @@ export class KingOrange {
         }
         break;
       }
-
       case 'volley': {
         this.pose = 'weapon_slash';
         this.vx = 0;
@@ -261,7 +227,6 @@ export class KingOrange {
         if (this.stateTimer <= 0 && this.volleyShots <= 0) this.beginRecovery(0.5);
         break;
       }
-
       case 'command_windup': {
         this.pose = 'awakening_god';
         this.vx = 0;
@@ -279,7 +244,6 @@ export class KingOrange {
         }
         break;
       }
-
       case 'command_active': {
         this.pose = 'weapon_slash';
         this.stateTimer -= dt;
@@ -294,7 +258,6 @@ export class KingOrange {
         if (this.stateTimer <= 0) this.beginRecovery(0.62);
         break;
       }
-
       case 'singularity_windup': {
         this.pose = 'awakening_god';
         this.vx = 0;
@@ -309,13 +272,11 @@ export class KingOrange {
         }
         break;
       }
-
       case 'singularity': {
         this.pose = 'awakening_god';
         this.vx = 0;
         this.stateTimer -= dt;
         this.singularityTick -= dt;
-
         const pullDx = this.x - player.x;
         const pullDist = Math.abs(pullDx);
         if (pullDist < 520) {
@@ -335,7 +296,6 @@ export class KingOrange {
         if (this.stateTimer <= 0) this.beginRecovery(0.85);
         break;
       }
-
       case 'recovery': {
         this.pose = 'idle';
         this.vx *= Math.pow(0.015, dt);
@@ -348,7 +308,6 @@ export class KingOrange {
       }
     }
   }
-
   chooseAttack(player) {
     const phaseMoves = this.phase === 1
       ? ['gold', 'volley', 'slam']
@@ -359,7 +318,6 @@ export class KingOrange {
     this.attackIndex++;
     this.facing = player.x >= this.x ? 1 : -1;
     this.vx = 0;
-
     if (move === 'gold') {
       this.state = 'gold_windup';
       this.stateTimer = 0.58;
@@ -392,7 +350,6 @@ export class KingOrange {
       this.sayEvent('COME CLOSER.', 'singularity');
     }
   }
-
   hitAllies(test, damage, originX = this.x) {
     let hit = false;
     for (const ally of this.friendlyTargets || []) {
@@ -402,7 +359,6 @@ export class KingOrange {
     }
     return hit;
   }
-
   sayEvent(text, eventKey) {
     speech.spawnBubble(this.x, this.y, text, 'kingOrange', 1.35, {
       anchor: this,
@@ -412,18 +368,15 @@ export class KingOrange {
       cooldownMs: 1400
     });
   }
-
   beginRecovery(duration) {
     this.state = 'recovery';
     this.stateTimer = duration;
     this.vx = 0;
   }
-
   applyPhysics(dt, groundY, sketchBlocks) {
     this.vy += 950 * dt;
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-
     if (this.y >= groundY) {
       this.y = groundY;
       this.vy = 0;
@@ -431,32 +384,24 @@ export class KingOrange {
     } else {
       this.isGrounded = false;
     }
-
     this.x = clamp(this.x, ARENA_LEFT, ARENA_RIGHT);
   }
-
   applyFreeze(duration = 4) {
     this.freezeTimer = Math.max(this.freezeTimer, Math.min(0.72, duration * (1 - this.freezeResistance)));
   }
-
   applyStun(duration = 3) {
     this.stunTimer = Math.max(this.stunTimer, Math.min(0.32, duration * (1 - this.stunResistance)));
   }
-
   takeDamage(amount, knockbackDir = 1, knockbackPower = 200, isCrit = false) {
     if (this.isDead) return;
-
     this.hp = Math.max(0, this.hp - amount);
     this.isHurt = true;
     this.hurtTimer = 0.14;
     this.vx += knockbackDir * knockbackPower * 0.2;
-
     particles.addDamageText(this.x, this.y - this.height * 0.78, amount, isCrit, '#ff9a32');
     particles.createHitSparks(this.x, this.y - 44, 5, '#ff9a32');
-
     if (this.hp <= 0) this.die();
   }
-
   die() {
     if (this.isDead) return;
     this.isDead = true;
@@ -480,12 +425,9 @@ export class KingOrange {
     });
     particles.addTextBanner(this.x, this.y - 108, 'CORRUPTED REPLAY CLEARED', '#ffee88');
   }
-
   draw(ctx) {
     if (this.isDead) return;
-
     this.drawTelegraph(ctx);
-
     const awakened = this.phase === 3 || this.state.startsWith('singularity');
     this.renderer.draw(ctx, {
       x: this.x,
@@ -499,15 +441,12 @@ export class KingOrange {
       scale: 1,
       alpha: 1
     });
-
     this.drawCrown(ctx);
     this.drawStaff(ctx);
     this.drawReplayGlitches(ctx);
   }
-
   drawTelegraph(ctx) {
     ctx.save();
-
     if (this.state === 'gold_windup') {
       const progress = 1 - this.stateTimer / 0.58;
       ctx.strokeStyle = `rgba(255, 211, 77, ${0.35 + progress * 0.55})`;
@@ -533,8 +472,6 @@ export class KingOrange {
       ctx.beginPath();
       ctx.arc(this.x + this.facing * 34, this.y - 62, 25, 0, Math.PI * 2);
       ctx.stroke();
-      // Ghost blocks show the alternating jump/run-under pattern before the
-      // volley starts; players never have to guess which lanes are coming.
       ctx.setLineDash([7, 7]);
       for (const laneY of [this.y - 34, this.y - 98]) {
         const startX = this.x + this.facing * 60;
@@ -594,10 +531,8 @@ export class KingOrange {
       ctx.textAlign = 'center';
       ctx.fillText('OPEN!', this.x, this.y - 112);
     }
-
     ctx.restore();
   }
-
   drawCommandColumn(ctx, x) {
     ctx.save();
     ctx.fillStyle = '#3f2c52';
@@ -611,7 +546,6 @@ export class KingOrange {
     }
     ctx.restore();
   }
-
   drawCrown(ctx) {
     const glitch = this.phase === 3 ? Math.sin(this.animTimer * 31) * 2 : 0;
     ctx.save();
@@ -632,7 +566,6 @@ export class KingOrange {
     ctx.stroke();
     ctx.restore();
   }
-
   drawStaff(ctx) {
     let angle = -0.42;
     if (this.state.endsWith('windup')) {
@@ -651,7 +584,6 @@ export class KingOrange {
       const progress = smoothstep(1 - this.stateTimer / activeDuration);
       angle = -1.02 + (1.14 + 1.02) * progress;
     }
-
     ctx.save();
     ctx.translate(this.x + this.facing * 14, this.y - 35);
     ctx.scale(this.facing, 1);
@@ -665,7 +597,6 @@ export class KingOrange {
     ctx.moveTo(0, 54);
     ctx.lineTo(0, -62);
     ctx.stroke();
-
     const coreColor = this.phase === 1 ? '#ffd34d' : (this.phase === 2 ? '#ff8a00' : '#d94cff');
     ctx.fillStyle = coreColor;
     ctx.strokeStyle = '#fff4c2';
@@ -681,7 +612,6 @@ export class KingOrange {
     ctx.stroke();
     ctx.restore();
   }
-
   drawReplayGlitches(ctx) {
     const intensity = this.phase * 0.65;
     ctx.save();
@@ -694,7 +624,6 @@ export class KingOrange {
     ctx.restore();
   }
 }
-
 function smoothstep(value) {
   const t = clamp(value, 0, 1);
   return t * t * (3 - 2 * t);

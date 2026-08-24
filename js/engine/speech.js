@@ -1,20 +1,13 @@
-// Compact comic speech bubbles. The figures are mostly visual performers, so
-// their voices are deliberately tiny punchlines rather than paragraphs.
-
-import { audio } from './audio.js?v=8.4';
-
+import { audio } from './audio.js?v=8.5';
 export const MAX_SPEECH_CHARS = 24;
 export const MAX_SPEECH_LINES = 2;
 export const MAX_SPEECH_BUBBLES = 3;
-
 export const BOSS_SPEECH_EVENTS = Object.freeze({
   darkLord: Object.freeze(['default', 'intro', 'summon', 'phase', 'hurt', 'defeat']),
   kingOrange: Object.freeze(['default', 'intro', 'command', 'phase', 'defeat']),
+  luckyOrb: Object.freeze(['default', 'intro', 'roll', 'drop', 'phase', 'defeat']),
   h4c3r: Object.freeze(['default', 'intro', 'select', 'phase', 'root', 'defeat'])
 });
-
-// Curated, original micro-lines based on each character's gameplay role. Keep
-// entries short enough to read during a fast fight and safe for younger players.
 export const SPEECH_CORPUS = {
   playerAttack: [
     'PENCIL TIME!',
@@ -24,21 +17,18 @@ export const SPEECH_CORPUS = {
     'NOT TODAY, BUG!',
     'SAVE THIS!'
   ],
-
   playerAwakened: [
     'FULL POWER!',
     'LIGHTS ON!',
     'LIMITS: OFF!',
     'BRIGHT IDEA!'
   ],
-
   playerHurt: [
     'OW. BAD FRAME!',
     'WHO MOVED THAT?',
     'INPUT LAG!',
     'STILL STANDING!'
   ],
-
   zombieGroan: [
     'BRAINS.PNG...',
     'NEED RAM...',
@@ -47,7 +37,6 @@ export const SPEECH_CORPUS = {
     'CACHE MISS...',
     'WRONG FOLDER!'
   ],
-
   allies: {
     red: [
       'DIBS!',
@@ -80,14 +69,12 @@ export const SPEECH_CORPUS = {
       'RIGHT-CLICK REGRET.'
     ]
   },
-
   allyHurt: {
     red: ['TACTICAL NAP!', 'RED NEEDS A REBOOT!'],
     blue: ['POTION DOWN!', 'BREW BREAK!'],
     yellow: ['REBOOTING LOGIC!', 'CIRCUIT BREAK!'],
     green: ['ENCORE LATER!', 'BASS BREAK!']
   },
-
   darkLord: {
     default: ['RUN, LITTLE FILE.', 'VIRABOTS, FETCH!', 'NO ESCAPE KEY.'],
     intro: ['BACKUP ONLINE.', 'OLD FIGHT. NEW DOOM.'],
@@ -96,8 +83,6 @@ export const SPEECH_CORPUS = {
     hurt: ['CORRUPTED, NOT WEAK.', 'THAT FRAME WAS MINE.'],
     defeat: ['BACKUP DELETED.', 'NOT... AGAIN.']
   },
-
-  // King Orange is explicitly a trapped playback, not the real character.
   kingOrange: {
     default: ['LOOP COMMAND: FIGHT.', 'REPLAYING ATTACK.', 'THE LOOP COMMANDS ME.'],
     intro: ['REPLAY LOADED.', 'THIS IS ONLY A COPY.'],
@@ -105,7 +90,14 @@ export const SPEECH_CORPUS = {
     phase: ['LOOP SPEED: DOUBLE.', 'REWIND. TRY AGAIN.'],
     defeat: ['REPLAY RELEASED.', 'BREAK... THE LOOP.']
   },
-
+  luckyOrb: {
+    default: ['ROLL AGAIN?', 'LUCK: LOADED.'],
+    intro: ['CHANCE ENGINE: ON.', 'FEELING LUCKY?'],
+    roll: ['BAD ROLL!', 'BOUNCE THIS!'],
+    drop: ['PICK A SAFE SQUARE.', 'JACKPOT INCOMING!'],
+    phase: ['ODDS: DOUBLED.', 'REROLLING!'],
+    defeat: ['ORB SENT HOME.', 'LUCK RAN OUT!']
+  },
   h4c3r: {
     default: ['ACCESS GRANTED.', 'PATCH THIS.', 'I AM ROOT.'],
     intro: ['WELCOME TO MY SCREEN.', 'RESTORE KEY DETECTED.'],
@@ -115,24 +107,22 @@ export const SPEECH_CORPUS = {
     defeat: ['SESSION TERMINATED.', 'LOGGING... OUT?']
   }
 };
-
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-
 function bubblePriority(speakerType) {
   if (speakerType === 'campaign') return 5;
-  if (speakerType === 'h4c3r' || speakerType === 'kingOrange' || speakerType === 'darkLord') return 4;
+  if (speakerType === 'h4c3r' || speakerType === 'luckyOrb' || speakerType === 'kingOrange' || speakerType === 'darkLord') return 4;
   if (speakerType === 'playerAwakened') return 3;
   if (speakerType.startsWith('ally-')) return 2;
   if (speakerType === 'playerAttack' || speakerType === 'playerHurt') return 1;
   return 0;
 }
-
 function bubblePalette(speakerType) {
   const palettes = {
     playerAwakened: ['#fff8cf', '#ff8a00', '#7a3100', '#ffe100'],
     zombieGroan: ['#162719', '#76ff03', '#d7ffb4', '#00e676'],
     darkLord: ['#190008', '#ff294d', '#ff8ba0', '#ff1744'],
     kingOrange: ['#2b1600', '#ff9800', '#ffe0a3', '#ffd54f'],
+    luckyOrb: ['#2b1900', '#ffd43b', '#fff6bd', '#ef5cff'],
     h4c3r: ['#001b20', '#00f5ff', '#c5fcff', '#8cff00'],
     campaign: ['#081c24', '#67e8f9', '#e6fdff', '#ffe100'],
     'ally-red': ['#fff4f4', '#ff3344', '#66101a', '#ff3344'],
@@ -143,24 +133,20 @@ function bubblePalette(speakerType) {
   };
   return palettes[speakerType] || ['#ffffff', '#111111', '#111111', '#ffea00'];
 }
-
 function addRoundedRect(ctx, x, y, width, height, radius) {
   if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, width, height, radius);
   else ctx.rect(x, y, width, height);
 }
-
 function measureWidth(ctx, text) {
   const metrics = ctx.measureText?.(text);
   return Number.isFinite(metrics?.width) ? metrics.width : String(text).length * 8;
 }
-
 function normalizeSpeechText(text) {
   const compact = String(text ?? '').trim().replace(/\s+/g, ' ');
   if (!compact) return '…';
   if (compact.length <= MAX_SPEECH_CHARS) return compact;
   return `${compact.slice(0, MAX_SPEECH_CHARS - 1).trimEnd()}…`;
 }
-
 function resolveSpeechPool(category, eventName) {
   const categoryPool = SPEECH_CORPUS[category];
   if (Array.isArray(categoryPool)) return categoryPool;
@@ -168,18 +154,15 @@ function resolveSpeechPool(category, eventName) {
   if (eventName && Array.isArray(categoryPool[eventName])) return categoryPool[eventName];
   return Array.isArray(categoryPool.default) ? categoryPool.default : null;
 }
-
 function compareLayoutPriority(a, b) {
   return (b.priority - a.priority) ||
     (Number(b.leader) - Number(a.leader)) ||
     (b.leaderTick - a.leaderTick);
 }
-
 function wrapText(ctx, text, maxWidth) {
   const words = String(text).trim().split(/\s+/);
   const lines = [];
   let line = '';
-
   for (const word of words) {
     const candidate = line ? `${line} ${word}` : word;
     if (line && measureWidth(ctx, candidate) > maxWidth) {
@@ -190,16 +173,12 @@ function wrapText(ctx, text, maxWidth) {
     }
   }
   if (line) lines.push(line);
-
-  // The corpus is intentionally short; this is a defensive fallback for any
-  // future caller that passes a longer line.
   if (lines.length > MAX_SPEECH_LINES) {
     lines[1] = `${lines.slice(1).join(' ').slice(0, 20).trimEnd()}…`;
     lines.length = MAX_SPEECH_LINES;
   }
   return lines.length ? lines : ['…'];
 }
-
 export class SpeechBubbleManager {
   constructor(clock = () => globalThis.performance?.now?.() ?? 0) {
     this.bubbles = [];
@@ -211,7 +190,6 @@ export class SpeechBubbleManager {
     this.layoutScratch = [];
     this.placedScratch = [];
   }
-
   reset() {
     this.bubbles.length = 0;
     this.lastShoutTimes.clear();
@@ -220,8 +198,6 @@ export class SpeechBubbleManager {
     this.layoutScratch.length = 0;
     this.placedScratch.length = 0;
   }
-
-  // Spawn a world-anchored line that will be laid out in stable screen space.
   spawnBubble(x, y, text, speakerType = 'playerAttack', duration = 1.45, options = {}) {
     const speakerKey = options.speakerKey || speakerType;
     const cooldownMs = options.cooldownMs ?? ({
@@ -230,18 +206,17 @@ export class SpeechBubbleManager {
       zombieGroan: 900,
       darkLord: 1700,
       kingOrange: 1700,
+      luckyOrb: 1600,
       h4c3r: 1700
     }[speakerType] || 320);
     const now = this.clock();
     const lastShout = this.lastShoutTimes.get(speakerKey);
     if (lastShout !== undefined && now - lastShout < cooldownMs) return false;
-
     const priority = options.priority ?? bubblePriority(speakerType);
     const leader = options.leader === true;
     const incomingRank = priority * 2 + (leader ? 1 : 0);
     const existingIndex = this.bubbles.findIndex((bubble) => bubble.speakerKey === speakerKey);
     if (existingIndex >= 0) this.bubbles.splice(existingIndex, 1);
-
     if (this.bubbles.length >= this.maxBubbles) {
       let replacementIndex = 0;
       for (let i = 1; i < this.bubbles.length; i++) {
@@ -257,10 +232,8 @@ export class SpeechBubbleManager {
       if (replacementRank > incomingRank) return false;
       this.bubbles.splice(replacementIndex, 1);
     }
-
     this.lastShoutTimes.set(speakerKey, now);
     audio.playSpeechChirp?.();
-
     const safeDuration = clamp(Number(duration) || 1.45, 0.9, 2.4);
     this.bubbles.push({
       x,
@@ -281,12 +254,9 @@ export class SpeechBubbleManager {
     });
     return true;
   }
-
-  // Sample a role-specific one-liner from the compact corpus.
   shout(x, y, category = 'playerAttack', subKey = null, duration = 1.45, options = {}) {
     const pool = resolveSpeechPool(category, subKey);
     if (!Array.isArray(pool) || pool.length === 0) return false;
-
     const isAllyLine = (category === 'allies' || category === 'allyHurt') && subKey;
     const speakerType = isAllyLine ? `ally-${subKey}` : category;
     const isBossLine = Object.hasOwn(BOSS_SPEECH_EVENTS, category);
@@ -303,9 +273,6 @@ export class SpeechBubbleManager {
     if (didSpawn) this.lastLineBySpeaker.set(repeatKey, text);
     return didSpawn;
   }
-
-  // Event routing keeps boss lines tied to readable moments instead of a
-  // constant random chatter stream. Intro/defeat lines win equal-priority ties.
   shoutBoss(x, y, bossName, eventName = 'default', duration = 1.6, options = {}) {
     if (!Object.hasOwn(BOSS_SPEECH_EVENTS, bossName)) return false;
     const supportedEvents = BOSS_SPEECH_EVENTS[bossName];
@@ -316,42 +283,30 @@ export class SpeechBubbleManager {
       leader: options.leader ?? (event === 'intro' || event === 'defeat')
     });
   }
-
   update(dt) {
     for (let i = this.bubbles.length - 1; i >= 0; i--) {
       const bubble = this.bubbles[i];
       bubble.life -= dt;
       bubble.popScale += (1 - bubble.popScale) * Math.min(1, dt * 14);
       bubble.riseOffset += (0 - bubble.riseOffset) * Math.min(1, dt * 8);
-
       if (bubble.life <= 0) this.bubbles.splice(i, 1);
     }
   }
-
   getScreenAnchor(bubble, camera) {
     const anchor = bubble.anchor;
     const worldX = (Number.isFinite(anchor?.x) ? anchor.x : bubble.x) + bubble.anchorOffsetX;
     const worldY = (Number.isFinite(anchor?.y) ? anchor.y : bubble.y) + bubble.anchorOffsetY;
-
-    // Excluding shake keeps words legible while the tail still follows the
-    // character's real world position and the camera's pan/zoom.
     if (camera?.worldToScreen) return camera.worldToScreen(worldX, worldY, false);
     return { x: worldX, y: worldY };
   }
-
   draw(ctx, camera = null, viewportWidth = null, viewportHeight = null) {
     if (this.bubbles.length === 0) return;
-
     const cameraSize = camera?.getViewportSize?.();
     const width = viewportWidth || cameraSize?.width || ctx.canvas?.clientWidth || ctx.canvas?.width || 1280;
     const height = viewportHeight || cameraSize?.height || ctx.canvas?.clientHeight || ctx.canvas?.height || 720;
     let safeTop = clamp(height * 0.15, 54, 112);
     let safeBottom = height - (height <= 500 ? 104 : 82);
     const coarsePointer = globalThis.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches === true;
-
-    // Match the HUD's CSS breakpoints without forcing a DOM layout read every
-    // frame. Short landscape moves the hotbar to the top; narrow touch screens
-    // reserve a deeper bottom band for both the hotbar and virtual controls.
     if (coarsePointer && height <= 500 && width > 500) {
       safeTop = Math.max(safeTop, 142);
       safeBottom = Math.min(safeBottom, height - 118);
@@ -361,22 +316,12 @@ export class SpeechBubbleManager {
     } else if (coarsePointer && width <= 500) {
       safeBottom = Math.min(safeBottom, height - 290);
     }
-
-    // The bottom HUD becomes a two-row grid at this desktop/tablet width.
-    // Keep dialogue above both the hotbar and the centered ally row.
     if (width <= 1080) {
       safeBottom = Math.min(safeBottom, height - 122);
     }
-
-    // At tablet widths the HUD becomes a two-row grid and its boss bar sits
-    // below the player/score cards. Mirror that CSS breakpoint without a
-    // forced getBoundingClientRect layout read on every animation frame.
     if (width <= 860) {
       safeTop = Math.max(safeTop, height <= 500 ? 158 : 180);
     }
-
-    // Extremely small embedded views may not have a full bubble-height gap.
-    // Preserve a centered readable strip rather than producing inverted clamps.
     if (safeBottom - safeTop < 72) {
       const middle = height * 0.54;
       safeTop = Math.max(8, middle - 36);
@@ -389,13 +334,11 @@ export class SpeechBubbleManager {
     layoutOrder.length = 0;
     for (const bubble of this.bubbles) layoutOrder.push(bubble);
     layoutOrder.sort(compareLayoutPriority);
-
     ctx.save();
     ctx.font = "800 14px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
-
     for (const bubble of layoutOrder) {
       const speaker = this.getScreenAnchor(bubble, camera);
       const lines = wrapText(ctx, bubble.text, maxTextWidth);
@@ -404,15 +347,10 @@ export class SpeechBubbleManager {
       const bubbleH = lines.length * 17 + 16;
       const halfW = bubbleW / 2;
       const halfH = bubbleH / 2;
-
       const preferredX = speaker.x;
       const preferredY = speaker.y - 44 + bubble.riseOffset;
       const centerX = clamp(preferredX, halfW + 10, width - halfW - 10);
       const desiredY = clamp(preferredY, safeTop + halfH, safeBottom - halfH);
-
-      // Evaluate a fixed set of lanes against every prior bubble. Sequential
-      // nudges can dodge bubble B and land back on bubble A when three allies
-      // speak together; this keeps all three readable at constant cost.
       const laneStep = bubbleH + 9;
       const candidates = [0, -1, 1, -2, 2].map((lane) =>
         clamp(desiredY + lane * laneStep, safeTop + halfH, safeBottom - halfH)
@@ -427,7 +365,6 @@ export class SpeechBubbleManager {
         overlapCount(candidateY) < overlapCount(best) ? candidateY : best
       , candidates[0]);
       placed.push({ x: centerX, y: centerY, w: bubbleW, h: bubbleH });
-
       const alpha = bubble.life < 0.24 ? clamp(bubble.life / 0.24, 0, 1) : 1;
       const [bgColor, borderColor, textColor, accentColor] = bubblePalette(bubble.speakerType);
       const speakerBelow = speaker.y >= centerY;
@@ -435,14 +372,10 @@ export class SpeechBubbleManager {
       const tailTipY = speakerBelow ? halfH + 11 : -halfH - 11;
       const tailX = clamp(speaker.x - centerX, -halfW + 14, halfW - 14);
       const layoutDisplacement = Math.hypot(centerX - preferredX, centerY - preferredY);
-
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.translate(centerX, centerY);
       ctx.scale(bubble.popScale, bubble.popScale);
-
-      // If HUD clamping or a higher-priority bubble forced this line away from
-      // its preferred lane, a thin leader tick preserves speaker ownership.
       if (layoutDisplacement > 24) {
         const speakerLocalX = speaker.x - centerX;
         const speakerLocalY = speaker.y - centerY;
@@ -462,8 +395,6 @@ export class SpeechBubbleManager {
         ctx.stroke();
         ctx.globalAlpha = alpha;
       }
-
-      // Tail first so the body covers its inner seam.
       ctx.beginPath();
       ctx.moveTo(tailX - 7, tailBaseY);
       ctx.lineTo(tailX, tailTipY);
@@ -474,12 +405,10 @@ export class SpeechBubbleManager {
       ctx.lineWidth = 2.5;
       ctx.fill();
       ctx.stroke();
-
       ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
       ctx.beginPath();
       addRoundedRect(ctx, -halfW + 4, -halfH + 4, bubbleW, bubbleH, 7);
       ctx.fill();
-
       ctx.fillStyle = bgColor;
       ctx.strokeStyle = borderColor;
       ctx.lineWidth = 2.5;
@@ -487,11 +416,9 @@ export class SpeechBubbleManager {
       addRoundedRect(ctx, -halfW, -halfH, bubbleW, bubbleH, 7);
       ctx.fill();
       ctx.stroke();
-
       ctx.fillStyle = accentColor;
       ctx.fillRect(-halfW + 4, -halfH + 4, 4, 4);
       ctx.fillRect(halfW - 8, -halfH + 4, 4, 4);
-
       ctx.fillStyle = textColor;
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
       ctx.lineWidth = 1;
@@ -501,11 +428,9 @@ export class SpeechBubbleManager {
         ctx.strokeText(line, 0, lineY);
         ctx.fillText(line, 0, lineY);
       });
-
       ctx.restore();
     }
     ctx.restore();
   }
 }
-
 export const speech = new SpeechBubbleManager();

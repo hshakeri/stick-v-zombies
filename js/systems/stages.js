@@ -1,7 +1,7 @@
 
-import { particles } from '../engine/particles.js?v=8.4';
-import { audio } from '../engine/audio.js?v=8.4';
-import { projectiles } from '../entities/projectiles.js?v=8.4';
+import { particles } from '../engine/particles.js?v=8.5';
+import { audio } from '../engine/audio.js?v=8.5';
+import { projectiles } from '../entities/projectiles.js?v=8.5';
 
 const freezeBeat = (beat) => Object.freeze({
   ...beat,
@@ -116,13 +116,21 @@ export const CAMPAIGN_BEATS = Object.freeze({
   14: freezeBeat({
     act: 'III - REPLAY TRAP',
     mission: 'BREAK THE ROOT GATE',
-    clearText: 'MAINFRAME OPEN!',
-    clue: 'H4C3R IS INSIDE',
+    clearText: 'LUCK GATE FOUND!',
+    clue: 'H4C3R RIGGED THE ROLL',
     bossLabel: null,
     allyReaction: { ally: 'red', line: 'FINAL DOOR. BIG BONK.' }
   }),
   15: freezeBeat({
-    act: 'III - REPLAY TRAP',
+    act: 'IV - ROOT OF LUCK',
+    mission: 'OUTLUCK THE LUCKY ORB',
+    clearText: 'ORB SENT HOME!',
+    clue: 'ROOT PORTAL EXPOSED',
+    bossLabel: 'THE LUCKY ORB',
+    allyReaction: { ally: 'yellow', line: 'LUCK RAN OUT!' }
+  }),
+  16: freezeBeat({
+    act: 'IV - ROOT OF LUCK',
     mission: 'LOG OUT H4C3R',
     clearText: 'SYSTEM RESTORED!',
     clue: 'RESTORE KEY COMPLETE',
@@ -138,7 +146,7 @@ const ENVIRONMENT_COLORS = Object.freeze({
   bsod: '#d5ecff', recycle: '#75d6da', minecraft: '#ff682c', terminal: '#45ff82',
   virabot: '#ff397b', dark_core: '#ff234d', command_realm: '#ffb340',
   browser_glitch: '#5ce1ff', cloud_cache: '#a6e3ff', root_gateway: '#42ff8a',
-  zero_day: '#74edff'
+  lucky_orb: '#ffd84d', zero_day: '#74edff'
 });
 
 function createEnvironmentDecorations(stage, theme) {
@@ -172,7 +180,7 @@ function strokeGridPath(ctx, minX, maxX, minY, maxY, stepX, stepY = stepX) {
 export class StageManager {
   constructor() {
     this.currentStage = 1;
-    this.maxStage = 15;
+    this.maxStage = 16;
     this.stageName = 'Main Desktop';
     this.theme = 'desktop'; // 'desktop', 'animate', 'downloads', 'firewall', 'bsod'
 
@@ -204,7 +212,7 @@ export class StageManager {
   }
 
   loadStage(stageNum) {
-    this.maxStage = 15;
+    this.maxStage = 16;
     const numericStage = Number.isFinite(stageNum) ? Math.trunc(stageNum) : 1;
     const stage = Math.max(1, Math.min(this.maxStage, numericStage));
     this.currentStage = stage;
@@ -265,7 +273,10 @@ export class StageManager {
         this.buildStage14RootGateway();
         break;
       case 15:
-        this.buildStage15ZeroDayMainframe();
+        this.buildStage15LuckyDimension();
+        break;
+      case 16:
+        this.buildStage16ZeroDayMainframe();
         break;
     }
 
@@ -736,7 +747,23 @@ export class StageManager {
     });
   }
 
-  buildStage15ZeroDayMainframe() {
+  buildStage15LuckyDimension() {
+    this.stageName = 'Lucky Dimension Cache';
+    this.theme = 'lucky_orb';
+    this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+    this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+    this.platforms = [
+      { x: -590, y: -175, width: 250, height: 24, title: 'LUCKY_BLOCK_LEFT', appType: 'command' },
+      { x: 0, y: -315, width: 330, height: 26, title: 'CHANCE_ENGINE_???', appType: 'command' },
+      { x: 590, y: -175, width: 250, height: 24, title: 'LUCKY_BLOCK_RIGHT', appType: 'command' }
+    ];
+    this.desktopIcons = [
+      { x: -850, y: -110, label: 'roll_again.dat', icon: '?' },
+      { x: 850, y: -110, label: 'orb.portal', icon: '✦' }
+    ];
+  }
+
+  buildStage16ZeroDayMainframe() {
     this.stageName = 'Zero-Day Mainframe';
     this.theme = 'zero_day';
 
@@ -1076,6 +1103,19 @@ export class StageManager {
       for (let i = 0; i < 12; i++) {
         ctx.fillText(commands[i % commands.length], minX + 55 + (i % 3) * 720, minY + 65 + Math.floor(i / 3) * 120);
       }
+    } else if (this.theme === 'lucky_orb') {
+      paintBackdrop('#21112d');
+      ctx.strokeStyle = 'rgba(255, 216, 77, 0.3)';
+      ctx.fillStyle = 'rgba(255, 216, 77, 0.08)';
+      for (let i = 0; i < 9; i++) {
+        const x = minX + 90 + (i % 5) * 470;
+        const y = minY + 85 + Math.floor(i / 5) * 290;
+        ctx.fillRect(x, y, 82, 82); ctx.strokeRect(x, y, 82, 82);
+        ctx.font = 'bold 38px monospace'; ctx.fillStyle = '#ffe88a'; ctx.fillText('?', x + 29, y + 55);
+        ctx.fillStyle = 'rgba(255, 216, 77, 0.08)';
+      }
+      ctx.font = 'bold 14px monospace'; ctx.fillStyle = '#fff0a6';
+      ctx.fillText('CHANCE_ENGINE: H4C3R OVERRIDE', minX + 60, minY + 58);
     } else if (this.theme === 'zero_day') {
       paintBackdrop('#070a12');
       ctx.fillStyle = 'rgba(102, 232, 255, 0.08)';
@@ -1187,7 +1227,7 @@ export class StageManager {
     ctx.fillText(`MISSION // ${beat.mission}`, this.bounds.maxX - 48, minY + 69);
 
     if (beat.bossLabel) {
-      ctx.fillStyle = this.currentStage === 15 ? '#67e8f9' : '#ffc857';
+      ctx.fillStyle = this.theme === 'zero_day' ? '#67e8f9' : '#ffc857';
       ctx.fillText(`TARGET // ${beat.bossLabel}`, this.bounds.maxX - 48, minY + 90);
     }
 

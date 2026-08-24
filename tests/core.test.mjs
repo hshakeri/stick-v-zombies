@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=8.4';
-import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=8.4';
+import { Camera } from '../js/engine/camera.js?v=8.5';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=8.5';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,19 +14,20 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=8.4';
-import { AllyManager, allies } from '../js/entities/allies.js?v=8.4';
-import { DarkLord } from '../js/entities/dark_lord.js?v=8.4';
-import { H4C3R } from '../js/entities/h4c3r.js?v=8.4';
-import { KingOrange } from '../js/entities/king_orange.js?v=8.4';
-import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.4';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.4';
-import { Zombie } from '../js/entities/zombies.js?v=8.4';
-import { weapons } from '../js/entities/weapons.js?v=8.4';
-import { combat } from '../js/systems/combat.js?v=8.4';
-import { shop } from '../js/systems/shop.js?v=8.4';
-import { Game } from '../js/main.js?v=8.4';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.4';
+} from '../js/engine/speech.js?v=8.5';
+import { AllyManager, allies } from '../js/entities/allies.js?v=8.5';
+import { DarkLord } from '../js/entities/dark_lord.js?v=8.5';
+import { H4C3R } from '../js/entities/h4c3r.js?v=8.5';
+import { KingOrange } from '../js/entities/king_orange.js?v=8.5';
+import { LuckyOrb } from '../js/entities/lucky_orb.js?v=8.5';
+import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.5';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.5';
+import { Zombie } from '../js/entities/zombies.js?v=8.5';
+import { weapons } from '../js/entities/weapons.js?v=8.5';
+import { combat } from '../js/systems/combat.js?v=8.5';
+import { shop } from '../js/systems/shop.js?v=8.5';
+import { Game } from '../js/main.js?v=8.5';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.5';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -37,9 +38,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=8.4';
+} from '../js/systems/waves.js?v=8.5';
 
-const RELEASE_MODULE_VERSION = '8.4';
+const RELEASE_MODULE_VERSION = '8.5';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -671,15 +672,15 @@ test('new-run resets restore upgrades and clear transient systems', () => {
 
 test('post-Dark-Lord stages do not wrap back to the desktop', () => {
   const manager = new StageManager();
-  manager.loadStage(11);
+  manager.loadStage(16);
 
-  assert.equal(manager.currentStage, 11);
-  assert.equal(manager.maxStage, 15);
+  assert.equal(manager.currentStage, 16);
+  assert.equal(manager.maxStage, 16);
   assert.notEqual(manager.stageName, 'Main Desktop');
   assert.notEqual(manager.theme, 'desktop');
 });
 
-test('stage 14 advances to H4C3R and stage 15 completes the campaign', () => {
+test('stage 14 advances through Lucky Orb to H4C3R before campaign completion', () => {
   const manager = new StageManager();
   manager.currentStage = 14;
   let completions = 0;
@@ -691,25 +692,33 @@ test('stage 14 advances to H4C3R and stage 15 completes the campaign', () => {
     stage => advancedStages.push(stage)
   );
   manager.currentStage = 15;
-  const completionResult = manager.resolveStageExit(
+  const orbResult = manager.resolveStageExit(
     16,
+    () => { completions += 1; },
+    stage => advancedStages.push(stage)
+  );
+  manager.currentStage = 16;
+  const completionResult = manager.resolveStageExit(
+    17,
     () => { completions += 1; },
     stage => advancedStages.push(stage)
   );
 
   assert.equal(advanceResult, 'advance');
+  assert.equal(orbResult, 'advance');
   assert.equal(completionResult, 'complete');
   assert.equal(completions, 1);
-  assert.deepEqual(advancedStages, [15]);
+  assert.deepEqual(advancedStages, [15, 16]);
 });
 
 test('late campaign waves are handcrafted, capped, and route both new bosses', () => {
-  for (const stage of [11, 12, 13, 14, 15]) {
+  for (const stage of [11, 12, 13, 14, 15, 16]) {
     const director = new WaveDirector();
     director.generateWaveQueue(stage);
     assert.ok(director.spawnQueue.length <= 30, `stage ${stage} queued too many enemies`);
     if (stage === 11) assert.ok(director.spawnQueue.some(entry => entry.type === 'king_orange'));
-    if (stage === 15) assert.ok(director.spawnQueue.some(entry => entry.type === 'h4c3r'));
+    if (stage === 15) assert.ok(director.spawnQueue.some(entry => entry.type === 'lucky_orb'));
+    if (stage === 16) assert.ok(director.spawnQueue.some(entry => entry.type === 'h4c3r'));
   }
 });
 
@@ -794,7 +803,7 @@ test('clearing a stage gives the exit a brief camera cue', () => {
 test('the final exit waits for H4C3R defeat framing to finish', () => {
   projectiles.reset();
   const manager = new StageManager();
-  manager.loadStage(15);
+  manager.loadStage(16);
   const calls = [];
   const camera = {
     focusOn(...args) { calls.push(['focus', ...args]); },
@@ -814,11 +823,11 @@ test('the final exit waits for H4C3R defeat framing to finish', () => {
 
 test('new boss renderers are pure and expose the wave-director contract', () => {
   particles.reset();
-  const bosses = [new KingOrange(10, 0), new H4C3R(-10, 0)];
+  const bosses = [new KingOrange(10, 0), new LuckyOrb(0, 0), new H4C3R(-10, 0)];
   const { context } = createCanvasContextMock();
 
   for (const boss of bosses) {
-    boss.renderer.draw = () => {};
+    if (boss.renderer) boss.renderer.draw = () => {};
     assert.equal(boss.isBoss, true);
     assert.ok(Number.isFinite(boss.x));
     assert.ok(Number.isFinite(boss.y));
@@ -828,6 +837,67 @@ test('new boss renderers are pure and expose the wave-director contract', () => 
   }
 
   assert.equal(particles.particles.length, 0);
+});
+
+test('Lucky Orb roll and prize drop damage only after their telegraphs and only once', () => {
+  const camera = { addShake() {}, addZoomPunch() {}, focusOn() {} };
+  for (const hz of [30, 60, 120]) {
+    const dt = 1 / hz;
+    let rollHits = 0;
+    const player = {
+      x: 0, y: 0, vx: 0, height: 60, radius: 16,
+      isDead: false, isRolling: false, isAwakened: false, iFrames: 0,
+      takeDamage() { rollHits += 1; }
+    };
+    const orb = new LuckyOrb(-420, 0);
+    orb.startRoll(player, camera);
+    const warning = orb.stateDuration;
+    let elapsed = 0;
+    while (elapsed + dt < warning) {
+      orb.update(dt, 0, player, [], camera);
+      elapsed += dt;
+    }
+    assert.equal(rollHits, 0, `${hz}Hz roll damaged during warning`);
+    for (let frame = 0; frame < hz * 2 && orb.state !== 'recovery'; frame += 1) {
+      orb.update(dt, 0, player, [], camera);
+    }
+    assert.equal(rollHits, 1, `${hz}Hz roll should sweep-hit once`);
+
+    let dropHits = 0;
+    player.takeDamage = () => { dropHits += 1; };
+    orb.x = 420;
+    orb.startDrops(player, camera);
+    const dropWarning = orb.stateDuration;
+    elapsed = 0;
+    while (elapsed + dt < dropWarning) {
+      orb.update(dt, 0, player, [], camera);
+      elapsed += dt;
+    }
+    assert.equal(dropHits, 0, `${hz}Hz drop damaged during warning`);
+    for (let frame = 0; frame < hz * 2 && orb.state !== 'recovery'; frame += 1) {
+      orb.update(dt, 0, player, [], camera);
+    }
+    assert.equal(dropHits, 1, `${hz}Hz prize drop should hit once`);
+  }
+});
+
+test('Lucky Orb speech follows roll, drop, phase, and defeat events', () => {
+  const calls = [];
+  const originalShoutBoss = speech.shoutBoss;
+  speech.shoutBoss = (...args) => { calls.push(args); return true; };
+  try {
+    const orb = new LuckyOrb(0, 0);
+    const player = { x: 300, y: 0, vx: 0 };
+    const camera = { addShake() {}, addZoomPunch() {}, focusOn() {} };
+    orb.startRoll(player, camera);
+    orb.startDrops(player, camera);
+    orb.beginPhaseTwo(camera);
+    orb.die();
+  } finally {
+    speech.shoutBoss = originalShoutBoss;
+  }
+  assert.deepEqual(calls.map((call) => call[3]), ['roll', 'drop', 'phase', 'defeat']);
+  assert.ok(calls.every((call) => call[2] === 'luckyOrb'));
 });
 
 test('boss telegraphs stay grounded and H4C3R has one wave-owned intro', () => {
@@ -1203,9 +1273,9 @@ function collectStringLeaves(value, output = []) {
   return output;
 }
 
-test('all 15 Restore Key missions are immutable and foreshadow H4C3R three times', () => {
-  assert.deepEqual(Object.keys(CAMPAIGN_BEATS).map(Number), Array.from({ length: 15 }, (_, index) => index + 1));
-  for (let stage = 1; stage <= 15; stage += 1) {
+test('all 16 Restore Key missions are immutable and put Lucky Orb before H4C3R', () => {
+  assert.deepEqual(Object.keys(CAMPAIGN_BEATS).map(Number), Array.from({ length: 16 }, (_, index) => index + 1));
+  for (let stage = 1; stage <= 16; stage += 1) {
     const beat = CAMPAIGN_BEATS[stage];
     assert.ok(Object.isFrozen(beat), `stage ${stage} metadata must be immutable`);
     for (const key of ['act', 'mission', 'clearText', 'clue']) {
@@ -1218,7 +1288,8 @@ test('all 15 Restore Key missions are immutable and foreshadow H4C3R three times
   assert.match(CAMPAIGN_BEATS[14].clue, /H4C3R/);
   assert.equal(CAMPAIGN_BEATS[10].bossLabel, 'DARK LORD // BACKUP');
   assert.equal(CAMPAIGN_BEATS[11].bossLabel, 'KING ORANGE // REPLAY');
-  assert.equal(CAMPAIGN_BEATS[15].bossLabel, 'H4C3R');
+  assert.equal(CAMPAIGN_BEATS[15].bossLabel, 'THE LUCKY ORB');
+  assert.equal(CAMPAIGN_BEATS[16].bossLabel, 'H4C3R');
 });
 
 test('authored wave recipes match every campaign total and pack budget', () => {
@@ -1226,7 +1297,7 @@ test('authored wave recipes match every campaign total and pack budget', () => {
   assert.equal(NORMAL_ACTIVE_ENEMY_CAP, 8);
   assert.equal(MAX_BOSS_HELPERS, 4);
 
-  for (let stage = 1; stage <= 15; stage += 1) {
+  for (let stage = 1; stage <= 16; stage += 1) {
     const recipe = WAVE_RECIPES[stage];
     assert.ok(Object.isFrozen(recipe), `stage ${stage} recipe must be immutable`);
     assert.equal(recipe.total, WAVE_RECIPE_TOTALS[stage]);
@@ -1245,9 +1316,10 @@ test('authored wave recipes match every campaign total and pack budget', () => {
   assert.deepEqual(WAVE_RECIPES[5].packs[0].enemies, ['titan_boss', 'runner', 'spitter', 'runner']);
   assert.deepEqual(WAVE_RECIPES[10].packs[0].enemies, ['dark_lord', 'runner', 'spitter', 'runner', 'brute']);
   assert.deepEqual(WAVE_RECIPES[11].packs[0].enemies, ['king_orange']);
-  assert.deepEqual(WAVE_RECIPES[15].packs[0].enemies, ['h4c3r']);
+  assert.deepEqual(WAVE_RECIPES[15].packs[0].enemies, ['lucky_orb']);
+  assert.deepEqual(WAVE_RECIPES[16].packs[0].enemies, ['h4c3r']);
 
-  const firstStageWith = (type) => Array.from({ length: 15 }, (_, index) => index + 1).find(
+  const firstStageWith = (type) => Array.from({ length: 16 }, (_, index) => index + 1).find(
     (stage) => WAVE_RECIPES[stage].packs.some((pack) => pack.enemies.includes(type))
   );
   assert.equal(firstStageWith('crawler'), 2);
@@ -1255,7 +1327,7 @@ test('authored wave recipes match every campaign total and pack budget', () => {
   assert.equal(firstStageWith('boom_bug'), 6);
   assert.equal(WAVE_RECIPE_TOTALS[1], 6);
   assert.equal(WAVE_RECIPE_TOTALS[14], 20);
-  assert.equal(Object.values(WAVE_RECIPE_TOTALS).reduce((sum, total) => sum + total, 0), 167);
+  assert.equal(Object.values(WAVE_RECIPE_TOTALS).reduce((sum, total) => sum + total, 0), 168);
 });
 
 test('boss and ally copy stays inside the terse readable speech contract', () => {

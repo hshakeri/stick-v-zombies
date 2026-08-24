@@ -1,5 +1,3 @@
-// Input handling engine with keyboard, arrow keys, left-side combat keys (Q, W, E, R, Shift), touch, and gamepad
-
 class InputManager {
   constructor() {
     this.keys = {};
@@ -14,8 +12,6 @@ class InputManager {
       leftPressed: false,
       rightPressed: false
     };
-
-    // Touch Virtual Buttons state
     this.touch = {
       left: false,
       right: false,
@@ -38,8 +34,6 @@ class InputManager {
       super: false,
       superPressed: false
     };
-
-    // Virtual action states
     this.actions = {
       left: false,
       right: false,
@@ -69,53 +63,40 @@ class InputManager {
       shop: false,
       pause: false
     };
-
     this.canvas = null;
     this.camera = null;
     this.gamepadButtonStates = [];
   }
-
   init(canvas, camera) {
     this.canvas = canvas;
     this.camera = camera;
-
-    // Keyboard Listeners
     window.addEventListener('keydown', (e) => {
       const code = e.code;
       if (!this.keys[code]) {
         this.keysPressed[code] = true;
       }
       this.keys[code] = true;
-
-      // Prevent scrolling with Space/Arrows
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(code)) {
         e.preventDefault();
       }
     });
-
     window.addEventListener('keyup', (e) => {
       this.keys[e.code] = false;
     });
-
     window.addEventListener('blur', () => {
       this.resetHeldInputs();
     });
-
-    // Mouse Listeners
     window.addEventListener('mousemove', (e) => {
       const rect = this.canvas.getBoundingClientRect();
       this.mouse.x = e.clientX - rect.left;
       this.mouse.y = e.clientY - rect.top;
       this.updateMouseWorld();
     });
-
     window.addEventListener('mousedown', (e) => {
-      // Ensure game window always keeps keyboard focus
       window.focus();
       if (document.activeElement && document.activeElement.tagName === 'BUTTON') {
         document.activeElement.blur();
       }
-
       if (e.target !== this.canvas && !this.canvas.contains(e.target)) return;
       if (e.button === 0) { // Left click
         this.mouse.leftDown = true;
@@ -125,22 +106,17 @@ class InputManager {
         this.mouse.rightPressed = true;
       }
     });
-
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouse.leftDown = false;
       if (e.button === 2) this.mouse.rightDown = false;
     });
-
     window.addEventListener('contextmenu', (e) => {
       if (e.target === this.canvas || this.canvas.contains(e.target)) {
         e.preventDefault();
       }
     });
-
-    // Touch and HUD Buttons
     this.initTouchControls();
   }
-
   updateMouseWorld() {
     if (this.camera) {
       const worldPos = this.camera.screenToWorld(this.mouse.x, this.mouse.y);
@@ -148,7 +124,6 @@ class InputManager {
       this.mouse.worldY = worldPos.y;
     }
   }
-
   initTouchControls() {
     const bindBtn = (id, actionName) => {
       const btn = document.getElementById(id);
@@ -172,8 +147,6 @@ class InputManager {
       btn.addEventListener('mouseup', end);
       btn.addEventListener('mouseleave', end);
     };
-
-    // Mobile virtual buttons
     bindBtn('vbtn-left', 'left');
     bindBtn('vbtn-right', 'right');
     bindBtn('vbtn-up', 'up');
@@ -186,8 +159,6 @@ class InputManager {
     bindBtn('vbtn-block', 'block');
     bindBtn('vbtn-grab', 'grab');
     bindBtn('vbtn-hook', 'hook');
-
-    // Bottom HUD skill slot buttons (clickable on desktop and touch)
     bindBtn('skill-punch', 'attack');
     bindBtn('skill-pencil', 'weapon');
     bindBtn('skill-grab', 'grab');
@@ -196,63 +167,37 @@ class InputManager {
     bindBtn('skill-block', 'block');
     bindBtn('skill-super', 'super');
   }
-
   update() {
     this.updateMouseWorld();
-
-    // Movement: Arrow Keys or A/D
     this.actions.left = !!(this.keys['ArrowLeft'] || this.keys['KeyA'] || this.touch.left);
     this.actions.right = !!(this.keys['ArrowRight'] || this.keys['KeyD'] || this.touch.right);
     this.actions.up = !!(this.keys['ArrowUp'] || this.touch.up);
     this.actions.down = !!(this.keys['ArrowDown'] || this.keys['KeyS'] || this.touch.down);
-
-    // Jump: Space or ArrowUp or touch
     this.actions.jump = !!(this.keys['Space'] || this.keys['ArrowUp'] || this.touch.jump);
     this.actions.jumpPressed = !!(this.keysPressed['Space'] || this.keysPressed['ArrowUp'] || this.touch.jumpPressed);
-
-    // Martial Arts Attack (Q, J, Left Mouse Click, or Z)
     this.actions.attack = !!(this.keys['KeyQ'] || this.keys['KeyJ'] || this.keys['KeyZ'] || this.mouse.leftDown || this.touch.attack);
     this.actions.attackPressed = !!(this.keysPressed['KeyQ'] || this.keysPressed['KeyJ'] || this.keysPressed['KeyZ'] || this.mouse.leftPressed || this.touch.attackPressed);
-
-    // Giant Pencil / Weapon Attack (W, K, Right Mouse Click, or X)
     this.actions.weapon = !!(this.keys['KeyW'] || this.keys['KeyK'] || this.keys['KeyX'] || this.mouse.rightDown || this.touch.weapon);
     this.actions.weaponPressed = !!(this.keysPressed['KeyW'] || this.keysPressed['KeyK'] || this.keysPressed['KeyX'] || this.mouse.rightPressed || this.touch.weaponPressed);
-
-    // Dodge Roll (Shift, L, C)
     this.actions.roll = !!(this.keys['ShiftLeft'] || this.keys['ShiftRight'] || this.keys['KeyL'] || this.keys['KeyC'] || this.touch.roll);
     this.actions.rollPressed = !!(this.keysPressed['ShiftLeft'] || this.keysPressed['ShiftRight'] || this.keysPressed['KeyL'] || this.keysPressed['KeyC'] || this.touch.rollPressed);
-
-    // Block / Anvil Spawn (E, V)
     this.actions.block = !!(this.keys['KeyE'] || this.keys['KeyV'] || this.touch.block);
     this.actions.blockPressed = !!(this.keysPressed['KeyE'] || this.keysPressed['KeyV'] || this.touch.blockPressed);
-
-    // Grab & Throw (F, G)
     this.actions.grab = !!(this.keys['KeyF'] || this.keys['KeyG'] || this.touch.grab);
     this.actions.grabPressed = !!(this.keysPressed['KeyF'] || this.keysPressed['KeyG'] || this.touch.grabPressed);
-
-    // Vector Hook (H or touch/gamepad). One press casts one bounded chain.
     this.actions.hook = !!(this.keys['KeyH'] || this.touch.hook);
     this.actions.hookPressed = !!(this.keysPressed['KeyH'] || this.touch.hookPressed);
-
-    // Awakening Super (R)
     this.actions.super = !!(this.keys['KeyR'] || this.touch.super);
     this.actions.superPressed = !!(this.keysPressed['KeyR'] || this.touch.superPressed);
-
-    // Allies (1, 2, 3, 4, 5)
     this.actions.ally1 = !!this.keysPressed['Digit1'];
     this.actions.ally2 = !!this.keysPressed['Digit2'];
     this.actions.ally3 = !!this.keysPressed['Digit3'];
     this.actions.ally4 = !!this.keysPressed['Digit4'];
     this.actions.ally5 = !!this.keysPressed['Digit5'];
-
-    // UI triggers
     this.actions.shop = !!this.keysPressed['KeyB'];
     this.actions.pause = !!(this.keysPressed['Escape'] || this.keysPressed['KeyP']);
-
-    // Gamepad support polling
     this.pollGamepad();
   }
-
   pollGamepad() {
     const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
     if (!gamepads || !gamepads[0]) {
@@ -262,16 +207,10 @@ class InputManager {
     const gp = gamepads[0];
     const isPressed = (index) => !!(gp.buttons[index] && gp.buttons[index].pressed);
     const wasPressed = (index) => !!this.gamepadButtonStates[index];
-
-    // Left Stick / D-Pad
     if (gp.axes[0] < -0.3 || (gp.buttons[14] && gp.buttons[14].pressed)) this.actions.left = true;
     if (gp.axes[0] > 0.3 || (gp.buttons[15] && gp.buttons[15].pressed)) this.actions.right = true;
     if (gp.axes[1] < -0.3 || (gp.buttons[12] && gp.buttons[12].pressed)) this.actions.up = true;
     if (gp.axes[1] > 0.3 || (gp.buttons[13] && gp.buttons[13].pressed)) this.actions.down = true;
-
-    // Face buttons: A = Jump, X = Attack (Q), Y = Weapon (W), B = Roll.
-    // Held and single-press states are tracked separately so holding a button
-    // never retriggers jump, dodge, block, or super every animation frame.
     const heldBindings = [
       [0, 'jump'],
       [2, 'attack'],
@@ -287,10 +226,8 @@ class InputManager {
       if (pressed) this.actions[action] = true;
       if (pressed && !wasPressed(index)) this.actions[`${action}Pressed`] = true;
     }
-
     this.gamepadButtonStates = gp.buttons.map(button => !!button.pressed);
   }
-
   resetHeldInputs() {
     this.keys = {};
     this.keysPressed = {};
@@ -301,8 +238,6 @@ class InputManager {
     for (const key of Object.keys(this.touch)) this.touch[key] = false;
     this.gamepadButtonStates = [];
   }
-
-  // Clear single-frame "Pressed" events at end of update cycle
   endFrame() {
     this.keysPressed = {};
     this.mouse.leftPressed = false;
@@ -332,5 +267,4 @@ class InputManager {
     this.actions.pause = false;
   }
 }
-
 export const input = new InputManager();

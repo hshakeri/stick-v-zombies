@@ -4,29 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Orange Stickman vs Zombies - The Second Coming</title>
-  <link rel="stylesheet" href="css/style.css?v=8.4">
+  <link rel="stylesheet" href="css/style.css?v=8.5">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23ff7700%22 stroke=%22white%22 stroke-width=%228%22/></svg>">
 </head>
 <body>
   <div id="game-container">
-    <!-- Main Game Canvas -->
     <canvas id="gameCanvas"></canvas>
-    
-    <!-- Screen Vignette -->
     <div class="screen-vignette"></div>
-
-    <!-- Brief, non-blocking campaign cue. Any relevant control dismisses it. -->
     <div id="mission-strip" class="mission-strip" role="status" aria-live="polite">
       <span id="mission-act" class="mission-strip-act">ACT I</span>
       <strong id="mission-text">RECOVER THE RESTORE KEY</strong>
       <span id="mission-lesson" class="mission-strip-lesson">MOVE · JUMP · Q COMBO</span>
     </div>
-
-    <!-- HUD Overlay -->
     <div id="hud-overlay">
-      <!-- Top HUD Area -->
       <div class="hud-top">
-        <!-- Player HP & Awakening Bar -->
         <div class="hud-player-stats">
           <div class="player-identity">
             <div class="player-icon">II</div>
@@ -51,15 +42,11 @@
             </div>
           </div>
         </div>
-
-        <!-- Center: Wave & Boss Info -->
         <div class="hud-center">
           <div class="wave-badge">
             <div class="wave-title">WAVE <span id="hud-wave-number" class="wave-count">1</span></div>
             <div id="hud-zombies-count" class="zombies-left-text">Zombies: 0</div>
           </div>
-
-          <!-- Boss Health Bar (Appears on Boss waves) -->
           <div id="boss-health-box" class="boss-health-container">
             <div id="boss-name-label" class="boss-name">TITAN UNDEAD</div>
             <div class="boss-bar-bg">
@@ -67,8 +54,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Right: Score & Ink Currency -->
         <div class="hud-score-box">
           <div class="score-display">SCORE: <span id="hud-score">0</span></div>
           <div class="ink-currency-display">
@@ -77,8 +62,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Combo Counter Overlay (Left side) -->
       <div id="hud-combo" class="hud-combo-container">
         <div id="combo-hit-count" class="combo-hits">12 HITS</div>
         <div id="combo-rank-title" class="combo-title">STICK-TACULAR!</div>
@@ -86,10 +69,7 @@
           <div id="combo-timer-fill" class="combo-bar-fill"></div>
         </div>
       </div>
-
-      <!-- Bottom HUD Area -->
       <div class="hud-bottom">
-        <!-- Weapon / Skill Hotbar -->
         <div class="hud-skills">
           <div class="skill-slot ready" id="skill-punch" title="5-Hit Martial Combo / Air-Chase (Q)">
             <div class="skill-icon">👊</div>
@@ -124,8 +104,6 @@
             <div id="cd-super-overlay" class="skill-cd-overlay">READY</div>
           </div>
         </div>
-
-        <!-- Summon Stick Allies & Mouse Cursor Hotbar -->
         <div class="hud-allies">
           <div class="ally-slot red" id="ally-red-slot" title="Summon Red (Brawler Punch - Key 1)">
             <div class="ally-badge red">R</div>
@@ -153,8 +131,6 @@
             <div class="ally-cd-overlay" id="ally-cursor-status"></div>
           </div>
         </div>
-
-        <!-- Quick Action Buttons -->
         <div class="hud-quick-buttons">
           <button id="btn-open-shop" class="hud-btn" aria-label="Open upgrades (B)" title="Open upgrades (B)"><span class="hud-btn-icon" aria-hidden="true">🛒</span><span class="hud-btn-label">Upgrades (B)</span></button>
           <button id="btn-pause" class="hud-btn" aria-label="Pause (Escape)" title="Pause (Escape)"><span class="hud-btn-icon" aria-hidden="true">⏸️</span><span class="hud-btn-label">Pause (Esc)</span></button>
@@ -162,8 +138,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Title / Start Screen Modal -->
     <div id="title-screen" class="modal-overlay active">
       <div class="title-logo-container">
         <div class="title-kicker">ORANGE STICKMAN • THE SECOND COMING</div>
@@ -171,14 +145,12 @@
           <span>STICK</span><span class="title-vs">VS</span><span>ZOMBIES</span>
         </h1>
         <h2 class="game-sub-title">DESKTOP ADVENTURE</h2>
-        <p class="title-tagline">15 stages. Draw fast. Reclaim root access.</p>
+        <p class="title-tagline">16 stages. Draw fast. Reclaim root access.</p>
       </div>
-
       <div class="title-actions">
         <button id="btn-start-game" class="primary-btn" style="font-size: 20px; padding: 14px 28px;">▶ PLAY NOW</button>
         <button id="btn-how-to-play" class="secondary-btn">📖 Controls &amp; Tips</button>
       </div>
-
       <div class="controls-guide-card">
         <h4>⚡ HOW TO PLAY &amp; CONTROLS</h4>
         <p class="controls-intro">Keyboard, mouse, or the on-screen controls all work.</p>
@@ -250,33 +222,25 @@
         </div>
       </div>
     </div>
-
-    <!-- Upgrade Shop Modal -->
     <div id="shop-modal" class="modal-overlay">
       <div class="modal-box">
         <div class="modal-header">
           <div class="modal-title">🛒 ANIMATOR WORKSHOP &amp; UPGRADES</div>
           <button id="btn-close-shop" class="secondary-btn" style="padding: 6px 14px;">✕ Close</button>
         </div>
-        
         <div class="shop-currency-bar">
           <div>AVAILABLE INK: <span id="shop-ink-display" style="color: #44ddff;">0</span> ✒️</div>
           <div style="font-size: 13px; color: #a4abbc;">Power up your Orange Stickman!</div>
         </div>
-
         <div class="modal-content">
           <div id="upgrades-container" class="upgrades-grid">
-            <!-- Dynamically populated by shop.js -->
           </div>
         </div>
-
         <div class="modal-footer">
           <button id="btn-resume-from-shop" class="primary-btn">Back to Battle ➔</button>
         </div>
       </div>
     </div>
-
-    <!-- Pause Menu Modal -->
     <div id="pause-modal" class="modal-overlay">
       <div class="modal-box" style="max-width: 440px; text-align: center;">
         <div class="modal-title" style="margin-bottom: 20px;">⏸️ GAME PAUSED</div>
@@ -288,13 +252,10 @@
         </div>
       </div>
     </div>
-
-    <!-- Game Over Modal -->
     <div id="gameover-modal" class="modal-overlay">
       <div class="modal-box" style="max-width: 500px; text-align: center;">
         <div class="modal-title" style="color: #ff3344; margin-bottom: 8px;">BUG ENCOUNTERED</div>
         <p style="color: #a0a4be; margin-bottom: 20px;">The bug won this round. Try a new combo!</p>
-        
         <div style="background: #14151f; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #33364d; text-align: left; font-family: var(--font-pop-art);">
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
             <span>STAGE REACHED:</span> <span id="gameover-wave" style="color: #ffea00;">STAGE 1</span>
@@ -309,7 +270,6 @@
             <span>MAX COMBO:</span> <span id="gameover-combo" style="color: var(--orange-glow);">0</span>
           </div>
         </div>
-
         <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
           <button id="btn-try-again" class="primary-btn">↻ RETRY CURRENT STAGE</button>
           <button id="btn-restart-campaign" class="secondary-btn">Restart Campaign</button>
@@ -317,14 +277,11 @@
         </div>
       </div>
     </div>
-
-    <!-- Campaign Victory Modal -->
     <div id="victory-modal" class="modal-overlay">
       <div class="modal-box victory-modal-box">
         <div class="victory-kicker">ROOT ACCESS RECLAIMED</div>
         <div class="modal-title victory-title">🏆 H4C3R LOGGED OUT!</div>
-        <p class="victory-message">SYSTEM RESTORED! The bad replays are gone, the Restore Key is whole, and Orange’s whole squad saved the desktop.</p>
-
+        <p class="victory-message">SYSTEM RESTORED! The Lucky Orb is home, the bad replays are gone, and Orange’s whole squad saved the desktop.</p>
         <div class="victory-stats">
           <div class="victory-stat-row">
             <span>FINAL SCORE</span>
@@ -339,15 +296,12 @@
             <span id="victory-combo">0</span>
           </div>
         </div>
-
         <div class="victory-actions">
           <button id="btn-victory-replay" class="primary-btn">⚔️ PLAY AGAIN</button>
           <button id="btn-victory-menu" class="secondary-btn">Main Menu</button>
         </div>
       </div>
     </div>
-
-    <!-- On-screen Virtual Mobile Controls (Visible on mobile/touch screens) -->
     <div id="mobile-controls">
       <div class="touch-utility-controls" aria-label="Game menu controls">
         <button class="touch-utility-btn" id="btn-touch-shop" aria-label="Open upgrades" title="Open upgrades">🛒</button>
@@ -361,7 +315,6 @@
         <button class="virtual-btn" id="vbtn-down">⬇</button>
         <button class="virtual-btn" id="vbtn-right">➡</button>
       </div>
-
       <div class="action-pad">
         <button class="virtual-btn" id="vbtn-attack" style="background: rgba(255, 119, 0, 0.7);">👊</button>
         <button class="virtual-btn" id="vbtn-weapon" style="background: rgba(255, 200, 0, 0.7);">✏️</button>
@@ -374,8 +327,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Game Modules -->
-  <script type="module" src="js/main.js?v=8.4"></script>
+  <script type="module" src="js/main.js?v=8.5"></script>
 </body>
 </html>

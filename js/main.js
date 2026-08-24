@@ -1,16 +1,16 @@
 
-import { audio } from './engine/audio.js?v=8.4';
-import { input } from './engine/input.js?v=8.4';
-import { Camera } from './engine/camera.js?v=8.4';
-import { particles } from './engine/particles.js?v=8.4';
-import { Player } from './entities/player.js?v=8.4';
-import { waves } from './systems/waves.js?v=8.4';
-import { combat } from './systems/combat.js?v=8.4';
-import { shop } from './systems/shop.js?v=8.4';
-import { stages } from './systems/stages.js?v=8.4';
-import { projectiles } from './entities/projectiles.js?v=8.4';
-import { allies } from './entities/allies.js?v=8.4';
-import { speech } from './engine/speech.js?v=8.4';
+import { audio } from './engine/audio.js?v=8.5';
+import { input } from './engine/input.js?v=8.5';
+import { Camera } from './engine/camera.js?v=8.5';
+import { particles } from './engine/particles.js?v=8.5';
+import { Player } from './entities/player.js?v=8.5';
+import { waves } from './systems/waves.js?v=8.5';
+import { combat } from './systems/combat.js?v=8.5';
+import { shop } from './systems/shop.js?v=8.5';
+import { stages } from './systems/stages.js?v=8.5';
+import { projectiles } from './entities/projectiles.js?v=8.5';
+import { allies } from './entities/allies.js?v=8.5';
+import { speech } from './engine/speech.js?v=8.5';
 
 export class Game {
   constructor() {
@@ -336,7 +336,9 @@ export class Game {
       6: 'F GRABS · BOOM-BUGS FLASH',
       7: 'STAFF PICKUP · E ANVIL',
       8: 'AIR CHASE · ALLIES 2–4',
-      10: 'FULL METER? PRESS R'
+      10: 'FULL METER? PRESS R',
+      15: 'WATCH GOLD RINGS · MOVE LATE',
+      16: 'FINAL PATCH · USE R'
     }[stage] || 'CHAIN MOVES · WATCH RINGS';
   }
 
@@ -351,7 +353,7 @@ export class Game {
     if (mission) mission.textContent = beat.mission || this.stageManager.stageName;
     if (lesson) lesson.textContent = this.getStageLesson(stage);
     strip.classList.add('active');
-    this.missionStripTimer = stage === 1 || [5, 10, 11, 15].includes(stage) ? 1.5 : 1.25;
+    this.missionStripTimer = stage === 1 || [5, 10, 11, 15, 16].includes(stage) ? 1.5 : 1.25;
   }
 
   updateMissionStrip(dt) {
@@ -391,7 +393,7 @@ export class Game {
     this.player.cancelHook?.(true);
     this.player.squashX = 1.0;
     this.player.squashY = 1.0;
-    const isBossCheckpoint = [5, 10, 11, 15].includes(nextStage);
+    const isBossCheckpoint = [5, 10, 11, 15, 16].includes(nextStage);
     const baselineHeal = this.player.maxHp * 0.18;
     const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
     this.player.heal(isBossCheckpoint ? Math.max(baselineHeal, bossSafetyHeal) : baselineHeal);
@@ -659,11 +661,12 @@ export class Game {
       if (waves.bossZombie && !waves.bossZombie.isDead) {
         bossBox.style.display = 'flex';
         const bossType = waves.bossZombie.type;
-        const bossClasses = ['dark-lord-boss', 'king-orange-boss', 'h4c3r-boss'];
+        const bossClasses = ['dark-lord-boss', 'king-orange-boss', 'lucky-orb-boss', 'h4c3r-boss'];
         bossBox.classList.remove(...bossClasses);
         const bossClass = {
           dark_lord: 'dark-lord-boss',
           king_orange: 'king-orange-boss',
+          lucky_orb: 'lucky-orb-boss',
           h4c3r: 'h4c3r-boss'
         }[bossType];
         if (bossClass) bossBox.classList.add(bossClass);
@@ -671,6 +674,7 @@ export class Game {
           const fallbackName = {
             dark_lord: 'DARK LORD // BACKUP',
             king_orange: 'KING ORANGE // REPLAY',
+            lucky_orb: 'THE LUCKY ORB',
             h4c3r: 'H4C3R'
           }[bossType] || 'TITAN UNDEAD';
           bossLabel.innerText = this.stageManager.campaignBeat?.bossLabel || waves.bossZombie.name || fallbackName;
@@ -679,7 +683,7 @@ export class Game {
         bossFill.style.width = `${Math.max(0, bossPct)}%`;
       } else {
         bossBox.style.display = 'none';
-        bossBox.classList.remove('dark-lord-boss', 'king-orange-boss', 'h4c3r-boss');
+        bossBox.classList.remove('dark-lord-boss', 'king-orange-boss', 'lucky-orb-boss', 'h4c3r-boss');
       }
     }
 
