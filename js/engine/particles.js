@@ -1,5 +1,3 @@
-// Particle and Visual FX Engine for dynamic Alan Becker style animation juice
-
 export const IMPACT_PROFILES = Object.freeze({
   light: Object.freeze({
     sparks: 4,
@@ -33,6 +31,9 @@ export const IMPACT_PROFILES = Object.freeze({
   })
 });
 
+export const SPLATTER_LIMITS = Object.freeze({ droplets: 48, stains: 12 });
+const CRIMSON_SPLATTER_COLORS = Object.freeze(['#d11f3f', '#a70f32', '#741329']);
+
 export class ParticleSystem {
   constructor() {
     this.particles = [];
@@ -41,6 +42,9 @@ export class ParticleSystem {
     this.shockwaves = [];
     this.comicPopups = [];
     this.limbDebris = [];
+    this.splatterDroplets = [];
+    this.splatterStains = [];
+    this.splatterEnabled = true;
     this.speedlinesTimer = 0;
     this.speedlinesMax = 0;
     this.speedlineEffect = null;
@@ -55,6 +59,8 @@ export class ParticleSystem {
     this.maxComicPopups = 6;
     this.maxDamageTexts = 25;
     this.maxLimbDebris = 24;
+    this.maxSplatterDroplets = SPLATTER_LIMITS.droplets;
+    this.maxSplatterStains = SPLATTER_LIMITS.stains;
   }
 
   reset() {
@@ -64,10 +70,21 @@ export class ParticleSystem {
     this.shockwaves.length = 0;
     this.comicPopups.length = 0;
     this.limbDebris.length = 0;
+    this.splatterDroplets.length = 0;
+    this.splatterStains.length = 0;
     this.speedlinesTimer = 0;
     this.speedlinesMax = 0;
     this.speedlineEffect = null;
     this.speedlineSequence = 0;
+  }
+
+  setSplatterEnabled(enabled = true) {
+    this.splatterEnabled = Boolean(enabled);
+    if (!this.splatterEnabled) {
+      this.splatterDroplets.length = 0;
+      this.splatterStains.length = 0;
+    }
+    return this.splatterEnabled;
   }
 
   setLoadProfile(profile = 'normal') {
@@ -117,7 +134,6 @@ export class ParticleSystem {
       this.speedlinesTimer -= dt;
     }
 
-    // Update general particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.life -= dt;
@@ -135,7 +151,40 @@ export class ParticleSystem {
       if (p.rotSpeed) p.rotation += p.rotSpeed * dt;
     }
 
-    // Update Limb Debris (Bouncing Stick Figure Bones)
+    if (!this.splatterEnabled) {
+      this.splatterDroplets.length = 0;
+      this.splatterStains.length = 0;
+    } else {
+      for (let i = this.splatterDroplets.length - 1; i >= 0; i--) {
+        const droplet = this.splatterDroplets[i];
+        droplet.life -= dt;
+        if (droplet.life <= 0) {
+          this.splatterDroplets.splice(i, 1);
+          continue;
+        }
+        droplet.x += droplet.vx * dt;
+        droplet.y += droplet.vy * dt;
+        if (!droplet.landed) {
+          droplet.vy += droplet.gravity * dt;
+          if (droplet.y >= droplet.groundY) {
+            droplet.y = droplet.groundY;
+            droplet.vx *= 0.12;
+            droplet.vy = 0;
+            droplet.landed = true;
+            droplet.life = Math.min(droplet.life, 0.12);
+          }
+        }
+      }
+
+      for (let i = this.splatterStains.length - 1; i >= 0; i--) {
+        const stain = this.splatterStains[i];
+        stain.life -= dt;
+        if (stain.life <= 0) {
+          this.splatterStains.splice(i, 1);
+        }
+      }
+    }
+
     for (let i = this.limbDebris.length - 1; i >= 0; i--) {
       const limb = this.limbDebris[i];
       limb.life -= dt;
@@ -154,7 +203,6 @@ export class ParticleSystem {
       }
     }
 
-    // Update Comic Action SFX Popups (POW!, KRAK!, SLASH!)
     for (let i = this.comicPopups.length - 1; i >= 0; i--) {
       const c = this.comicPopups[i];
       c.life -= dt;
@@ -168,7 +216,6 @@ export class ParticleSystem {
       if (c.scale < 1.0) c.scale = Math.min(1.0, c.scale + dt * 12);
     }
 
-    // Update Floating Damage Texts
     for (let i = this.damageTexts.length - 1; i >= 0; i--) {
       const t = this.damageTexts[i];
       t.life -= dt;
@@ -178,10 +225,9 @@ export class ParticleSystem {
       }
       t.x += t.vx * dt;
       t.y += t.vy * dt;
-      t.vy += 80 * dt; // slight downward gravity
+      t.vy += 80 * dt;
     }
 
-    // Update Slash Arcs
     for (let i = this.slashArcs.length - 1; i >= 0; i--) {
       const arc = this.slashArcs[i];
       arc.life -= dt;
@@ -190,7 +236,6 @@ export class ParticleSystem {
       }
     }
 
-    // Update Shockwaves
     for (let i = this.shockwaves.length - 1; i >= 0; i--) {
       const sw = this.shockwaves[i];
       sw.life -= dt;
@@ -201,7 +246,6 @@ export class ParticleSystem {
       sw.radius += sw.growSpeed * dt;
     }
 
-    // A hard ceiling keeps effect-heavy supers stable on low-power phones.
     if (this.particles.length > this.maxParticles) {
       this.particles.splice(0, this.particles.length - this.maxParticles);
     }
@@ -213,7 +257,20 @@ export class ParticleSystem {
   }
 
   draw(ctx) {
-    // 1. Draw Shockwaves
+    if (this.splatterEnabled && this.splatterStains.length > 0) {
+      ctx.save();
+      for (const stain of this.splatterStains) {
+        const progress = 1 - stain.life / stain.maxLife;
+        const appear = Math.min(1, progress * 10);
+        ctx.globalAlpha = 0.48 * appear * Math.min(1, stain.life * 2.5);
+        ctx.fillStyle = stain.color;
+        ctx.beginPath();
+        ctx.ellipse(stain.x, stain.y, stain.rx * appear, stain.ry * appear, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
     for (const sw of this.shockwaves) {
       const progress = 1 - sw.life / sw.maxLife;
       const alpha = (1 - progress) * (sw.maxAlpha || 0.8);
@@ -227,7 +284,6 @@ export class ParticleSystem {
       ctx.restore();
     }
 
-    // 2. Draw Slash Arcs
     for (const arc of this.slashArcs) {
       const progress = 1 - arc.life / arc.maxLife;
       const alpha = 1 - progress;
@@ -245,7 +301,6 @@ export class ParticleSystem {
       ctx.restore();
     }
 
-    // 3. Draw Particles
     for (const p of this.particles) {
       const progress = 1 - p.life / p.maxLife;
       const alpha = p.fade ? (1 - progress) * p.initialAlpha : p.initialAlpha;
@@ -255,7 +310,6 @@ export class ParticleSystem {
       if (p.rotation) ctx.rotate(p.rotation);
 
       if (p.type === 'spark' || p.type === 'star') {
-        // Comic Impact Star Burst
         ctx.fillStyle = p.color;
         const size = Math.max(1, p.size * (1 - progress * 0.4));
         ctx.beginPath();
@@ -270,7 +324,6 @@ export class ParticleSystem {
         ctx.closePath();
         ctx.fill();
       } else if (p.type === 'line') {
-        // Impact Action Line
         ctx.strokeStyle = p.color;
         ctx.lineWidth = p.lineWidth || 2;
         ctx.beginPath();
@@ -278,25 +331,21 @@ export class ParticleSystem {
         ctx.lineTo(-p.vx * 0.04, -p.vy * 0.04);
         ctx.stroke();
       } else if (p.type === 'ink') {
-        // Zombie Ink / Blood Drops
         ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(0, 0, p.size * (1 - progress * 0.2), 0, Math.PI * 2);
         ctx.fill();
       } else if (p.type === 'dust') {
-        // Movement Dust Puff
         ctx.fillStyle = p.color || '#a0a5ba';
         ctx.beginPath();
         ctx.arc(0, 0, p.size * (1 + progress * 0.8), 0, Math.PI * 2);
         ctx.fill();
       } else if (p.type === 'aura') {
-        // Awakening Fire / Energy Particle
         ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(0, 0, p.size * (1 - progress), 0, Math.PI * 2);
         ctx.fill();
       } else {
-        // Default Circle
         ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(0, 0, p.size, 0, Math.PI * 2);
@@ -306,7 +355,28 @@ export class ParticleSystem {
       ctx.restore();
     }
 
-    // 4. Draw Stick Figure Bone & Limb Debris
+    if (this.splatterEnabled && this.splatterDroplets.length > 0) {
+      ctx.save();
+      for (const droplet of this.splatterDroplets) {
+        const lifeRatio = Math.max(0, Math.min(1, droplet.life / droplet.maxLife));
+        const size = droplet.size * (0.72 + lifeRatio * 0.28);
+        ctx.globalAlpha = 0.9 * Math.min(1, lifeRatio * 3);
+        ctx.fillStyle = droplet.color;
+        if (droplet.pixel) {
+          ctx.fillRect(droplet.x - size * 0.5, droplet.y - size * 0.5, size, size);
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(droplet.x, droplet.y - size);
+          ctx.lineTo(droplet.x + size * 0.72, droplet.y);
+          ctx.lineTo(droplet.x, droplet.y + size);
+          ctx.lineTo(droplet.x - size * 0.72, droplet.y);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
     for (const limb of this.limbDebris) {
       const progress = 1 - limb.life / limb.maxLife;
       const alpha = limb.life < 0.4 ? limb.life / 0.4 : 1.0;
@@ -333,7 +403,6 @@ export class ParticleSystem {
       ctx.restore();
     }
 
-    // 5. Draw Comic Action SFX Popups (POW!, KRAK!, SMASH!)
     for (const c of this.comicPopups) {
       const progress = 1 - c.life / c.maxLife;
       const alpha = c.life < 0.2 ? c.life / 0.2 : 1.0;
@@ -343,7 +412,6 @@ export class ParticleSystem {
       ctx.rotate(c.rotation);
       ctx.scale(c.scale, c.scale);
 
-      // 1. Spiky Starburst Comic Badge
       const spikes = 10;
       const outerR = c.size || 38;
       const innerR = outerR * 0.55;
@@ -363,7 +431,6 @@ export class ParticleSystem {
       ctx.fill();
       ctx.stroke();
 
-      // 2. Comic Text
       ctx.font = "900 18px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -376,7 +443,6 @@ export class ParticleSystem {
       ctx.restore();
     }
 
-    // 6. Draw Floating Damage Numbers
     for (const t of this.damageTexts) {
       const progress = 1 - t.life / t.maxLife;
       const alpha = 1 - Math.pow(progress, 2);
@@ -384,7 +450,6 @@ export class ParticleSystem {
       ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
       ctx.translate(t.x, t.y);
 
-      // Scale pop effect
       const scale = t.isCrit ? Math.max(1, 1.6 - progress * 0.6) : Math.max(0.8, 1.2 - progress * 0.4);
       ctx.scale(scale, scale);
 
@@ -394,19 +459,16 @@ export class ParticleSystem {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      // Outline
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 4;
       ctx.strokeText(t.text, 0, 0);
 
-      // Fill
       ctx.fillStyle = t.color;
       ctx.fillText(t.text, 0, 0);
 
       ctx.restore();
     }
 
-    // 7. Draw Anime Radial Speedlines on Mega Finisher Impacts
     if (this.speedlinesTimer > 0) {
       const alpha = Math.min(0.65, (this.speedlinesTimer / this.speedlinesMax) * 0.7);
       const effect = this.speedlineEffect || {
@@ -432,11 +494,7 @@ export class ParticleSystem {
     }
   }
 
-  // --- Particle Spawners ---
-
   emitImpact(options = {}, legacyX = 0, legacyY = 0, legacyOptions = {}) {
-    // Support both the descriptive object API and the compact gameplay form:
-    // emitImpact('heavy', x, y, { color, direction }).
     const config = typeof options === 'string'
       ? {
           ...(legacyOptions && typeof legacyOptions === 'object' ? legacyOptions : {}),
@@ -528,7 +586,6 @@ export class ParticleSystem {
         drag: 0.92
       });
 
-      // Also add action lines
       this.particles.push({
         type: 'line',
         x,
@@ -567,6 +624,57 @@ export class ParticleSystem {
       });
     }
     trimOldest(this.particles, this.maxParticles);
+  }
+
+  emitSplatter(x, y, options = {}) {
+    if (!this.splatterEnabled) return { droplets: 0, stains: 0 };
+    const defeat = options.defeat === true || options.profile === 'defeat';
+    const dropletCount = Math.round(clamp(Number(options.count ?? (defeat ? 22 : 8)), 0, defeat ? 32 : 16));
+    const stainCount = options.stains === false
+      ? 0
+      : Math.round(clamp(Number(options.stains ?? (defeat ? 3 : 1)), 0, defeat ? 4 : 2));
+    const groundY = Number.isFinite(options.groundY) ? options.groundY : y + (defeat ? 44 : 36);
+    const force = clamp(Number(options.force) || 1, 0.5, 1.75);
+    const direction = Number.isFinite(options.direction) ? Math.sign(options.direction) : 0;
+    const customColor = typeof options.color === 'string' ? options.color : null;
+    const random = Number.isFinite(options.seed)
+      ? seededRandom(Math.trunc(options.seed))
+      : Math.random;
+    for (let i = 0; i < dropletCount; i++) {
+      const angle = -Math.PI + random() * Math.PI;
+      const speed = ((defeat ? 145 : 90) + random() * (defeat ? 260 : 150)) * force;
+      const life = (defeat ? 0.42 : 0.3) + random() * (defeat ? 0.34 : 0.24);
+      this.splatterDroplets.push({
+        x: x + (random() - 0.5) * (defeat ? 18 : 10),
+        y: y + (random() - 0.5) * 8,
+        vx: Math.cos(angle) * speed + direction * speed * 0.42,
+        vy: Math.sin(angle) * speed - (defeat ? 36 : 18),
+        gravity: defeat ? 610 : 560,
+        groundY,
+        size: (defeat ? 2.8 : 2.2) + random() * (defeat ? 4.5 : 3.1),
+        color: customColor || CRIMSON_SPLATTER_COLORS[Math.floor(random() * 3)],
+        life,
+        maxLife: life,
+        pixel: random() < 0.58,
+        landed: false
+      });
+    }
+    trimOldest(this.splatterDroplets, this.maxSplatterDroplets);
+    for (let i = 0; i < stainCount; i++) {
+      const life = (defeat ? 1.8 : 1.1) + random() * (defeat ? 0.8 : 0.65);
+      const spread = defeat ? 62 : 34;
+      this.splatterStains.push({
+        x: x + (random() - 0.5) * spread + direction * spread * 0.22,
+        y: groundY + 1,
+        rx: (defeat ? 10 : 7) + random() * (defeat ? 16 : 8),
+        ry: 2 + random() * (defeat ? 3 : 2),
+        color: customColor || CRIMSON_SPLATTER_COLORS[1 + Math.floor(random() * 2)],
+        life,
+        maxLife: life
+      });
+    }
+    trimOldest(this.splatterStains, this.maxSplatterStains);
+    return { droplets: dropletCount, stains: stainCount };
   }
 
   createDust(x, y, count = 5, dir = 0) {
@@ -726,7 +834,6 @@ export class ParticleSystem {
     while (this.limbDebris.length > this.maxLimbDebris - incomingPieces) {
       this.limbDebris.shift();
     }
-    // 1. Head circle piece
     this.limbDebris.push({
       x,
       y: y - 30,
@@ -742,7 +849,6 @@ export class ParticleSystem {
       maxLife: 1.8
     });
 
-    // 2. Torso and 4 limbs
     const lengths = [26, 18, 18, 20, 20];
     for (const len of lengths) {
       this.limbDebris.push({

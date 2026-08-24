@@ -1,12 +1,11 @@
-// Wave Director and Enemy Spawning Manager
 
-import { Zombie } from '../entities/zombies.js?v=8.3';
-import { DarkLord } from '../entities/dark_lord.js?v=8.3';
-import { KingOrange } from '../entities/king_orange.js?v=8.3';
-import { H4C3R } from '../entities/h4c3r.js?v=8.3';
-import { audio } from '../engine/audio.js?v=8.3';
-import { particles } from '../engine/particles.js?v=8.3';
-import { speech } from '../engine/speech.js?v=8.3';
+import { Zombie } from '../entities/zombies.js?v=8.4';
+import { DarkLord } from '../entities/dark_lord.js?v=8.4';
+import { KingOrange } from '../entities/king_orange.js?v=8.4';
+import { H4C3R } from '../entities/h4c3r.js?v=8.4';
+import { audio } from '../engine/audio.js?v=8.4';
+import { particles } from '../engine/particles.js?v=8.4';
+import { speech } from '../engine/speech.js?v=8.4';
 
 const BOSS_WAVES = new Set([5, 10, 11, 15]);
 export const ABSOLUTE_ACTIVE_ENEMY_CAP = 12;
@@ -16,9 +15,9 @@ export const MAX_RECIPE_PACK_SIZE = 5;
 export const MAX_BOSS_HELPERS = 4;
 
 export const WAVE_RECIPE_TOTALS = Object.freeze({
-  1: 6, 2: 8, 3: 10, 4: 12, 5: 4,
-  6: 12, 7: 12, 8: 14, 9: 14, 10: 5,
-  11: 1, 12: 12, 13: 14, 14: 16, 15: 1
+  1: 6, 2: 9, 3: 12, 4: 14, 5: 4,
+  6: 15, 7: 15, 8: 16, 9: 17, 10: 5,
+  11: 1, 12: 15, 13: 17, 14: 20, 15: 1
 });
 
 const makePack = (gap, enemies) => {
@@ -45,49 +44,49 @@ const makeRecipe = (expectedTotal, packs, bossHelpers = 0) => {
   return Object.freeze({ total, bossHelpers, packs: Object.freeze([...packs]) });
 };
 
-// Every campaign encounter is authored and immutable. Small packs make each
-// enemy mix learnable, while 0.9-1.2 second gaps and the hard active cap keep
-// the canvas responsive on phones and older laptops.
 export const WAVE_RECIPES = Object.freeze({
   1: makeRecipe(WAVE_RECIPE_TOTALS[1], [
     makePack(1.1, ['walker', 'walker', 'walker']),
     makePack(1.15, ['walker', 'walker', 'walker'])
   ]),
   2: makeRecipe(WAVE_RECIPE_TOTALS[2], [
-    makePack(1.05, ['walker', 'runner', 'walker', 'runner']),
-    makePack(1.15, ['walker', 'runner', 'walker', 'runner'])
+    makePack(1.05, ['walker', 'crawler', 'runner', 'crawler']),
+    makePack(1.15, ['walker', 'runner', 'crawler', 'walker', 'crawler'])
   ]),
   3: makeRecipe(WAVE_RECIPE_TOTALS[3], [
-    makePack(0.95, ['walker', 'spitter', 'walker', 'runner', 'spitter']),
-    makePack(1.1, ['runner', 'walker', 'spitter', 'runner', 'spitter'])
+    makePack(0.95, ['walker', 'spitter', 'crawler', 'runner']),
+    makePack(1.05, ['crawler', 'walker', 'spitter', 'crawler']),
+    makePack(1.15, ['runner', 'spitter', 'crawler', 'spitter'])
   ]),
   4: makeRecipe(WAVE_RECIPE_TOTALS[4], [
-    makePack(0.9, ['runner', 'walker', 'runner', 'spitter']),
-    makePack(1.05, ['runner', 'brute', 'walker', 'spitter']),
-    makePack(1.15, ['runner', 'walker', 'spitter', 'brute'])
+    makePack(0.9, ['runner', 'walker', 'crawler', 'spitter', 'crawler']),
+    makePack(1.05, ['runner', 'brute', 'walker', 'shieldbearer', 'crawler']),
+    makePack(1.15, ['runner', 'spitter', 'brute', 'shieldbearer'])
   ]),
   5: makeRecipe(WAVE_RECIPE_TOTALS[5], [
     makePack(1.2, ['titan_boss', 'runner', 'spitter', 'runner'])
   ], 3),
   6: makeRecipe(WAVE_RECIPE_TOTALS[6], [
-    makePack(0.95, ['walker', 'spitter', 'runner', 'walker']),
-    makePack(1.05, ['runner', 'spitter', 'walker', 'runner']),
-    makePack(1.15, ['brute', 'walker', 'spitter', 'walker'])
+    makePack(0.95, ['walker', 'spitter', 'crawler', 'runner', 'crawler']),
+    makePack(1.05, ['shieldbearer', 'runner', 'spitter', 'boom_bug', 'crawler']),
+    makePack(1.15, ['brute', 'walker', 'boom_bug', 'spitter', 'crawler'])
   ]),
   7: makeRecipe(WAVE_RECIPE_TOTALS[7], [
-    makePack(0.9, ['runner', 'walker', 'runner', 'spitter']),
-    makePack(1.05, ['brute', 'spitter', 'runner', 'walker']),
-    makePack(1.2, ['walker', 'spitter', 'runner', 'brute'])
+    makePack(0.9, ['crawler', 'runner', 'crawler', 'spitter', 'boom_bug']),
+    makePack(1.05, ['brute', 'shieldbearer', 'crawler', 'runner', 'walker']),
+    makePack(1.2, ['crawler', 'spitter', 'boom_bug', 'brute', 'crawler'])
   ]),
   8: makeRecipe(WAVE_RECIPE_TOTALS[8], [
-    makePack(1.0, ['spitter', 'runner', 'walker', 'spitter', 'runner']),
-    makePack(1.1, ['walker', 'brute', 'spitter', 'runner', 'walker']),
-    makePack(1.2, ['spitter', 'runner', 'brute', 'walker'])
+    makePack(0.9, ['spitter', 'runner', 'crawler', 'boom_bug']),
+    makePack(1.0, ['walker', 'shieldbearer', 'spitter', 'crawler']),
+    makePack(1.1, ['runner', 'brute', 'crawler', 'boom_bug']),
+    makePack(1.2, ['spitter', 'runner', 'shieldbearer', 'crawler'])
   ]),
   9: makeRecipe(WAVE_RECIPE_TOTALS[9], [
-    makePack(0.9, ['runner', 'spitter', 'runner', 'walker', 'spitter']),
-    makePack(1.05, ['runner', 'brute', 'walker', 'spitter', 'runner']),
-    makePack(1.2, ['brute', 'walker', 'spitter', 'runner'])
+    makePack(0.9, ['runner', 'spitter', 'crawler', 'boom_bug', 'crawler']),
+    makePack(1.0, ['runner', 'brute', 'shieldbearer', 'spitter']),
+    makePack(1.1, ['crawler', 'runner', 'boom_bug', 'shieldbearer']),
+    makePack(1.2, ['brute', 'crawler', 'spitter', 'boom_bug'])
   ]),
   10: makeRecipe(WAVE_RECIPE_TOTALS[10], [
     makePack(1.2, ['dark_lord', 'runner', 'spitter', 'runner', 'brute'])
@@ -96,20 +95,21 @@ export const WAVE_RECIPES = Object.freeze({
     makeSoloBossPack(1.2, 'king_orange')
   ]),
   12: makeRecipe(WAVE_RECIPE_TOTALS[12], [
-    makePack(0.9, ['runner', 'walker', 'spitter', 'runner']),
-    makePack(1.05, ['walker', 'spitter', 'runner', 'brute']),
-    makePack(1.2, ['walker', 'spitter', 'runner', 'walker'])
+    makePack(0.9, ['runner', 'crawler', 'spitter', 'crawler', 'boom_bug']),
+    makePack(1.05, ['walker', 'shieldbearer', 'runner', 'brute', 'crawler']),
+    makePack(1.2, ['crawler', 'spitter', 'boom_bug', 'shieldbearer', 'runner'])
   ]),
   13: makeRecipe(WAVE_RECIPE_TOTALS[13], [
-    makePack(0.95, ['spitter', 'runner', 'walker', 'runner', 'brute']),
-    makePack(1.1, ['runner', 'walker', 'spitter', 'runner', 'brute']),
-    makePack(1.2, ['walker', 'spitter', 'runner', 'brute'])
+    makePack(0.9, ['spitter', 'runner', 'crawler', 'boom_bug', 'brute']),
+    makePack(1.0, ['runner', 'shieldbearer', 'spitter', 'crawler']),
+    makePack(1.1, ['crawler', 'boom_bug', 'runner', 'brute']),
+    makePack(1.2, ['shieldbearer', 'spitter', 'crawler', 'boom_bug'])
   ]),
   14: makeRecipe(WAVE_RECIPE_TOTALS[14], [
-    makePack(0.9, ['runner', 'spitter', 'runner', 'brute']),
-    makePack(1.0, ['walker', 'spitter', 'runner', 'brute']),
-    makePack(1.1, ['walker', 'runner', 'spitter', 'brute']),
-    makePack(1.2, ['runner', 'spitter', 'walker', 'brute'])
+    makePack(0.9, ['runner', 'spitter', 'crawler', 'boom_bug', 'shieldbearer']),
+    makePack(1.0, ['crawler', 'brute', 'runner', 'shieldbearer', 'boom_bug']),
+    makePack(1.1, ['walker', 'crawler', 'spitter', 'boom_bug', 'brute']),
+    makePack(1.2, ['runner', 'shieldbearer', 'crawler', 'spitter', 'boom_bug'])
   ]),
   15: makeRecipe(WAVE_RECIPE_TOTALS[15], [
     makeSoloBossPack(1.2, 'h4c3r')
@@ -148,7 +148,6 @@ export class WaveDirector {
     audio.playWaveStart();
     audio.setIntensity(BOSS_WAVES.has(this.currentWave) ? 0.95 : (this.currentWave >= 12 ? 0.55 : 0.2));
 
-    // Build spawn queue for this wave
     this.generateWaveQueue(this.currentWave);
   }
 
@@ -166,8 +165,6 @@ export class WaveDirector {
         const helperIndex = this.currentWave === 10 && type !== 'dark_lord' ? enemyIndex : -1;
         this.spawnQueue.push({
           type,
-          // Enemies enter as a readable 3-5 target pack, followed by the
-          // authored 0.9-1.2 second breather.
           delay: isPackTail ? pack.gap : 0.18,
           packIndex,
           bossHealthGate: helperIndex >= 0 ? (helperIndex <= 2 ? 0.72 : 0.42) : null
@@ -179,7 +176,6 @@ export class WaveDirector {
   update(dt, player, groundY, sketchBlocks, camera, onWaveComplete, platforms = [], friendlyTargets = []) {
     if (!this.isWaveActive) return;
 
-    // Handle Spawning
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0 && this.spawnQueue.length > 0) {
       const activeBudget = Math.min(
@@ -196,8 +192,6 @@ export class WaveDirector {
       const waitingForBossGate = Number.isFinite(queuedEnemy.bossHealthGate)
         && bossRatio > queuedEnemy.bossHealthGate;
       if (waitingForBossGate || this.zombies.length >= activeBudget) {
-        // Poll at a low rate while capped rather than immediately replacing an
-        // enemy in the same frame it is removed.
         this.spawnTimer = 0.2;
       } else {
         const nextEnemy = this.spawnQueue.shift();
@@ -206,7 +200,6 @@ export class WaveDirector {
       }
     }
 
-    // Update active zombies / bosses
     for (let i = this.zombies.length - 1; i >= 0; i--) {
       const z = this.zombies[i];
       z.update(dt, groundY, player, sketchBlocks, camera, platforms, this.zombies, friendlyTargets);
@@ -216,7 +209,6 @@ export class WaveDirector {
       }
     }
 
-    // Check if Wave is Cleared
     if (this.isWaveActive && this.spawnQueue.length === 0 && this.zombies.length === 0 && !this.isWaveClearing) {
       this.isWaveClearing = true;
       this.clearTimer = 1.0;
@@ -277,7 +269,6 @@ export class WaveDirector {
       particles.addTextBanner(spawnX, groundY - 80, '💀 TITAN UNDEAD 💀', '#ff2244');
     }
 
-    // Spawn dust puff
     particles.createDust(spawnX, groundY, 8);
     particles.addShockwave(spawnX, groundY - 30, 54, '#64ff7b', 4);
   }
@@ -296,8 +287,6 @@ export class WaveDirector {
     this.spawnSerial++;
     let spawnX = side > 0 ? rightEdge - inset : leftEdge + inset;
 
-    // Fallback for unusual positions: always choose the opposite edge if the
-    // first candidate would appear inside immediate melee range.
     if (Math.abs(spawnX - playerX) < 380) {
       side *= -1;
       spawnX = side > 0 ? rightEdge - inset : leftEdge + inset;

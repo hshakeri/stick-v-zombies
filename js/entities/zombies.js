@@ -1,11 +1,10 @@
-// Stick Zombie Horde Entities (Walker, Runner, Spitter, Brute, Titan Boss)
 
-import { StickFigureRenderer } from './stickman.js?v=8.3';
-import { particles } from '../engine/particles.js?v=8.3';
-import { audio } from '../engine/audio.js?v=8.3';
-import { projectiles } from './projectiles.js?v=8.3';
-import { combat } from '../systems/combat.js?v=8.3';
-import { speech } from '../engine/speech.js?v=8.3';
+import { StickFigureRenderer } from './stickman.js?v=8.4';
+import { particles } from '../engine/particles.js?v=8.4';
+import { audio } from '../engine/audio.js?v=8.4';
+import { projectiles } from './projectiles.js?v=8.4';
+import { combat } from '../systems/combat.js?v=8.4';
+import { speech } from '../engine/speech.js?v=8.4';
 
 const HOOK_PULL_ARENA_BOUND = 1060;
 const ZOMBIE_ARENA_BOUND = 1060;
@@ -26,7 +25,6 @@ export class Zombie {
     this.isHurt = false;
     this.hurtTimer = 0;
 
-    // Attack Windup and Interrupt System
     this.windupTimer = 0;
     this.windupTarget = null;
     this.attackCooldown = 0;
@@ -37,7 +35,6 @@ export class Zombie {
     this.actionDuration = 0;
     this.actionHitApplied = false;
 
-    // Status modifiers
     this.freezeTimer = 0;
     this.stunTimer = 0;
     this.isGrounded = false;
@@ -46,13 +43,16 @@ export class Zombie {
     this.hookPullSide = 1;
     this.hookPullStopDistance = 76;
     this.leapActive = false;
+    this.crawlerDashTimer = 0;
+    this.shieldFlashTimer = 0;
     this.glitchHopCooldown = 0.35 + Math.random() * 0.5;
     this.combatTargets = [];
+    this.arenaGroundY = Number.isFinite(y) ? Math.max(0, y) : 0;
+    this.sketchBlocks = [];
+    this.platforms = [];
 
-    // Stats configuration per type
     this.initStats(type, wave);
 
-    // Renderer
     this.renderer = new StickFigureRenderer(this.color, this.strokeWidth, this.scale);
     this.renderer.isHunched = true;
     this.renderer.isZombie = true;
@@ -90,6 +90,51 @@ export class Zombie {
         this.inkReward = 12;
         this.scoreReward = 100;
         this.preferredDist = 280;
+        this.hookClass = 'pullable';
+        break;
+
+      case 'crawler':
+        this.maxHp = Math.round(24 * waveScale);
+        this.hp = this.maxHp;
+        this.speed = 185;
+        this.damage = 8;
+        this.radius = 14;
+        this.height = 31;
+        this.color = '#5f8f2f';
+        this.strokeWidth = 4;
+        this.scale = 0.62;
+        this.inkReward = 6;
+        this.scoreReward = 60;
+        this.hookClass = 'pullable';
+        break;
+
+      case 'shieldbearer':
+        this.maxHp = Math.round(110 * waveScale);
+        this.hp = this.maxHp;
+        this.speed = 76;
+        this.damage = 15;
+        this.radius = 25;
+        this.height = 68;
+        this.color = '#315f3a';
+        this.strokeWidth = 7;
+        this.scale = 1.16;
+        this.inkReward = 20;
+        this.scoreReward = 220;
+        this.hookClass = 'pullable';
+        break;
+
+      case 'boom_bug':
+        this.maxHp = Math.round(52 * waveScale);
+        this.hp = this.maxHp;
+        this.speed = 105;
+        this.damage = 18;
+        this.radius = 22;
+        this.height = 45;
+        this.color = '#75661f';
+        this.strokeWidth = 6;
+        this.scale = 0.88;
+        this.inkReward = 14;
+        this.scoreReward = 140;
         this.hookClass = 'pullable';
         break;
 
@@ -147,35 +192,33 @@ export class Zombie {
     if (this.isDead) return;
 
     this.platforms = platforms;
+    this.sketchBlocks = sketchBlocks;
+    if (Number.isFinite(groundY)) this.arenaGroundY = groundY;
     this.animTimer += dt;
     this.stateTimer += dt;
 
     if (this.attackCooldown > 0) {
       this.attackCooldown -= dt;
     }
+    if (this.shieldFlashTimer > 0) this.shieldFlashTimer -= dt;
     if (this.freezeTimer > 0) this.freezeTimer -= dt;
     if (this.glitchHopCooldown > 0) this.glitchHopCooldown -= dt;
 
-    // The hook owns movement for a few frames so ordinary AI cannot overwrite
-    // the pull velocity before physics integration.
     if (this.hookPullTimer > 0) {
       this.updateHookPull(dt, groundY, sketchBlocks);
       return;
     }
 
-    // 1. Check Hit Stun
     if (this.hurtTimer > 0) {
       this.hurtTimer -= dt;
       this.pose = 'idle';
       this.vx *= 0.88; // Decelerate from knockback
       if (this.hurtTimer <= 0) this.isHurt = false;
 
-      // Apply physics during hit stun and skip attacking
       this.applyPhysics(dt, groundY, sketchBlocks);
       return;
     }
 
-    // 2. Check Stun (from Green Ally)
     if (this.stunTimer > 0) {
       this.stunTimer -= dt;
       this.pose = 'idle';
@@ -186,8 +229,6 @@ export class Zombie {
 
     const currentSpeed = this.speed * (this.freezeTimer > 0 ? 0.45 : 1.0);
 
-    // 3. AI Behaviors. Nearby vulnerable allies can intercept attention, but
-    // distant summons never drag a zombie away from Orange across the arena.
     const combatTargets = this.getCombatTargets(player, friendlyTargets);
     const target = this.type === 'titan_boss'
       ? (this.isValidCombatTarget(player) ? player : null)
@@ -199,17 +240,35 @@ export class Zombie {
       return;
     }
 
-    // Ordinary enemies can make one cheap physics hop toward a nearby target
-    // on a platform. This closes the permanent safe-ledge exploit without a
-    // pathfinder, extra entities, or a new attack to teach the player.
+    if (this.type === 'crawler' && this.crawlerDashTimer > 0) {
+      this.crawlerDashTimer = Math.max(0, this.crawlerDashTimer - dt);
+      this.pose = 'attack_slide';
+      this.vx = this.facing * this.speed * 2.65;
+      let dashTarget = null;
+      let nearestDashTarget = 39;
+      for (const candidate of combatTargets) {
+        if (!this.isValidCombatTarget(candidate)) continue;
+        const contactDistance = Math.hypot(candidate.x - this.x, candidate.y - this.y);
+        if (contactDistance < nearestDashTarget) {
+          dashTarget = candidate;
+          nearestDashTarget = contactDistance;
+        }
+      }
+      if (dashTarget) {
+        this.crawlerDashTimer = 0;
+        this.vx *= 0.25;
+        audio.playZombieGroan();
+        dashTarget.takeDamage(this.damage, dashTarget.x >= this.x ? 1 : -1, 230);
+      }
+      this.applyPhysics(dt, groundY, sketchBlocks);
+      return;
+    }
+
     if (target && this.tryGlitchHop(target, currentSpeed)) {
       this.applyPhysics(dt, groundY, sketchBlocks);
       return;
     }
 
-    // A runner's leap has a physical contact hitbox. It can collide with the
-    // ally that blocks its path even if the jump originally started at Orange;
-    // the collision is spatial, not a mid-air target snap.
     if (this.type === 'runner' && this.leapActive) {
       let contactTarget = null;
       let nearestContact = 54;
@@ -232,8 +291,6 @@ export class Zombie {
       if (this.isGrounded) this.leapActive = false;
     }
 
-    // Finish only the attack that was visibly telegraphed. If that ally has
-    // already retreated, the bite misses instead of snapping onto Orange.
     if (this.windupTimer > 0) {
       this.windupTimer -= dt;
       this.vx = 0;
@@ -258,14 +315,12 @@ export class Zombie {
       this.facing = dx >= 0 ? 1 : -1;
 
       if (this.type === 'walker') {
-        // Standard Zombie: Approach, telegraph windup, then bite
         if (dist > 45) {
           this.vx = this.facing * currentSpeed;
           this.pose = 'zombie_walk';
         } else {
           this.vx = 0;
           if (this.attackCooldown <= 0) {
-            // Start 0.28s windup so player can react and interrupt!
             this.windupTimer = 0.28;
             this.windupTarget = target;
             this.pose = 'attack_jab';
@@ -273,15 +328,36 @@ export class Zombie {
             this.pose = 'zombie_idle';
           }
         }
+      } else if (this.type === 'crawler') {
+        if (dist > 175) {
+          const scuttle = 0.88 + Math.sin(this.animTimer * 17) * 0.12;
+          this.vx = this.facing * currentSpeed * scuttle;
+          this.pose = 'run';
+        } else if (dist > 48 && this.isGrounded && this.attackCooldown <= 0) {
+          this.crawlerDashTimer = 0.22;
+          this.attackCooldown = 1.35;
+          this.vx = this.facing * currentSpeed * 2.65;
+          this.pose = 'attack_slide';
+          audio.playRunnerScreech();
+          particles.createDust(this.x, this.y, 3, -this.facing);
+        } else if (dist > 48) {
+          this.vx = this.facing * currentSpeed;
+          this.pose = 'run';
+        } else {
+          this.vx = 0;
+          if (this.attackCooldown <= 0) {
+            this.windupTimer = 0.18;
+            this.windupTarget = target;
+            this.pose = 'attack_jab';
+          } else {
+            this.pose = 'zombie_idle';
+          }
+        }
       } else if (this.type === 'runner') {
-        // Agile Runner
         if (dist > 180) {
           this.vx = this.facing * currentSpeed;
           this.pose = 'run';
         } else if (dist > 50 && this.isGrounded && this.attackCooldown <= 0) {
-          // Leap attack
-          // A low, fast arc crosses the target's body instead of harmlessly
-          // sailing over it, while still leaving a readable jump silhouette.
           this.vy = -320;
           this.vx = this.facing * (currentSpeed * 1.5);
           this.isGrounded = false;
@@ -301,7 +377,6 @@ export class Zombie {
           }
         }
       } else if (this.type === 'spitter') {
-        // Ranged Spitter
         const retreatBlocked = (this.x <= -ZOMBIE_ARENA_BOUND + 8 && this.facing > 0)
           || (this.x >= ZOMBIE_ARENA_BOUND - 8 && this.facing < 0);
         if (dist < this.preferredDist - 60 && !retreatBlocked) {
@@ -319,7 +394,6 @@ export class Zombie {
           }
         }
       } else if (this.type === 'brute') {
-        // Heavy Brute
         if (dist > 80) {
           this.vx = this.facing * currentSpeed;
           this.pose = 'zombie_walk';
@@ -331,12 +405,33 @@ export class Zombie {
             this.pose = 'zombie_idle';
           }
         }
+      } else if (this.type === 'shieldbearer') {
+        if (dist > 53) {
+          this.vx = this.facing * currentSpeed;
+          this.pose = 'zombie_walk';
+        } else {
+          this.vx = 0;
+          if (this.attackCooldown <= 0) {
+            this.windupTimer = 0.34;
+            this.windupTarget = target;
+            this.pose = 'attack_jab';
+          } else {
+            this.pose = 'zombie_idle';
+          }
+        }
+      } else if (this.type === 'boom_bug') {
+        if (dist > 128) {
+          this.vx = this.facing * currentSpeed;
+          this.pose = 'zombie_walk';
+        } else {
+          this.vx = 0;
+          if (this.attackCooldown <= 0) this.beginHeavyAction('boom_burst');
+          else this.pose = 'zombie_idle';
+        }
       } else if (this.type === 'titan_boss') {
-        // Boss AI
         this.updateBossAI(dt, dist, target, camera, combatTargets);
       }
 
-      // Horde Flocking / Separation Force (Prevents single-file smearing)
       if (zombies && Array.isArray(zombies)) {
         for (const other of zombies) {
           if (other !== this && !other.isDead && !other.isBoss) {
@@ -355,7 +450,6 @@ export class Zombie {
       this.pose = 'idle';
     }
 
-    // Apply Physics & Collisions
     this.applyPhysics(dt, groundY, sketchBlocks);
   }
 
@@ -385,15 +479,14 @@ export class Zombie {
   beginHeavyAction(kind) {
     if (this.actionPhase !== 'idle') return false;
     const isTitan = kind === 'titan_smash';
-    this.actionKind = isTitan ? 'titan_smash' : 'brute_slam';
+    const isBoomBug = kind === 'boom_burst';
+    this.actionKind = isTitan ? 'titan_smash' : (isBoomBug ? 'boom_burst' : 'brute_slam');
     this.actionPhase = 'windup';
-    this.actionDuration = isTitan ? 0.75 : 0.55;
+    this.actionDuration = isTitan ? 0.75 : (isBoomBug ? 0.7 : 0.55);
     this.actionTimer = this.actionDuration;
     this.actionHitApplied = false;
     this.vx = 0;
     this.pose = 'attack_cross';
-    // This sound is deliberately restrained; the ground ring carries the
-    // warning while the impact sounds remain reserved for the active frame.
     audio.playWhoosh();
     return true;
   }
@@ -413,6 +506,7 @@ export class Zombie {
         if (!this.actionHitApplied) {
           this.actionHitApplied = true;
           if (this.actionKind === 'titan_smash') this.titanSmash(combatTargets, camera);
+          else if (this.actionKind === 'boom_burst') this.boomBurst(combatTargets, camera);
           else this.bruteSlam(combatTargets, camera);
         }
       }
@@ -424,7 +518,8 @@ export class Zombie {
       this.actionTimer = Math.max(0, this.actionTimer - actionDt);
       if (this.actionTimer <= 0) {
         this.actionPhase = 'recovery';
-        this.actionDuration = this.actionKind === 'titan_smash' ? 0.65 : 0.45;
+        this.actionDuration = this.actionKind === 'titan_smash' ? 0.65
+          : (this.actionKind === 'boom_burst' ? 0.3 : 0.45);
         this.actionTimer = this.actionDuration;
       }
       return true;
@@ -433,7 +528,8 @@ export class Zombie {
     this.pose = 'zombie_idle';
     this.actionTimer = Math.max(0, this.actionTimer - actionDt);
     if (this.actionTimer <= 0) {
-      const recoveryCooldown = this.actionKind === 'titan_smash' ? 1.1 : 1.4;
+      const recoveryCooldown = this.actionKind === 'titan_smash' ? 1.1
+        : (this.actionKind === 'boom_burst' ? 1.8 : 1.4);
       this.actionPhase = 'idle';
       this.actionKind = null;
       this.actionDuration = 0;
@@ -478,9 +574,6 @@ export class Zombie {
     for (const ally of friendlyTargets || []) {
       if (!this.isValidCombatTarget(ally)) continue;
       const distance = Math.hypot(ally.x - this.x, ally.y - this.y);
-      // A small aggro bias makes the interception legible without letting a
-      // summon drag enemies across the arena. Calling on the wrong side still
-      // matters, but an ally near Orange is not ignored over a few pixels.
       const score = distance - 55;
       if (distance <= 340 && score < bestScore) {
         target = ally;
@@ -517,8 +610,6 @@ export class Zombie {
     this.windupTarget = null;
     this.attackCooldown = Math.max(this.attackCooldown, duration + 0.3);
     if (Math.abs(this.x - source.x) <= this.hookPullStopDistance) {
-      // The hook gathers; it must never push an enemy that is already in the
-      // intended melee pocket farther away from Orange.
       this.hookPullTimer = 0;
       this.hookPullSource = null;
       this.vx = 0;
@@ -560,7 +651,6 @@ export class Zombie {
   }
 
   applyPhysics(dt, groundY, sketchBlocks) {
-    // Gravity
     this.vy += 950 * dt;
     if (this.hurtTimer > 0) {
       this.vx *= Math.pow(0.88, dt * 60);
@@ -569,8 +659,6 @@ export class Zombie {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    // Clamp every ordinary enemy and Titan to the painted arena so knockback
-    // and retreat behavior cannot strand the last target offscreen.
     if (this.x <= -ZOMBIE_ARENA_BOUND) {
       this.x = -ZOMBIE_ARENA_BOUND;
       if (this.vx < 0) this.vx = 0;
@@ -579,15 +667,12 @@ export class Zombie {
       if (this.vx > 0) this.vx = 0;
     }
 
-    // Sketch Block and Platform collisions. Check the swept vertical crossing
-    // before the ground so a low frame rate cannot tunnel through a ledge.
     let landedOnPlatform = false;
     if (this.vy >= 0) {
       landedOnPlatform = this.landOnPlatformCollection(sketchBlocks, previousY)
         || this.landOnPlatformCollection(this.platforms, previousY);
     }
 
-    // Ground collision
     if (!landedOnPlatform && this.y >= groundY) {
       this.y = groundY;
       this.vy = 0;
@@ -595,6 +680,21 @@ export class Zombie {
     } else if (!landedOnPlatform) {
       this.isGrounded = false;
     }
+  }
+
+  getSplatterGroundY() {
+    let surfaceY = Number.isFinite(this.arenaGroundY) ? this.arenaGroundY : this.y;
+    for (const collection of [this.sketchBlocks, this.platforms]) {
+      if (!Array.isArray(collection)) continue;
+      for (const platform of collection) {
+        const halfW = (platform.width || 60) / 2;
+        const top = platform.y - (platform.height || 60);
+        if (this.x + this.radius > platform.x - halfW
+            && this.x - this.radius < platform.x + halfW
+            && top >= this.y - 5 && top < surfaceY) surfaceY = top;
+      }
+    }
+    return surfaceY;
   }
 
   landOnPlatformCollection(platforms, previousY) {
@@ -659,8 +759,54 @@ export class Zombie {
     }
   }
 
+  boomBurst(targets, camera) {
+    audio.playWindowsError();
+    audio.playBruteStomp();
+    camera?.addShake?.(0.24);
+    particles.emitImpact?.('heavy', this.x, this.y - 22, {
+      color: '#ff9f1c',
+      direction: this.facing,
+      seed: ((this.x * 29) ^ (this.y * 13) ^ 0xb00) | 0,
+      speedlines: false
+    });
+    particles.addComicPopup(this.x, this.y - 28, 'BOOM!', '#ff6d00', '#fff4b0');
+    particles.emitSplatter(this.x, this.y - 24, {
+      profile: 'defeat', groundY: this.getSplatterGroundY(), direction: this.facing, stains: 2,
+      seed: ((this.x * 43) ^ (this.animTimer * 1000) ^ 0xb00b) | 0
+    });
+
+    for (const target of targets || []) {
+      if (!this.isValidCombatTarget(target)) continue;
+      const dist = Math.hypot(target.x - this.x, target.y - this.y);
+      if (dist < 125) target.takeDamage(this.damage, target.x >= this.x ? 1 : -1, 410);
+    }
+
+    this.hp = 0;
+    this.isDead = true;
+    this.actionPhase = 'idle';
+    this.actionKind = null;
+    particles.createStickLimbExplosion(this.x, this.y, 0, this.color);
+  }
+
   takeDamage(amount, knockbackDir = 1, knockbackPower = 380, isCrit = false) {
-    if (this.isDead) return;
+    if (this.isDead) return 0;
+
+    if (this.type === 'shieldbearer') {
+      const direction = Math.sign(knockbackDir) || 1;
+      const hitShieldFront = direction === -this.facing;
+      const isHeavyHit = amount >= 60 || knockbackPower >= 700;
+      if (hitShieldFront && !isHeavyHit) {
+        const lightHit = amount <= 40 && knockbackPower < 600;
+        amount = Math.max(1, Math.round(amount * (lightHit ? 0.22 : 0.52)));
+        knockbackPower *= lightHit ? 0.18 : 0.38;
+        this.shieldFlashTimer = 0.18;
+        particles.emitImpact?.('light', this.x + this.facing * 22, this.y - 35, {
+          color: '#9ee7ff',
+          direction: -this.facing,
+          seed: ((this.x * 19) ^ (this.animTimer * 100)) | 0
+        });
+      }
+    }
 
     this.hp -= amount;
     this.isHurt = true;
@@ -669,18 +815,26 @@ export class Zombie {
     this.windupTarget = null;
     this.cancelHeavyAction(0.65);
     this.leapActive = false;
+    this.crawlerDashTimer = 0;
     this.attackCooldown = Math.max(this.attackCooldown, 0.5); // Delay next attack
 
-    // Apply knockback
     this.vx = knockbackDir * knockbackPower;
     this.vy = -Math.min(knockbackPower * 0.35, 220);
 
     particles.addDamageText(this.x, this.y - this.height * 0.8, amount, isCrit);
     particles.createZombieSplatter(this.x, this.y - this.height * 0.5, 8, this.color);
+    particles.emitSplatter(this.x, this.y - this.height * 0.45, {
+      profile: 'hit',
+      groundY: this.getSplatterGroundY(),
+      direction: knockbackDir,
+      count: isCrit ? 11 : Math.max(4, Math.min(8, Math.ceil(amount / 6))),
+      seed: ((this.x * 31) ^ (this.animTimer * 1000)) | 0
+    });
 
     if (this.hp <= 0) {
       this.die();
     }
+    return amount;
   }
 
   applyFreeze(duration = 4.0) {
@@ -693,6 +847,7 @@ export class Zombie {
     this.windupTarget = null;
     this.cancelHeavyAction(0.65);
     this.leapActive = false;
+    this.crawlerDashTimer = 0;
   }
 
   die(isFinisher = false) {
@@ -701,6 +856,12 @@ export class Zombie {
     combat.registerKill(this);
     audio.playZombieDeath();
     particles.createZombieSplatter(this.x, this.y - this.height * 0.5, 24, this.color);
+    particles.emitSplatter(this.x, this.y - this.height * 0.45, {
+      profile: 'defeat',
+      groundY: this.getSplatterGroundY(),
+      direction: this.vx,
+      seed: ((this.x * 47) ^ (this.animTimer * 1000) ^ 0xdead) | 0
+    });
     particles.addShockwave(this.x, this.y - 20, 60, this.color, 4);
     particles.createStickLimbExplosion(this.x, this.y, 0, this.color);
 
@@ -715,15 +876,11 @@ export class Zombie {
   draw(ctx, crowded = false) {
     if (this.isDead) return;
 
-    // Freeze overlay
     const isFrozen = this.freezeTimer > 0;
     const isStunned = this.stunTimer > 0;
 
     this.drawHeavyTelegraph(ctx);
 
-    // In a packed ordinary horde the per-stick green glow is expensive and
-    // visually muddy. Bosses and any heavy currently communicating an action
-    // keep it, while the renderer preserves the full zombie silhouette.
     const suppressOrdinaryGlow = crowded === true && !this.isBoss && this.actionPhase === 'idle';
     this.renderer.draw(ctx, {
       x: this.x,
@@ -743,7 +900,6 @@ export class Zombie {
 
     this.drawTypeSilhouette(ctx, suppressOrdinaryGlow);
 
-    // Stunned stars above head
     if (isStunned) {
       ctx.fillStyle = '#ffea00';
       const angle = this.animTimer * 6;
@@ -752,21 +908,17 @@ export class Zombie {
       ctx.fill();
     }
 
-    // Health bar above head for all non-boss damaged zombies
     if (this.type !== 'titan_boss' && this.hp < this.maxHp && this.hp > 0) {
       const barWidth = Math.max(44, 40 * this.scale);
       const barHeight = 5;
       const barY = this.y - this.height - 14;
 
-      // Background border
       ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
       ctx.fillRect(this.x - barWidth / 2 - 1, barY - 1, barWidth + 2, barHeight + 2);
 
-      // Red damage underfill
       ctx.fillStyle = '#d50000';
       ctx.fillRect(this.x - barWidth / 2, barY, barWidth, barHeight);
 
-      // Green active HP fill
       ctx.fillStyle = isFrozen ? '#00e5ff' : '#00e676';
       const fillW = Math.max(0, barWidth * (this.hp / this.maxHp));
       ctx.fillRect(this.x - barWidth / 2, barY, fillW, barHeight);
@@ -787,8 +939,9 @@ export class Zombie {
   drawHeavyTelegraph(ctx) {
     if (this.actionPhase !== 'windup' || this.actionDuration <= 0) return;
     const isTitan = this.actionKind === 'titan_smash';
-    const radius = isTitan ? 220 : 150;
-    const color = isTitan ? '#ff2244' : '#70ff66';
+    const isBoomBug = this.actionKind === 'boom_burst';
+    const radius = isTitan ? 220 : (isBoomBug ? 125 : 150);
+    const color = isTitan ? '#ff2244' : (isBoomBug ? '#ff9f1c' : '#70ff66');
     const progress = Math.max(0, Math.min(1, 1 - this.actionTimer / this.actionDuration));
     const pulse = 0.75 + Math.sin(this.animTimer * 15) * 0.15;
 
@@ -802,20 +955,18 @@ export class Zombie {
     ctx.globalAlpha = Math.min(1, (0.48 + progress * 0.46) * pulse);
     ctx.strokeStyle = color;
     ctx.shadowColor = color;
-    ctx.shadowBlur = isTitan ? 16 : 10;
-    ctx.lineWidth = isTitan ? 6 : 4;
+    ctx.shadowBlur = isTitan ? 16 : (isBoomBug ? 13 : 10);
+    ctx.lineWidth = isTitan ? 6 : (isBoomBug ? 5 : 4);
     ctx.setLineDash([16, 9]);
     ctx.beginPath();
     ctx.ellipse(this.x, this.y - 2, radius, Math.max(18, radius * 0.11), 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // A tightening center arc gives young players an immediate countdown cue
-    // even when the outer danger ring reaches beyond the camera edge.
     ctx.globalAlpha = 0.9;
     ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.arc(this.x, this.y - 5, isTitan ? 43 : 31, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+    ctx.arc(this.x, this.y - 5, isTitan ? 43 : (isBoomBug ? 35 : 31), -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
     ctx.stroke();
     ctx.restore();
   }
@@ -829,9 +980,31 @@ export class Zombie {
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
-    if (this.type === 'runner') {
-      // A sharp rear fin and long ankle streak make runners readable even when
-      // the horde is compressed into overlapping stick figures.
+    if (this.type === 'crawler') {
+      ctx.fillStyle = '#29451e';
+      ctx.strokeStyle = '#a8e063';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(-18, -18); ctx.lineTo(-8, -29); ctx.lineTo(9, -27);
+      ctx.lineTo(20, -16); ctx.lineTo(8, -9); ctx.lineTo(-10, -10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-9, -12); ctx.lineTo(-20, -2);
+      ctx.moveTo(-2, -10); ctx.lineTo(-8, 1);
+      ctx.moveTo(7, -10); ctx.lineTo(12, 1);
+      ctx.moveTo(13, -13); ctx.lineTo(25, -4);
+      ctx.stroke();
+      if (this.crawlerDashTimer > 0) {
+        ctx.globalAlpha = 0.65;
+        ctx.strokeStyle = '#cfff91';
+        ctx.beginPath();
+        ctx.moveTo(-22, -20); ctx.lineTo(-43, -20);
+        ctx.moveTo(-20, -13); ctx.lineTo(-35, -10);
+        ctx.stroke();
+      }
+    } else if (this.type === 'runner') {
       ctx.fillStyle = '#8cff64';
       ctx.strokeStyle = '#102d16';
       ctx.lineWidth = 2;
@@ -849,8 +1022,6 @@ export class Zombie {
       ctx.moveTo(-5, -7); ctx.lineTo(-20, 1);
       ctx.stroke();
     } else if (this.type === 'spitter') {
-      // A swollen back tank and forward nozzle distinguish the ranged enemy
-      // from a walker before the first acid shot is fired.
       ctx.fillStyle = '#163f36';
       ctx.strokeStyle = '#76ff03';
       ctx.lineWidth = 2.5;
@@ -871,8 +1042,6 @@ export class Zombie {
       ctx.arc(-12, -53 + bubble, 3.5, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.type === 'brute') {
-      // Wide shoulder plates and square fists preserve the brute's mass when
-      // the underlying stick limbs overlap other enemies.
       ctx.fillStyle = '#26382c';
       ctx.strokeStyle = '#b8d8bf';
       ctx.lineWidth = 3;
@@ -884,9 +1053,55 @@ export class Zombie {
       ctx.strokeRect(13, -28, 15, 14);
       ctx.fillRect(-28, -28, 15, 14);
       ctx.strokeRect(-28, -28, 15, 14);
+    } else if (this.type === 'shieldbearer') {
+      const flash = this.shieldFlashTimer > 0;
+      ctx.fillStyle = flash ? '#d7f7ff' : '#263845';
+      ctx.strokeStyle = flash ? '#ffffff' : '#8fd7e8';
+      ctx.lineWidth = flash ? 4.5 : 3;
+      if (flash && !suppressOrdinaryGlow) {
+        ctx.shadowColor = '#9ee7ff';
+        ctx.shadowBlur = 14;
+      }
+      ctx.beginPath();
+      ctx.moveTo(13, -59);
+      ctx.lineTo(35, -52);
+      ctx.lineTo(33, -24);
+      ctx.quadraticCurveTo(28, -10, 15, -4);
+      ctx.quadraticCurveTo(4, -14, 5, -37);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = flash ? '#60eaff' : '#557988';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(12, -48); ctx.lineTo(28, -43);
+      ctx.moveTo(12, -35); ctx.lineTo(28, -30);
+      ctx.stroke();
+    } else if (this.type === 'boom_bug') {
+      const charging = this.actionKind === 'boom_burst' && this.actionPhase === 'windup';
+      const progress = charging && this.actionDuration > 0
+        ? Math.max(0, Math.min(1, 1 - this.actionTimer / this.actionDuration))
+        : 0;
+      const pulse = charging ? 0.75 + Math.sin(this.animTimer * 22) * 0.2 : 0.6;
+      ctx.fillStyle = charging ? '#ff6d00' : '#463e18';
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = 3;
+      if (charging && !suppressOrdinaryGlow) {
+        ctx.shadowColor = '#ff6d00';
+        ctx.shadowBlur = 9 + progress * 8;
+      }
+      ctx.beginPath();
+      ctx.ellipse(-5, -30, 18 + progress * 3, 20 + progress * 3, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = '#fff3bf';
+      ctx.beginPath();
+      ctx.moveTo(-5, -43); ctx.lineTo(2, -26); ctx.lineTo(-2, -26);
+      ctx.lineTo(2, -16); ctx.lineTo(-12, -31); ctx.lineTo(-7, -31);
+      ctx.closePath();
+      ctx.fill();
     } else if (this.type === 'titan_boss') {
-      // Horns, armored shoulders, and a bright core give Titan a unique boss
-      // silhouette without introducing a bitmap or additional draw pass.
       ctx.fillStyle = '#07150a';
       ctx.strokeStyle = '#ff4866';
       ctx.lineWidth = 4;

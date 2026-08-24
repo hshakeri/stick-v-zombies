@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=8.3';
-import { IMPACT_PROFILES, ParticleSystem, particles } from '../js/engine/particles.js?v=8.3';
+import { Camera } from '../js/engine/camera.js?v=8.4';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=8.4';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,19 +14,19 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=8.3';
-import { AllyManager, allies } from '../js/entities/allies.js?v=8.3';
-import { DarkLord } from '../js/entities/dark_lord.js?v=8.3';
-import { H4C3R } from '../js/entities/h4c3r.js?v=8.3';
-import { KingOrange } from '../js/entities/king_orange.js?v=8.3';
-import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.3';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.3';
-import { Zombie } from '../js/entities/zombies.js?v=8.3';
-import { weapons } from '../js/entities/weapons.js?v=8.3';
-import { combat } from '../js/systems/combat.js?v=8.3';
-import { shop } from '../js/systems/shop.js?v=8.3';
-import { Game } from '../js/main.js?v=8.3';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.3';
+} from '../js/engine/speech.js?v=8.4';
+import { AllyManager, allies } from '../js/entities/allies.js?v=8.4';
+import { DarkLord } from '../js/entities/dark_lord.js?v=8.4';
+import { H4C3R } from '../js/entities/h4c3r.js?v=8.4';
+import { KingOrange } from '../js/entities/king_orange.js?v=8.4';
+import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.4';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.4';
+import { Zombie } from '../js/entities/zombies.js?v=8.4';
+import { weapons } from '../js/entities/weapons.js?v=8.4';
+import { combat } from '../js/systems/combat.js?v=8.4';
+import { shop } from '../js/systems/shop.js?v=8.4';
+import { Game } from '../js/main.js?v=8.4';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.4';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -37,9 +37,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=8.3';
+} from '../js/systems/waves.js?v=8.4';
 
-const RELEASE_MODULE_VERSION = '8.3';
+const RELEASE_MODULE_VERSION = '8.4';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -964,25 +964,87 @@ test('Dark Lord resists freeze and briefly pauses attacks when stunned', () => {
   assert.ok(stunned.stunTimer > 0);
 });
 
-test('vector hook gathers walkers and spitters but leaves runners alone', () => {
+test('crawler, shieldbearer, and Boom-Bug have distinct readable counters', () => {
+  particles.reset();
+  let crawlerHits = 0;
+  const crawlerTarget = { x: 100, y: 0, height: 60, isDead: false, takeDamage() { crawlerHits += 1; } };
+  const crawler = new Zombie(0, 0, 'crawler', 2);
+  crawler.isGrounded = true;
+  assert.ok(crawler.maxHp < 35 && crawler.speed > 175 && crawler.height < 35);
+  crawler.update(1 / 60, 0, crawlerTarget, [], { addShake() {} }, [], [crawler], []);
+  assert.ok(crawler.crawlerDashTimer > 0);
+  crawler.x = 75;
+  crawler.update(1 / 60, 0, crawlerTarget, [], { addShake() {} }, [], [crawler], []);
+  assert.equal(crawlerHits, 1);
+
+  const shield = new Zombie(0, 0, 'shieldbearer', 4);
+  shield.facing = 1;
+  const fullHp = shield.hp;
+  const reportedBlockedDamage = shield.takeDamage(30, -1, 400);
+  const blockedDamage = fullHp - shield.hp;
+  assert.equal(reportedBlockedDamage, blockedDamage);
+  assert.ok(particles.splatterDroplets.length > 0, 'zombie hits should emit comic crimson droplets');
+  shield.hp = fullHp;
+  shield.takeDamage(30, 1, 400);
+  assert.ok(blockedDamage < 10);
+  assert.equal(fullHp - shield.hp, 30);
+  shield.hp = fullHp;
+  shield.takeDamage(60, -1, 700, true);
+  assert.equal(fullHp - shield.hp, 60, 'heavy frontal attacks must break through the shield');
+
+  combat.resetRun();
+  const rewardPlayer = new Player(-45, 0);
+  const rewardShield = new Zombie(0, 0, 'shieldbearer', 4);
+  rewardPlayer.facing = 1;
+  rewardPlayer.hp = 50;
+  rewardPlayer.lifesteal = 0.5;
+  rewardShield.facing = -1;
+  rewardPlayer.checkMeleeHits([rewardShield], 100, 30, 400, false, '#fff', null);
+  assert.equal(combat.score, 7, 'blocked hits award only applied damage');
+  assert.equal(rewardPlayer.hp, 53.5, 'Ink Recharge uses applied damage');
+  assert.ok(rewardPlayer.superMeter < 2, 'shield blocks most Awakening gain');
+
+  particles.reset();
+  const airborne = new Zombie(0, -220, 'crawler', 2);
+  airborne.takeDamage(999, 1, 800, true);
+  assert.ok(particles.splatterStains.every((stain) => stain.y >= 0), 'floor stamps stay on a surface');
+
+  let burstHits = 0;
+  const burstTarget = { x: 80, y: 0, isDead: false, takeDamage() { burstHits += 1; } };
+  const boomBug = new Zombie(0, 0, 'boom_bug', 6);
+  assert.equal(boomBug.beginHeavyAction('boom_burst'), true);
+  boomBug.updateHeavyAction(0.69, [burstTarget], { addShake() {} });
+  assert.equal(burstHits, 0);
+  boomBug.updateHeavyAction(0.02, [burstTarget], { addShake() {} });
+  assert.equal(burstHits, 1);
+  assert.equal(boomBug.isDead, true);
+  assert.ok(particles.splatterStains.length > 0, 'Boom-Bug defeat should leave a short comic floor stamp');
+  particles.reset();
+});
+
+test('vector hook gathers every lightweight zombie but leaves runners alone', () => {
   particles.reset();
   const player = new Player(0, 0);
   player.isGrounded = true;
   player.facing = 1;
   const walker = new Zombie(140, 0, 'walker', 1);
-  const spitter = new Zombie(300, 0, 'spitter', 1);
+  const spitter = new Zombie(190, 0, 'spitter', 1);
+  const crawler = new Zombie(240, 0, 'crawler', 2);
+  const shieldbearer = new Zombie(290, 0, 'shieldbearer', 4);
+  const boomBug = new Zombie(340, 0, 'boom_bug', 6);
   const runner = new Zombie(180, 0, 'runner', 1);
-  const originalHp = [walker.hp, spitter.hp, runner.hp];
+  const pullable = [walker, spitter, crawler, shieldbearer, boomBug];
+  const targets = [...pullable, runner];
+  const originalHp = targets.map((target) => target.hp);
 
-  assert.equal(player.executeVectorHook([walker, spitter, runner], { addShake() {}, addZoomPunch() {} }), true);
+  assert.equal(player.executeVectorHook(targets, { addShake() {}, addZoomPunch() {} }), true);
   assert.equal(player.hookMode, 'pull');
-  assert.ok(walker.hookPullTimer > 0);
-  assert.ok(spitter.hookPullTimer > 0);
+  assert.ok(pullable.every((target) => target.hookPullTimer > 0));
   assert.equal(runner.hookPullTimer, 0);
-  assert.deepEqual([walker.hp, spitter.hp, runner.hp], originalHp, 'the utility hook must deal no damage');
+  assert.deepEqual(targets.map((target) => target.hp), originalHp, 'the utility hook must deal no damage');
 
   const before = walker.x;
-  walker.update(0.1, 0, player, [], { addShake() {} }, [], [walker, spitter, runner], []);
+  walker.update(0.1, 0, player, [], { addShake() {} }, [], targets, []);
   assert.ok(walker.x < before, 'persistent hook movement must survive the zombie AI update');
   particles.reset();
 });
@@ -1184,6 +1246,16 @@ test('authored wave recipes match every campaign total and pack budget', () => {
   assert.deepEqual(WAVE_RECIPES[10].packs[0].enemies, ['dark_lord', 'runner', 'spitter', 'runner', 'brute']);
   assert.deepEqual(WAVE_RECIPES[11].packs[0].enemies, ['king_orange']);
   assert.deepEqual(WAVE_RECIPES[15].packs[0].enemies, ['h4c3r']);
+
+  const firstStageWith = (type) => Array.from({ length: 15 }, (_, index) => index + 1).find(
+    (stage) => WAVE_RECIPES[stage].packs.some((pack) => pack.enemies.includes(type))
+  );
+  assert.equal(firstStageWith('crawler'), 2);
+  assert.equal(firstStageWith('shieldbearer'), 4);
+  assert.equal(firstStageWith('boom_bug'), 6);
+  assert.equal(WAVE_RECIPE_TOTALS[1], 6);
+  assert.equal(WAVE_RECIPE_TOTALS[14], 20);
+  assert.equal(Object.values(WAVE_RECIPE_TOTALS).reduce((sum, total) => sum + total, 0), 167);
 });
 
 test('boss and ally copy stays inside the terse readable speech contract', () => {
@@ -1531,6 +1603,40 @@ test('impact profiles, deterministic speedlines, and every effect pool stay boun
   assert.ok(first.damageTexts.length <= 25);
   assert.ok(first.comicPopups.length <= 6);
   assert.ok(first.limbDebris.length <= 24);
+});
+
+test('comic splatter is deterministic, bounded, pure to draw, and parent-toggleable', () => {
+  const first = new ParticleSystem();
+  const second = new ParticleSystem();
+  const options = { profile: 'defeat', groundY: 0, direction: 1, seed: 4242 };
+  first.emitSplatter(10, -35, options);
+  second.emitSplatter(10, -35, options);
+  assert.deepEqual(first.splatterDroplets, second.splatterDroplets);
+  assert.deepEqual(first.splatterStains, second.splatterStains);
+
+  for (let index = 0; index < 80; index += 1) {
+    first.emitSplatter(index, -20, { profile: 'defeat', groundY: 0, seed: index });
+  }
+  assert.equal(SPLATTER_LIMITS.droplets, 48);
+  assert.equal(SPLATTER_LIMITS.stains, 12);
+  assert.ok(first.splatterDroplets.length <= SPLATTER_LIMITS.droplets);
+  assert.ok(first.splatterStains.length <= SPLATTER_LIMITS.stains);
+
+  const beforeDraw = JSON.stringify([first.splatterDroplets, first.splatterStains]);
+  const { context, calls } = createCanvasContextMock();
+  first.draw(context);
+  assert.equal(JSON.stringify([first.splatterDroplets, first.splatterStains]), beforeDraw);
+  assert.equal(calls.save, calls.restore);
+
+  assert.equal(first.setSplatterEnabled(false), false);
+  assert.equal(first.splatterDroplets.length, 0);
+  assert.equal(first.splatterStains.length, 0);
+  assert.deepEqual(first.emitSplatter(0, 0, options), { droplets: 0, stains: 0 });
+  assert.equal(first.setSplatterEnabled(true), true);
+
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  assert.match(readFileSync(join(root, 'index.html'), 'utf8'), /id="btn-splatter-toggle"[^>]+aria-pressed="true"/);
+  assert.match(readFileSync(join(root, 'js/main.js'), 'utf8'), /setSplatterEnabled/);
 });
 
 test('stage environments are deterministic, two-layered, and capped at 24 motifs', () => {

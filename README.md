@@ -81,13 +81,18 @@ Fifteen computer-desktop stages with obstacles, platforms, a clear **Start Door*
 2. **Agile Runners**: Four-legged fast sprinters that leap through the air to ambush you.
 3. **Toxic Spitters**: Ranged zombies that maintain their distance and launch hazardous acid puddles.
 4. **Heavy Brutes**: Massive armored tank zombies that smash the ground causing shockwaves.
-5. **The Titan Undead (Boss)**: A multi-phase giant boss with enrage phases, seismic stomps, and minion swarms.
+5. **Glitch Crawlers**: Small, low-HP malware pests that scuttle in quickly and attack from below the crowd.
+6. **Shieldbearers**: Armored zombies that blunt light attacks from the front; flank them or use a heavy move.
+7. **Boom-Bugs**: Volatile zombies with a visible countdown ring. Interrupt them or dodge the comic burst.
+8. **The Titan Undead (Boss)**: A multi-phase giant boss with enrage phases, seismic stomps, and minion swarms.
+
+Zombie hits and defeats produce capped comic crimson splatter and short-lived floor stamps. This effect is procedural, adds no assets, and can be switched off from the pause menu with **Comic Splatter**.
 
 ### Tactical assists and the hook
 
 - Nearby zombies can intercept Red, Blue, Yellow, or Green during their entrance and action. One hit forces that ally to retreat and adds an injury delay to their cooldown, shown with a red `↻` timer on the summon slot.
 - Summon beside open space or after interrupting the nearest attacker. An ally that finishes its move returns on the normal timer; the Animator cursor remains an untargetable UI assist.
-- The Vector Hook reaches 420 world units in Orange's facing direction. It gathers every walker and spitter in that lane, leaves fast runners alone, and reverses if a brute, Titan, or story boss is caught. The hook deals no damage and grants no invulnerability.
+- The Vector Hook reaches 420 world units in Orange's facing direction. It gathers walkers, spitters, crawlers, shieldbearers, and Boom-Bugs, leaves fast runners alone, and reverses if a brute, Titan, or story boss is caught. Pulling a flashing Boom-Bug closer is powerful but risky. The hook deals no damage and grants no invulnerability.
 
 ---
 

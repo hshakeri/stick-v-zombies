@@ -1,4 +1,3 @@
-// Procedural Stick Figure Skeleton and Animation Renderer (Alan Becker / The Second Coming Style)
 
 export class StickFigureRenderer {
   constructor(color = '#ff7700', strokeWidth = 5, scale = 1.0, isHollowHead = false) {
@@ -9,12 +8,9 @@ export class StickFigureRenderer {
     this.isHunched = false; // For zombies
     this.isZombie = false; // For undead stickmen
     this.isHollowHead = isHollowHead; // true for The Second Coming (Orange), false for Red/Blue/Yellow/Green
-    // Every renderer is drawn synchronously, so one stable skeleton can be
-    // reset and reused for each pose without retaining cross-frame state.
     this.boneScratch = createBoneScratch();
   }
 
-  // Draw procedural stick figure based on character state & pose
   draw(ctx, state) {
     const {
       x, y, facing, pose, animTimer, isGrounded, isHurt,
@@ -35,7 +31,6 @@ export class StickFigureRenderer {
     ctx.rotate((leanAngle + authoredLean) * (facing >= 0 ? 1 : -1));
     ctx.scale(facing * scale * this.scale * squashX, scale * this.scale * squashY);
 
-    // Awakening God Mode Multi-Tier Glow
     if (isAwakened) {
       ctx.shadowColor = '#ffbb00';
       ctx.shadowBlur = 28;
@@ -43,8 +38,6 @@ export class StickFigureRenderer {
       ctx.shadowColor = 'rgba(30, 160, 30, 0.45)';
       ctx.shadowBlur = 10;
     } else if (this.isZombie) {
-      // Low-cost afterimages and crowded ordinary enemies retain their full
-      // silhouette while avoiding expensive per-character blur passes.
       ctx.shadowColor = 'transparent';
       ctx.shadowBlur = 0;
     }
@@ -54,15 +47,12 @@ export class StickFigureRenderer {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Calculate bone joints based on current pose
     const bones = this.computePoseBones(pose, animTimer, isGrounded, isHurt);
     if (hasActionPhase) applyActionEnvelope(bones, easedActionPhase);
 
-    // 1. Draw Legs (back leg then front leg)
     this.drawLimb(ctx, bones.hip, bones.kneeL, bones.footL);
     this.drawLimb(ctx, bones.hip, bones.kneeR, bones.footR);
 
-    // 2. Draw Torso / Curved Spine (Alan Becker dynamic spine flex)
     ctx.beginPath();
     ctx.moveTo(bones.hip.x, bones.hip.y);
     if (this.isHunched) {
@@ -76,11 +66,9 @@ export class StickFigureRenderer {
     }
     ctx.stroke();
 
-    // 3. Draw Arms (back arm then front arm)
     this.drawLimb(ctx, bones.shoulder, bones.elbowL, bones.handL);
     this.drawLimb(ctx, bones.shoulder, bones.elbowR, bones.handR);
 
-    // 4. Draw Head (Hollow Ring for Orange, Solid Filled for Allies and Zombies)
     ctx.beginPath();
     ctx.arc(bones.head.x, bones.head.y, bones.headRadius, 0, Math.PI * 2);
     if (this.isHollowHead) {
@@ -91,9 +79,7 @@ export class StickFigureRenderer {
       ctx.stroke();
     }
 
-    // Facial expressions (Eyes / Angry Brow / God Eyes / Zombie Eyes)
     if (isAwakened) {
-      // Radiant Glowing Eyes with Divine Spark
       ctx.fillStyle = '#ffffff';
       ctx.shadowColor = '#ffffff';
       ctx.shadowBlur = 14;
@@ -105,7 +91,6 @@ export class StickFigureRenderer {
       ctx.arc(bones.head.x + 5, bones.head.y - 2, 2, 0, Math.PI * 2);
       ctx.fill();
     } else if (this.isZombie) {
-      // Menacing Glowing Red Zombie Eyes
       ctx.fillStyle = '#ff1122';
       if (!suppressGlow) {
         ctx.shadowColor = '#ff0000';
@@ -117,12 +102,10 @@ export class StickFigureRenderer {
       ctx.beginPath();
       ctx.arc(bones.head.x + 4, bones.head.y - 3, 3.5, 0, Math.PI * 2);
       ctx.fill();
-      // Glowing Eye Slit Pupil
       ctx.fillStyle = '#ffee33';
       ctx.beginPath();
       ctx.arc(bones.head.x + 5, bones.head.y - 3, 1.5, 0, Math.PI * 2);
       ctx.fill();
-      // Snarl Fangs
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.6;
       ctx.beginPath();
@@ -132,7 +115,6 @@ export class StickFigureRenderer {
       ctx.lineTo(bones.head.x + 4, bones.head.y + 6);
       ctx.stroke();
     } else if (isHurt) {
-      // Hurt 'X' Eyes
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -142,7 +124,6 @@ export class StickFigureRenderer {
       ctx.lineTo(bones.head.x + 2, bones.head.y);
       ctx.stroke();
     } else if (pose.startsWith('attack') || pose === 'weapon_slash' || pose === 'dive_kick') {
-      // Determined / Fierce Combat Eyebrow & Focused Slits
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2.2;
       ctx.beginPath();
@@ -151,12 +132,9 @@ export class StickFigureRenderer {
       ctx.stroke();
     }
 
-    // 5. Draw Active Weapon
     if (weaponType) {
       let angle = weaponAngle !== undefined ? weaponAngle : -0.6;
       if (pose === 'weapon_slash') {
-        // Optional authored action phase gives bosses and future player moves a
-        // readable anticipation-to-contact sweep without a keyframe asset.
         angle = hasActionPhase ? -1.12 + easedActionPhase * 2.47 : 1.35;
       } else if (pose.startsWith('attack')) {
         angle = -1.1; // Held back during punches
@@ -184,18 +162,13 @@ export class StickFigureRenderer {
     ctx.rotate(angle);
 
     if (weaponType === 'pencil') {
-      // Giant Alan Becker Pencil with 3D Facet Shading
-      // Wooden Body Left Side (Highlight)
       ctx.fillStyle = isAwakened ? '#fff176' : '#ffb74d';
       ctx.fillRect(-7, -68, 4, 68);
-      // Wooden Body Middle (Base)
       ctx.fillStyle = isAwakened ? '#ffee33' : '#ff9800';
       ctx.fillRect(-3, -68, 6, 68);
-      // Wooden Body Right Side (Shadow)
       ctx.fillStyle = isAwakened ? '#fbc02d' : '#e65100';
       ctx.fillRect(3, -68, 4, 68);
 
-      // Pencil Wood Grain Lines
       ctx.strokeStyle = isAwakened ? '#f57f17' : '#bf360c';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
@@ -203,7 +176,6 @@ export class StickFigureRenderer {
       ctx.moveTo(3, -68); ctx.lineTo(3, 0);
       ctx.stroke();
 
-      // Sharpened Wooden Cone (Cedar Wood Texture)
       ctx.fillStyle = '#ffcc80';
       ctx.beginPath();
       ctx.moveTo(-7, -68);
@@ -212,7 +184,6 @@ export class StickFigureRenderer {
       ctx.closePath();
       ctx.fill();
 
-      // Sharp Dark Graphite Lead Tip
       ctx.fillStyle = '#212121';
       ctx.beginPath();
       ctx.moveTo(-3.5, -78);
@@ -221,33 +192,27 @@ export class StickFigureRenderer {
       ctx.closePath();
       ctx.fill();
 
-      // Graphite Tip Specular Shine
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(-0.5, -84, 1.2, 0, Math.PI * 2);
       ctx.fill();
 
-      // Silver Metal Ferrule with Crimp Bands
       ctx.fillStyle = '#b0bec5';
       ctx.fillRect(-7, 0, 14, 8);
       ctx.fillStyle = '#78909c';
       ctx.fillRect(-7, 3, 14, 2);
 
-      // Pink Rubber Eraser
       ctx.fillStyle = '#ff80ab';
       ctx.beginPath();
       ctx.roundRect ? ctx.roundRect(-7, 8, 14, 14, [0, 0, 4, 4]) : ctx.fillRect(-7, 8, 14, 14);
       ctx.fill();
     } else if (weaponType === 'staff') {
-      // Red Martial Arts Staff / Fighting Stick
       ctx.fillStyle = isAwakened ? '#ffee33' : '#d32f2f';
       ctx.fillRect(-4.5, -70, 9, 140);
-      // Gold Trim Bands
       ctx.fillStyle = '#ffd700';
       ctx.fillRect(-5.5, -70, 11, 12);
       ctx.fillRect(-5.5, 58, 11, 12);
       ctx.fillRect(-5.5, -6, 11, 12); // Center grip band
-      // Center Grip Wrap pattern
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
@@ -255,7 +220,6 @@ export class StickFigureRenderer {
       ctx.moveTo(-5.5, 0); ctx.lineTo(5.5, 8);
       ctx.stroke();
     } else if (weaponType === 'eraser') {
-      // Giant Pink Eraser with bevel
       ctx.fillStyle = '#ff80ab';
       ctx.fillRect(-18, -44, 36, 54);
       ctx.fillStyle = '#f50057';
@@ -264,13 +228,11 @@ export class StickFigureRenderer {
       ctx.lineWidth = 2;
       ctx.strokeRect(-18, -44, 36, 54);
     } else if (weaponType === 'vira_blades') {
-      // The Dark Lord's Dual Red Vira-Blades (AvA Lore)
       ctx.fillStyle = '#111111';
       ctx.fillRect(-3, -12, 6, 22);
       ctx.fillStyle = '#ff0033';
       ctx.fillRect(-7, -12, 14, 5);
 
-      // Blazing Crimson Energy Plasma Blade
       ctx.shadowColor = '#ff0033';
       ctx.shadowBlur = 22;
       ctx.fillStyle = '#ff1744';
@@ -282,7 +244,6 @@ export class StickFigureRenderer {
       ctx.closePath();
       ctx.fill();
 
-      // Pure White Energy Core
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.moveTo(-2, -12);
@@ -308,7 +269,6 @@ export class StickFigureRenderer {
     }
 
     if (isHurt) {
-      // Reeling back
       bones.head.x -= 12;
       bones.neck.x -= 8;
       bones.hip.x -= 4;
@@ -325,7 +285,6 @@ export class StickFigureRenderer {
         bones.head.y += bob;
         bones.neck.x += 8;
         bones.head.x += 12;
-        // Arms lunging forward slightly
         setPoint(bones.elbowL, 12, -30 + bob);
         setPoint(bones.handL, 22, -32 + bob);
         setPoint(bones.elbowR, 8, -24 - bob);
@@ -340,13 +299,11 @@ export class StickFigureRenderer {
         bones.head.x += 14;
         bones.head.y += Math.abs(Math.sin(t)) * 2.5;
 
-        // Limbs dragging
         setPoint(bones.kneeL, legSwing * 12, -10);
         setPoint(bones.footL, legSwing * 18, Math.max(-6, -legSwing * 6));
         setPoint(bones.kneeR, -legSwing * 12, -10);
         setPoint(bones.footR, -legSwing * 18, Math.max(-6, legSwing * 6));
 
-        // Both arms raised forward horizontally like classic zombies
         const armBob = Math.sin(timer * 4) * 3;
         setPoint(bones.elbowL, 16, -34 + armBob);
         setPoint(bones.handL, 28, -38 + armBob);
@@ -375,15 +332,12 @@ export class StickFigureRenderer {
         bones.head.x += 8;
         bones.head.y += Math.abs(Math.sin(t)) * 3;
 
-        // Front leg
         setPoint(bones.kneeL, legSwing * 16, -12 - Math.max(0, -legSwing * 8));
         setPoint(bones.footL, legSwing * 24, Math.max(-12, -legSwing * 10));
 
-        // Back leg
         setPoint(bones.kneeR, -legSwing * 16, -12 - Math.max(0, legSwing * 8));
         setPoint(bones.footR, -legSwing * 24, Math.max(-12, legSwing * 10));
 
-        // Arms swinging with run
         setPoint(bones.elbowL, armSwing * 16, -30);
         setPoint(bones.handL, armSwing * 24, -20);
         setPoint(bones.elbowR, -armSwing * 16, -30);
@@ -445,7 +399,6 @@ export class StickFigureRenderer {
       }
 
       case 'roll': {
-        // Dynamic tumbling somersault roll
         const rot = timer * Math.PI * 6;
         const cx = 0;
         const cy = -22;
@@ -466,7 +419,6 @@ export class StickFigureRenderer {
       }
 
       case 'attack_jab': {
-        // Crisp straight left jab
         bones.head.x += 4;
         bones.shoulder.x += 4;
         setPoint(bones.elbowL, 16, -42);
@@ -479,7 +431,6 @@ export class StickFigureRenderer {
       }
 
       case 'attack_cross': {
-        // Heavy straight right cross punch
         bones.head.x += 8;
         bones.neck.x += 10;
         setPoint(bones.elbowL, 2, -38);
@@ -494,24 +445,20 @@ export class StickFigureRenderer {
       }
 
       case 'attack_kick': {
-        // High martial arts head kick
         bones.head.x -= 10;
         bones.neck.x -= 6;
         setPoint(bones.elbowL, -14, -38);
         setPoint(bones.handL, -8, -46);
         setPoint(bones.elbowR, 10, -32);
         setPoint(bones.handR, 14, -20);
-        // Kicking leg thrust high
         setPoint(bones.kneeL, 18, -36);
         setPoint(bones.footL, 42, -48);
-        // Plant leg
         setPoint(bones.kneeR, -4, -10);
         setPoint(bones.footR, -6, 0);
         break;
       }
 
       case 'attack_axe_kick': {
-        // Overhead Somersault Axe Kick Slam
         bones.head.x += 14;
         bones.head.y -= 10;
         bones.neck.x += 12;
@@ -520,17 +467,14 @@ export class StickFigureRenderer {
         setPoint(bones.handL, -24, -58);
         setPoint(bones.elbowR, 14, -44);
         setPoint(bones.handR, 22, -52);
-        // Front axe leg slamming down from above
         setPoint(bones.kneeL, 28, -45);
         setPoint(bones.footL, 38, 8);
-        // Plant leg
         setPoint(bones.kneeR, -12, -10);
         setPoint(bones.footR, -16, 0);
         break;
       }
 
       case 'attack_spin': {
-        // 360 Hurricane Spin Kick
         const spin = Math.sin(timer * 20);
         bones.head.y -= 8;
         bones.hip.y -= 12;
@@ -546,7 +490,6 @@ export class StickFigureRenderer {
       }
 
       case 'attack_uppercut': {
-        // Rising Dragon Uppercut
         bones.head.x += 6;
         bones.head.y -= 14;
         bones.neck.y -= 10;
@@ -562,7 +505,6 @@ export class StickFigureRenderer {
       }
 
       case 'attack_drill_thrust': {
-        // High-Speed Pencil Corkscrew Drill Thrust
         bones.head.x += 20;
         bones.neck.x += 18;
         bones.hip.x += 10;
@@ -578,14 +520,12 @@ export class StickFigureRenderer {
       }
 
       case 'attack_vault_kick': {
-        // Pencil Ground Vault Dropkick
         bones.head.x += 16;
         bones.head.y += 6;
         setPoint(bones.elbowL, 8, -20);
         setPoint(bones.handL, 14, 0); // Planting pencil into ground
         setPoint(bones.elbowR, -12, -35);
         setPoint(bones.handR, -18, -45);
-        // Both legs vaulted forward in dropkick
         setPoint(bones.kneeL, 32, -14);
         setPoint(bones.footL, 50, -10);
         setPoint(bones.kneeR, 28, -22);
@@ -594,7 +534,6 @@ export class StickFigureRenderer {
       }
 
       case 'attack_air_flurry': {
-        // Rapid Mid-Air Lightning Kicks
         const alt = Math.sin(timer * 25);
         bones.head.x += 8;
         setPoint(bones.elbowL, -16, -38);
@@ -609,7 +548,6 @@ export class StickFigureRenderer {
       }
 
       case 'attack_slide': {
-        // Low Sweeping Slide Kick
         setPoint(bones.head, -16, -26);
         setPoint(bones.neck, -8, -20);
         setPoint(bones.shoulder, bones.neck.x, bones.neck.y);
@@ -618,7 +556,6 @@ export class StickFigureRenderer {
         setPoint(bones.handL, -24, -2);
         setPoint(bones.elbowR, 4, -18);
         setPoint(bones.handR, 12, -8);
-        // Slide leg extended forward along floor
         setPoint(bones.kneeL, 22, -4);
         setPoint(bones.footL, 40, 0);
         setPoint(bones.kneeR, -8, -6);
@@ -627,7 +564,6 @@ export class StickFigureRenderer {
       }
 
       case 'dive_kick': {
-        // Downward aerodynamic diagonal diving kick
         setPoint(bones.head, 14, -36);
         setPoint(bones.neck, 8, -28);
         setPoint(bones.shoulder, bones.neck.x, bones.neck.y);
@@ -644,7 +580,6 @@ export class StickFigureRenderer {
       }
 
       case 'weapon_slash': {
-        // Dynamic weapon swing
         bones.head.x += 6;
         setPoint(bones.elbowL, 6, -36);
         setPoint(bones.handL, 16, -38);
@@ -656,7 +591,6 @@ export class StickFigureRenderer {
       }
 
       case 'awakening_god': {
-        // Levitating god pose with floating arms
         const float = Math.sin(timer * 6) * 4;
         bones.head.y -= 12 + float;
         bones.neck.y -= 10 + float;
@@ -673,7 +607,6 @@ export class StickFigureRenderer {
       }
 
       default: {
-        // Fallback to idle
         bones.head.y += Math.sin(timer * 4) * 2;
         break;
       }
@@ -708,9 +641,6 @@ function setPoint(point, x, y) {
 }
 
 function applyActionEnvelope(bones, phase) {
-  // Anticipation pulls the extremities toward the core, contact overshoots,
-  // and recovery settles back. The same mutation works across every authored
-  // strike and keeps the pose scratch allocation-free.
   const envelope = phase < 0.5
     ? phase / 0.5
     : phase < 0.68

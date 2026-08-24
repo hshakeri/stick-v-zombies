@@ -1,16 +1,16 @@
 
-import { audio } from './engine/audio.js?v=8.3';
-import { input } from './engine/input.js?v=8.3';
-import { Camera } from './engine/camera.js?v=8.3';
-import { particles } from './engine/particles.js?v=8.3';
-import { Player } from './entities/player.js?v=8.3';
-import { waves } from './systems/waves.js?v=8.3';
-import { combat } from './systems/combat.js?v=8.3';
-import { shop } from './systems/shop.js?v=8.3';
-import { stages } from './systems/stages.js?v=8.3';
-import { projectiles } from './entities/projectiles.js?v=8.3';
-import { allies } from './entities/allies.js?v=8.3';
-import { speech } from './engine/speech.js?v=8.3';
+import { audio } from './engine/audio.js?v=8.4';
+import { input } from './engine/input.js?v=8.4';
+import { Camera } from './engine/camera.js?v=8.4';
+import { particles } from './engine/particles.js?v=8.4';
+import { Player } from './entities/player.js?v=8.4';
+import { waves } from './systems/waves.js?v=8.4';
+import { combat } from './systems/combat.js?v=8.4';
+import { shop } from './systems/shop.js?v=8.4';
+import { stages } from './systems/stages.js?v=8.4';
+import { projectiles } from './entities/projectiles.js?v=8.4';
+import { allies } from './entities/allies.js?v=8.4';
+import { speech } from './engine/speech.js?v=8.4';
 
 export class Game {
   constructor() {
@@ -166,6 +166,19 @@ export class Game {
       });
     }
 
+    const btnSplatterToggle = document.getElementById('btn-splatter-toggle');
+    if (btnSplatterToggle) {
+      const syncSplatterLabel = (enabled) => {
+        btnSplatterToggle.textContent = `🩸 Comic Splatter: ${enabled ? 'ON' : 'OFF'}`;
+        btnSplatterToggle.setAttribute('aria-pressed', String(enabled));
+      };
+      syncSplatterLabel(particles.splatterEnabled !== false);
+      btnSplatterToggle.addEventListener('click', () => {
+        const enabled = particles.setSplatterEnabled?.(particles.splatterEnabled === false) ?? true;
+        syncSplatterLabel(enabled);
+      });
+    }
+
     const btnAudio = document.getElementById('btn-audio-toggle');
     if (btnAudio) {
       btnAudio.addEventListener('click', () => {
@@ -317,10 +330,10 @@ export class Game {
   getStageLesson(stage) {
     return {
       1: 'MOVE · JUMP · Q COMBO · ROLL',
-      2: 'CALL RED WITH 1',
+      2: 'CALL RED · CRAWLERS ARE QUICK',
       3: 'H HOOKS SPITTERS',
-      4: 'HEAVIES REVERSE H',
-      6: 'F GRABS MALWARE',
+      4: 'FLANK SHIELDS · HEAVIES REVERSE H',
+      6: 'F GRABS · BOOM-BUGS FLASH',
       7: 'STAFF PICKUP · E ANVIL',
       8: 'AIR CHASE · ALLIES 2–4',
       10: 'FULL METER? PRESS R'

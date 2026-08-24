@@ -1,7 +1,7 @@
 
-import { particles } from '../engine/particles.js?v=8.3';
-import { audio } from '../engine/audio.js?v=8.3';
-import { projectiles } from '../entities/projectiles.js?v=8.3';
+import { particles } from '../engine/particles.js?v=8.4';
+import { audio } from '../engine/audio.js?v=8.4';
+import { projectiles } from '../entities/projectiles.js?v=8.4';
 
 const freezeBeat = (beat) => Object.freeze({
   ...beat,

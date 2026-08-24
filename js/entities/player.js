@@ -1,11 +1,11 @@
-import { StickFigureRenderer } from './stickman.js?v=8.3';
-import { particles } from '../engine/particles.js?v=8.3';
-import { audio } from '../engine/audio.js?v=8.3';
-import { projectiles } from './projectiles.js?v=8.3';
-import { weapons } from './weapons.js?v=8.3';
-import { allies } from './allies.js?v=8.3';
-import { combat } from '../systems/combat.js?v=8.3';
-import { speech } from '../engine/speech.js?v=8.3';
+import { StickFigureRenderer } from './stickman.js?v=8.4';
+import { particles } from '../engine/particles.js?v=8.4';
+import { audio } from '../engine/audio.js?v=8.4';
+import { projectiles } from './projectiles.js?v=8.4';
+import { weapons } from './weapons.js?v=8.4';
+import { allies } from './allies.js?v=8.4';
+import { combat } from '../systems/combat.js?v=8.4';
+import { speech } from '../engine/speech.js?v=8.4';
 
 const defineMove = (move) => Object.freeze(move);
 
@@ -439,11 +439,11 @@ export class Player {
       const target = move.target;
       if (!target || target.isDead) return;
       const damage = def.damage * this.damageMultiplier;
-      target.takeDamage(damage, this.facing, def.knockback, true);
+      const appliedDamage = target.takeDamage(damage, this.facing, def.knockback, true) ?? damage;
       target.vy = 850;
-      combat.registerHit(damage, true);
+      combat.registerHit(appliedDamage, true);
       particles.emitImpact?.('heavy', target.x, target.y - 25, { color: '#ffdd00', direction: this.facing });
-      this.addSuper(5 * this.superGainRate);
+      this.addSuper(5 * this.superGainRate * Math.min(1, appliedDamage / damage));
       return;
     }
 
@@ -876,8 +876,8 @@ export class Player {
                       (this.facing < 0 && z.x < beamStartX && z.x > beamStartX - beamLength);
       if (isAhead && Math.abs(z.y - beamY) < 70) {
         const dmg = 24 * (this.damageMultiplier || 1.0);
-        z.takeDamage(dmg, this.facing, 500, true);
-        combat.registerHit(dmg, true);
+        const appliedDamage = z.takeDamage(dmg, this.facing, 500, true) ?? dmg;
+        combat.registerHit(appliedDamage, true);
       }
     }
   }
@@ -895,8 +895,8 @@ export class Player {
 
       if (isFacingTarget && Math.hypot(dx, dy) < range + (z.radius || 20) + 40) {
         hitAny = true;
-        z.takeDamage(damage, this.facing, knockback, isCrit);
-        combat.registerHit(damage, isCrit);
+        const appliedDamage = z.takeDamage(damage, this.facing, knockback, isCrit) ?? damage;
+        combat.registerHit(appliedDamage, isCrit);
         const impactY = z.y - (z.height || 50) * 0.5;
         if (particles.emitImpact) {
           particles.emitImpact(options.impactTier || (isCrit ? 'heavy' : 'light'), z.x, impactY, {
@@ -934,10 +934,10 @@ export class Player {
           audio.playBassDrop();
         }
 
-        this.addSuper(5.0 * this.superGainRate);
+        this.addSuper(5.0 * this.superGainRate * Math.min(1, appliedDamage / damage));
 
         if (this.lifesteal > 0) {
-          const healAmount = damage * this.lifesteal;
+          const healAmount = appliedDamage * this.lifesteal;
           this.heal(healAmount);
         }
       }
@@ -1111,8 +1111,8 @@ export class Player {
       if (z.isDead || Math.hypot(z.x - this.x, z.y - this.y) > radius + (z.radius || 20)) continue;
       const direction = z.x >= this.x ? 1 : -1;
       const damage = baseDamage * this.damageMultiplier;
-      z.takeDamage(damage, direction, 620, true);
-      combat.registerHit(damage, true);
+      const appliedDamage = z.takeDamage(damage, direction, 620, true) ?? damage;
+      combat.registerHit(appliedDamage, true);
       particles.createHitSparks(z.x, z.y - 25, 8, '#ffaa00');
     }
     if (this.currentCamera) this.currentCamera.addShake(0.35);
