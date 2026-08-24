@@ -19,7 +19,7 @@ export class WeaponManager {
         return {
           name: 'Animator Giant Pencil',
           damage: 35 * this.pencilSharpness,
-          range: 85,
+          range: 150,
           knockback: 450,
           slashArc: Math.PI * 0.85,
           cooldown: 0.38
@@ -28,7 +28,7 @@ export class WeaponManager {
         return {
           name: 'Fighting Stick Staff',
           damage: 28,
-          range: 95 + this.staffRadiusBonus,
+          range: 150 + this.staffRadiusBonus,
           knockback: 550,
           slashArc: Math.PI * 1.5,
           cooldown: 0.32
@@ -37,7 +37,7 @@ export class WeaponManager {
         return {
           name: 'Giant Eraser',
           damage: 60,
-          range: 70,
+          range: 130,
           knockback: 600,
           slashArc: Math.PI * 0.6,
           cooldown: 0.5

@@ -1,11 +1,31 @@
-import { StickFigureRenderer } from './stickman.js?v=7.0';
-import { particles } from '../engine/particles.js?v=7.0';
-import { audio } from '../engine/audio.js?v=7.0';
-import { projectiles } from './projectiles.js?v=7.0';
-import { weapons } from './weapons.js?v=7.0';
-import { allies } from './allies.js?v=7.0';
-import { combat } from '../systems/combat.js?v=7.0';
-import { speech } from '../engine/speech.js?v=7.0';
+import { StickFigureRenderer } from './stickman.js?v=8.2';
+import { particles } from '../engine/particles.js?v=8.2';
+import { audio } from '../engine/audio.js?v=8.2';
+import { projectiles } from './projectiles.js?v=8.2';
+import { weapons } from './weapons.js?v=8.2';
+import { allies } from './allies.js?v=8.2';
+import { combat } from '../systems/combat.js?v=8.2';
+import { speech } from '../engine/speech.js?v=8.2';
+
+const defineMove = (move) => Object.freeze(move);
+
+export const MOVE_DEFINITIONS = Object.freeze({
+  combo: Object.freeze([
+    defineMove({ id: 'combo_1', duration: 0.18, contactTime: 0.07, range: 95, damage: 22, knockback: 380, impactTier: 'light', movementImpulse: 150, pose: 'attack_jab' }),
+    defineMove({ id: 'combo_2', duration: 0.20, contactTime: 0.08, range: 105, damage: 30, knockback: 460, impactTier: 'light', movementImpulse: 220, pose: 'attack_cross' }),
+    defineMove({ id: 'combo_3', duration: 0.23, contactTime: 0.10, range: 125, damage: 37, knockback: 560, impactTier: 'medium', movementImpulse: 235, pose: 'attack_kick', launch: true }),
+    defineMove({ id: 'combo_4', duration: 0.27, contactTime: 0.13, range: 135, damage: 48, knockback: 650, impactTier: 'medium', movementImpulse: 190, pose: 'attack_axe_kick', bounce: true }),
+    defineMove({ id: 'combo_5', duration: 0.34, contactTime: 0.16, range: 155, damage: 75, knockback: 800, impactTier: 'heavy', movementImpulse: 250, pose: 'attack_spin', crit: true, wallRebound: true })
+  ]),
+  uppercut: defineMove({ id: 'uppercut', duration: 0.32, contactTime: 0.12, range: 110, damage: 42, knockback: 580, impactTier: 'medium', movementImpulse: 180, verticalImpulse: -560, pose: 'attack_uppercut', crit: true, launch: true }),
+  airFlurry: defineMove({ id: 'air_flurry', duration: 0.22, contactTime: 0.075, range: 115, damage: 28, knockback: 380, impactTier: 'light', movementImpulse: 220, verticalImpulse: -60, pose: 'attack_air_flurry' }),
+  slide: defineMove({ id: 'slide', duration: 0.28, contactTime: 0.10, range: 130, damage: 38, knockback: 600, impactTier: 'medium', movementImpulse: 520, pose: 'attack_slide', crit: true, bounce: true }),
+  airChase: defineMove({ id: 'air_chase', duration: 0.35, contactTime: 0.14, range: 90, damage: 65, knockback: 450, impactTier: 'heavy', movementImpulse: 120, verticalImpulse: -180, pose: 'attack_air_flurry', crit: true, meteor: true }),
+  grab: defineMove({ id: 'grab', duration: 0.35, contactTime: 0.14, range: 135, damage: 85, knockback: 420, impactTier: 'heavy', movementImpulse: 220, pose: 'attack_spin', crit: true }),
+  javelin: defineMove({ id: 'javelin', duration: 0.45, contactTime: 0.16, range: 0, damage: 95, knockback: 0, impactTier: 'medium', movementImpulse: -120, pose: 'attack_drill_thrust' })
+});
+
+export const ATTACK_BUFFER_SECONDS = 0.12;
 
 export class Player {
   constructor(x = 0, y = 0) {
@@ -14,12 +34,10 @@ export class Player {
     this.vx = 0;
     this.vy = 0;
 
-    // Dimensions
     this.width = 24;
     this.height = 64;
     this.radius = 18;
 
-    // Movement Parameters
     this.speed = 340;
     this.jumpForce = 580;
     this.facing = 1; // 1 = right, -1 = left
@@ -28,12 +46,10 @@ export class Player {
     this.isWallSliding = false;
     this.wallDir = 0;
 
-    // Jump Enhancements
     this.canDoubleJump = true;
     this.coyoteTimer = 0;
     this.jumpBuffer = 0;
 
-    // Health & Stats
     this.maxHp = 100;
     this.hp = 100;
     this.isDead = false;
@@ -42,12 +58,10 @@ export class Player {
     this.hurtTimer = 0;
     this.iFrames = 0;
 
-    // Stats Upgrades Multipliers
     this.damageMultiplier = 1.0;
     this.lifesteal = 0.0; // % of damage returned as HP
     this.superGainRate = 1.0;
 
-    // Awakening / Super Meter
     this.superMeter = 0; // 0 to 100
     this.maxSuper = 100;
     this.isAwakened = false;
@@ -57,16 +71,13 @@ export class Player {
     this.laserTickTimer = 0;
     this.isFiringLaser = false;
 
-    // Dodge Roll
     this.isRolling = false;
     this.rollTimer = 0;
     this.rollDuration = 0.35;
     this.rollCooldown = 0;
 
-    // Block / Anvil Skill Cooldown
     this.blockCooldown = 0;
 
-    // Vector Hook: pull slow malware in, or get reeled toward a heavy anchor.
     this.hookCooldown = 0;
     this.hookRange = 420;
     this.hookVisualTimer = 0;
@@ -77,16 +88,24 @@ export class Player {
     this.hookPullTarget = null;
     this.hookPullTimer = 0;
     this.hookSafeDistance = 0;
+    this.hookFocusTriggered = false;
 
-    // Attack Combo System
     this.comboStep = 0;
     this.comboResetTimer = 0;
     this.attackTimer = 0;
     this.weaponType = 'pencil'; // 'pencil', 'staff', 'eraser'
+    this.temporaryWeaponTimer = 0;
     this.weaponTimer = 0;
     this.diveKick = false;
+    this.activeMove = null;
+    this.bufferedMove = null;
+    this.movePhase = 'idle';
+    this.moveProgress = 0;
+    this.simTime = 0;
+    this.standingPlatform = null;
+    this.standingPlatformX = 0;
+    this.standingPlatformY = 0;
 
-    // Pose & Renderer
     this.pose = 'idle';
     this.animTimer = 0;
     this.squashX = 1.0;
@@ -94,7 +113,6 @@ export class Player {
     this.leanAngle = 0;
     this.renderer = new StickFigureRenderer('#ff7700', 5.5, 1.0, true); // Hollow head for Orange!
 
-    // Ghost Trails for Dodge Roll / Awakening
     this.ghostTrails = [];
     this.ghostTrailTimer = 0;
     this.airJuggleTarget = null;
@@ -117,18 +135,16 @@ export class Player {
     this.platforms = platforms;
     this.currentZombies = zombies;
     this.currentCamera = camera;
+    this.simTime += dt;
     this.animTimer += dt;
     this.isFiringLaser = false;
 
-    // Smooth Squash & Stretch elastic recovery
     this.squashX += (1.0 - this.squashX) * Math.min(1, 14.0 * dt);
     this.squashY += (1.0 - this.squashY) * Math.min(1, 14.0 * dt);
 
-    // Dynamic sprint lean angle
     const targetLean = this.isGrounded ? (this.vx / 450) * 0.16 : (this.vx / 600) * 0.08;
     this.leanAngle += (targetLean - this.leanAngle) * Math.min(1, 12.0 * dt);
 
-    // Update Timers
     if (this.hurtTimer > 0) {
       this.hurtTimer -= dt;
       if (this.hurtTimer <= 0) this.isHurt = false;
@@ -148,16 +164,22 @@ export class Player {
     if (this.ghostTrailTimer > 0) this.ghostTrailTimer -= dt;
     if (this.coyoteTimer > 0) this.coyoteTimer -= dt;
     if (this.jumpBuffer > 0) this.jumpBuffer -= dt;
-
+    if (this.temporaryWeaponTimer > 0) {
+      this.temporaryWeaponTimer = Math.max(0, this.temporaryWeaponTimer - dt);
+      if (this.temporaryWeaponTimer === 0 && this.weaponType !== 'pencil') {
+        this.weaponType = 'pencil';
+        particles.addDamageText(this.x, this.y - 72, 'PENCIL RESTORED', false, '#ffb347');
+      }
+    }
     if (this.comboResetTimer > 0) {
       this.comboResetTimer -= dt;
       if (this.comboResetTimer <= 0) this.comboStep = 0;
     }
 
-    if (this.attackTimer > 0) this.attackTimer -= dt;
-    if (this.weaponTimer > 0) this.weaponTimer -= dt;
+    if (this.attackTimer > 0) this.attackTimer = Math.max(0, this.attackTimer - dt);
+    if (this.weaponTimer > 0) this.weaponTimer = Math.max(0, this.weaponTimer - dt);
+    this.updateActiveMove(dt);
 
-    // Handle Awakening Mode
     if (this.isAwakened) {
       this.awakenedTimer -= dt;
       this.awakeningAuraTimer -= dt;
@@ -171,7 +193,6 @@ export class Player {
       }
     }
 
-    // Update and decay Ghost Trails
     for (let i = this.ghostTrails.length - 1; i >= 0; i--) {
       const ghost = this.ghostTrails[i];
       ghost.alpha -= dt * 3.5;
@@ -180,9 +201,8 @@ export class Player {
       }
     }
 
-    // Spawn new ghost trail when rolling or awakened or high speed
     if (this.isRolling || this.isAwakened || Math.abs(this.vx) > 350) {
-      if (this.ghostTrails.length < 6 && this.ghostTrailTimer <= 0) {
+      if (this.ghostTrails.length < 4 && this.ghostTrailTimer <= 0) {
         this.ghostTrailTimer = 0.055;
         this.ghostTrails.push({
           x: this.x,
@@ -218,20 +238,15 @@ export class Player {
         this.executeSlideSweep(zombies, camera);
       }
     } else {
-      // 2. Normal Movement & Controls
       this.handleMovement(dt, input, groundY, sketchBlocks);
       this.handleCombatInputs(input, zombies, camera, groundY);
       this.handleSkillsAndAllies(input, groundY, camera, zombies);
     }
 
-    // A heavy hook latch owns the final horizontal velocity for a brief,
-    // dangerous pull. A dodge roll or Awakening can still break the chain.
     this.updateReverseHookPull(dt);
 
-    // 3. Apply Physics
     this.applyPhysics(dt, groundY, sketchBlocks);
 
-    // 4. Update Animation Pose if not attacking or rolling
     this.updatePose();
   }
 
@@ -240,7 +255,6 @@ export class Player {
     if (input.actions.left) moveDir -= 1;
     if (input.actions.right) moveDir += 1;
 
-    // Horizontal Movement
     const maxSpeed = this.speed * (this.isAwakened ? 1.4 : 1.0);
     const accel = this.isGrounded ? 2200 : 1400;
     const friction = this.isGrounded ? 1800 : 600;
@@ -250,12 +264,10 @@ export class Player {
       this.vx = Math.max(-maxSpeed, Math.min(maxSpeed, this.vx));
       this.facing = moveDir;
 
-      // Dust puff while running
       if (this.isGrounded && Math.random() < 0.15) {
         particles.createDust(this.x, this.y, 2, this.facing);
       }
     } else {
-      // Friction deceleration
       if (this.vx > 0) {
         this.vx = Math.max(0, this.vx - friction * dt);
       } else if (this.vx < 0) {
@@ -263,10 +275,8 @@ export class Player {
       }
     }
 
-    // Crouch & Drop Down
     this.isCrouching = input.actions.down && this.isGrounded;
 
-    // Dodge Roll Input
     if (input.actions.rollPressed && this.rollCooldown <= 0) {
       this.isRolling = true;
       this.rollTimer = this.rollDuration;
@@ -277,15 +287,12 @@ export class Player {
       return;
     }
 
-    // Jump Buffering
     if (input.actions.jumpPressed) {
       this.jumpBuffer = 0.15;
     }
 
-    // Execute Jump
     if (this.jumpBuffer > 0) {
       if (this.isGrounded || this.coyoteTimer > 0) {
-        // Normal Jump
         this.vy = -this.jumpForce;
         this.isGrounded = false;
         this.coyoteTimer = 0;
@@ -296,7 +303,6 @@ export class Player {
         audio.playJump();
         particles.createDust(this.x, this.y, 6);
       } else if (this.isWallSliding) {
-        // Wall Jump
         this.vy = -this.jumpForce * 0.95;
         this.vx = -this.wallDir * 420;
         this.facing = -this.wallDir;
@@ -308,7 +314,6 @@ export class Player {
         audio.playJump();
         particles.createDust(this.x, this.y - 20, 8, this.facing);
       } else if (this.canDoubleJump) {
-        // Double Jump (Backflip spin)
         this.vy = -this.jumpForce * 0.88;
         this.canDoubleJump = false;
         this.jumpBuffer = 0;
@@ -320,15 +325,144 @@ export class Player {
       }
     }
 
-    // Variable jump height: release early cuts upward velocity
     if (!input.actions.jump && this.vy < -150) {
       this.vy += 900 * dt;
     }
   }
 
+  bufferCombatMove(kind) {
+    this.bufferedMove = { kind, life: ATTACK_BUFFER_SECONDS };
+  }
+
+  beginMove(definition, zombies, camera, options = {}) {
+    if (!definition || this.activeMove || this.isDead || this.isHurt) return false;
+    this.activeMove = {
+      definition,
+      elapsed: 0,
+      hitApplied: false,
+      targets: Array.isArray(zombies) ? zombies : [],
+      camera,
+      action: options.action || 'melee',
+      target: options.target || null,
+      damageScale: options.damageScale || 1,
+      rangeOverride: options.rangeOverride || 0,
+      stun: options.stun || 0,
+      sparkColor: options.sparkColor || '#ffcc33'
+    };
+    this.movePhase = 'anticipation';
+    this.moveProgress = 0;
+    this.pose = definition.pose;
+    if (options.weapon) this.weaponTimer = definition.duration;
+    else this.attackTimer = definition.duration;
+    return true;
+  }
+
+  updateActiveMove(dt) {
+    if (this.bufferedMove) {
+      this.bufferedMove.life = Math.max(0, this.bufferedMove.life - dt);
+      if (this.bufferedMove.life <= 0) this.bufferedMove = null;
+    }
+    const move = this.activeMove;
+    if (!move) {
+      this.movePhase = 'idle';
+      this.moveProgress = 0;
+      if (this.bufferedMove && !this.isHurt && !this.isDead) {
+        const buffered = this.bufferedMove;
+        this.bufferedMove = null;
+        if (buffered.kind === 'attack' && this.attackTimer <= 0) this.executeLightCombo(this.currentZombies, this.currentCamera);
+        else if (buffered.kind === 'weapon' && this.weaponTimer <= 0) this.executeWeaponAttack(this.currentZombies, this.currentCamera);
+        else if (buffered.kind === 'uppercut' && this.attackTimer <= 0) this.executeRisingUppercut(this.currentZombies, this.currentCamera);
+      }
+      return;
+    }
+
+    const def = move.definition;
+    move.elapsed = Math.min(def.duration, move.elapsed + dt);
+    this.moveProgress = def.duration > 0 ? move.elapsed / def.duration : 1;
+    if (move.elapsed < def.contactTime) this.movePhase = 'anticipation';
+    else if (move.elapsed < Math.min(def.duration, def.contactTime + 0.055)) this.movePhase = 'contact';
+    else this.movePhase = 'recovery';
+
+    if (!move.hitApplied && move.elapsed >= def.contactTime) {
+      move.hitApplied = true;
+      this.applyMoveContact(move);
+    }
+
+    if (move.elapsed >= def.duration) {
+      const wasWeapon = move.action === 'weapon' || move.action === 'javelin';
+      this.activeMove = null;
+      this.movePhase = 'idle';
+      this.moveProgress = 0;
+      if (wasWeapon) this.weaponTimer = 0;
+      else this.attackTimer = 0;
+    }
+  }
+
+  applyTargetAssist(targets, range) {
+    let target = null;
+    let bestForward = Infinity;
+    for (const candidate of targets || []) {
+      if (!candidate || candidate.isDead) continue;
+      const forward = this.facing * (candidate.x - this.x);
+      const vertical = Math.abs(candidate.y - this.y);
+      if (forward <= 18 || Math.hypot(forward, vertical) > 100 || forward >= bestForward) continue;
+      target = candidate;
+      bestForward = forward;
+    }
+    if (!target) return;
+    const desired = Math.max(36, range * 0.72);
+    const step = Math.min(36, Math.max(0, bestForward - desired));
+    this.x = Math.max(-1075, Math.min(1075, this.x + this.facing * step));
+  }
+
+  applyMoveContact(move) {
+    const def = move.definition;
+    if (move.action !== 'javelin' && move.action !== 'grab') {
+      this.applyTargetAssist(move.targets, move.rangeOverride || def.range);
+    }
+    this.vx = this.facing * (def.movementImpulse || 0);
+    if (Number.isFinite(def.verticalImpulse)) {
+      this.vy = def.id === 'air_flurry' ? Math.min(this.vy, def.verticalImpulse) : def.verticalImpulse;
+      this.isGrounded = false;
+    }
+
+    if (move.action === 'javelin') {
+      projectiles.spawnJavelin(this.x + this.facing * 40, this.y - 30, this.facing, def.damage);
+      particles.emitImpact?.('medium', this.x + this.facing * 34, this.y - 30, { color: '#ffb347', direction: this.facing });
+      return;
+    }
+    if (move.action === 'grab') {
+      this.resolveGrabContact(move.target, move.camera);
+      return;
+    }
+    if (move.action === 'airChase') {
+      const target = move.target;
+      if (!target || target.isDead) return;
+      const damage = def.damage * this.damageMultiplier;
+      target.takeDamage(damage, this.facing, def.knockback, true);
+      target.vy = 850;
+      combat.registerHit(damage, true);
+      particles.emitImpact?.('heavy', target.x, target.y - 25, { color: '#ffdd00', direction: this.facing });
+      this.addSuper(5 * this.superGainRate);
+      return;
+    }
+
+    const damage = def.damage * this.damageMultiplier * move.damageScale;
+    this.checkMeleeHits(
+      move.targets,
+      move.rangeOverride || def.range,
+      damage,
+      def.knockback,
+      Boolean(def.crit),
+      move.sparkColor,
+      move.camera,
+      Boolean(def.launch),
+      { impactTier: def.impactTier, bounce: def.bounce, wallRebound: def.wallRebound, stun: move.stun }
+    );
+    if (def.id === 'combo_5') speech.shout(this.x, this.y, 'playerAttack', null, 1.25, { anchor: this });
+  }
+
   handleCombatInputs(input, zombies, camera, groundY) {
-    // In Awakening, either primary combat button channels a throttled beam.
-    // This runs before normal attacks so holding Q/W has one clear meaning.
     if (this.isAwakened && (input.actions.weapon || input.actions.attack)) {
       this.isFiringLaser = true;
       if (this.laserTickTimer <= 0) {
@@ -338,32 +472,27 @@ export class Player {
       return;
     }
 
-    // 1. Vector Hook (H / touch / gamepad LT). This is intentionally checked
-    // before melee routing so the new utility always has one clear meaning.
     if (input.actions.hookPressed && this.hookCooldown <= 0) {
       if (this.executeVectorHook(zombies, camera)) return;
     }
 
-    // 2. Zombie Vector Grab & Bowling Throw (F / G or Q+W in melee range)
     if (input.actions.grabPressed || (input.actions.attackPressed && input.actions.weaponPressed)) {
       if (this.executeGrabAndThrow(zombies, camera)) {
         return;
       }
     }
 
-    // 3. EX Charged Pencil Javelin (Down + W / Weapon)
     if (input.actions.down && input.actions.weaponPressed && this.weaponTimer <= 0) {
-      this.executeJavelinThrow(zombies, camera);
+      if (this.activeMove) this.bufferCombatMove('weapon');
+      else this.executeJavelinThrow(zombies, camera);
       return;
     }
 
-    // 4. Air-Chase Flash Step (Jump or Attack during Airborne Juggle)
     if (!this.isGrounded && (input.actions.jumpPressed || input.actions.attackPressed) && this.airJuggleTarget && !this.airJuggleTarget.isDead) {
       this.executeAirChase(zombies, camera);
       return;
     }
 
-    // 5. Air Dive Kick (Mid-air + Down + Attack/Weapon)
     if (!this.isGrounded && input.actions.down && (input.actions.attackPressed || input.actions.weaponPressed)) {
       this.diveKick = true;
       this.vy = 880;
@@ -378,32 +507,29 @@ export class Player {
       return;
     }
 
-    // 6. Rising Dragon Uppercut (Up + Attack)
-    if (input.actions.up && input.actions.attackPressed && this.attackTimer <= 0) {
+    if (input.actions.up && input.actions.attackPressed && this.attackTimer <= 0 && !this.activeMove) {
       this.executeRisingUppercut(zombies, camera);
       return;
     }
 
-    // 7. Mid-Air Flurry Kicks (In mid-air + Attack)
-    if (!this.isGrounded && input.actions.attackPressed && this.attackTimer <= 0) {
+    if (!this.isGrounded && input.actions.attackPressed && this.attackTimer <= 0 && !this.activeMove) {
       this.executeAirFlurry(zombies, camera);
       return;
     }
 
-    // 8. Dodge Roll Follow-up Slide Sweep (Rolling + Attack/Weapon)
     if (this.isRolling && (input.actions.attackPressed || input.actions.weaponPressed)) {
       this.executeSlideSweep(zombies, camera);
       return;
     }
 
-    // 9. Light Martial Arts Combo Chain (Q / J / Left Click)
-    if (input.actions.attackPressed && this.attackTimer <= 0) {
-      this.executeLightCombo(zombies, camera);
+    if (input.actions.attackPressed) {
+      if (!this.activeMove && this.attackTimer <= 0) this.executeLightCombo(zombies, camera);
+      else this.bufferCombatMove(input.actions.up ? 'uppercut' : 'attack');
     }
 
-    // 10. Heavy / Hybrid Weapon Attack (W / K / Right Click)
-    if (input.actions.weaponPressed && this.weaponTimer <= 0) {
-      this.executeWeaponAttack(zombies, camera);
+    if (input.actions.weaponPressed) {
+      if (!this.activeMove && this.weaponTimer <= 0) this.executeWeaponAttack(zombies, camera);
+      else this.bufferCombatMove('weapon');
     }
 
   }
@@ -435,6 +561,7 @@ export class Player {
     this.hookPullTarget = null;
     this.hookPullTimer = 0;
     this.hookSafeDistance = 0;
+    this.hookFocusTriggered = false;
     audio.playGrabThrow();
     camera?.addZoomPunch?.(-0.02);
 
@@ -463,9 +590,12 @@ export class Player {
       this.hookPullTarget = null;
       this.hookPullTimer = 0;
       this.hookCooldown = 4;
+      pullables.sort((a, b) => Math.abs(a.x - this.x) - Math.abs(b.x - this.x));
       for (const zombie of pullables) {
         zombie.applyHookPull(this, 0.34, 76);
-        this.hookLines.push({ target: zombie, x: zombie.x, y: zombie.y - (zombie.height || 50) * 0.45 });
+        if (this.hookLines.length < 8) {
+          this.hookLines.push({ target: zombie, x: zombie.x, y: zombie.y - (zombie.height || 50) * 0.45 });
+        }
       }
       camera?.addShake?.(0.12);
       camera?.addZoomPunch?.(0.025);
@@ -506,6 +636,10 @@ export class Player {
     }
 
     const direction = dx >= 0 ? 1 : -1;
+    if (!this.hookFocusTriggered && this.hookPullTimer <= 0.24) {
+      this.hookFocusTriggered = true;
+      this.currentCamera?.focusOn?.((this.x + target.x) * 0.5, (this.y + target.y) * 0.5, 0.24, 0.96);
+    }
     this.facing = direction;
     this.vx = direction * Math.min(660, Math.max(360, distance * 2.5));
     this.pose = 'attack_cross';
@@ -521,10 +655,12 @@ export class Player {
     this.hookMode = 'idle';
     this.hookPullTarget = null;
     this.hookPullTimer = 0;
+    this.hookFocusTriggered = false;
     if (resetCooldown) this.hookCooldown = 0;
   }
 
   executeGrabAndThrow(zombies, camera) {
+    if (this.activeMove || this.isDead || this.isHurt) return false;
     if (!zombies || !Array.isArray(zombies)) return false;
     let target = null;
     let minDist = 135; // Generous grab range
@@ -540,111 +676,74 @@ export class Player {
 
     if (!target) return false;
 
-    // Turn toward target
     this.facing = target.x >= this.x ? 1 : -1;
+    audio.playGrabThrow();
+    return this.beginMove(MOVE_DEFINITIONS.grab, zombies, camera, { action: 'grab', target });
+  }
 
-    // Bosses can be grabbed for a powerful interrupt, but never deleted by a
-    // single utility move.
+  resolveGrabContact(target, camera) {
+    if (!target || target.isDead) return;
     if (target.isBoss) {
-      this.attackTimer = 0.4;
-      this.pose = 'attack_spin';
       this.iFrames = 0.25;
-      audio.playGrabThrow();
       audio.playFinisherImpact();
       target.takeDamage(85 * this.damageMultiplier, this.facing, 420, true);
-      particles.addShockwave(target.x, target.y - 30, 110, '#ff7700', 8);
+      combat.registerHit(85 * this.damageMultiplier, true);
+      particles.emitImpact?.('heavy', target.x, target.y - 30, { color: '#ff7700', direction: this.facing });
       particles.addComicPopup(target.x, target.y - 60, 'PROCESS BREAK!', '#ff6600', '#ffffff');
       if (camera) {
-        camera.addShake(0.45);
+        camera.addShake(0.34);
+        camera.addHitstop(0.05);
         camera.addZoomPunch?.(0.045);
       }
-      return true;
+      return;
     }
 
-    // Grab & Rip Apart execution
-    this.attackTimer = 0.35;
-    this.pose = 'attack_spin';
-    this.vx = this.facing * 220;
     this.squashX = 1.4;
     this.squashY = 0.7;
 
-    // Audio & Camera Shake Juice
     audio.playSlash();
     audio.playFinisherImpact();
     audio.playBassDrop();
-    audio.playGrabThrow();
     if (camera) {
-      camera.addShake(0.65);
-      camera.addHitstop(0.12);
+      camera.addShake(0.48);
+      camera.addHitstop(0.05);
       camera.addZoomPunch?.(0.07);
     }
-    particles.triggerSpeedlines(0.35);
-
-    // 1. Violent Blood Ink Fountain & Shockwaves
-    particles.addShockwave(target.x, target.y - 20, 160, '#ff1133', 12);
-    particles.createZombieSplatter(target.x, target.y - 25, 45, target.color);
-
-    // 2. RIP APART: Exploding severed stick limbs & torso flying in all directions
-    particles.createStickLimbExplosion(target.x, target.y, 0, target.color);
-
-    // 3. Severed head launched high into the air
-    particles.limbDebris.push({
-      x: target.x,
-      y: target.y - 45,
-      vx: this.facing * (450 + Math.random() * 250),
-      vy: -400 - Math.random() * 250,
-      groundY: 0,
-      rotation: 0,
-      rotSpeed: this.facing * 25,
-      isHead: true,
-      radius: 11,
-      color: target.color,
-      life: 2.2,
-      maxLife: 2.2
+    particles.emitImpact?.('heavy', target.x, target.y - 25, {
+      color: target.color || '#66dd77',
+      direction: this.facing,
+      seed: (target.x * 31) | 0
     });
 
-    // 4. Comic Onomatopoeia Banner
-    const ripBanners = ['RIPPED APART!!', 'BRUTAL TEAR!!', 'FATALITY!!', 'DISMEMBERED!!'];
-    const bannerText = ripBanners[Math.floor(Math.random() * ripBanners.length)];
+    particles.createStickLimbExplosion(target.x, target.y, 0, target.color);
+
+    const ripBanners = ['DECOMPILED!', 'UNZIPPED!', 'FILE SPLIT!', 'MOVE TO TRASH!'];
+    const bannerText = ripBanners[Math.abs(((target.x || 0) * 17 + this.simTime * 10) | 0) % ripBanners.length];
     particles.addComicPopup(this.x + this.facing * 60, this.y - 45, bannerText, '#ff0033', '#ffffff');
 
-    // 5. Instantly kill target and spawn lower body bowling projectile that wipes out enemy lines
     target.die(true);
     projectiles.spawnThrownZombie(this.x + this.facing * 40, this.y - 30, this.facing, 140);
-    speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
-    return true;
+    speech.shout(this.x, this.y, 'playerAttack', null, 1.25, { anchor: this });
   }
 
   executeJavelinThrow(zombies, camera) {
-    this.weaponTimer = 0.45;
-    this.pose = 'attack_drill_thrust';
-    this.vx = -this.facing * 120; // Recoil step
+    if (this.activeMove || this.isDead || this.isHurt) return false;
     this.squashX = 0.8;
     this.squashY = 1.25;
     audio.playSlash();
-    audio.playBassDrop();
-    camera.addShake(0.35);
-    camera.addZoomPunch?.(0.04);
-    particles.triggerSpeedlines(0.22);
-    particles.addComicPopup(this.x + this.facing * 60, this.y - 30, 'KRAK!', '#ff6600', '#ffffff');
-    projectiles.spawnJavelin(this.x + this.facing * 40, this.y - 30, this.facing, 95);
-    speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
+    return this.beginMove(MOVE_DEFINITIONS.javelin, zombies, camera, { action: 'javelin', weapon: true });
   }
 
   executeAirChase(zombies, camera) {
+    if (this.activeMove || this.isDead || this.isHurt) return false;
     const target = this.airJuggleTarget;
     this.airJuggleTarget = null;
-    if (!target || target.isDead || typeof target.x !== 'number') return;
+    if (!target || target.isDead || typeof target.x !== 'number') return false;
 
-    this.attackTimer = 0.35;
-
-    // Flash-step teleport right beside airborne target
     audio.playFlashStep();
     audio.playBassDrop();
-    particles.triggerSpeedlines(0.25);
-    particles.addComicPopup(target.x, target.y - 30, 'AIR RAVE!!', '#00e5ff', '#ffffff');
+    particles.addComicPopup(target.x, target.y - 30, 'AIR CHASE!', '#00e5ff', '#ffffff');
 
-    // Spawn afterimages
     for (let i = 0; i < 3; i++) {
       this.ghostTrails.push({
         x: this.x + (target.x - this.x) * (i / 3),
@@ -655,192 +754,109 @@ export class Player {
         alpha: 0.8
       });
     }
+    if (this.ghostTrails.length > 4) this.ghostTrails.splice(0, this.ghostTrails.length - 4);
 
     this.x = target.x - this.facing * 25;
     this.y = target.y - 30;
-    this.vy = -180;
-    this.vx = this.facing * 120;
-    this.pose = 'attack_air_flurry';
-    camera.addShake(0.35);
-    camera.addZoomPunch?.(0.045);
-
-    // Multi-hit aerial damage and launch meteor slam
-    const damage = 65 * (this.damageMultiplier || 1.0);
-    target.takeDamage(damage, this.facing, 450, true);
-    target.vy = 850; // Slam zombie to floor!
-    particles.createHitSparks(target.x, target.y, 14, '#ffdd00');
-    speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
+    camera?.focusOn?.((this.x + target.x) * 0.5, (this.y + target.y) * 0.5, 0.28, 0.94);
+    camera?.addShake?.(0.24);
+    camera?.addZoomPunch?.(0.045);
+    return this.beginMove(MOVE_DEFINITIONS.airChase, zombies, camera, { action: 'airChase', target });
   }
 
   executeRisingUppercut(zombies, camera) {
-    this.attackTimer = 0.32;
-    this.pose = 'attack_uppercut';
-    this.vy = -560; // Launch airborne
-    this.vx = this.facing * 180;
-    this.isGrounded = false;
+    if (this.activeMove || this.isDead || this.isHurt) return false;
     this.squashX = 0.82;
     this.squashY = 1.28;
-    audio.playFinisherImpact();
-    audio.playBassDrop();
-    camera.addShake(0.3);
-    particles.triggerSpeedlines(0.18);
-    particles.addShockwave(this.x, this.y - 20, 60, '#ffbb00', 6);
-    particles.addSlashArc(this.x, this.y - 40, 80, -Math.PI / 2, this.facing, '#ffea00', 8);
-    particles.addComicPopup(this.x + this.facing * 30, this.y - 50, 'SHORYU!', '#ffaa00', '#ffffff');
-    speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
-
-    const damage = 42 * (this.damageMultiplier || 1.0);
-    this.checkMeleeHits(zombies, 110, damage, 580, true, '#ffee00', camera, true);
+    audio.playWhoosh();
+    return this.beginMove(MOVE_DEFINITIONS.uppercut, zombies, camera, { sparkColor: '#ffee00' });
   }
 
   executeAirFlurry(zombies, camera) {
-    this.attackTimer = 0.22;
-    this.pose = 'attack_air_flurry';
-    this.vy = Math.min(this.vy, -60); // Brief float suspension
-    this.vx = this.facing * 220;
+    if (this.activeMove || this.isDead || this.isHurt) return false;
     audio.playWhoosh();
-    audio.playPunch('light');
-    particles.createHitSparks(this.x + this.facing * 35, this.y - 25, 6, '#ffaa00');
-
-    const damage = 28 * (this.damageMultiplier || 1.0);
-    this.checkMeleeHits(zombies, 115, damage, 380, false, '#ffaa00', camera);
+    return this.beginMove(MOVE_DEFINITIONS.airFlurry, zombies, camera, { sparkColor: '#ffaa00' });
   }
 
   executeSlideSweep(zombies, camera) {
+    if (this.activeMove || this.isDead || this.isHurt) return false;
     this.isRolling = false;
-    this.attackTimer = 0.28;
-    this.pose = 'attack_slide';
-    this.vx = this.facing * 520;
     this.squashX = 1.35;
     this.squashY = 0.72;
     audio.playSlash();
     particles.createDust(this.x, this.y, 8, this.facing);
-    particles.addSlashArc(this.x, this.y - 8, 90, 0, this.facing, '#ff7700', 8);
-    speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
-
-    const damage = 38 * (this.damageMultiplier || 1.0);
-    this.checkMeleeHits(zombies, 130, damage, 600, true, '#ffaa00', camera);
+    return this.beginMove(MOVE_DEFINITIONS.slide, zombies, camera, { sparkColor: '#ffaa00' });
   }
 
   executeLightCombo(zombies, camera) {
+    if (this.activeMove || this.isDead || this.isHurt) return false;
     this.comboStep = (this.comboStep % 5) + 1;
     this.comboResetTimer = 0.95;
-    this.attackTimer = 0.18;
-
-    this.vx = this.facing * 150;
-
-    let damage = 22 * (this.damageMultiplier || 1.0);
-    let knockback = 380;
-    let hitRadius = 95;
-    let hitSparkColor = '#ffea00';
-    let isCrit = false;
-
-    if (this.comboStep === 1) {
-      this.pose = 'attack_jab';
-      audio.playPunch('light');
-      audio.playPlayerEffort();
-    } else if (this.comboStep === 2) {
-      this.pose = 'attack_cross';
-      audio.playPunch('light');
-      audio.playPlayerEffort();
-      damage *= 1.35;
-      hitRadius = 105;
-      knockback = 460;
-      this.vx = this.facing * 220;
-    } else if (this.comboStep === 3) {
-      this.pose = 'attack_kick';
-      audio.playWhoosh();
-      audio.playPunch('light');
-      audio.playPlayerEffort();
-      damage *= 1.7;
-      hitRadius = 125;
-      knockback = 560;
-    } else if (this.comboStep === 4) {
-      this.pose = 'attack_axe_kick';
-      audio.playPunch('heavy');
-      camera.addShake(0.25);
-      damage *= 2.2;
-      hitRadius = 135;
-      knockback = 650;
-      this.squashX = 1.25;
-      this.squashY = 0.8;
-      particles.addSlashArc(this.x, this.y - 20, 85, Math.PI / 3, this.facing, '#ff9900', 8);
-    } else if (this.comboStep === 5) {
-      this.pose = 'attack_spin';
-      audio.playFinisherImpact();
-      audio.playPunch('heavy');
-      camera.addShake(0.4);
-      camera.addZoomPunch?.(0.05);
-      damage *= 3.4;
-      knockback = 800;
-      hitRadius = 155;
-      isCrit = true;
-      this.iFrames = 0.25; // Hyper-armor on spin finisher
-      hitSparkColor = '#ff3344';
-      particles.addSlashArc(this.x, this.y - 30, 110, 0, this.facing, '#ff5522', 10);
-      particles.addShockwave(this.x, this.y - 25, 120, '#ff7700', 8);
-
-      // Trigger hilarious 80s speech shout on combo finisher!
-      speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
+    const definition = MOVE_DEFINITIONS.combo[this.comboStep - 1];
+    if (this.comboStep >= 4) {
+      this.squashX = this.comboStep === 5 ? 1.35 : 1.22;
+      this.squashY = this.comboStep === 5 ? 0.72 : 0.82;
     }
-
-    this.checkMeleeHits(zombies, hitRadius, damage, knockback, isCrit, hitSparkColor, camera);
+    if (this.comboStep === 5) this.iFrames = 0.25;
+    audio.playWhoosh();
+    audio.playPlayerEffort();
+    return this.beginMove(definition, zombies, camera, {
+      sparkColor: this.comboStep === 5 ? '#ff3344' : '#ffea00'
+    });
   }
 
   executeWeaponAttack(zombies, camera) {
+    if (this.activeMove || this.isDead || this.isHurt) return false;
     const stats = weapons.getWeaponStats(this.weaponType);
-    const baseDamage = (stats.damage || 45) * (this.damageMultiplier || 1.0) * (this.isAwakened ? 2.0 : 1.0);
+    let damageScale = this.isAwakened ? 2 : 1;
+    let range = stats.range || 160;
+    let pose = 'weapon_slash';
+    let impulse = 240;
+    let duration = stats.cooldown || 0.38;
+    let contactTime = Math.min(duration * 0.45, 0.17);
 
-    // Hybrid Branching Weapon Cancels
     if (this.comboStep === 1) {
-      // Branch 1: Pencil Vault Dropkick
-      this.weaponTimer = 0.32;
-      this.pose = 'attack_vault_kick';
-      this.vx = this.facing * 420;
-      this.vy = -180;
-      this.isGrounded = false;
+      pose = 'attack_vault_kick';
+      impulse = 420;
+      range = Math.max(range, 140);
+      damageScale *= 1.5;
+      duration = 0.32;
+      contactTime = 0.13;
       this.comboStep = 0;
-      audio.playSlash();
-      audio.playPlayerEffort();
-      camera.addShake(0.3);
-      particles.addSlashArc(this.x, this.y - 25, 130, 0, this.facing, '#ffaa00', 9);
-      speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
-      this.checkMeleeHits(zombies, 140, baseDamage * 1.5, 680, true, '#ffbb00', camera);
-      return;
     } else if (this.comboStep === 2) {
-      // Branch 2: Pencil Drill Corkscrew Thrust
-      this.weaponTimer = 0.35;
-      this.pose = 'attack_drill_thrust';
-      this.vx = this.facing * 360;
+      pose = 'attack_drill_thrust';
+      impulse = 360;
+      range = Math.max(range, 150);
+      damageScale *= 1.8;
+      duration = 0.35;
+      contactTime = 0.14;
       this.comboStep = 0;
-      audio.playSlash();
-      audio.playFinisherImpact();
-      camera.addShake(0.35);
-      particles.createPencilLeadTrail(this.x + this.facing * 45, this.y - 30, 12, this.facing);
-      speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
-      this.checkMeleeHits(zombies, 150, baseDamage * 1.8, 720, true, '#ffcc00', camera);
-      return;
     }
-
-    // Standard Heavy Weapon Slash
-    this.weaponTimer = stats.cooldown || 0.35;
-    this.pose = 'weapon_slash';
-    this.vx = this.facing * 240;
+    if (this.weaponType === 'staff') {
+      range += 65;
+      duration = Math.min(duration, 0.29);
+      contactTime = 0.105;
+    }
+    const stun = this.weaponType === 'eraser' ? 0.65 : 0;
+    const definition = defineMove({
+      id: `weapon_${this.weaponType}`,
+      duration,
+      contactTime,
+      range,
+      damage: stats.damage || 35,
+      knockback: stats.knockback || 650,
+      impactTier: this.weaponType === 'eraser' ? 'heavy' : 'medium',
+      movementImpulse: impulse,
+      pose,
+      crit: true
+    });
     this.iFrames = 0.2;
-
     audio.playSlash();
     audio.playPlayerEffort();
-    camera.addShake(0.3);
-    const range = 160;
-    particles.addSlashArc(this.x, this.y - 30, range * 0.85, 0, this.facing, '#ff7700', 10);
-    if (this.weaponType === 'pencil') {
-      particles.createPencilLeadTrail(this.x + this.facing * 40, this.y - 30, 8, this.facing);
-    }
-    if (Math.random() < 0.3) {
-      speech.shout(this.x, this.y, 'playerAttack', null, 1.45, { anchor: this });
-    }
-
-    this.checkMeleeHits(zombies, range, baseDamage, 650, true, '#ffaa00', camera);
+    return this.beginMove(definition, zombies, camera, {
+      action: 'weapon', weapon: true, damageScale, stun,
+      sparkColor: this.weaponType === 'eraser' ? '#e7f4ff' : '#ffaa00'
+    });
   }
 
   fireAwakeningLaser(zombies, camera) {
@@ -854,7 +870,6 @@ export class Player {
     particles.addShockwave(beamStartX, beamY, 20, '#ffffff', 4);
     particles.createHitSparks(beamStartX + this.facing * (Math.random() * beamLength), beamY, 4, '#ffee33');
 
-    // Laser Hitscan
     for (const z of zombies) {
       if (z.isDead) continue;
       const isAhead = (this.facing > 0 && z.x > beamStartX && z.x < beamStartX + beamLength) ||
@@ -867,8 +882,8 @@ export class Player {
     }
   }
 
-  checkMeleeHits(zombies, range, damage, knockback, isCrit, sparkColor, camera, isUppercut = false) {
-    if (!zombies || !Array.isArray(zombies)) return;
+  checkMeleeHits(zombies, range, damage, knockback, isCrit, sparkColor, camera, isUppercut = false, options = {}) {
+    if (!zombies || !Array.isArray(zombies)) return false;
     let hitAny = false;
 
     for (const z of zombies) {
@@ -876,34 +891,51 @@ export class Player {
 
       const dx = z.x - this.x;
       const dy = z.y - this.y;
-      // Hit if zombie is in front or within close range
       const isFacingTarget = (this.facing > 0 && dx > -45) || (this.facing < 0 && dx < 45) || Math.abs(dx) < 35;
 
       if (isFacingTarget && Math.hypot(dx, dy) < range + (z.radius || 20) + 40) {
         hitAny = true;
         z.takeDamage(damage, this.facing, knockback, isCrit);
         combat.registerHit(damage, isCrit);
-        particles.createHitSparks(z.x, z.y - (z.height || 50) * 0.5, isCrit ? 12 : 6, sparkColor);
+        const impactY = z.y - (z.height || 50) * 0.5;
+        if (particles.emitImpact) {
+          particles.emitImpact(options.impactTier || (isCrit ? 'heavy' : 'light'), z.x, impactY, {
+            color: sparkColor,
+            direction: this.facing,
+            seed: ((z.x || 0) * 37 + this.comboStep * 101) | 0
+          });
+        } else {
+          particles.createHitSparks(z.x, impactY, isCrit ? 12 : 4, sparkColor);
+        }
 
-        // Boss telegraphs are ground-authored and must stay aligned with their
-        // damage zones. Regular enemies still launch into the full air chase.
         if (isUppercut && !z.isBoss) {
           z.vy = -720;
           this.airJuggleTarget = z;
         }
+        if (options.bounce && !z.isBoss) z.vy = Math.min(z.vy || 0, -380);
+        if (options.wallRebound && !z.isBoss && Math.abs(z.x) >= 990) {
+          z.vx = -Math.sign(z.x) * Math.abs(knockback * 0.62);
+          z.vy = Math.min(z.vy || 0, -300);
+        }
+        if (options.stun > 0) z.stunTimer = Math.max(z.stunTimer || 0, options.stun);
 
-        // Trigger comic action badge and speedlines on big impacts
         if (isCrit || damage >= 40) {
           const words = ['POW!', 'KRAK!', 'SLASH!', 'SMASH!', 'WHAM!', 'ORA!'];
           particles.addComicPopup(z.x, z.y - 30, words[Math.floor(Math.random() * words.length)], '#ff0044', '#ffee00');
-          particles.triggerSpeedlines(0.22);
+          if (options.impactTier !== 'heavy') {
+            particles.triggerSpeedlines({
+              x: z.x,
+              y: impactY,
+              duration: Math.min(0.3, isCrit ? 0.26 : 0.2),
+              count: isCrit ? 18 : 12,
+              seed: ((z.x || 0) * 53 + combat.combo * 17) | 0
+            });
+          }
           audio.playBassDrop();
         }
 
-        // Add Awakening Super charge
         this.addSuper(5.0 * this.superGainRate);
 
-        // Lifesteal
         if (this.lifesteal > 0) {
           const healAmount = damage * this.lifesteal;
           this.heal(healAmount);
@@ -912,14 +944,14 @@ export class Player {
     }
 
     if (hitAny && camera) {
-      camera.addHitstop(isCrit ? 0.08 : 0.04);
-      if (isCrit) camera.addZoomPunch?.(0.035);
+      const tier = options.impactTier || (isCrit ? 'heavy' : 'light');
+      camera.addHitstop(tier === 'heavy' ? 0.05 : (tier === 'medium' ? 0.025 : 0.012));
+      if (tier === 'heavy') camera.addZoomPunch?.(0.035);
     }
+    return hitAny;
   }
 
   handleSkillsAndAllies(input, groundY, camera, zombies) {
-    // 1. Spawn Sketch Block / Anvil (E). Place cover on the ground; hold Down
-    // (or use E in mid-air) to drop the upgradeable anvil instead.
     if (input.actions.blockPressed && this.blockCooldown <= 0) {
       this.blockCooldown = 3.5;
       if (input.actions.down || !this.isGrounded) {
@@ -931,12 +963,10 @@ export class Player {
       audio.playPlayerEffort();
     }
 
-    // 2. Activate Awakening God Mode (R)
     if (input.actions.superPressed && this.superMeter >= this.maxSuper && !this.isAwakened) {
       this.activateAwakening(camera);
     }
 
-    // 3. Summon Stick Allies & Mouse Cursor (1, 2, 3, 4, 5)
     if (input.actions.ally1) allies.summonAlly('red', this.x, groundY, this.facing, zombies);
     if (input.actions.ally2) allies.summonAlly('blue', this.x, groundY, this.facing, zombies);
     if (input.actions.ally3) allies.summonAlly('yellow', this.x, groundY, this.facing, zombies);
@@ -954,6 +984,14 @@ export class Player {
       camera.addZoomPunch?.(0.08);
     }
     particles.addShockwave(this.x, this.y - 30, 200, '#ffee00', 12);
+    particles.triggerSpeedlines({
+      x: this.x,
+      y: this.y - 30,
+      duration: 0.3,
+      count: 24,
+      boss: true,
+      seed: ((this.x * 31) ^ (this.y * 17) ^ 0xa11e) | 0
+    });
     particles.addTextBanner(this.x, this.y - 80, '⚡ GOD MODE AWAKENED! ⚡', '#ffee00');
     speech.shout(this.x, this.y, 'playerAwakened', null, 2.4, { anchor: this, priority: 3 });
   }
@@ -965,17 +1003,23 @@ export class Player {
   }
 
   applyPhysics(dt, groundY, sketchBlocks) {
-    // Gravity
+    if (this.standingPlatform && this.isGrounded && (this.platforms || []).includes(this.standingPlatform)) {
+      this.x += this.standingPlatform.x - this.standingPlatformX;
+      this.y += this.standingPlatform.y - this.standingPlatformY;
+      this.standingPlatformX = this.standingPlatform.x;
+      this.standingPlatformY = this.standingPlatform.y;
+    } else if (!this.isGrounded) {
+      this.standingPlatform = null;
+    }
+
     const gravity = this.isAwakened ? 600 : 1300;
     if (!this.diveKick) {
       this.vy += gravity * dt;
     }
 
-    // Movement integration
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    // Ground collision
     if (this.y >= groundY) {
       if (this.diveKick) {
         this.diveKick = false;
@@ -996,11 +1040,11 @@ export class Player {
       this.coyoteTimer = 0.12;
       this.canDoubleJump = true;
       this.isWallSliding = false;
+      this.standingPlatform = null;
     } else {
       this.isGrounded = false;
     }
 
-    // Arena Boundary Clamping and Wall Sliding
     const arenaBound = 1075;
     if (this.x <= -arenaBound) {
       this.x = -arenaBound;
@@ -1024,10 +1068,10 @@ export class Player {
       this.isWallSliding = false;
     }
 
-    // Platforms and Sketch Block collisions (standing on platforms)
-    const allPlatforms = [...(sketchBlocks || []), ...(this.platforms || [])];
-    if (allPlatforms.length > 0 && this.vy >= 0 && !this.isCrouching) {
-      for (const b of allPlatforms) {
+    if (this.vy >= 0 && !this.isCrouching) {
+      const platformGroups = [sketchBlocks || [], this.platforms || []];
+      for (const group of platformGroups) {
+        for (const b of group) {
         const halfW = (b.width || 60) / 2;
         const bH = b.height || 60;
         const bTop = b.y - bH;
@@ -1048,6 +1092,14 @@ export class Player {
           this.isGrounded = true;
           this.canDoubleJump = true;
           this.isWallSliding = false;
+          if ((this.platforms || []).includes(b)) {
+            this.standingPlatform = b;
+            this.standingPlatformX = b.x;
+            this.standingPlatformY = b.y;
+          } else {
+            this.standingPlatform = null;
+          }
+        }
         }
       }
     }
@@ -1070,7 +1122,6 @@ export class Player {
     if (this.isRolling || this.diveKick) return;
 
     if (this.attackTimer > 0 || this.weaponTimer > 0) {
-      // Retain attack pose while attacking
       return;
     }
 
@@ -1098,6 +1149,59 @@ export class Player {
     }
   }
 
+  equipTemporaryWeapon(type, duration = 18) {
+    if (!['staff', 'eraser'].includes(type)) return false;
+    this.weaponType = type;
+    this.temporaryWeaponTimer = Math.max(0, duration);
+    const label = type === 'staff' ? 'STAFF SWEEP!' : 'ERASER STUN!';
+    particles.addTextBanner(this.x, this.y - 82, `${label} 18s`, type === 'staff' ? '#ffd166' : '#dff4ff');
+    audio.playUpgradeBuy?.();
+    return true;
+  }
+
+  resetStageCombat(fullHeal = false) {
+    if (fullHeal) this.hp = this.maxHp;
+    this.isDead = false;
+    this.deathTimer = 0;
+    this.isHurt = false;
+    this.hurtTimer = 0;
+    this.iFrames = 0;
+    this.superMeter = 0;
+    this.isAwakened = false;
+    this.awakenedTimer = 0;
+    this.isFiringLaser = false;
+    this.comboStep = 0;
+    this.comboResetTimer = 0;
+    this.attackTimer = 0;
+    this.weaponTimer = 0;
+    this.activeMove = null;
+    this.bufferedMove = null;
+    this.movePhase = 'idle';
+    this.moveProgress = 0;
+    this.isRolling = false;
+    this.rollTimer = 0;
+    this.rollCooldown = 0;
+    this.blockCooldown = 0;
+    this.laserTickTimer = 0;
+    this.diveKick = false;
+    this.jumpBuffer = 0;
+    this.coyoteTimer = 0;
+    this.canDoubleJump = true;
+    this.isCrouching = false;
+    this.isWallSliding = false;
+    this.wallDir = 0;
+    this.airJuggleTarget = null;
+    this.ghostTrails.length = 0;
+    this.ghostTrailTimer = 0;
+    this.cancelHook(true);
+    this.pose = 'idle';
+    this.vx = 0;
+    this.vy = 0;
+    this.squashX = 1;
+    this.squashY = 1;
+    this.standingPlatform = null;
+  }
+
   takeDamage(amount, knockbackDir = 0, knockbackPower = 300) {
     if (this.isDead || this.iFrames > 0 || this.isRolling || this.isAwakened) return;
 
@@ -1106,7 +1210,6 @@ export class Player {
     this.hurtTimer = 0.25;
     this.iFrames = 0.9; // Solid invulnerability frames to prevent spam hits
 
-    // Knockback
     if (knockbackDir !== 0) {
       this.vx = knockbackDir * knockbackPower;
       this.vy = -knockbackPower * 0.4;
@@ -1165,7 +1268,6 @@ export class Player {
       return;
     }
 
-    // Draw Ghost Trails
     for (const ghost of this.ghostTrails) {
       this.renderer.draw(ctx, {
         x: ghost.x,
@@ -1175,20 +1277,19 @@ export class Player {
         animTimer: ghost.timer,
         isGrounded: true,
         isHurt: false,
-        isAwakened: this.isAwakened,
+        isAwakened: false,
         scale: 1.0,
         alpha: ghost.alpha
       });
     }
 
+    this.drawHookPreview(ctx);
     this.drawVectorHook(ctx);
 
-    // Flicker when in iFrames
-    if (this.iFrames > 0 && Math.floor(Date.now() / 50) % 2 === 0) {
+    if (this.iFrames > 0 && Math.floor(this.simTime / 0.05) % 2 === 0) {
       return;
     }
 
-    // Draw Hero Stick Figure
     this.renderer.draw(ctx, {
       x: this.x,
       y: this.y,
@@ -1203,10 +1304,10 @@ export class Player {
       alpha: 1.0,
       squashX: this.squashX,
       squashY: this.squashY,
-      leanAngle: this.leanAngle
+      leanAngle: this.leanAngle,
+      actionPhase: this.activeMove ? this.moveProgress : null
     });
 
-    // Awakening Laser Beam Ray
     if (this.isAwakened && this.isFiringLaser && this.pose !== 'roll') {
       ctx.save();
       ctx.strokeStyle = '#ffffff';
@@ -1219,6 +1320,39 @@ export class Player {
       ctx.stroke();
       ctx.restore();
     }
+  }
+
+  drawHookPreview(ctx) {
+    if (this.hookCooldown > 0 || this.hookVisualTimer > 0 || this.isDead || this.isAwakened) return;
+    const targets = this.currentZombies || [];
+    let anchor = null;
+    const pullables = [];
+    for (const target of targets) {
+      if (!target || target.isDead) continue;
+      const forward = this.facing * (target.x - this.x);
+      const vertical = Math.abs((target.y - (target.height || 50) * 0.4) - (this.y - 32));
+      if (forward < 24 || forward > this.hookRange + (target.radius || 0) || vertical > 110) continue;
+      if (target.isBoss || target.hookClass === 'anchor') {
+        if (!anchor || forward < this.facing * (anchor.x - this.x)) anchor = target;
+      } else if (target.hookClass === 'pullable' && pullables.length < 8) {
+        pullables.push(target);
+      }
+    }
+    const previews = anchor ? [anchor] : pullables;
+    if (previews.length === 0) return;
+    ctx.save();
+    ctx.globalAlpha = 0.48 + Math.sin(this.simTime * 7) * 0.12;
+    ctx.strokeStyle = anchor ? '#ff4057' : '#25ddff';
+    ctx.lineWidth = 2;
+    for (const target of previews) {
+      const y = target.y - (target.height || 50) * 0.5;
+      const r = (target.radius || 18) + 9;
+      ctx.beginPath();
+      ctx.arc(target.x, y, r, -Math.PI * 0.85, -Math.PI * 0.15);
+      ctx.arc(target.x, y, r, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   drawVectorHook(ctx) {

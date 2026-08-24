@@ -1,13 +1,14 @@
 // Stick Zombie Horde Entities (Walker, Runner, Spitter, Brute, Titan Boss)
 
-import { StickFigureRenderer } from './stickman.js?v=7.0';
-import { particles } from '../engine/particles.js?v=7.0';
-import { audio } from '../engine/audio.js?v=7.0';
-import { projectiles } from './projectiles.js?v=7.0';
-import { combat } from '../systems/combat.js?v=7.0';
-import { speech } from '../engine/speech.js?v=7.0';
+import { StickFigureRenderer } from './stickman.js?v=8.2';
+import { particles } from '../engine/particles.js?v=8.2';
+import { audio } from '../engine/audio.js?v=8.2';
+import { projectiles } from './projectiles.js?v=8.2';
+import { combat } from '../systems/combat.js?v=8.2';
+import { speech } from '../engine/speech.js?v=8.2';
 
 const HOOK_PULL_ARENA_BOUND = 1060;
+const ZOMBIE_ARENA_BOUND = 1060;
 
 export class Zombie {
   constructor(x, y, type = 'walker', wave = 1) {
@@ -30,6 +31,11 @@ export class Zombie {
     this.windupTarget = null;
     this.attackCooldown = 0;
     this.stateTimer = 0;
+    this.actionPhase = 'idle';
+    this.actionKind = null;
+    this.actionTimer = 0;
+    this.actionDuration = 0;
+    this.actionHitApplied = false;
 
     // Status modifiers
     this.freezeTimer = 0;
@@ -40,6 +46,8 @@ export class Zombie {
     this.hookPullSide = 1;
     this.hookPullStopDistance = 76;
     this.leapActive = false;
+    this.glitchHopCooldown = 0.35 + Math.random() * 0.5;
+    this.combatTargets = [];
 
     // Stats configuration per type
     this.initStats(type, wave);
@@ -146,6 +154,7 @@ export class Zombie {
       this.attackCooldown -= dt;
     }
     if (this.freezeTimer > 0) this.freezeTimer -= dt;
+    if (this.glitchHopCooldown > 0) this.glitchHopCooldown -= dt;
 
     // The hook owns movement for a few frames so ordinary AI cannot overwrite
     // the pull velocity before physics integration.
@@ -180,16 +189,38 @@ export class Zombie {
     // 3. AI Behaviors. Nearby vulnerable allies can intercept attention, but
     // distant summons never drag a zombie away from Orange across the arena.
     const combatTargets = this.getCombatTargets(player, friendlyTargets);
-    const target = this.selectCombatTarget(player, friendlyTargets);
+    const target = this.type === 'titan_boss'
+      ? (this.isValidCombatTarget(player) ? player : null)
+      : this.selectCombatTarget(player, friendlyTargets);
+
+    if (this.actionPhase !== 'idle') {
+      this.updateHeavyAction(dt, combatTargets, camera);
+      this.applyPhysics(dt, groundY, sketchBlocks);
+      return;
+    }
+
+    // Ordinary enemies can make one cheap physics hop toward a nearby target
+    // on a platform. This closes the permanent safe-ledge exploit without a
+    // pathfinder, extra entities, or a new attack to teach the player.
+    if (target && this.tryGlitchHop(target, currentSpeed)) {
+      this.applyPhysics(dt, groundY, sketchBlocks);
+      return;
+    }
 
     // A runner's leap has a physical contact hitbox. It can collide with the
     // ally that blocks its path even if the jump originally started at Orange;
     // the collision is spatial, not a mid-air target snap.
     if (this.type === 'runner' && this.leapActive) {
-      const contactTarget = combatTargets
-        .filter((candidate) => this.isValidCombatTarget(candidate)
-          && Math.hypot(candidate.x - this.x, candidate.y - this.y) < 54)
-        .sort((a, b) => Math.hypot(a.x - this.x, a.y - this.y) - Math.hypot(b.x - this.x, b.y - this.y))[0];
+      let contactTarget = null;
+      let nearestContact = 54;
+      for (const candidate of combatTargets) {
+        if (!this.isValidCombatTarget(candidate)) continue;
+        const contactDistance = Math.hypot(candidate.x - this.x, candidate.y - this.y);
+        if (contactDistance < nearestContact) {
+          contactTarget = candidate;
+          nearestContact = contactDistance;
+        }
+      }
       if (contactTarget) {
         this.leapActive = false;
         this.attackCooldown = Math.max(this.attackCooldown, 1.2);
@@ -271,7 +302,9 @@ export class Zombie {
         }
       } else if (this.type === 'spitter') {
         // Ranged Spitter
-        if (dist < this.preferredDist - 60) {
+        const retreatBlocked = (this.x <= -ZOMBIE_ARENA_BOUND + 8 && this.facing > 0)
+          || (this.x >= ZOMBIE_ARENA_BOUND - 8 && this.facing < 0);
+        if (dist < this.preferredDist - 60 && !retreatBlocked) {
           this.vx = -this.facing * (currentSpeed * 0.8);
           this.pose = 'zombie_walk';
         } else if (dist > this.preferredDist + 80) {
@@ -293,7 +326,7 @@ export class Zombie {
         } else {
           this.vx = 0;
           if (this.attackCooldown <= 0) {
-            this.bruteSlam(combatTargets, camera);
+            this.beginHeavyAction('brute_slam');
           } else {
             this.pose = 'zombie_idle';
           }
@@ -344,9 +377,81 @@ export class Zombie {
       this.vx = 0;
       this.pose = 'attack_cross';
       if (this.attackCooldown <= 0) {
-        this.titanSmash(combatTargets, camera);
+        this.beginHeavyAction('titan_smash');
       }
     }
+  }
+
+  beginHeavyAction(kind) {
+    if (this.actionPhase !== 'idle') return false;
+    const isTitan = kind === 'titan_smash';
+    this.actionKind = isTitan ? 'titan_smash' : 'brute_slam';
+    this.actionPhase = 'windup';
+    this.actionDuration = isTitan ? 0.75 : 0.55;
+    this.actionTimer = this.actionDuration;
+    this.actionHitApplied = false;
+    this.vx = 0;
+    this.pose = 'attack_cross';
+    // This sound is deliberately restrained; the ground ring carries the
+    // warning while the impact sounds remain reserved for the active frame.
+    audio.playWhoosh();
+    return true;
+  }
+
+  updateHeavyAction(dt, combatTargets, camera) {
+    if (this.actionPhase === 'idle') return false;
+    const actionDt = dt * (this.freezeTimer > 0 ? 0.45 : 1);
+    this.vx = 0;
+
+    if (this.actionPhase === 'windup') {
+      this.pose = 'attack_cross';
+      this.actionTimer = Math.max(0, this.actionTimer - actionDt);
+      if (this.actionTimer <= 0) {
+        this.actionPhase = 'active';
+        this.actionDuration = 0.1;
+        this.actionTimer = this.actionDuration;
+        if (!this.actionHitApplied) {
+          this.actionHitApplied = true;
+          if (this.actionKind === 'titan_smash') this.titanSmash(combatTargets, camera);
+          else this.bruteSlam(combatTargets, camera);
+        }
+      }
+      return true;
+    }
+
+    if (this.actionPhase === 'active') {
+      this.pose = 'attack_cross';
+      this.actionTimer = Math.max(0, this.actionTimer - actionDt);
+      if (this.actionTimer <= 0) {
+        this.actionPhase = 'recovery';
+        this.actionDuration = this.actionKind === 'titan_smash' ? 0.65 : 0.45;
+        this.actionTimer = this.actionDuration;
+      }
+      return true;
+    }
+
+    this.pose = 'zombie_idle';
+    this.actionTimer = Math.max(0, this.actionTimer - actionDt);
+    if (this.actionTimer <= 0) {
+      const recoveryCooldown = this.actionKind === 'titan_smash' ? 1.1 : 1.4;
+      this.actionPhase = 'idle';
+      this.actionKind = null;
+      this.actionDuration = 0;
+      this.actionHitApplied = false;
+      this.attackCooldown = Math.max(this.attackCooldown, recoveryCooldown);
+    }
+    return true;
+  }
+
+  cancelHeavyAction(cooldown = 0.65) {
+    if (this.actionPhase === 'idle') return false;
+    this.actionPhase = 'idle';
+    this.actionKind = null;
+    this.actionTimer = 0;
+    this.actionDuration = 0;
+    this.actionHitApplied = false;
+    this.attackCooldown = Math.max(this.attackCooldown, cooldown);
+    return true;
   }
 
   isValidCombatTarget(target) {
@@ -356,7 +461,8 @@ export class Zombie {
   }
 
   getCombatTargets(player, friendlyTargets = []) {
-    const targets = [];
+    const targets = this.combatTargets;
+    targets.length = 0;
     if (this.isValidCombatTarget(player)) targets.push(player);
     for (const ally of friendlyTargets || []) {
       if (this.isValidCombatTarget(ally)) targets.push(ally);
@@ -382,6 +488,23 @@ export class Zombie {
       }
     }
     return target;
+  }
+
+  tryGlitchHop(target, currentSpeed) {
+    if (this.isBoss || !this.isGrounded || this.glitchHopCooldown > 0 || !target) return false;
+    const dx = target.x - this.x;
+    const rise = this.y - target.y;
+    if (rise <= 70 || Math.abs(dx) > 260 || Math.abs(dx) < 28) return false;
+
+    this.facing = dx >= 0 ? 1 : -1;
+    this.vy = this.type === 'brute' ? -500 : -540;
+    this.vx = this.facing * Math.max(125, currentSpeed * (this.type === 'runner' ? 1.05 : 0.9));
+    this.isGrounded = false;
+    this.leapActive = false;
+    this.pose = 'jump_rise';
+    this.glitchHopCooldown = 1.65 + (this.animTimer % 0.45);
+    particles.createDust(this.x, this.y, 3, -this.facing);
+    return true;
   }
 
   applyHookPull(source, duration = 0.34, stopDistance = 76) {
@@ -442,34 +565,54 @@ export class Zombie {
     if (this.hurtTimer > 0) {
       this.vx *= Math.pow(0.88, dt * 60);
     }
+    const previousY = this.y;
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
+    // Clamp every ordinary enemy and Titan to the painted arena so knockback
+    // and retreat behavior cannot strand the last target offscreen.
+    if (this.x <= -ZOMBIE_ARENA_BOUND) {
+      this.x = -ZOMBIE_ARENA_BOUND;
+      if (this.vx < 0) this.vx = 0;
+    } else if (this.x >= ZOMBIE_ARENA_BOUND) {
+      this.x = ZOMBIE_ARENA_BOUND;
+      if (this.vx > 0) this.vx = 0;
+    }
+
+    // Sketch Block and Platform collisions. Check the swept vertical crossing
+    // before the ground so a low frame rate cannot tunnel through a ledge.
+    let landedOnPlatform = false;
+    if (this.vy >= 0) {
+      landedOnPlatform = this.landOnPlatformCollection(sketchBlocks, previousY)
+        || this.landOnPlatformCollection(this.platforms, previousY);
+    }
+
     // Ground collision
-    if (this.y >= groundY) {
+    if (!landedOnPlatform && this.y >= groundY) {
       this.y = groundY;
       this.vy = 0;
       this.isGrounded = true;
-    } else {
+    } else if (!landedOnPlatform) {
       this.isGrounded = false;
     }
+  }
 
-    // Sketch Block and Platform collisions
-    const allPlatforms = [...(sketchBlocks || []), ...(this.platforms || [])];
-    if (allPlatforms.length > 0 && this.vy >= 0) {
-      for (const b of allPlatforms) {
-        const halfW = (b.width || 60) / 2;
-        const bH = b.height || 60;
-        const bTop = b.y - bH;
-        if (this.x + this.radius > b.x - halfW &&
-            this.x - this.radius < b.x + halfW &&
-            this.y >= bTop && this.y <= bTop + 18) {
-          this.y = bTop;
-          this.vy = 0;
-          this.isGrounded = true;
-        }
+  landOnPlatformCollection(platforms, previousY) {
+    if (!platforms || platforms.length === 0) return false;
+    for (const platform of platforms) {
+      const halfW = (platform.width || 60) / 2;
+      const top = platform.y - (platform.height || 60);
+      if (this.x + this.radius > platform.x - halfW
+          && this.x - this.radius < platform.x + halfW
+          && previousY <= top + 5
+          && this.y >= top) {
+        this.y = top;
+        this.vy = 0;
+        this.isGrounded = true;
+        return true;
       }
     }
+    return false;
   }
 
   biteTarget(target) {
@@ -492,7 +635,6 @@ export class Zombie {
   }
 
   bruteSlam(targets, camera) {
-    this.attackCooldown = 2.6;
     audio.playBruteStomp();
     camera?.addShake?.(0.4);
     particles.addShockwave(this.x + this.facing * 40, this.y, 140, '#228833', 10);
@@ -505,7 +647,6 @@ export class Zombie {
   }
 
   titanSmash(targets, camera) {
-    this.attackCooldown = 2.2;
     audio.playBossRoar();
     camera?.addShake?.(0.8);
     particles.addShockwave(this.x + this.facing * 50, this.y, 240, '#ff2244', 16);
@@ -526,6 +667,7 @@ export class Zombie {
     this.hurtTimer = 0.32; // Hit-stun duration
     this.windupTimer = 0; // Interrupt any pending attack immediately!
     this.windupTarget = null;
+    this.cancelHeavyAction(0.65);
     this.leapActive = false;
     this.attackCooldown = Math.max(this.attackCooldown, 0.5); // Delay next attack
 
@@ -547,6 +689,9 @@ export class Zombie {
 
   applyStun(duration = 3.0) {
     this.stunTimer = Math.max(this.stunTimer, duration);
+    this.windupTimer = 0;
+    this.windupTarget = null;
+    this.cancelHeavyAction(0.65);
     this.leapActive = false;
   }
 
@@ -567,14 +712,19 @@ export class Zombie {
     }
   }
 
-  draw(ctx) {
+  draw(ctx, crowded = false) {
     if (this.isDead) return;
 
     // Freeze overlay
     const isFrozen = this.freezeTimer > 0;
     const isStunned = this.stunTimer > 0;
 
-    // Draw stick zombie
+    this.drawHeavyTelegraph(ctx);
+
+    // In a packed ordinary horde the per-stick green glow is expensive and
+    // visually muddy. Bosses and any heavy currently communicating an action
+    // keep it, while the renderer preserves the full zombie silhouette.
+    const suppressOrdinaryGlow = crowded === true && !this.isBoss && this.actionPhase === 'idle';
     this.renderer.draw(ctx, {
       x: this.x,
       y: this.y,
@@ -585,28 +735,13 @@ export class Zombie {
       isHurt: this.isHurt,
       isAwakened: false,
       scale: 1.0,
-      alpha: 1.0
+      alpha: 1.0,
+      actionPhase: this.getActionRenderPhase(),
+      combatActionPhase: this.actionPhase,
+      suppressGlow: suppressOrdinaryGlow
     });
 
-    // Spitter: Bubbling toxic acid vapor
-    if (this.type === 'spitter') {
-      ctx.fillStyle = '#64dd17';
-      ctx.shadowColor = '#76ff03';
-      ctx.shadowBlur = 8;
-      const bubbleY = this.y - 35 + Math.sin(this.animTimer * 6) * 3;
-      ctx.beginPath();
-      ctx.arc(this.x + this.facing * 8, bubbleY, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (this.type === 'brute') {
-      // Brute: Heavy fist spikes
-      ctx.fillStyle = '#37474f';
-      ctx.strokeStyle = '#cfd8dc';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(this.x + this.facing * 16, this.y - 20, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
+    this.drawTypeSilhouette(ctx, suppressOrdinaryGlow);
 
     // Stunned stars above head
     if (isStunned) {
@@ -636,5 +771,142 @@ export class Zombie {
       const fillW = Math.max(0, barWidth * (this.hp / this.maxHp));
       ctx.fillRect(this.x - barWidth / 2, barY, fillW, barHeight);
     }
+  }
+
+  getActionRenderPhase() {
+    if (this.actionPhase === 'windup' && this.actionDuration > 0) {
+      return Math.max(0, Math.min(1, 1 - this.actionTimer / this.actionDuration));
+    }
+    if (this.actionPhase === 'active') return 1;
+    if (this.actionPhase === 'recovery' && this.actionDuration > 0) {
+      return Math.max(0, Math.min(1, this.actionTimer / this.actionDuration));
+    }
+    return null;
+  }
+
+  drawHeavyTelegraph(ctx) {
+    if (this.actionPhase !== 'windup' || this.actionDuration <= 0) return;
+    const isTitan = this.actionKind === 'titan_smash';
+    const radius = isTitan ? 220 : 150;
+    const color = isTitan ? '#ff2244' : '#70ff66';
+    const progress = Math.max(0, Math.min(1, 1 - this.actionTimer / this.actionDuration));
+    const pulse = 0.75 + Math.sin(this.animTimer * 15) * 0.15;
+
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.07 + progress * 0.11;
+    ctx.beginPath();
+    ctx.ellipse(this.x, this.y - 2, radius, Math.max(18, radius * 0.11), 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = Math.min(1, (0.48 + progress * 0.46) * pulse);
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = isTitan ? 16 : 10;
+    ctx.lineWidth = isTitan ? 6 : 4;
+    ctx.setLineDash([16, 9]);
+    ctx.beginPath();
+    ctx.ellipse(this.x, this.y - 2, radius, Math.max(18, radius * 0.11), 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // A tightening center arc gives young players an immediate countdown cue
+    // even when the outer danger ring reaches beyond the camera edge.
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y - 5, isTitan ? 43 : 31, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawTypeSilhouette(ctx, suppressOrdinaryGlow = false) {
+    if (this.type === 'walker') return;
+
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.scale(this.facing, 1);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    if (this.type === 'runner') {
+      // A sharp rear fin and long ankle streak make runners readable even when
+      // the horde is compressed into overlapping stick figures.
+      ctx.fillStyle = '#8cff64';
+      ctx.strokeStyle = '#102d16';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-5, -37);
+      ctx.lineTo(-27, -31);
+      ctx.lineTo(-10, -23);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = '#b8ff99';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-8, -13); ctx.lineTo(-25, -5);
+      ctx.moveTo(-5, -7); ctx.lineTo(-20, 1);
+      ctx.stroke();
+    } else if (this.type === 'spitter') {
+      // A swollen back tank and forward nozzle distinguish the ranged enemy
+      // from a walker before the first acid shot is fired.
+      ctx.fillStyle = '#163f36';
+      ctx.strokeStyle = '#76ff03';
+      ctx.lineWidth = 2.5;
+      if (!suppressOrdinaryGlow) {
+        ctx.shadowColor = '#64dd17';
+        ctx.shadowBlur = 7;
+      }
+      ctx.beginPath();
+      ctx.ellipse(-10, -34, 11, 16, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(7, -39); ctx.lineTo(20, -35); ctx.lineTo(9, -31);
+      ctx.stroke();
+      ctx.fillStyle = '#b2ff59';
+      const bubble = Math.sin(this.animTimer * 6) * 3;
+      ctx.beginPath();
+      ctx.arc(-12, -53 + bubble, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (this.type === 'brute') {
+      // Wide shoulder plates and square fists preserve the brute's mass when
+      // the underlying stick limbs overlap other enemies.
+      ctx.fillStyle = '#26382c';
+      ctx.strokeStyle = '#b8d8bf';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-27, -54); ctx.lineTo(-10, -66); ctx.lineTo(-2, -51);
+      ctx.moveTo(27, -54); ctx.lineTo(10, -66); ctx.lineTo(2, -51);
+      ctx.stroke();
+      ctx.fillRect(13, -28, 15, 14);
+      ctx.strokeRect(13, -28, 15, 14);
+      ctx.fillRect(-28, -28, 15, 14);
+      ctx.strokeRect(-28, -28, 15, 14);
+    } else if (this.type === 'titan_boss') {
+      // Horns, armored shoulders, and a bright core give Titan a unique boss
+      // silhouette without introducing a bitmap or additional draw pass.
+      ctx.fillStyle = '#07150a';
+      ctx.strokeStyle = '#ff4866';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-18, -96); ctx.lineTo(-34, -116); ctx.lineTo(-8, -105);
+      ctx.moveTo(18, -96); ctx.lineTo(34, -116); ctx.lineTo(8, -105);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-44, -72); ctx.lineTo(-17, -88); ctx.lineTo(-5, -66);
+      ctx.moveTo(44, -72); ctx.lineTo(17, -88); ctx.lineTo(5, -66);
+      ctx.stroke();
+      ctx.fillStyle = '#ff1744';
+      ctx.shadowColor = '#ff1744';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.moveTo(0, -65); ctx.lineTo(9, -53); ctx.lineTo(0, -41); ctx.lineTo(-9, -53);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.restore();
   }
 }

@@ -1,5 +1,38 @@
 // Particle and Visual FX Engine for dynamic Alan Becker style animation juice
 
+export const IMPACT_PROFILES = Object.freeze({
+  light: Object.freeze({
+    sparks: 4,
+    arcRadius: 0,
+    arcThickness: 0,
+    shockwaveRadius: 0,
+    shockwaveThickness: 0,
+    hitstop: 0.012,
+    shake: 0.08,
+    zoomPunch: 0.01
+  }),
+  medium: Object.freeze({
+    sparks: 8,
+    arcRadius: 68,
+    arcThickness: 5.5,
+    shockwaveRadius: 0,
+    shockwaveThickness: 0,
+    hitstop: 0.025,
+    shake: 0.18,
+    zoomPunch: 0.025
+  }),
+  heavy: Object.freeze({
+    sparks: 14,
+    arcRadius: 98,
+    arcThickness: 8,
+    shockwaveRadius: 160,
+    shockwaveThickness: 10,
+    hitstop: 0.05,
+    shake: 0.42,
+    zoomPunch: 0.05
+  })
+});
+
 export class ParticleSystem {
   constructor() {
     this.particles = [];
@@ -10,7 +43,18 @@ export class ParticleSystem {
     this.limbDebris = [];
     this.speedlinesTimer = 0;
     this.speedlinesMax = 0;
-    this.maxParticles = 360;
+    this.speedlineEffect = null;
+    this.speedlineSequence = 0;
+
+    this.normalParticleBudget = 320;
+    this.lowParticleBudget = 220;
+    this.loadProfile = 'auto';
+    this.maxParticles = this.normalParticleBudget;
+    this.maxSlashArcs = 12;
+    this.maxShockwaves = 8;
+    this.maxComicPopups = 6;
+    this.maxDamageTexts = 25;
+    this.maxLimbDebris = 24;
   }
 
   reset() {
@@ -22,11 +66,50 @@ export class ParticleSystem {
     this.limbDebris.length = 0;
     this.speedlinesTimer = 0;
     this.speedlinesMax = 0;
+    this.speedlineEffect = null;
+    this.speedlineSequence = 0;
   }
 
-  triggerSpeedlines(duration = 0.25) {
+  setLoadProfile(profile = 'normal') {
+    if (profile === 'auto') {
+      this.loadProfile = 'auto';
+      return this.maxParticles;
+    }
+    const lowLoadBudget = profile === true || profile === 'low' || profile === 'constrained';
+    this.loadProfile = lowLoadBudget ? 'low' : 'normal';
+    this.maxParticles = lowLoadBudget ? this.lowParticleBudget : this.normalParticleBudget;
+    trimOldest(this.particles, this.maxParticles);
+    return this.maxParticles;
+  }
+
+  triggerSpeedlines(options = 0.25) {
+    const config = typeof options === 'object' && options !== null
+      ? options
+      : { duration: options };
+    const duration = clamp(Number(config.duration) || 0.25, 0.05, 0.3);
+    const boss = config.boss === true || config.profile === 'boss';
+    const maxLines = boss ? 24 : 18;
+    const lineCount = Math.round(clamp(Number(config.lineCount ?? config.count) || maxLines, 8, maxLines));
+    const x = Number.isFinite(config.x) ? config.x : 0;
+    const y = Number.isFinite(config.y) ? config.y : 0;
+    const centerDist = clamp(Number(config.centerDist) || (boss ? 205 : 180), 60, 360);
+    const outerDist = clamp(
+      Number(config.outerDist) || (boss ? 920 : 760),
+      centerDist + 100,
+      1100
+    );
+    const suppliedSeed = Number.isFinite(config.seed) ? Math.trunc(config.seed) : null;
+    const seed = suppliedSeed ?? hashSpeedlineSeed(x, y, this.speedlineSequence++);
+    const random = seededRandom(seed);
+    const angles = [];
+    for (let i = 0; i < lineCount; i++) {
+      angles.push((i / lineCount) * Math.PI * 2 + (random() - 0.5) * 0.075);
+    }
+
     this.speedlinesTimer = duration;
     this.speedlinesMax = duration;
+    this.speedlineEffect = { x, y, centerDist, outerDist, angles, boss, seed };
+    return this.speedlineEffect;
   }
 
   update(dt) {
@@ -122,6 +205,11 @@ export class ParticleSystem {
     if (this.particles.length > this.maxParticles) {
       this.particles.splice(0, this.particles.length - this.maxParticles);
     }
+    trimOldest(this.slashArcs, this.maxSlashArcs);
+    trimOldest(this.shockwaves, this.maxShockwaves);
+    trimOldest(this.comicPopups, this.maxComicPopups);
+    trimOldest(this.damageTexts, this.maxDamageTexts);
+    trimOldest(this.limbDebris, this.maxLimbDebris);
   }
 
   draw(ctx) {
@@ -319,19 +407,23 @@ export class ParticleSystem {
     // 7. Draw Anime Radial Speedlines on Mega Finisher Impacts
     if (this.speedlinesTimer > 0) {
       const alpha = Math.min(0.65, (this.speedlinesTimer / this.speedlinesMax) * 0.7);
+      const effect = this.speedlineEffect || {
+        x: 0,
+        y: 0,
+        centerDist: 180,
+        outerDist: 760,
+        angles: DEFAULT_SPEEDLINE_ANGLES
+      };
       ctx.save();
+      ctx.translate(effect.x, effect.y);
       ctx.strokeStyle = '#ffffff';
       ctx.globalAlpha = alpha;
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = effect.boss ? 2.7 : 2.25;
 
-      const numLines = 24;
-      const centerDist = 240;
-      const outerDist = 950;
-      for (let i = 0; i < numLines; i++) {
-        const angle = (i / numLines) * Math.PI * 2 + (Math.random() - 0.5) * 0.08;
+      for (const angle of effect.angles) {
         ctx.beginPath();
-        ctx.moveTo(Math.cos(angle) * centerDist, Math.sin(angle) * centerDist);
-        ctx.lineTo(Math.cos(angle) * outerDist, Math.sin(angle) * outerDist);
+        ctx.moveTo(Math.cos(angle) * effect.centerDist, Math.sin(angle) * effect.centerDist);
+        ctx.lineTo(Math.cos(angle) * effect.outerDist, Math.sin(angle) * effect.outerDist);
         ctx.stroke();
       }
       ctx.restore();
@@ -339,6 +431,79 @@ export class ParticleSystem {
   }
 
   // --- Particle Spawners ---
+
+  emitImpact(options = {}, legacyX = 0, legacyY = 0, legacyOptions = {}) {
+    // Support both the descriptive object API and the compact gameplay form:
+    // emitImpact('heavy', x, y, { color, direction }).
+    const config = typeof options === 'string'
+      ? {
+          ...(legacyOptions && typeof legacyOptions === 'object' ? legacyOptions : {}),
+          profile: options,
+          x: legacyX,
+          y: legacyY
+        }
+      : (typeof options === 'object' && options !== null ? options : {});
+    const profileName = IMPACT_PROFILES[config.profile] ? config.profile : 'light';
+    const profile = IMPACT_PROFILES[profileName];
+    const x = Number.isFinite(config.x) ? config.x : 0;
+    const y = Number.isFinite(config.y) ? config.y : 0;
+    const facing = (config.facing ?? config.direction) === -1 ? -1 : 1;
+    const color = config.color || '#ffdd44';
+
+    this.createHitSparks(x, y, profile.sparks, color);
+    if (config.arc !== false && profile.arcRadius > 0) {
+      this.addSlashArc(
+        x,
+        y,
+        Number(config.arcRadius) || profile.arcRadius,
+        Number(config.angle) || 0,
+        facing,
+        config.arcColor || color,
+        Number(config.arcThickness) || profile.arcThickness
+      );
+    }
+    if (config.shockwave !== false && profile.shockwaveRadius > 0) {
+      this.addShockwave(
+        x,
+        y,
+        Number(config.shockwaveRadius) || profile.shockwaveRadius,
+        config.shockwaveColor || color,
+        Number(config.shockwaveThickness) || profile.shockwaveThickness
+      );
+    }
+    if (profileName === 'heavy' && config.speedlines !== false) {
+      this.triggerSpeedlines({
+        x,
+        y,
+        duration: Math.min(0.3, Number(config.duration) || 0.26),
+        count: config.boss ? 24 : 18,
+        boss: config.boss === true,
+        seed: Number.isFinite(config.seed) ? config.seed : undefined
+      });
+    }
+
+    return {
+      profile: profileName,
+      sparks: profile.sparks,
+      hitstop: profile.hitstop,
+      shake: profile.shake,
+      zoomPunch: profile.zoomPunch
+    };
+  }
+
+  configureForCanvas(canvas) {
+    if (this.loadProfile !== 'auto') return this.maxParticles;
+    const width = Number(canvas?.width);
+    const height = Number(canvas?.height);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return this.maxParticles;
+    }
+    this.maxParticles = width * height >= 7_500_000
+      ? this.lowParticleBudget
+      : this.normalParticleBudget;
+    trimOldest(this.particles, this.maxParticles);
+    return this.maxParticles;
+  }
 
   createHitSparks(x, y, count = 8, color = '#ffdd44') {
     for (let i = 0; i < count; i++) {
@@ -376,6 +541,7 @@ export class ParticleSystem {
         fade: true
       });
     }
+    trimOldest(this.particles, this.maxParticles);
   }
 
   createZombieSplatter(x, y, count = 12, color = '#44ee55') {
@@ -398,6 +564,7 @@ export class ParticleSystem {
         drag: 0.96
       });
     }
+    trimOldest(this.particles, this.maxParticles);
   }
 
   createDust(x, y, count = 5, dir = 0) {
@@ -419,6 +586,7 @@ export class ParticleSystem {
         fade: true
       });
     }
+    trimOldest(this.particles, this.maxParticles);
   }
 
   createAwakeningAura(x, y, count = 3) {
@@ -437,9 +605,11 @@ export class ParticleSystem {
         fade: true
       });
     }
+    trimOldest(this.particles, this.maxParticles);
   }
 
   addSlashArc(x, y, radius = 60, angle = 0, facing = 1, color = '#ffaa22', thickness = 6) {
+    if (this.slashArcs.length >= this.maxSlashArcs) this.slashArcs.shift();
     this.slashArcs.push({
       x,
       y,
@@ -472,10 +642,11 @@ export class ParticleSystem {
         fade: true
       });
     }
+    trimOldest(this.particles, this.maxParticles);
   }
 
   addShockwave(x, y, maxRadius = 120, color = '#ff7700', thickness = 8) {
-    if (this.shockwaves.length >= 8) this.shockwaves.shift();
+    if (this.shockwaves.length >= this.maxShockwaves) this.shockwaves.shift();
     this.shockwaves.push({
       x,
       y,
@@ -490,7 +661,7 @@ export class ParticleSystem {
   }
 
   addDamageText(x, y, amount, isCrit = false, customColor = null) {
-    if (this.damageTexts.length >= 25) this.damageTexts.shift();
+    if (this.damageTexts.length >= this.maxDamageTexts) this.damageTexts.shift();
     let color = '#ffffff';
     let text = typeof amount === 'number' ? `${Math.round(amount)}` : `${amount}`;
 
@@ -515,7 +686,7 @@ export class ParticleSystem {
   }
 
   addTextBanner(x, y, text, color = '#ff8800') {
-    if (this.damageTexts.length >= 25) this.damageTexts.shift();
+    if (this.damageTexts.length >= this.maxDamageTexts) this.damageTexts.shift();
     this.damageTexts.push({
       x,
       y: y - 40,
@@ -530,7 +701,7 @@ export class ParticleSystem {
   }
 
   addComicPopup(x, y, text = 'POW!', bgColor = '#ff1744', textColor = '#ffee00') {
-    if (this.comicPopups.length >= 6) this.comicPopups.shift();
+    if (this.comicPopups.length >= this.maxComicPopups) this.comicPopups.shift();
     this.comicPopups.push({
       x,
       y: y - 25,
@@ -549,7 +720,8 @@ export class ParticleSystem {
   }
 
   createStickLimbExplosion(x, y, groundY = 0, color = '#2e7d32') {
-    while (this.limbDebris.length > 20) {
+    const incomingPieces = 6;
+    while (this.limbDebris.length > this.maxLimbDebris - incomingPieces) {
       this.limbDebris.shift();
     }
     // 1. Head circle piece
@@ -588,6 +760,36 @@ export class ParticleSystem {
       });
     }
   }
+}
+
+const DEFAULT_SPEEDLINE_ANGLES = Array.from(
+  { length: 18 },
+  (_, index) => (index / 18) * Math.PI * 2
+);
+
+function trimOldest(list, maxLength) {
+  if (list.length > maxLength) list.splice(0, list.length - maxLength);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function hashSpeedlineSeed(x, y, sequence) {
+  const ix = Math.trunc(x * 10);
+  const iy = Math.trunc(y * 10);
+  return ((ix * 73856093) ^ (iy * 19349663) ^ (sequence * 83492791) ^ 0x9e3779b9) >>> 0;
+}
+
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 export const particles = new ParticleSystem();

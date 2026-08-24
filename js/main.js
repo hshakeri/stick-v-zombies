@@ -1,19 +1,18 @@
-// Main Game Coordinator and Canvas Loop
 
-import { audio } from './engine/audio.js?v=7.0';
-import { input } from './engine/input.js?v=7.0';
-import { Camera } from './engine/camera.js?v=7.0';
-import { particles } from './engine/particles.js?v=7.0';
-import { Player } from './entities/player.js?v=7.0';
-import { waves } from './systems/waves.js?v=7.0';
-import { combat } from './systems/combat.js?v=7.0';
-import { shop } from './systems/shop.js?v=7.0';
-import { stages } from './systems/stages.js?v=7.0';
-import { projectiles } from './entities/projectiles.js?v=7.0';
-import { allies } from './entities/allies.js?v=7.0';
-import { speech } from './engine/speech.js?v=7.0';
+import { audio } from './engine/audio.js?v=8.2';
+import { input } from './engine/input.js?v=8.2';
+import { Camera } from './engine/camera.js?v=8.2';
+import { particles } from './engine/particles.js?v=8.2';
+import { Player } from './entities/player.js?v=8.2';
+import { waves } from './systems/waves.js?v=8.2';
+import { combat } from './systems/combat.js?v=8.2';
+import { shop } from './systems/shop.js?v=8.2';
+import { stages } from './systems/stages.js?v=8.2';
+import { projectiles } from './entities/projectiles.js?v=8.2';
+import { allies } from './entities/allies.js?v=8.2';
+import { speech } from './engine/speech.js?v=8.2';
 
-class Game {
+export class Game {
   constructor() {
     this.canvas = document.getElementById('gameCanvas');
     this.ctx = this.canvas.getContext('2d');
@@ -26,7 +25,14 @@ class Game {
     this.state = 'TITLE'; // 'TITLE', 'PLAYING', 'SHOP', 'PAUSED', 'GAMEOVER', 'VICTORY'
     this.lastTime = 0;
     this.lastStaticRender = 0;
+    this.hudSyncTimer = 0;
+    this.hudCache = Object.create(null);
     this.reportedErrors = new Set();
+    this.reportedLayerErrors = new Set();
+    this.hostileTargets = [];
+    this.stageCheckpoint = null;
+    this.weaponPickup = null;
+    this.missionStripTimer = 0;
   }
 
   init() {
@@ -34,7 +40,6 @@ class Game {
     input.init(this.canvas, this.camera);
     this.bindUIEvents();
 
-    // Start Animation Loop
     requestAnimationFrame((timestamp) => {
       this.lastTime = timestamp;
       this.gameLoop(timestamp);
@@ -45,16 +50,14 @@ class Game {
     const resize = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
-      // Cap both pixel density and total backing pixels. This keeps 4K/5K
-      // displays from allocating a 30M+ pixel canvas while retaining crisp
-      // rendering on phones and ordinary desktop screens.
       const dpr = this.camera.getRenderPixelRatio(window.devicePixelRatio || 1);
-      this.canvas.width = Math.round(width * dpr);
-      this.canvas.height = Math.round(height * dpr);
+      this.canvas.width = Math.max(1, Math.floor(width * dpr));
+      this.canvas.height = Math.max(1, Math.floor(height * dpr));
       this.canvas.style.width = `${width}px`;
       this.canvas.style.height = `${height}px`;
       this.ctx.resetTransform?.();
       this.ctx.scale(dpr, dpr);
+      particles.configureForCanvas?.(this.canvas);
       this.camera.clampToArena();
     };
     window.addEventListener('resize', resize);
@@ -67,7 +70,6 @@ class Game {
   }
 
   bindUIEvents() {
-    // Start Game & Controls
     const btnStart = document.getElementById('btn-start-game');
     if (btnStart) {
       btnStart.addEventListener('click', () => {
@@ -88,13 +90,15 @@ class Game {
       });
     }
 
-    // Try Again on Game Over
     const btnTryAgain = document.getElementById('btn-try-again');
     if (btnTryAgain) {
       btnTryAgain.addEventListener('click', () => {
-        this.restartGame();
+        this.retryStage();
       });
     }
+
+    const btnRestartCampaign = document.getElementById('btn-restart-campaign');
+    if (btnRestartCampaign) btnRestartCampaign.addEventListener('click', () => this.restartGame());
 
     const btnMenuFromGameOver = document.getElementById('btn-menu-from-gameover');
     if (btnMenuFromGameOver) btnMenuFromGameOver.addEventListener('click', () => this.showTitleScreen());
@@ -105,7 +109,6 @@ class Game {
     const btnVictoryMenu = document.getElementById('btn-victory-menu');
     if (btnVictoryMenu) btnVictoryMenu.addEventListener('click', () => this.showTitleScreen());
 
-    // Shop Buttons
     const btnOpenShop = document.getElementById('btn-open-shop');
     if (btnOpenShop) {
       btnOpenShop.addEventListener('click', () => {
@@ -127,7 +130,6 @@ class Game {
     if (btnCloseShop) btnCloseShop.addEventListener('click', closeShop);
     if (btnResumeFromShop) btnResumeFromShop.addEventListener('click', closeShop);
 
-    // Pause Buttons
     const btnPause = document.getElementById('btn-pause');
     if (btnPause) {
       btnPause.addEventListener('click', () => {
@@ -164,7 +166,6 @@ class Game {
       });
     }
 
-    // Audio Toggle
     const btnAudio = document.getElementById('btn-audio-toggle');
     if (btnAudio) {
       btnAudio.addEventListener('click', () => {
@@ -178,7 +179,6 @@ class Game {
       });
     }
 
-    // Ally summon slot clicks (1 - 5)
     const bindAllyClick = (id, type) => {
       const el = document.getElementById(id);
       if (el) {
@@ -199,6 +199,7 @@ class Game {
   startGame() {
     this.hideAllModals();
     this.state = 'PLAYING';
+    this.reportedLayerErrors.clear();
     input.resetHeldInputs();
     projectiles.reset();
     allies.reset(true);
@@ -211,11 +212,144 @@ class Game {
     this.player.isGrounded = true;
     this.camera.snapTo(this.player);
     waves.startWave(1);
+    this.prepareWeaponPickup(1);
+    this.captureStageCheckpoint();
+    this.showMissionStrip(1);
   }
 
   restartGame() {
     this.hideAllModals();
     this.startGame();
+  }
+
+  retryStage() {
+    const stage = this.stageManager.currentStage;
+    this.hideAllModals();
+    this.state = 'PLAYING';
+    input.resetHeldInputs();
+    projectiles.reset();
+    allies.reset(false, false);
+    particles.reset();
+    speech.reset();
+    combat.clearArena();
+    this.stageManager.loadStage(stage);
+    this.player.resetStageCombat?.(true);
+    this.player.hp = this.player.maxHp;
+    this.player.x = this.stageManager.entranceDoor.x + 30;
+    this.player.y = this.groundY;
+    this.player.isGrounded = true;
+    this.player.weaponType = 'pencil';
+    this.player.temporaryWeaponTimer = 0;
+    this.camera.snapTo(this.player);
+    this.camera.clearTransient?.();
+    this.reportedLayerErrors.clear();
+    this.prepareWeaponPickup(stage);
+    this.captureStageCheckpoint();
+    this.showMissionStrip(stage, 'RETRY');
+    waves.startWave(stage);
+  }
+
+  captureStageCheckpoint() {
+    this.stageCheckpoint = Object.freeze({
+      stage: this.stageManager.currentStage,
+      ink: combat.ink,
+      score: combat.score,
+      totalKills: combat.totalKills,
+      maxCombo: combat.maxCombo,
+      upgrades: Object.freeze(shop.upgrades.map((upgrade) => Object.freeze({ id: upgrade.id, level: upgrade.level }))),
+      player: Object.freeze({
+        maxHp: this.player.maxHp,
+        damageMultiplier: this.player.damageMultiplier,
+        speed: this.player.speed,
+        jumpForce: this.player.jumpForce,
+        lifesteal: this.player.lifesteal,
+        superGainRate: this.player.superGainRate
+      })
+    });
+  }
+
+  prepareWeaponPickup(stage) {
+    const type = stage === 7 ? 'staff' : (stage === 12 ? 'eraser' : null);
+    this.weaponPickup = type ? {
+      type,
+      x: Math.max(-720, this.stageManager.entranceDoor.x + 250),
+      y: this.groundY - 28,
+      collected: false
+    } : null;
+  }
+
+  updateWeaponPickup() {
+    const pickup = this.weaponPickup;
+    if (!pickup || pickup.collected || this.player.isDead) return;
+    if (Math.hypot(this.player.x - pickup.x, (this.player.y - 28) - pickup.y) <= 62) {
+      pickup.collected = this.player.equipTemporaryWeapon?.(pickup.type, 18) !== false;
+      this.camera.focusOn?.(pickup.x, pickup.y, 0.18, 0.98);
+    }
+  }
+
+  drawWeaponPickup(ctx) {
+    const pickup = this.weaponPickup;
+    if (!pickup || pickup.collected) return;
+    const bob = Math.sin(this.stageManager.stageTime * 4.5) * 5;
+    const color = pickup.type === 'staff' ? '#ffd166' : '#dff4ff';
+    ctx.save();
+    ctx.translate(pickup.x, pickup.y + bob);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    if (pickup.type === 'staff') {
+      ctx.moveTo(-25, 13);
+      ctx.lineTo(25, -13);
+    } else {
+      if (ctx.roundRect) ctx.roundRect(-24, -14, 48, 28, 7);
+      else ctx.rect(-24, -14, 48, 28);
+      ctx.fill();
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 0.45;
+    ctx.beginPath();
+    ctx.arc(0, 0, 38 + Math.sin(this.stageManager.stageTime * 5) * 3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  getStageLesson(stage) {
+    return {
+      1: 'MOVE · JUMP · Q COMBO · ROLL',
+      2: 'CALL RED WITH 1',
+      3: 'H HOOKS SPITTERS',
+      4: 'HEAVIES REVERSE H',
+      6: 'F GRABS MALWARE',
+      7: 'STAFF PICKUP · E ANVIL',
+      8: 'AIR CHASE · ALLIES 2–4',
+      10: 'FULL METER? PRESS R'
+    }[stage] || 'CHAIN MOVES · WATCH RINGS';
+  }
+
+  showMissionStrip(stage, prefix = '') {
+    const strip = document.getElementById('mission-strip');
+    if (!strip) return;
+    const beat = this.stageManager.campaignBeat || {};
+    const act = document.getElementById('mission-act');
+    const mission = document.getElementById('mission-text');
+    const lesson = document.getElementById('mission-lesson');
+    if (act) act.textContent = `${prefix ? `${prefix} · ` : ''}${beat.act || `STAGE ${stage}`}`;
+    if (mission) mission.textContent = beat.mission || this.stageManager.stageName;
+    if (lesson) lesson.textContent = this.getStageLesson(stage);
+    strip.classList.add('active');
+    this.missionStripTimer = stage === 1 || [5, 10, 11, 15].includes(stage) ? 1.5 : 1.25;
+  }
+
+  updateMissionStrip(dt) {
+    if (this.missionStripTimer <= 0) return;
+    this.missionStripTimer = Math.max(0, this.missionStripTimer - dt);
+    const relevantInput = input.actions.left || input.actions.right || input.actions.jumpPressed ||
+      input.actions.attackPressed || input.actions.weaponPressed || input.actions.hookPressed ||
+      input.actions.rollPressed || input.actions.grabPressed || input.actions.blockPressed ||
+      input.actions.superPressed || input.actions.ally1 || input.actions.ally2 || input.actions.ally3 || input.actions.ally4;
+    if (relevantInput) this.missionStripTimer = 0;
+    if (this.missionStripTimer === 0) document.getElementById('mission-strip')?.classList.remove('active');
   }
 
   advanceStage(nextStage) {
@@ -234,6 +368,8 @@ class Game {
     this.player.pose = 'idle';
     this.player.attackTimer = 0;
     this.player.weaponTimer = 0;
+    this.player.activeMove = null;
+    this.player.bufferedMove = null;
     this.player.isRolling = false;
     this.player.rollTimer = 0;
     this.player.diveKick = false;
@@ -249,6 +385,10 @@ class Game {
     this.camera.snapTo(this.player);
 
     waves.startWave(nextStage);
+    this.reportedLayerErrors.clear();
+    this.prepareWeaponPickup(nextStage);
+    this.captureStageCheckpoint();
+    this.showMissionStrip(nextStage);
 
     particles.addTextBanner(this.player.x, this.player.y - 70, `★ STAGE ${nextStage}: ${this.stageManager.stageName} ★`, '#ffea00');
     if (isBossCheckpoint) {
@@ -344,7 +484,6 @@ class Game {
 
       input.update();
 
-      // Hotkey UI toggles
       if (input.actions.shop) {
         if (this.state === 'PLAYING') this.openShop();
         else if (this.state === 'SHOP') this.closeShop();
@@ -354,12 +493,10 @@ class Game {
         else if (this.state === 'PAUSED') this.resumeGame();
       }
 
-      // Update Game Logic
       if (this.state === 'PLAYING') {
         this.update(dt);
       }
 
-      // Modal states do not need a full 60 FPS canvas redraw.
       if (this.state === 'PLAYING' || timestamp - this.lastStaticRender >= 120) {
         this.render();
         this.lastStaticRender = timestamp;
@@ -371,26 +508,34 @@ class Game {
         console.error('GameLoop error caught:', err);
       }
     } finally {
-      // One-frame actions must be released even if a future update or draw
-      // throws, otherwise the same attack can remain armed indefinitely.
       input.endFrame();
     }
 
     requestAnimationFrame((t) => this.gameLoop(t));
   }
 
+  collectHostileTargets() {
+    const output = this.hostileTargets;
+    output.length = 0;
+    for (const enemy of waves.zombies) {
+      if (enemy && !enemy.isDead) output.push(enemy);
+    }
+    projectiles.collectHostileTargets?.(output);
+    return output;
+  }
+
   update(dt) {
-    // Camera Shake and Hitstop
     this.camera.update(dt, this.player, waves.zombies.length);
 
-    // Apply fluid slow-mo on hitstop rather than returning early or freezing
     const simDt = this.camera.isHitstopped() ? dt * 0.5 : dt;
+    this.hudSyncTimer += simDt;
+    this.updateMissionStrip(simDt);
 
     const currentPlatforms = this.stageManager.getAllSolidPlatforms();
+    const hostileTargets = this.collectHostileTargets();
 
-    // 1. Update Player
     try {
-      this.player.update(simDt, input, this.groundY, projectiles.sketchBlocks, waves.zombies, this.camera, currentPlatforms);
+      this.player.update(simDt, input, this.groundY, projectiles.sketchBlocks, hostileTargets, this.camera, currentPlatforms);
     } catch (e) { console.error('Player update error:', e); }
 
     if (this.player.isDead && this.player.deathTimer <= 0) {
@@ -398,7 +543,6 @@ class Game {
       return;
     }
 
-    // 2. Update Wave Director
     try {
       waves.update(
         simDt,
@@ -412,7 +556,6 @@ class Game {
       );
     } catch (e) { console.error('Waves update error:', e); }
 
-    // 3. Update Stage Progression, Obstacles, and Doors
     try {
       this.stageManager.update(simDt, this.player, waves, (nextStage) => {
         this.stageManager.resolveStageExit(
@@ -423,54 +566,54 @@ class Game {
       }, this.camera);
     } catch (e) { console.error('Stage update error:', e); }
 
-    // 4. Update Projectiles & Hazards
     try {
       projectiles.update(
         simDt,
         this.groundY,
-        waves.zombies,
+        hostileTargets,
         this.player,
         this.camera,
         allies.getCombatTargets?.() || []
       );
     } catch (e) { console.error('Projectiles update error:', e); }
 
-    // 5. Update Allies (including Cursor Pointer)
     try {
-      allies.update(simDt, this.groundY, waves.zombies, this.player, this.camera);
+      allies.update(simDt, this.groundY, hostileTargets, this.player, this.camera);
     } catch (e) { console.error('Allies update error:', e); }
 
-    // 6. Update Combat Scores & Ink Drops
     try {
       combat.update(simDt, this.player);
     } catch (e) { console.error('Combat update error:', e); }
 
-    // 7. Update Particles
     try {
       particles.update(simDt);
     } catch (e) { console.error('Particles update error:', e); }
 
-    // 8. Update 80s Retro Speech Bubbles
     try {
       speech.update(simDt);
     } catch (e) { console.error('Speech update error:', e); }
 
+    this.updateWeaponPickup();
+
+  }
+
+  getHudElement(id) {
+    if (!(id in this.hudCache)) this.hudCache[id] = document.getElementById(id);
+    return this.hudCache[id];
   }
 
   syncHUD() {
-    // Player HP
-    const hpFill = document.getElementById('hud-hp-fill');
-    const hpText = document.getElementById('hud-hp-text');
+    const hpFill = this.getHudElement('hud-hp-fill');
+    const hpText = this.getHudElement('hud-hp-text');
     if (hpFill && hpText) {
       const pct = Math.max(0, (this.player.hp / this.player.maxHp) * 100);
       hpFill.style.width = `${pct}%`;
       hpText.innerText = `${Math.ceil(this.player.hp)} / ${this.player.maxHp}`;
     }
 
-    // Awakening Super Bar
-    const superFill = document.getElementById('hud-super-fill');
-    const superText = document.getElementById('hud-super-text');
-    const superSlot = document.getElementById('skill-super');
+    const superFill = this.getHudElement('hud-super-fill');
+    const superText = this.getHudElement('hud-super-text');
+    const superSlot = this.getHudElement('skill-super');
     if (superFill && superText) {
       const pct = Math.min(100, (this.player.superMeter / this.player.maxSuper) * 100);
       superFill.style.width = `${pct}%`;
@@ -485,9 +628,8 @@ class Game {
       }
     }
 
-    // Stage Name & Objective Status
-    const waveNum = document.getElementById('hud-wave-number');
-    const zombieCount = document.getElementById('hud-zombies-count');
+    const waveNum = this.getHudElement('hud-wave-number');
+    const zombieCount = this.getHudElement('hud-zombies-count');
     if (waveNum) waveNum.innerText = `${this.stageManager.currentStage} - ${this.stageManager.stageName}`;
     if (zombieCount) {
       if (this.stageManager.exitDoor.isOpen) {
@@ -497,10 +639,9 @@ class Game {
       }
     }
 
-    // Boss Health Bar
-    const bossBox = document.getElementById('boss-health-box');
-    const bossFill = document.getElementById('boss-hp-fill');
-    const bossLabel = document.getElementById('boss-name-label');
+    const bossBox = this.getHudElement('boss-health-box');
+    const bossFill = this.getHudElement('boss-hp-fill');
+    const bossLabel = this.getHudElement('boss-name-label');
     if (bossBox && bossFill) {
       if (waves.bossZombie && !waves.bossZombie.isDead) {
         bossBox.style.display = 'flex';
@@ -515,11 +656,11 @@ class Game {
         if (bossClass) bossBox.classList.add(bossClass);
         if (bossLabel) {
           const fallbackName = {
-            dark_lord: 'THE DARK LORD (TDL)',
-            king_orange: 'KING ORANGE',
+            dark_lord: 'DARK LORD // BACKUP',
+            king_orange: 'KING ORANGE // REPLAY',
             h4c3r: 'H4C3R'
           }[bossType] || 'TITAN UNDEAD';
-          bossLabel.innerText = waves.bossZombie.name || fallbackName;
+          bossLabel.innerText = this.stageManager.campaignBeat?.bossLabel || waves.bossZombie.name || fallbackName;
         }
         const bossPct = (waves.bossZombie.hp / waves.bossZombie.maxHp) * 100;
         bossFill.style.width = `${Math.max(0, bossPct)}%`;
@@ -529,17 +670,15 @@ class Game {
       }
     }
 
-    // Score & Ink
-    const hudScore = document.getElementById('hud-score');
-    const hudInk = document.getElementById('hud-ink');
+    const hudScore = this.getHudElement('hud-score');
+    const hudInk = this.getHudElement('hud-ink');
     if (hudScore) hudScore.innerText = combat.score;
     if (hudInk) hudInk.innerText = combat.ink;
 
-    // Combo Counter
-    const comboContainer = document.getElementById('hud-combo');
-    const comboHits = document.getElementById('combo-hit-count');
-    const comboTitle = document.getElementById('combo-rank-title');
-    const comboBar = document.getElementById('combo-timer-fill');
+    const comboContainer = this.getHudElement('hud-combo');
+    const comboHits = this.getHudElement('combo-hit-count');
+    const comboTitle = this.getHudElement('combo-rank-title');
+    const comboBar = this.getHudElement('combo-timer-fill');
 
     if (comboContainer && combat.combo >= 2) {
       comboContainer.classList.add('active');
@@ -551,9 +690,8 @@ class Game {
       comboContainer.classList.remove('active');
     }
 
-    // Ally Cooldown Displays (Red, Blue, Yellow, Green, Cursor)
     const syncAlly = (id, type, statusId) => {
-      const el = document.getElementById(id);
+      const el = this.getHudElement(id);
       if (!el) return;
       const cd = allies.cooldowns[type] || 0;
       const recovering = allies.recoveryStates?.[type] === true;
@@ -565,7 +703,7 @@ class Game {
         el.style.filter = 'none';
       }
       el.classList.toggle('recovering', recovering && cd > 0);
-      const status = document.getElementById(statusId);
+      const status = this.getHudElement(statusId);
       if (status) {
         status.innerText = cd > 0 ? `${recovering ? '↻' : ''}${Math.ceil(cd)}` : '';
         status.style.opacity = cd > 0 ? '1' : '0';
@@ -578,8 +716,8 @@ class Game {
     syncAlly('ally-cursor-slot', 'cursor', 'ally-cursor-status');
 
     const syncSkillCooldown = (slotId, overlayId, remaining) => {
-      const slot = document.getElementById(slotId);
-      const overlay = document.getElementById(overlayId);
+      const slot = this.getHudElement(slotId);
+      const overlay = this.getHudElement(overlayId);
       const coolingDown = remaining > 0;
       if (slot) {
         slot.classList.toggle('cooldown', coolingDown);
@@ -595,12 +733,90 @@ class Game {
     syncSkillCooldown('skill-hook', 'cd-hook-overlay', this.player.hookCooldown);
   }
 
-  render() {
-    // HUD markup can be briefly newer than a cached dependency while a static
-    // host rolls out a release. Never let a compatibility error there prevent
-    // the independent Canvas world pass from painting.
+  renderLayer(name, draw) {
+    const ctx = this.ctx;
+    if (!this.layerContextGuard || this.layerContextGuard.source !== ctx) {
+      const nativeSave = ctx.save.bind(ctx);
+      const nativeRestore = ctx.restore.bind(ctx);
+      const boundMethods = new Map();
+      const state = { depth: 0 };
+      const guardedSave = () => { state.depth += 1; nativeSave(); };
+      const guardedRestore = () => {
+        if (state.depth > 0) {
+          state.depth -= 1;
+          nativeRestore();
+        }
+      };
+      const proxy = new Proxy(ctx, {
+        get(target, property) {
+          if (property === 'save') return guardedSave;
+          if (property === 'restore') return guardedRestore;
+          const value = target[property];
+          if (typeof value !== 'function') return value;
+          const cached = boundMethods.get(property);
+          if (cached?.source === value) return cached.bound;
+          const bound = value.bind(target);
+          boundMethods.set(property, { source: value, bound });
+          return bound;
+        },
+        set(target, property, value) {
+          target[property] = value;
+          return true;
+        }
+      });
+      this.layerContextGuard = { source: ctx, proxy, state, nativeSave, nativeRestore };
+    }
+    const guard = this.layerContextGuard;
+    guard.state.depth = 0;
+    guard.nativeSave();
     try {
-      this.syncHUD();
+      draw(guard.proxy);
+      return true;
+    } catch (error) {
+      const signature = `${this.stageManager.currentStage}:${name}:${error?.message || String(error)}`;
+      if (!this.reportedLayerErrors.has(signature)) {
+        this.reportedLayerErrors.add(signature);
+        console.error(`Render layer "${name}" recovered:`, error);
+      }
+      return false;
+    } finally {
+      while (guard.state.depth > 0) {
+        guard.state.depth -= 1;
+        guard.nativeRestore();
+      }
+      guard.nativeRestore();
+    }
+  }
+
+  drawFallbackPlayer(ctx) {
+    const x = Number.isFinite(this.player?.x) ? this.player.x : 0;
+    const y = Number.isFinite(this.player?.y) ? this.player.y : this.groundY;
+    ctx.save();
+    ctx.strokeStyle = '#ff7700';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, y - 54, 10, 0, Math.PI * 2);
+    ctx.moveTo(x, y - 44);
+    ctx.lineTo(x, y - 20);
+    ctx.moveTo(x, y - 36);
+    ctx.lineTo(x - 15, y - 26);
+    ctx.moveTo(x, y - 36);
+    ctx.lineTo(x + 15, y - 26);
+    ctx.moveTo(x, y - 20);
+    ctx.lineTo(x - 12, y);
+    ctx.moveTo(x, y - 20);
+    ctx.lineTo(x + 12, y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  render() {
+    try {
+      if (this.hudSyncTimer >= 0.05 || this.lastStaticRender === 0 || this.state !== 'PLAYING') {
+        this.syncHUD();
+        this.hudSyncTimer %= 0.05;
+      }
     } catch (error) {
       const message = error?.message || String(error);
       const signature = `HUD sync:${message}`;
@@ -613,55 +829,40 @@ class Game {
     const width = this.canvas.clientWidth || window.innerWidth;
     const height = this.canvas.clientHeight || window.innerHeight;
 
-    // Clear Screen
     ctx.fillStyle = '#1e212d';
     ctx.fillRect(0, 0, width, height);
 
-    // Keep the canvas transform balanced even if a future entity renderer
-    // throws midway through the world pass.
     this.camera.apply(ctx);
     try {
-      // 1. Draw Desktop GUI Environment, Doors, App Platforms, Obstacles, and Taskbar
-      this.stageManager.draw(ctx, this.groundY);
-
-      // 2. Draw Projectiles & Hazards
-      projectiles.draw(ctx);
-
-      // 3. Draw Ink Drops
-      combat.draw(ctx);
-
-      // 4. Draw Zombies
-      waves.draw(ctx);
-
-      // 5. Draw Allies & Mouse Cursor
-      allies.draw(ctx);
-
-      // 6. Draw Player
-      this.player.draw(ctx);
-
-      // 7. Draw Visual FX & Particles
-      particles.draw(ctx);
+      const crowded = waves.zombies.length >= 8;
+      this.renderLayer('background', (layerCtx) => this.stageManager.draw(layerCtx, this.groundY, crowded));
+      this.renderLayer('projectiles', (layerCtx) => projectiles.draw(layerCtx, crowded));
+      this.renderLayer('ink', (layerCtx) => combat.draw(layerCtx));
+      this.renderLayer('enemies', (layerCtx) => waves.draw(layerCtx));
+      this.renderLayer('weapon-pickup', (layerCtx) => this.drawWeaponPickup(layerCtx));
+      this.renderLayer('allies', (layerCtx) => allies.draw(layerCtx, crowded));
+      const playerDrawn = this.renderLayer('player', (layerCtx) => this.player.draw(layerCtx));
+      if (!playerDrawn) this.renderLayer('player-fallback', (layerCtx) => this.drawFallbackPlayer(layerCtx));
+      this.renderLayer('effects', (layerCtx) => particles.draw(layerCtx));
     } finally {
       this.camera.restore(ctx);
     }
 
-    // Screen-space guides stay anchored even while the camera shakes or zooms.
-    waves.drawScreenIndicators?.(ctx, this.camera, width, height);
-    this.stageManager.drawScreenGuide?.(ctx, this.camera, width, height);
+    this.renderLayer('enemy-guides', (layerCtx) => waves.drawScreenIndicators?.(layerCtx, this.camera, width, height));
+    this.renderLayer('stage-guide', (layerCtx) => this.stageManager.drawScreenGuide?.(layerCtx, this.camera, width, height));
 
-    // Dialogue is screen-space and drawn last so camera motion, enemy markers,
-    // and the exit guide never make a punchline tiny, jittery, or obscured.
-    speech.draw(ctx, this.camera, width, height);
+    this.renderLayer('speech', (layerCtx) => speech.draw(layerCtx, this.camera, width, height));
   }
 }
 
-// Instantiate and Run Game on Page Load
-if (document.readyState === 'loading') {
+if (typeof document !== 'undefined' && document.readyState === 'loading') {
   window.addEventListener('DOMContentLoaded', () => {
     const game = new Game();
+    window.__stickGame = game;
     game.init();
   });
-} else {
+} else if (typeof document !== 'undefined') {
   const game = new Game();
+  window.__stickGame = game;
   game.init();
 }

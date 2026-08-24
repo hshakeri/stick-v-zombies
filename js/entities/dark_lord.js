@@ -1,9 +1,9 @@
-import { StickFigureRenderer } from './stickman.js?v=7.0';
-import { particles } from '../engine/particles.js?v=7.0';
-import { audio } from '../engine/audio.js?v=7.0';
-import { projectiles } from './projectiles.js?v=7.0';
-import { combat } from '../systems/combat.js?v=7.0';
-import { speech } from '../engine/speech.js?v=7.0';
+import { StickFigureRenderer } from './stickman.js?v=8.2';
+import { particles } from '../engine/particles.js?v=8.2';
+import { audio } from '../engine/audio.js?v=8.2';
+import { projectiles } from './projectiles.js?v=8.2';
+import { combat } from '../systems/combat.js?v=8.2';
+import { speech } from '../engine/speech.js?v=8.2';
 
 export class DarkLord {
   constructor(x, y) {
@@ -39,12 +39,18 @@ export class DarkLord {
     this.stateTimer = 0;
     this.actionCooldown = 1.0;
     this.isAwakened = false;
+    this.freezeTimer = 0;
+    this.stunTimer = 0;
 
     // Attack Step Sub-state
     this.comboStep = 0;
     this.teleportTargetX = 0;
     this.doomLaserFired = false;
     this.auraParticleTimer = 0;
+    this.chargeFxTimer = 0;
+    this.meteorFxTimer = 0;
+    this.meteorTargetX = x;
+    this.bladeContactTimer = 0;
 
     // Rewards
     this.inkReward = 350;
@@ -55,11 +61,13 @@ export class DarkLord {
     this.renderer.glowColor = '#ff0033';
   }
 
-  update(dt, groundY, player, sketchBlocks, camera, platforms = []) {
+  update(dt, groundY, player, sketchBlocks, camera, platforms = [], enemies = [], friendlyTargets = []) {
     if (this.isDead) return;
 
     this.animTimer += dt;
+    this.bladeContactTimer = Math.max(0, this.bladeContactTimer - dt);
     this.platforms = platforms;
+    this.friendlyTargets = friendlyTargets;
 
     this.auraParticleTimer -= dt;
     if ((this.isAwakened || this.state === 'doom_laser') && this.auraParticleTimer <= 0) {
@@ -81,6 +89,12 @@ export class DarkLord {
       if (camera) camera.addShake(0.8);
       particles.addShockwave(this.x, this.y - 30, 260, '#ff0033', 14);
       particles.addTextBanner(this.x, this.y - 80, '⚠️ VIRABOT OVERCHARGE! ⚠️', '#ff0033');
+      speech.shoutBoss(this.x, this.y, 'darkLord', 'phase', 1.55, {
+        anchor: this,
+        speakerKey: 'darkLord:phase',
+        repeatKey: 'darkLord:phase',
+        cooldownMs: 0
+      });
     }
 
     // Hit-Stun Decay
@@ -89,11 +103,19 @@ export class DarkLord {
       if (this.hurtTimer <= 0) this.isHurt = false;
     }
 
-    // State Execution
-    this.updateAI(dt, groundY, player, camera, sketchBlocks);
+    const frozen = this.freezeTimer > 0;
+    const stunned = this.stunTimer > 0;
+    this.freezeTimer = Math.max(0, this.freezeTimer - dt);
+    this.stunTimer = Math.max(0, this.stunTimer - dt);
+    const stepDt = dt * (frozen ? 0.68 : 1);
+
+    // A brief resisted stun pauses the attack clock without cancelling its
+    // warning; freeze slows both timing and travel like the other replay bosses.
+    if (stunned) { this.pose = 'hurt'; this.vx = 0; }
+    else this.updateAI(stepDt, groundY, player, camera, sketchBlocks);
 
     // Apply Physics
-    this.applyPhysics(dt, groundY, sketchBlocks);
+    this.applyPhysics(stepDt, groundY, sketchBlocks);
   }
 
   updateAI(dt, groundY, player, camera, sketchBlocks) {
@@ -164,6 +186,14 @@ export class DarkLord {
         break;
       }
 
+      case 'blade_windup': {
+        this.stateTimer -= dt;
+        this.pose = 'attack_cross';
+        this.vx = 0;
+        if (this.stateTimer <= 0) this.beginBladeCombo(player, camera);
+        break;
+      }
+
       case 'blade_combo': {
         this.stateTimer -= dt;
         this.pose = 'weapon_slash';
@@ -190,7 +220,7 @@ export class DarkLord {
           this.comboStep++;
           if (this.comboStep <= 3) {
             // Fire crescent wave
-            projectiles.spawnDarkEnergyWave(this.x + this.facing * 30, this.y - 35, this.facing, 24);
+            projectiles.spawnDarkEnergyWave(this.x + this.facing * 30, this.y - 35, this.facing, 24, this);
             particles.addSlashArc(this.x, this.y - 30, 90, 0, this.facing, '#ff0033', 8);
             if (camera) camera.addShake(0.2);
             this.stateTimer = 0.22;
@@ -199,6 +229,14 @@ export class DarkLord {
             this.actionCooldown = 1.4;
           }
         }
+        break;
+      }
+
+      case 'energy_windup': {
+        this.stateTimer -= dt;
+        this.pose = 'attack_cross';
+        this.vx = 0;
+        if (this.stateTimer <= 0) this.beginEnergyWaves(player, camera);
         break;
       }
 
@@ -212,10 +250,9 @@ export class DarkLord {
           const count = this.isAwakened ? 3 : 2;
           for (let i = 0; i < count; i++) {
             const side = i % 2 === 0 ? 1 : -1;
-            projectiles.spawnViraBot(this.x + side * (60 + i * 30), this.y, side);
+            projectiles.spawnViraBot(this.x + side * (60 + i * 30), this.y, side, this);
           }
           particles.addTextBanner(this.x, this.y - 70, 'VIRABOT SWARM!', '#ff0044');
-          speech.shout(this.x, this.y, 'darkLord', null, 1.45, { anchor: this, priority: 4 });
           this.state = 'idle';
           this.actionCooldown = 2.0;
         }
@@ -227,21 +264,36 @@ export class DarkLord {
         this.pose = 'awakening_god';
         this.vx = 0;
 
-        // Charging particles gathering
-        if (this.stateTimer > 1.2) {
-          particles.createHitSparks(this.x + this.facing * 25, this.y - 45, 3, '#ff0033');
+        // A timed emitter keeps the charge equally dense at 30, 60, or 120 Hz.
+        this.chargeFxTimer -= dt;
+        if (this.stateTimer > 1.2 && this.chargeFxTimer <= 0) {
+          this.chargeFxTimer = 0.08;
+          particles.createHitSparks(this.x + this.facing * 25, this.y - 45, 2, '#ff0033');
         }
 
         if (!this.doomLaserFired && this.stateTimer <= 1.3) {
           this.doomLaserFired = true;
           // Aim through a grounded player's center while leaving enough space
           // above the beam for a clearly timed jump or roll escape.
-          projectiles.spawnDarkDoomLaser(this.x + this.facing * 20, this.y - 20, this.facing, 1.2, 35);
+          projectiles.spawnDarkDoomLaser(this.x + this.facing * 20, this.y - 20, this.facing, 1.2, 35, this);
         }
 
         if (this.stateTimer <= 0) {
           this.state = 'idle';
           this.actionCooldown = 2.2;
+        }
+        break;
+      }
+
+      case 'meteor_windup': {
+        this.stateTimer -= dt;
+        this.pose = 'crouch';
+        this.vx = 0;
+        if (this.stateTimer <= 0) {
+          this.state = 'meteor_rise';
+          this.stateTimer = 0.5;
+          this.pose = 'jump_rise';
+          audio.playJump();
         }
         break;
       }
@@ -255,7 +307,7 @@ export class DarkLord {
         if (this.stateTimer <= 0 || this.y < -550) {
           // Reached peak -> plunge
           this.state = 'meteor_slam';
-          this.x = player.x + (Math.random() - 0.5) * 40;
+          this.x = this.meteorTargetX;
           this.y = -550;
           this.vy = 1200;
           this.vx = 0;
@@ -267,7 +319,11 @@ export class DarkLord {
 
       case 'meteor_slam': {
         this.pose = 'dive_kick';
-        particles.createHitSparks(this.x, this.y, 4, '#ff0033');
+        this.meteorFxTimer -= dt;
+        if (this.meteorFxTimer <= 0) {
+          this.meteorFxTimer = 0.07;
+          particles.createHitSparks(this.x, this.y, 2, '#ff0033');
+        }
 
         if (this.y >= groundY) {
           // Crash impact on ground!
@@ -277,14 +333,35 @@ export class DarkLord {
           audio.playFinisherImpact();
           if (camera) camera.addShake(0.7);
 
-          particles.addShockwave(this.x, groundY, 240, '#ff0033', 14);
-          particles.createHitSparks(this.x, groundY - 20, 25, '#ff0033');
+          const impact = particles.emitImpact({
+            x: this.x,
+            y: groundY - 12,
+            profile: 'heavy',
+            color: '#ff0033',
+            arc: false,
+            shockwaveRadius: 240,
+            shockwaveThickness: 14
+          });
+          camera?.addHitstop?.(impact.hitstop);
+          particles.triggerSpeedlines({
+            x: this.x,
+            y: groundY - 50,
+            duration: 0.26,
+            boss: true,
+            seed: 0x0d4a11
+          });
 
           // Ground damage to player
           if (player && !player.isRolling && !player.isAwakened) {
             const hitDist = Math.hypot(player.x - this.x, player.y - groundY);
             if (hitDist < 200) {
               player.takeDamage(32, player.x >= this.x ? 1 : -1, 600);
+            }
+          }
+          for (const ally of this.friendlyTargets || []) {
+            if (!ally || ally.isDead || ally.retreating || ally.isTargetable !== true) continue;
+            if (Math.hypot(ally.x - this.x, ally.y - groundY) < 200) {
+              ally.takeDamage(32, ally.x >= this.x ? 1 : -1, 600);
             }
           }
 
@@ -303,10 +380,8 @@ export class DarkLord {
       // Phase 2: Doom Laser Beam
       this.startDoomLaser(player);
     } else if (this.phase === 2 && roll < 0.55) {
-      // Phase 2: Meteor Plunge
-      this.state = 'meteor_rise';
-      this.stateTimer = 0.5;
-      audio.playJump();
+      // Phase 2: Meteor Plunge with a readable landing forecast.
+      this.startMeteorPlunge(player);
     } else if (roll < 0.35) {
       // Teleport Ambush
       this.startTeleport(player);
@@ -318,6 +393,7 @@ export class DarkLord {
       this.state = 'summon_virabots';
       this.stateTimer = 0.6;
       audio.playViraBotSpawn();
+      this.sayEvent('FETCH, VIRABOTS!', 'virabots');
     } else {
       // Walk towards player for melee combo
       this.state = 'walk';
@@ -337,6 +413,15 @@ export class DarkLord {
   }
 
   startBladeCombo(player, camera) {
+    this.state = 'blade_windup';
+    this.stateTimer = 0.22;
+    this.vx = 0;
+    this.pose = 'attack_cross';
+    this.sayEvent('YOUR TURN.', 'blade');
+    camera?.addZoomPunch?.(-0.018);
+  }
+
+  beginBladeCombo(player, camera) {
     this.state = 'blade_combo';
     this.comboStep = 1;
     this.executeBladeSlash(1, player, camera);
@@ -344,6 +429,7 @@ export class DarkLord {
 
   executeBladeSlash(step, player, camera) {
     this.stateTimer = 0.26;
+    this.bladeContactTimer = 0.075;
     audio.playDarkBladeSlash();
     this.vx = this.facing * 220;
 
@@ -367,6 +453,15 @@ export class DarkLord {
   }
 
   startEnergyWaves(player, camera) {
+    this.state = 'energy_windup';
+    this.stateTimer = 0.36;
+    this.comboStep = 0;
+    this.vx = 0;
+    this.sayEvent('THREE FOR YOU.', 'waves');
+    camera?.addZoomPunch?.(-0.025);
+  }
+
+  beginEnergyWaves(player, camera) {
     this.state = 'energy_waves';
     this.comboStep = 0;
     this.stateTimer = 0.1;
@@ -376,10 +471,33 @@ export class DarkLord {
     this.state = 'doom_laser';
     this.stateTimer = 2.0;
     this.doomLaserFired = false;
+    this.chargeFxTimer = 0;
     this.y -= 35; // Hover in air
     this.vy = 0;
     audio.playDoomLaserCharge();
     particles.addTextBanner(this.x, this.y - 70, '⚡ DOOM LASER! ⚡', '#ff0033');
+    this.sayEvent('JUMP. NOW.', 'doom');
+  }
+
+  startMeteorPlunge(player) {
+    const predictedX = player.x + Math.max(-180, Math.min(180, player.vx || 0)) * 0.18;
+    this.meteorTargetX = Math.max(-920, Math.min(920, predictedX));
+    this.meteorFxTimer = 0;
+    this.state = 'meteor_windup';
+    this.stateTimer = 0.42;
+    this.vx = 0;
+    audio.playDoomLaserCharge();
+    this.sayEvent('LOOK UP.', 'meteor');
+  }
+
+  sayEvent(text, eventKey) {
+    speech.spawnBubble(this.x, this.y, text, 'darkLord', 1.35, {
+      anchor: this,
+      priority: 4,
+      speakerKey: 'darkLord',
+      eventKey,
+      cooldownMs: 1200
+    });
   }
 
   applyPhysics(dt, groundY, sketchBlocks) {
@@ -425,20 +543,53 @@ export class DarkLord {
     }
   }
 
+  applyFreeze(duration = 4) {
+    if (this.isDead) return false;
+    this.freezeTimer = Math.max(this.freezeTimer, Math.min(0.8, Math.max(0, duration) * 0.2));
+    return true;
+  }
+
+  applyStun(duration = 3) {
+    if (this.isDead) return false;
+    this.stunTimer = Math.max(this.stunTimer, Math.min(0.5, Math.max(0, duration) * 0.16));
+    return true;
+  }
+
   die() {
+    if (this.isDead) return;
     this.isDead = true;
     this.hp = 0;
+    projectiles.clearByOwner(this);
     combat.registerKill(this);
     audio.playBossVictoryFanfare();
     audio.playZombieDeath();
+    speech.shoutBoss(this.x, this.y, 'darkLord', 'defeat', 1.8, {
+      anchor: this, speakerKey: 'darkLord', repeatKey: 'darkLord:defeat', cooldownMs: 0
+    });
 
-    particles.createHitSparks(this.x, this.y - 35, 50, '#ff0033');
-    particles.addShockwave(this.x, this.y - 20, 200, '#ff0033', 14);
+    particles.emitImpact({
+      x: this.x,
+      y: this.y - 28,
+      profile: 'heavy',
+      color: '#ff0033',
+      arc: false,
+      shockwaveRadius: 200,
+      shockwaveThickness: 14
+    });
+    particles.triggerSpeedlines({
+      x: this.x,
+      y: this.y - 55,
+      duration: 0.3,
+      boss: true,
+      seed: 0xd4a410
+    });
     particles.addTextBanner(this.x, this.y - 90, '★ THE DARK LORD DEFEATED! ★', '#ffee00');
   }
 
   draw(ctx) {
     if (this.isDead) return;
+
+    this.drawTelegraph(ctx);
 
     // Draw Dark Lord Stick Figure with Dual Vira-Blades
     this.renderer.draw(ctx, {
@@ -451,8 +602,116 @@ export class DarkLord {
       isHurt: this.isHurt,
       isAwakened: this.isAwakened,
       weaponType: 'vira_blades',
+      actionPhase: this.getActionPhase(),
       scale: 1.0,
       alpha: 1.0
     });
+  }
+
+  getActionPhase() {
+    if (this.state === 'blade_windup') return 0;
+    if (this.state === 'blade_combo' && this.bladeContactTimer > 0) return 0.55;
+    if (this.state === 'blade_combo') return Math.max(0, Math.min(1, 1 - this.stateTimer / 0.26));
+    if (this.state === 'energy_windup') return 0;
+    if (this.state === 'energy_waves') return Math.max(0, Math.min(1, 1 - this.stateTimer / 0.22));
+    return null;
+  }
+
+  drawTelegraph(ctx) {
+    const recovering = this.state === 'idle' && this.actionCooldown > 0;
+    const meteorState = this.state === 'meteor_windup'
+      || this.state === 'meteor_rise'
+      || this.state === 'meteor_slam';
+
+    ctx.save();
+    if (this.state === 'blade_windup') {
+      const progress = 1 - this.stateTimer / 0.22;
+      ctx.strokeStyle = `rgba(255, 50, 78, ${0.35 + progress * 0.6})`;
+      ctx.lineWidth = 5;
+      ctx.setLineDash([10, 7]);
+      ctx.strokeRect(this.facing > 0 ? this.x + 20 : this.x - 135, this.y - 92, 115, 92);
+    } else if (this.state === 'blade_combo') {
+      const progress = Math.max(0, Math.min(1, 1 - this.stateTimer / 0.26));
+      ctx.globalAlpha = 0.75 - progress * 0.3;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(this.facing > 0 ? this.x + 18 : this.x - 132, this.y - 90, 114, 90);
+    } else if (this.state === 'energy_windup') {
+      const progress = 1 - this.stateTimer / 0.36;
+      ctx.strokeStyle = `rgba(255, 35, 70, ${0.35 + progress * 0.6})`;
+      ctx.lineWidth = 4;
+      ctx.setLineDash([12, 8]);
+      for (let lane = -1; lane <= 1; lane++) {
+        const y = this.y - 35 + lane * 34;
+        ctx.beginPath();
+        ctx.moveTo(this.x + this.facing * 28, y);
+        ctx.lineTo(this.x + this.facing * 620, y);
+        ctx.stroke();
+      }
+    } else if (this.state === 'summon_virabots') {
+      const progress = Math.max(0, Math.min(1, 1 - this.stateTimer / 0.6));
+      ctx.globalAlpha = 0.45 + progress * 0.45;
+      ctx.strokeStyle = '#ff3355';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([7, 6]);
+      const count = this.isAwakened ? 3 : 2;
+      for (let i = 0; i < count; i++) {
+        const side = i % 2 === 0 ? 1 : -1;
+        ctx.beginPath();
+        ctx.ellipse(this.x + side * (60 + i * 30), this.y, 24 + progress * 10, 7, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else if (this.state === 'teleport') {
+      ctx.globalAlpha = 0.72;
+      ctx.strokeStyle = '#ff3355';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 6]);
+      ctx.strokeRect(this.teleportTargetX - 32, this.y - 92, 64, 92);
+    } else if (this.state === 'doom_laser') {
+      const active = this.doomLaserFired;
+      const pulse = 0.55 + Math.sin(this.animTimer * 18) * 0.2;
+      ctx.globalAlpha = active ? 0.92 : pulse;
+      ctx.strokeStyle = active ? '#ffffff' : '#ff3355';
+      ctx.lineWidth = active ? 7 : 3;
+      ctx.setLineDash(active ? [] : [14, 10]);
+      ctx.beginPath();
+      ctx.moveTo(this.x + this.facing * 24, this.y - 20);
+      ctx.lineTo(this.x + this.facing * 1100, this.y - 20);
+      ctx.stroke();
+    }
+
+    if (meteorState) {
+      const pulse = 0.62 + Math.sin(this.animTimer * 20) * 0.22;
+      ctx.globalAlpha = pulse;
+      ctx.strokeStyle = '#ff3355';
+      ctx.fillStyle = 'rgba(255, 25, 55, 0.11)';
+      ctx.lineWidth = this.state === 'meteor_slam' ? 7 : 4;
+      ctx.setLineDash(this.state === 'meteor_slam' ? [] : [9, 7]);
+      ctx.beginPath();
+      ctx.ellipse(this.meteorTargetX, 0, 92, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(this.meteorTargetX, -250);
+      ctx.lineTo(this.meteorTargetX, -18);
+      ctx.stroke();
+    }
+
+    if (recovering) {
+      const recovery = Math.max(0, Math.min(1, this.actionCooldown / 2.2));
+      ctx.globalAlpha = 0.28 + recovery * 0.22;
+      ctx.strokeStyle = '#ff6680';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([4, 7]);
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y, 38 + recovery * 12, 8, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ffd7df';
+      ctx.font = '800 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('OPEN!', this.x, this.y - 108);
+    }
+    ctx.restore();
   }
 }

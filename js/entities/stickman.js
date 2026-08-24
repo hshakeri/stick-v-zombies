@@ -9,6 +9,9 @@ export class StickFigureRenderer {
     this.isHunched = false; // For zombies
     this.isZombie = false; // For undead stickmen
     this.isHollowHead = isHollowHead; // true for The Second Coming (Orange), false for Red/Blue/Yellow/Green
+    // Every renderer is drawn synchronously, so one stable skeleton can be
+    // reset and reused for each pose without retaining cross-frame state.
+    this.boneScratch = createBoneScratch();
   }
 
   // Draw procedural stick figure based on character state & pose
@@ -16,22 +19,34 @@ export class StickFigureRenderer {
     const {
       x, y, facing, pose, animTimer, isGrounded, isHurt,
       isAwakened, weaponType, weaponAngle, scale = 1.0, alpha = 1.0,
-      squashX = 1.0, squashY = 1.0, leanAngle = 0
+      squashX = 1.0, squashY = 1.0, leanAngle = 0, actionPhase = null,
+      suppressGlow = false
     } = state;
+
+    const hasActionPhase = Number.isFinite(actionPhase);
+    const easedActionPhase = hasActionPhase ? smoothstep(actionPhase) : 0;
+    const authoredLean = hasActionPhase && (pose === 'weapon_slash' || pose?.startsWith('attack'))
+      ? -0.07 + easedActionPhase * 0.15
+      : 0;
 
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(x, y);
-    ctx.rotate(leanAngle * (facing >= 0 ? 1 : -1));
+    ctx.rotate((leanAngle + authoredLean) * (facing >= 0 ? 1 : -1));
     ctx.scale(facing * scale * this.scale * squashX, scale * this.scale * squashY);
 
     // Awakening God Mode Multi-Tier Glow
     if (isAwakened) {
       ctx.shadowColor = '#ffbb00';
       ctx.shadowBlur = 28;
-    } else if (this.isZombie) {
+    } else if (this.isZombie && !suppressGlow) {
       ctx.shadowColor = 'rgba(30, 160, 30, 0.45)';
       ctx.shadowBlur = 10;
+    } else if (this.isZombie) {
+      // Low-cost afterimages and crowded ordinary enemies retain their full
+      // silhouette while avoiding expensive per-character blur passes.
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
     }
 
     ctx.strokeStyle = this.color;
@@ -41,6 +56,7 @@ export class StickFigureRenderer {
 
     // Calculate bone joints based on current pose
     const bones = this.computePoseBones(pose, animTimer, isGrounded, isHurt);
+    if (hasActionPhase) applyActionEnvelope(bones, easedActionPhase);
 
     // 1. Draw Legs (back leg then front leg)
     this.drawLimb(ctx, bones.hip, bones.kneeL, bones.footL);
@@ -91,8 +107,13 @@ export class StickFigureRenderer {
     } else if (this.isZombie) {
       // Menacing Glowing Red Zombie Eyes
       ctx.fillStyle = '#ff1122';
-      ctx.shadowColor = '#ff0000';
-      ctx.shadowBlur = 10;
+      if (!suppressGlow) {
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 10;
+      } else {
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+      }
       ctx.beginPath();
       ctx.arc(bones.head.x + 4, bones.head.y - 3, 3.5, 0, Math.PI * 2);
       ctx.fill();
@@ -134,7 +155,9 @@ export class StickFigureRenderer {
     if (weaponType) {
       let angle = weaponAngle !== undefined ? weaponAngle : -0.6;
       if (pose === 'weapon_slash') {
-        angle = 1.35; // Swept forward during slash
+        // Optional authored action phase gives bosses and future player moves a
+        // readable anticipation-to-contact sweep without a keyframe asset.
+        angle = hasActionPhase ? -1.12 + easedActionPhase * 2.47 : 1.35;
       } else if (pose.startsWith('attack')) {
         angle = -1.1; // Held back during punches
       }
@@ -274,42 +297,25 @@ export class StickFigureRenderer {
   }
 
   computePoseBones(pose, timer, isGrounded, isHurt) {
-    const headRadius = 14;
-    const neckBase = { x: 0, y: -45 };
-    const hipBase = { x: 0, y: -20 };
-    const headBase = { x: 0, y: -62 };
+    const bones = this.boneScratch;
+    resetBoneScratch(bones);
 
     if (this.isHunched) {
-      neckBase.x += 8;
-      headBase.x += 14;
-      headBase.y += 4;
+      bones.neck.x += 8;
+      bones.shoulder.x += 8;
+      bones.head.x += 14;
+      bones.head.y += 4;
     }
-
-    const bones = {
-      headRadius,
-      head: { ...headBase },
-      neck: { ...neckBase },
-      shoulder: { ...neckBase },
-      hip: { ...hipBase },
-      kneeL: { x: -6, y: -8 },
-      footL: { x: -8, y: 0 },
-      kneeR: { x: 6, y: -8 },
-      footR: { x: 8, y: 0 },
-      elbowL: { x: -10, y: -30 },
-      handL: { x: -12, y: -15 },
-      elbowR: { x: 10, y: -30 },
-      handR: { x: 12, y: -15 }
-    };
 
     if (isHurt) {
       // Reeling back
       bones.head.x -= 12;
       bones.neck.x -= 8;
       bones.hip.x -= 4;
-      bones.handL = { x: -18, y: -35 };
-      bones.handR = { x: -12, y: -40 };
-      bones.footL = { x: -14, y: 0 };
-      bones.footR = { x: 4, y: 0 };
+      setPoint(bones.handL, -18, -35);
+      setPoint(bones.handR, -12, -40);
+      setPoint(bones.footL, -14, 0);
+      setPoint(bones.footR, 4, 0);
       return bones;
     }
 
@@ -320,10 +326,10 @@ export class StickFigureRenderer {
         bones.neck.x += 8;
         bones.head.x += 12;
         // Arms lunging forward slightly
-        bones.elbowL = { x: 12, y: -30 + bob };
-        bones.handL = { x: 22, y: -32 + bob };
-        bones.elbowR = { x: 8, y: -24 - bob };
-        bones.handR = { x: 18, y: -26 - bob };
+        setPoint(bones.elbowL, 12, -30 + bob);
+        setPoint(bones.handL, 22, -32 + bob);
+        setPoint(bones.elbowR, 8, -24 - bob);
+        setPoint(bones.handR, 18, -26 - bob);
         break;
       }
 
@@ -335,17 +341,17 @@ export class StickFigureRenderer {
         bones.head.y += Math.abs(Math.sin(t)) * 2.5;
 
         // Limbs dragging
-        bones.kneeL = { x: legSwing * 12, y: -10 };
-        bones.footL = { x: legSwing * 18, y: Math.max(-6, -legSwing * 6) };
-        bones.kneeR = { x: -legSwing * 12, y: -10 };
-        bones.footR = { x: -legSwing * 18, y: Math.max(-6, legSwing * 6) };
+        setPoint(bones.kneeL, legSwing * 12, -10);
+        setPoint(bones.footL, legSwing * 18, Math.max(-6, -legSwing * 6));
+        setPoint(bones.kneeR, -legSwing * 12, -10);
+        setPoint(bones.footR, -legSwing * 18, Math.max(-6, legSwing * 6));
 
         // Both arms raised forward horizontally like classic zombies
         const armBob = Math.sin(timer * 4) * 3;
-        bones.elbowL = { x: 16, y: -34 + armBob };
-        bones.handL = { x: 28, y: -38 + armBob };
-        bones.elbowR = { x: 12, y: -28 - armBob };
-        bones.handR = { x: 24, y: -32 - armBob };
+        setPoint(bones.elbowL, 16, -34 + armBob);
+        setPoint(bones.handL, 28, -38 + armBob);
+        setPoint(bones.elbowR, 12, -28 - armBob);
+        setPoint(bones.handR, 24, -32 - armBob);
         break;
       }
 
@@ -353,10 +359,10 @@ export class StickFigureRenderer {
         const bob = Math.sin(timer * 5) * 2;
         bones.head.y += bob;
         bones.neck.y += bob * 0.8;
-        bones.elbowL = { x: -12, y: -32 + bob };
-        bones.handL = { x: -10, y: -18 + bob };
-        bones.elbowR = { x: 12, y: -32 + bob };
-        bones.handR = { x: 10, y: -18 + bob };
+        setPoint(bones.elbowL, -12, -32 + bob);
+        setPoint(bones.handL, -10, -18 + bob);
+        setPoint(bones.elbowR, 12, -32 + bob);
+        setPoint(bones.handR, 10, -18 + bob);
         break;
       }
 
@@ -370,56 +376,56 @@ export class StickFigureRenderer {
         bones.head.y += Math.abs(Math.sin(t)) * 3;
 
         // Front leg
-        bones.kneeL = { x: legSwing * 16, y: -12 - Math.max(0, -legSwing * 8) };
-        bones.footL = { x: legSwing * 24, y: Math.max(-12, -legSwing * 10) };
+        setPoint(bones.kneeL, legSwing * 16, -12 - Math.max(0, -legSwing * 8));
+        setPoint(bones.footL, legSwing * 24, Math.max(-12, -legSwing * 10));
 
         // Back leg
-        bones.kneeR = { x: -legSwing * 16, y: -12 - Math.max(0, legSwing * 8) };
-        bones.footR = { x: -legSwing * 24, y: Math.max(-12, legSwing * 10) };
+        setPoint(bones.kneeR, -legSwing * 16, -12 - Math.max(0, legSwing * 8));
+        setPoint(bones.footR, -legSwing * 24, Math.max(-12, legSwing * 10));
 
         // Arms swinging with run
-        bones.elbowL = { x: armSwing * 16, y: -30 };
-        bones.handL = { x: armSwing * 24, y: -20 };
-        bones.elbowR = { x: -armSwing * 16, y: -30 };
-        bones.handR = { x: -armSwing * 24, y: -20 };
+        setPoint(bones.elbowL, armSwing * 16, -30);
+        setPoint(bones.handL, armSwing * 24, -20);
+        setPoint(bones.elbowR, -armSwing * 16, -30);
+        setPoint(bones.handR, -armSwing * 24, -20);
         break;
       }
 
       case 'jump_rise': {
         bones.head.y -= 4;
-        bones.kneeL = { x: -10, y: -15 };
-        bones.footL = { x: -8, y: -6 };
-        bones.kneeR = { x: 8, y: -18 };
-        bones.footR = { x: 12, y: -8 };
-        bones.elbowL = { x: -16, y: -45 };
-        bones.handL = { x: -18, y: -58 };
-        bones.elbowR = { x: 16, y: -45 };
-        bones.handR = { x: 18, y: -58 };
+        setPoint(bones.kneeL, -10, -15);
+        setPoint(bones.footL, -8, -6);
+        setPoint(bones.kneeR, 8, -18);
+        setPoint(bones.footR, 12, -8);
+        setPoint(bones.elbowL, -16, -45);
+        setPoint(bones.handL, -18, -58);
+        setPoint(bones.elbowR, 16, -45);
+        setPoint(bones.handR, 18, -58);
         break;
       }
 
       case 'jump_fall': {
-        bones.kneeL = { x: -12, y: -6 };
-        bones.footL = { x: -10, y: 4 };
-        bones.kneeR = { x: 6, y: -4 };
-        bones.footR = { x: 8, y: 6 };
-        bones.elbowL = { x: -18, y: -35 };
-        bones.handL = { x: -22, y: -25 };
-        bones.elbowR = { x: 18, y: -35 };
-        bones.handR = { x: 22, y: -25 };
+        setPoint(bones.kneeL, -12, -6);
+        setPoint(bones.footL, -10, 4);
+        setPoint(bones.kneeR, 6, -4);
+        setPoint(bones.footR, 8, 6);
+        setPoint(bones.elbowL, -18, -35);
+        setPoint(bones.handL, -22, -25);
+        setPoint(bones.elbowR, 18, -35);
+        setPoint(bones.handR, 22, -25);
         break;
       }
 
       case 'wall_slide': {
         bones.head.x -= 4;
-        bones.elbowL = { x: 14, y: -38 };
-        bones.handL = { x: 20, y: -40 };
-        bones.elbowR = { x: -8, y: -28 };
-        bones.handR = { x: -12, y: -16 };
-        bones.kneeL = { x: 12, y: -14 };
-        bones.footL = { x: 18, y: -4 };
-        bones.kneeR = { x: -4, y: -8 };
-        bones.footR = { x: 0, y: 0 };
+        setPoint(bones.elbowL, 14, -38);
+        setPoint(bones.handL, 20, -40);
+        setPoint(bones.elbowR, -8, -28);
+        setPoint(bones.handR, -12, -16);
+        setPoint(bones.kneeL, 12, -14);
+        setPoint(bones.footL, 18, -4);
+        setPoint(bones.kneeR, -4, -8);
+        setPoint(bones.footR, 0, 0);
         break;
       }
 
@@ -427,14 +433,14 @@ export class StickFigureRenderer {
         bones.head.y += 18;
         bones.neck.y += 14;
         bones.hip.y += 10;
-        bones.kneeL = { x: -14, y: -4 };
-        bones.footL = { x: -18, y: 0 };
-        bones.kneeR = { x: 14, y: -4 };
-        bones.footR = { x: 18, y: 0 };
-        bones.elbowL = { x: -14, y: -16 };
-        bones.handL = { x: -16, y: -2 };
-        bones.elbowR = { x: 14, y: -16 };
-        bones.handR = { x: 16, y: -2 };
+        setPoint(bones.kneeL, -14, -4);
+        setPoint(bones.footL, -18, 0);
+        setPoint(bones.kneeR, 14, -4);
+        setPoint(bones.footR, 18, 0);
+        setPoint(bones.elbowL, -14, -16);
+        setPoint(bones.handL, -16, -2);
+        setPoint(bones.elbowR, 14, -16);
+        setPoint(bones.handR, 16, -2);
         break;
       }
 
@@ -444,18 +450,18 @@ export class StickFigureRenderer {
         const cx = 0;
         const cy = -22;
         const r = 16;
-        bones.hip = { x: cx + Math.cos(rot + Math.PI) * 8, y: cy + Math.sin(rot + Math.PI) * 8 };
-        bones.neck = { x: cx + Math.cos(rot) * 12, y: cy + Math.sin(rot) * 12 };
-        bones.shoulder = { ...bones.neck };
-        bones.head = { x: cx + Math.cos(rot) * 20, y: cy + Math.sin(rot) * 20 };
-        bones.kneeL = { x: cx + Math.cos(rot + 2.2) * r, y: cy + Math.sin(rot + 2.2) * r };
-        bones.footL = { x: cx + Math.cos(rot + 2.6) * (r + 4), y: cy + Math.sin(rot + 2.6) * (r + 4) };
-        bones.kneeR = { x: cx + Math.cos(rot + 3.4) * r, y: cy + Math.sin(rot + 3.4) * r };
-        bones.footR = { x: cx + Math.cos(rot + 3.8) * (r + 4), y: cy + Math.sin(rot + 3.8) * (r + 4) };
-        bones.elbowL = { x: cx + Math.cos(rot + 0.8) * (r - 2), y: cy + Math.sin(rot + 0.8) * (r - 2) };
-        bones.handL = { x: cx + Math.cos(rot + 1.2) * r, y: cy + Math.sin(rot + 1.2) * r };
-        bones.elbowR = { x: cx + Math.cos(rot + 5.2) * (r - 2), y: cy + Math.sin(rot + 5.2) * (r - 2) };
-        bones.handR = { x: cx + Math.cos(rot + 5.6) * r, y: cy + Math.sin(rot + 5.6) * r };
+        setPoint(bones.hip, cx + Math.cos(rot + Math.PI) * 8, cy + Math.sin(rot + Math.PI) * 8);
+        setPoint(bones.neck, cx + Math.cos(rot) * 12, cy + Math.sin(rot) * 12);
+        setPoint(bones.shoulder, bones.neck.x, bones.neck.y);
+        setPoint(bones.head, cx + Math.cos(rot) * 20, cy + Math.sin(rot) * 20);
+        setPoint(bones.kneeL, cx + Math.cos(rot + 2.2) * r, cy + Math.sin(rot + 2.2) * r);
+        setPoint(bones.footL, cx + Math.cos(rot + 2.6) * (r + 4), cy + Math.sin(rot + 2.6) * (r + 4));
+        setPoint(bones.kneeR, cx + Math.cos(rot + 3.4) * r, cy + Math.sin(rot + 3.4) * r);
+        setPoint(bones.footR, cx + Math.cos(rot + 3.8) * (r + 4), cy + Math.sin(rot + 3.8) * (r + 4));
+        setPoint(bones.elbowL, cx + Math.cos(rot + 0.8) * (r - 2), cy + Math.sin(rot + 0.8) * (r - 2));
+        setPoint(bones.handL, cx + Math.cos(rot + 1.2) * r, cy + Math.sin(rot + 1.2) * r);
+        setPoint(bones.elbowR, cx + Math.cos(rot + 5.2) * (r - 2), cy + Math.sin(rot + 5.2) * (r - 2));
+        setPoint(bones.handR, cx + Math.cos(rot + 5.6) * r, cy + Math.sin(rot + 5.6) * r);
         break;
       }
 
@@ -463,12 +469,12 @@ export class StickFigureRenderer {
         // Crisp straight left jab
         bones.head.x += 4;
         bones.shoulder.x += 4;
-        bones.elbowL = { x: 16, y: -42 };
-        bones.handL = { x: 34, y: -42 }; // Lead fist thrust forward
-        bones.elbowR = { x: -8, y: -34 };
-        bones.handR = { x: 4, y: -38 }; // Guard
-        bones.footL = { x: 14, y: 0 };
-        bones.footR = { x: -12, y: 0 };
+        setPoint(bones.elbowL, 16, -42);
+        setPoint(bones.handL, 34, -42); // Lead fist thrust forward
+        setPoint(bones.elbowR, -8, -34);
+        setPoint(bones.handR, 4, -38); // Guard
+        setPoint(bones.footL, 14, 0);
+        setPoint(bones.footR, -12, 0);
         break;
       }
 
@@ -476,14 +482,14 @@ export class StickFigureRenderer {
         // Heavy straight right cross punch
         bones.head.x += 8;
         bones.neck.x += 10;
-        bones.elbowL = { x: 2, y: -38 };
-        bones.handL = { x: 8, y: -42 }; // Guard
-        bones.elbowR = { x: 22, y: -40 };
-        bones.handR = { x: 44, y: -38 }; // Deep cross
-        bones.kneeL = { x: 10, y: -10 };
-        bones.footL = { x: 16, y: 0 };
-        bones.kneeR = { x: -10, y: -12 };
-        bones.footR = { x: -18, y: 0 };
+        setPoint(bones.elbowL, 2, -38);
+        setPoint(bones.handL, 8, -42); // Guard
+        setPoint(bones.elbowR, 22, -40);
+        setPoint(bones.handR, 44, -38); // Deep cross
+        setPoint(bones.kneeL, 10, -10);
+        setPoint(bones.footL, 16, 0);
+        setPoint(bones.kneeR, -10, -12);
+        setPoint(bones.footR, -18, 0);
         break;
       }
 
@@ -491,16 +497,16 @@ export class StickFigureRenderer {
         // High martial arts head kick
         bones.head.x -= 10;
         bones.neck.x -= 6;
-        bones.elbowL = { x: -14, y: -38 };
-        bones.handL = { x: -8, y: -46 };
-        bones.elbowR = { x: 10, y: -32 };
-        bones.handR = { x: 14, y: -20 };
+        setPoint(bones.elbowL, -14, -38);
+        setPoint(bones.handL, -8, -46);
+        setPoint(bones.elbowR, 10, -32);
+        setPoint(bones.handR, 14, -20);
         // Kicking leg thrust high
-        bones.kneeL = { x: 18, y: -36 };
-        bones.footL = { x: 42, y: -48 };
+        setPoint(bones.kneeL, 18, -36);
+        setPoint(bones.footL, 42, -48);
         // Plant leg
-        bones.kneeR = { x: -4, y: -10 };
-        bones.footR = { x: -6, y: 0 };
+        setPoint(bones.kneeR, -4, -10);
+        setPoint(bones.footR, -6, 0);
         break;
       }
 
@@ -510,16 +516,16 @@ export class StickFigureRenderer {
         bones.head.y -= 10;
         bones.neck.x += 12;
         bones.hip.x += 6;
-        bones.elbowL = { x: -16, y: -48 };
-        bones.handL = { x: -24, y: -58 };
-        bones.elbowR = { x: 14, y: -44 };
-        bones.handR = { x: 22, y: -52 };
+        setPoint(bones.elbowL, -16, -48);
+        setPoint(bones.handL, -24, -58);
+        setPoint(bones.elbowR, 14, -44);
+        setPoint(bones.handR, 22, -52);
         // Front axe leg slamming down from above
-        bones.kneeL = { x: 28, y: -45 };
-        bones.footL = { x: 38, y: 8 };
+        setPoint(bones.kneeL, 28, -45);
+        setPoint(bones.footL, 38, 8);
         // Plant leg
-        bones.kneeR = { x: -12, y: -10 };
-        bones.footR = { x: -16, y: 0 };
+        setPoint(bones.kneeR, -12, -10);
+        setPoint(bones.footR, -16, 0);
         break;
       }
 
@@ -528,14 +534,14 @@ export class StickFigureRenderer {
         const spin = Math.sin(timer * 20);
         bones.head.y -= 8;
         bones.hip.y -= 12;
-        bones.kneeL = { x: spin * 28, y: -30 };
-        bones.footL = { x: spin * 46, y: -32 };
-        bones.kneeR = { x: -spin * 24, y: -22 };
-        bones.footR = { x: -spin * 36, y: -16 };
-        bones.elbowL = { x: -spin * 18, y: -45 };
-        bones.handL = { x: -spin * 28, y: -45 };
-        bones.elbowR = { x: spin * 18, y: -45 };
-        bones.handR = { x: spin * 28, y: -45 };
+        setPoint(bones.kneeL, spin * 28, -30);
+        setPoint(bones.footL, spin * 46, -32);
+        setPoint(bones.kneeR, -spin * 24, -22);
+        setPoint(bones.footR, -spin * 36, -16);
+        setPoint(bones.elbowL, -spin * 18, -45);
+        setPoint(bones.handL, -spin * 28, -45);
+        setPoint(bones.elbowR, spin * 18, -45);
+        setPoint(bones.handR, spin * 28, -45);
         break;
       }
 
@@ -544,14 +550,14 @@ export class StickFigureRenderer {
         bones.head.x += 6;
         bones.head.y -= 14;
         bones.neck.y -= 10;
-        bones.elbowL = { x: -14, y: -32 };
-        bones.handL = { x: -12, y: -20 };
-        bones.elbowR = { x: 16, y: -55 };
-        bones.handR = { x: 20, y: -80 }; // Firing straight up
-        bones.kneeL = { x: -4, y: -14 };
-        bones.footL = { x: -6, y: -4 };
-        bones.kneeR = { x: 12, y: -24 };
-        bones.footR = { x: 16, y: -14 };
+        setPoint(bones.elbowL, -14, -32);
+        setPoint(bones.handL, -12, -20);
+        setPoint(bones.elbowR, 16, -55);
+        setPoint(bones.handR, 20, -80); // Firing straight up
+        setPoint(bones.kneeL, -4, -14);
+        setPoint(bones.footL, -6, -4);
+        setPoint(bones.kneeR, 12, -24);
+        setPoint(bones.footR, 16, -14);
         break;
       }
 
@@ -560,14 +566,14 @@ export class StickFigureRenderer {
         bones.head.x += 20;
         bones.neck.x += 18;
         bones.hip.x += 10;
-        bones.elbowL = { x: 14, y: -36 };
-        bones.handL = { x: 26, y: -36 };
-        bones.elbowR = { x: 30, y: -34 };
-        bones.handR = { x: 48, y: -34 }; // Both hands driving pencil forward
-        bones.kneeL = { x: 16, y: -6 };
-        bones.footL = { x: 24, y: 0 };
-        bones.kneeR = { x: -14, y: -8 };
-        bones.footR = { x: -22, y: 0 };
+        setPoint(bones.elbowL, 14, -36);
+        setPoint(bones.handL, 26, -36);
+        setPoint(bones.elbowR, 30, -34);
+        setPoint(bones.handR, 48, -34); // Both hands driving pencil forward
+        setPoint(bones.kneeL, 16, -6);
+        setPoint(bones.footL, 24, 0);
+        setPoint(bones.kneeR, -14, -8);
+        setPoint(bones.footR, -22, 0);
         break;
       }
 
@@ -575,15 +581,15 @@ export class StickFigureRenderer {
         // Pencil Ground Vault Dropkick
         bones.head.x += 16;
         bones.head.y += 6;
-        bones.elbowL = { x: 8, y: -20 };
-        bones.handL = { x: 14, y: 0 }; // Planting pencil into ground
-        bones.elbowR = { x: -12, y: -35 };
-        bones.handR = { x: -18, y: -45 };
+        setPoint(bones.elbowL, 8, -20);
+        setPoint(bones.handL, 14, 0); // Planting pencil into ground
+        setPoint(bones.elbowR, -12, -35);
+        setPoint(bones.handR, -18, -45);
         // Both legs vaulted forward in dropkick
-        bones.kneeL = { x: 32, y: -14 };
-        bones.footL = { x: 50, y: -10 };
-        bones.kneeR = { x: 28, y: -22 };
-        bones.footR = { x: 46, y: -18 };
+        setPoint(bones.kneeL, 32, -14);
+        setPoint(bones.footL, 50, -10);
+        setPoint(bones.kneeR, 28, -22);
+        setPoint(bones.footR, 46, -18);
         break;
       }
 
@@ -591,61 +597,61 @@ export class StickFigureRenderer {
         // Rapid Mid-Air Lightning Kicks
         const alt = Math.sin(timer * 25);
         bones.head.x += 8;
-        bones.elbowL = { x: -16, y: -38 };
-        bones.handL = { x: -22, y: -30 };
-        bones.elbowR = { x: 12, y: -38 };
-        bones.handR = { x: 18, y: -30 };
-        bones.kneeL = { x: 20 + alt * 12, y: -24 };
-        bones.footL = { x: 42 + alt * 18, y: -22 };
-        bones.kneeR = { x: 14 - alt * 10, y: -14 };
-        bones.footR = { x: 28 - alt * 16, y: -10 };
+        setPoint(bones.elbowL, -16, -38);
+        setPoint(bones.handL, -22, -30);
+        setPoint(bones.elbowR, 12, -38);
+        setPoint(bones.handR, 18, -30);
+        setPoint(bones.kneeL, 20 + alt * 12, -24);
+        setPoint(bones.footL, 42 + alt * 18, -22);
+        setPoint(bones.kneeR, 14 - alt * 10, -14);
+        setPoint(bones.footR, 28 - alt * 16, -10);
         break;
       }
 
       case 'attack_slide': {
         // Low Sweeping Slide Kick
-        bones.head = { x: -16, y: -26 };
-        bones.neck = { x: -8, y: -20 };
-        bones.shoulder = { ...bones.neck };
-        bones.hip = { x: 0, y: -10 };
-        bones.elbowL = { x: -18, y: -14 };
-        bones.handL = { x: -24, y: -2 };
-        bones.elbowR = { x: 4, y: -18 };
-        bones.handR = { x: 12, y: -8 };
+        setPoint(bones.head, -16, -26);
+        setPoint(bones.neck, -8, -20);
+        setPoint(bones.shoulder, bones.neck.x, bones.neck.y);
+        setPoint(bones.hip, 0, -10);
+        setPoint(bones.elbowL, -18, -14);
+        setPoint(bones.handL, -24, -2);
+        setPoint(bones.elbowR, 4, -18);
+        setPoint(bones.handR, 12, -8);
         // Slide leg extended forward along floor
-        bones.kneeL = { x: 22, y: -4 };
-        bones.footL = { x: 40, y: 0 };
-        bones.kneeR = { x: -8, y: -6 };
-        bones.footR = { x: -14, y: 0 };
+        setPoint(bones.kneeL, 22, -4);
+        setPoint(bones.footL, 40, 0);
+        setPoint(bones.kneeR, -8, -6);
+        setPoint(bones.footR, -14, 0);
         break;
       }
 
       case 'dive_kick': {
         // Downward aerodynamic diagonal diving kick
-        bones.head = { x: 14, y: -36 };
-        bones.neck = { x: 8, y: -28 };
-        bones.shoulder = { ...bones.neck };
-        bones.hip = { x: -6, y: -16 };
-        bones.kneeL = { x: 18, y: -6 };
-        bones.footL = { x: 34, y: 0 };
-        bones.kneeR = { x: 4, y: -14 };
-        bones.footR = { x: -4, y: -20 };
-        bones.elbowL = { x: -14, y: -24 };
-        bones.handL = { x: -22, y: -18 };
-        bones.elbowR = { x: -6, y: -26 };
-        bones.handR = { x: -14, y: -20 };
+        setPoint(bones.head, 14, -36);
+        setPoint(bones.neck, 8, -28);
+        setPoint(bones.shoulder, bones.neck.x, bones.neck.y);
+        setPoint(bones.hip, -6, -16);
+        setPoint(bones.kneeL, 18, -6);
+        setPoint(bones.footL, 34, 0);
+        setPoint(bones.kneeR, 4, -14);
+        setPoint(bones.footR, -4, -20);
+        setPoint(bones.elbowL, -14, -24);
+        setPoint(bones.handL, -22, -18);
+        setPoint(bones.elbowR, -6, -26);
+        setPoint(bones.handR, -14, -20);
         break;
       }
 
       case 'weapon_slash': {
         // Dynamic weapon swing
         bones.head.x += 6;
-        bones.elbowL = { x: 6, y: -36 };
-        bones.handL = { x: 16, y: -38 };
-        bones.elbowR = { x: 18, y: -32 };
-        bones.handR = { x: 30, y: -24 };
-        bones.footL = { x: 14, y: 0 };
-        bones.footR = { x: -12, y: 0 };
+        setPoint(bones.elbowL, 6, -36);
+        setPoint(bones.handL, 16, -38);
+        setPoint(bones.elbowR, 18, -32);
+        setPoint(bones.handR, 30, -24);
+        setPoint(bones.footL, 14, 0);
+        setPoint(bones.footR, -12, 0);
         break;
       }
 
@@ -655,14 +661,14 @@ export class StickFigureRenderer {
         bones.head.y -= 12 + float;
         bones.neck.y -= 10 + float;
         bones.hip.y -= 8 + float;
-        bones.elbowL = { x: -24, y: -44 + float };
-        bones.handL = { x: -34, y: -58 + float };
-        bones.elbowR = { x: 24, y: -44 + float };
-        bones.handR = { x: 34, y: -58 + float };
-        bones.kneeL = { x: -8, y: -4 + float };
-        bones.footL = { x: -6, y: 8 + float };
-        bones.kneeR = { x: 8, y: -4 + float };
-        bones.footR = { x: 6, y: 8 + float };
+        setPoint(bones.elbowL, -24, -44 + float);
+        setPoint(bones.handL, -34, -58 + float);
+        setPoint(bones.elbowR, 24, -44 + float);
+        setPoint(bones.handR, 34, -58 + float);
+        setPoint(bones.kneeL, -8, -4 + float);
+        setPoint(bones.footL, -6, 8 + float);
+        setPoint(bones.kneeR, 8, -4 + float);
+        setPoint(bones.footR, 6, 8 + float);
         break;
       }
 
@@ -675,4 +681,76 @@ export class StickFigureRenderer {
 
     return bones;
   }
+}
+
+function createBoneScratch() {
+  return {
+    headRadius: 14,
+    head: { x: 0, y: -62 },
+    neck: { x: 0, y: -45 },
+    shoulder: { x: 0, y: -45 },
+    hip: { x: 0, y: -20 },
+    kneeL: { x: -6, y: -8 },
+    footL: { x: -8, y: 0 },
+    kneeR: { x: 6, y: -8 },
+    footR: { x: 8, y: 0 },
+    elbowL: { x: -10, y: -30 },
+    handL: { x: -12, y: -15 },
+    elbowR: { x: 10, y: -30 },
+    handR: { x: 12, y: -15 }
+  };
+}
+
+function setPoint(point, x, y) {
+  point.x = x;
+  point.y = y;
+  return point;
+}
+
+function applyActionEnvelope(bones, phase) {
+  // Anticipation pulls the extremities toward the core, contact overshoots,
+  // and recovery settles back. The same mutation works across every authored
+  // strike and keeps the pose scratch allocation-free.
+  const envelope = phase < 0.5
+    ? phase / 0.5
+    : phase < 0.68
+      ? 1 + Math.sin((phase - 0.5) / 0.18 * Math.PI) * 0.12
+      : Math.max(0, 1 - (phase - 0.68) / 0.32);
+  const reach = 0.72 + envelope * 0.36;
+  const lift = 0.86 + envelope * 0.14;
+  const hip = bones.hip;
+  scalePointFromHip(bones.handL, hip, reach, lift);
+  scalePointFromHip(bones.handR, hip, reach, lift);
+  scalePointFromHip(bones.footL, hip, reach, lift);
+  scalePointFromHip(bones.footR, hip, reach, lift);
+  scalePointFromHip(bones.elbowL, hip, reach, lift);
+  scalePointFromHip(bones.elbowR, hip, reach, lift);
+  scalePointFromHip(bones.kneeL, hip, reach, lift);
+  scalePointFromHip(bones.kneeR, hip, reach, lift);
+}
+
+function scalePointFromHip(point, hip, reach, lift) {
+  point.x = hip.x + (point.x - hip.x) * reach;
+  point.y = hip.y + (point.y - hip.y) * lift;
+}
+
+function resetBoneScratch(bones) {
+  bones.headRadius = 14;
+  setPoint(bones.head, 0, -62);
+  setPoint(bones.neck, 0, -45);
+  setPoint(bones.shoulder, 0, -45);
+  setPoint(bones.hip, 0, -20);
+  setPoint(bones.kneeL, -6, -8);
+  setPoint(bones.footL, -8, 0);
+  setPoint(bones.kneeR, 6, -8);
+  setPoint(bones.footR, 8, 0);
+  setPoint(bones.elbowL, -10, -30);
+  setPoint(bones.handL, -12, -15);
+  setPoint(bones.elbowR, 10, -30);
+  setPoint(bones.handR, 12, -15);
+}
+
+function smoothstep(value) {
+  const t = Math.max(0, Math.min(1, value));
+  return t * t * (3 - 2 * t);
 }

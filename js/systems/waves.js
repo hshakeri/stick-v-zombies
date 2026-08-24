@@ -1,30 +1,118 @@
 // Wave Director and Enemy Spawning Manager
 
-import { Zombie } from '../entities/zombies.js?v=7.0';
-import { DarkLord } from '../entities/dark_lord.js?v=7.0';
-import { KingOrange } from '../entities/king_orange.js?v=7.0';
-import { H4C3R } from '../entities/h4c3r.js?v=7.0';
-import { audio } from '../engine/audio.js?v=7.0';
-import { particles } from '../engine/particles.js?v=7.0';
+import { Zombie } from '../entities/zombies.js?v=8.2';
+import { DarkLord } from '../entities/dark_lord.js?v=8.2';
+import { KingOrange } from '../entities/king_orange.js?v=8.2';
+import { H4C3R } from '../entities/h4c3r.js?v=8.2';
+import { audio } from '../engine/audio.js?v=8.2';
+import { particles } from '../engine/particles.js?v=8.2';
+import { speech } from '../engine/speech.js?v=8.2';
 
 const BOSS_WAVES = new Set([5, 10, 11, 15]);
+export const ABSOLUTE_ACTIVE_ENEMY_CAP = 12;
+export const NORMAL_ACTIVE_ENEMY_CAP = 8;
+export const MIN_RECIPE_PACK_SIZE = 3;
+export const MAX_RECIPE_PACK_SIZE = 5;
+export const MAX_BOSS_HELPERS = 4;
 
-// The post-Dark-Lord campaign uses deliberately short, authored encounters.
-// This avoids the old linear formula growing into 50-60 enemy queues and keeps
-// both update cost and the battlefield readable on phones.
-const LATE_WAVE_RECIPES = Object.freeze({
-  12: Object.freeze([
-    'runner', 'walker', 'spitter', 'runner', 'walker', 'brute', 'spitter',
-    'runner', 'walker', 'spitter', 'runner', 'walker', 'brute', 'spitter'
+export const WAVE_RECIPE_TOTALS = Object.freeze({
+  1: 6, 2: 8, 3: 10, 4: 12, 5: 4,
+  6: 12, 7: 12, 8: 14, 9: 14, 10: 5,
+  11: 1, 12: 12, 13: 14, 14: 16, 15: 1
+});
+
+const makePack = (gap, enemies) => {
+  if (gap < 0.9 || gap > 1.2) throw new RangeError('Wave pack gaps must stay between 0.9s and 1.2s.');
+  if (enemies.length < MIN_RECIPE_PACK_SIZE || enemies.length > MAX_RECIPE_PACK_SIZE) {
+    throw new RangeError('Ordinary wave packs must contain 3-5 enemies.');
+  }
+  return Object.freeze({ gap, enemies: Object.freeze([...enemies]) });
+};
+
+const makeSoloBossPack = (gap, bossType) => {
+  if (gap < 0.9 || gap > 1.2) throw new RangeError('Boss pack gaps must stay between 0.9s and 1.2s.');
+  return Object.freeze({
+    gap,
+    bossOnly: true,
+    enemies: Object.freeze([bossType])
+  });
+};
+
+const makeRecipe = (expectedTotal, packs, bossHelpers = 0) => {
+  const total = packs.reduce((sum, pack) => sum + pack.enemies.length, 0);
+  if (total !== expectedTotal) throw new RangeError(`Wave recipe expected ${expectedTotal} enemies, received ${total}.`);
+  if (bossHelpers > MAX_BOSS_HELPERS) throw new RangeError('Boss helper cap exceeded.');
+  return Object.freeze({ total, bossHelpers, packs: Object.freeze([...packs]) });
+};
+
+// Every campaign encounter is authored and immutable. Small packs make each
+// enemy mix learnable, while 0.9-1.2 second gaps and the hard active cap keep
+// the canvas responsive on phones and older laptops.
+export const WAVE_RECIPES = Object.freeze({
+  1: makeRecipe(WAVE_RECIPE_TOTALS[1], [
+    makePack(1.1, ['walker', 'walker', 'walker']),
+    makePack(1.15, ['walker', 'walker', 'walker'])
   ]),
-  13: Object.freeze([
-    'spitter', 'runner', 'walker', 'runner', 'brute', 'spitter', 'runner',
-    'walker', 'spitter', 'runner', 'brute', 'spitter', 'runner', 'walker'
+  2: makeRecipe(WAVE_RECIPE_TOTALS[2], [
+    makePack(1.05, ['walker', 'runner', 'walker', 'runner']),
+    makePack(1.15, ['walker', 'runner', 'walker', 'runner'])
   ]),
-  14: Object.freeze([
-    'runner', 'spitter', 'runner', 'brute', 'walker', 'spitter', 'runner',
-    'brute', 'walker', 'spitter', 'runner', 'brute', 'spitter', 'runner',
-    'walker', 'spitter'
+  3: makeRecipe(WAVE_RECIPE_TOTALS[3], [
+    makePack(0.95, ['walker', 'spitter', 'walker', 'runner', 'spitter']),
+    makePack(1.1, ['runner', 'walker', 'spitter', 'runner', 'spitter'])
+  ]),
+  4: makeRecipe(WAVE_RECIPE_TOTALS[4], [
+    makePack(0.9, ['runner', 'walker', 'runner', 'spitter']),
+    makePack(1.05, ['runner', 'brute', 'walker', 'spitter']),
+    makePack(1.15, ['runner', 'walker', 'spitter', 'brute'])
+  ]),
+  5: makeRecipe(WAVE_RECIPE_TOTALS[5], [
+    makePack(1.2, ['titan_boss', 'runner', 'spitter', 'runner'])
+  ], 3),
+  6: makeRecipe(WAVE_RECIPE_TOTALS[6], [
+    makePack(0.95, ['walker', 'spitter', 'runner', 'walker']),
+    makePack(1.05, ['runner', 'spitter', 'walker', 'runner']),
+    makePack(1.15, ['brute', 'walker', 'spitter', 'walker'])
+  ]),
+  7: makeRecipe(WAVE_RECIPE_TOTALS[7], [
+    makePack(0.9, ['runner', 'walker', 'runner', 'spitter']),
+    makePack(1.05, ['brute', 'spitter', 'runner', 'walker']),
+    makePack(1.2, ['walker', 'spitter', 'runner', 'brute'])
+  ]),
+  8: makeRecipe(WAVE_RECIPE_TOTALS[8], [
+    makePack(1.0, ['spitter', 'runner', 'walker', 'spitter', 'runner']),
+    makePack(1.1, ['walker', 'brute', 'spitter', 'runner', 'walker']),
+    makePack(1.2, ['spitter', 'runner', 'brute', 'walker'])
+  ]),
+  9: makeRecipe(WAVE_RECIPE_TOTALS[9], [
+    makePack(0.9, ['runner', 'spitter', 'runner', 'walker', 'spitter']),
+    makePack(1.05, ['runner', 'brute', 'walker', 'spitter', 'runner']),
+    makePack(1.2, ['brute', 'walker', 'spitter', 'runner'])
+  ]),
+  10: makeRecipe(WAVE_RECIPE_TOTALS[10], [
+    makePack(1.2, ['dark_lord', 'runner', 'spitter', 'runner', 'brute'])
+  ], 4),
+  11: makeRecipe(WAVE_RECIPE_TOTALS[11], [
+    makeSoloBossPack(1.2, 'king_orange')
+  ]),
+  12: makeRecipe(WAVE_RECIPE_TOTALS[12], [
+    makePack(0.9, ['runner', 'walker', 'spitter', 'runner']),
+    makePack(1.05, ['walker', 'spitter', 'runner', 'brute']),
+    makePack(1.2, ['walker', 'spitter', 'runner', 'walker'])
+  ]),
+  13: makeRecipe(WAVE_RECIPE_TOTALS[13], [
+    makePack(0.95, ['spitter', 'runner', 'walker', 'runner', 'brute']),
+    makePack(1.1, ['runner', 'walker', 'spitter', 'runner', 'brute']),
+    makePack(1.2, ['walker', 'spitter', 'runner', 'brute'])
+  ]),
+  14: makeRecipe(WAVE_RECIPE_TOTALS[14], [
+    makePack(0.9, ['runner', 'spitter', 'runner', 'brute']),
+    makePack(1.0, ['walker', 'spitter', 'runner', 'brute']),
+    makePack(1.1, ['walker', 'runner', 'spitter', 'brute']),
+    makePack(1.2, ['runner', 'spitter', 'walker', 'brute'])
+  ]),
+  15: makeRecipe(WAVE_RECIPE_TOTALS[15], [
+    makeSoloBossPack(1.2, 'h4c3r')
   ])
 });
 
@@ -42,7 +130,8 @@ export class WaveDirector {
 
     this.bossZombie = null;
     this.spawnSerial = 0;
-    this.maxActiveEnemies = 12;
+    this.maxActiveEnemies = ABSOLUTE_ACTIVE_ENEMY_CAP;
+    this.usesAuthoredRecipe = false;
   }
 
   startWave(waveNumber = 1) {
@@ -54,6 +143,7 @@ export class WaveDirector {
     this.bossZombie = null;
     this.spawnTimer = 1.15; // Brief, readable setup window at every entrance.
     this.spawnSerial = 0;
+    this.usesAuthoredRecipe = false;
 
     audio.playWaveStart();
     audio.setIntensity(BOSS_WAVES.has(this.currentWave) ? 0.95 : (this.currentWave >= 12 ? 0.55 : 0.2));
@@ -63,70 +153,27 @@ export class WaveDirector {
   }
 
   generateWaveQueue(wave) {
-    if (wave === 10) {
-      // Dark Core boss: The Dark Lord (TDL)
-      this.spawnQueue.push({ type: 'dark_lord', delay: 1.2 });
-      for (let i = 0; i < 8; i++) {
-        this.spawnQueue.push({ type: i % 2 === 0 ? 'runner' : 'spitter', delay: 1.8 + Math.random() * 0.8 });
-      }
-      this.spawnQueue.push({ type: 'brute', delay: 2.8 });
-      return;
-    }
-
-    if (wave === 11) {
-      // King Orange follows the Dark Lord immediately as a focused duel.
-      this.spawnQueue.push({ type: 'king_orange', delay: 1.4 });
-      return;
-    }
-
-    if (LATE_WAVE_RECIPES[wave]) {
-      this.queueHandcraftedWave(LATE_WAVE_RECIPES[wave]);
-      return;
-    }
-
-    if (wave === 15) {
-      // H4C3R is the true finale; the boss owns its phase hazards so the wave
-      // director does not pile an additional horde onto the player.
-      this.spawnQueue.push({ type: 'h4c3r', delay: 1.4 });
-      return;
-    }
-
-    const isBossWave = (wave % 5 === 0);
-
-    if (isBossWave) {
-      // Stage 5 Titan Undead Boss Wave
-      this.spawnQueue.push({ type: 'titan_boss', delay: 1.0 });
-      for (let i = 0; i < 4 + wave; i++) {
-        this.spawnQueue.push({ type: i % 2 === 0 ? 'runner' : 'spitter', delay: 1.6 + Math.random() * 0.9 });
-      }
-      return;
-    }
-
-    // Standard Scaling Wave
-    const totalZombies = 8 + wave * 4;
-    const walkerCount = Math.floor(totalZombies * 0.5);
-    const runnerCount = wave >= 2 ? Math.floor(totalZombies * 0.25) : 0;
-    const spitterCount = wave >= 3 ? Math.floor(totalZombies * 0.15) : 0;
-    const bruteCount = wave >= 4 ? Math.max(1, Math.floor(wave / 3)) : 0;
-
-    for (let i = 0; i < walkerCount; i++) this.spawnQueue.push({ type: 'walker', delay: 0.8 + Math.random() * 1.5 });
-    for (let i = 0; i < runnerCount; i++) this.spawnQueue.push({ type: 'runner', delay: 1.0 + Math.random() * 2.0 });
-    for (let i = 0; i < spitterCount; i++) this.spawnQueue.push({ type: 'spitter', delay: 1.2 + Math.random() * 2.5 });
-    for (let i = 0; i < bruteCount; i++) this.spawnQueue.push({ type: 'brute', delay: 3.0 + Math.random() * 3.0 });
-
-    // Shuffle spawn queue
-    this.spawnQueue.sort(() => Math.random() - 0.5);
+    const stage = Math.max(1, Math.min(15, Math.trunc(Number(wave)) || 1));
+    this.queueWaveRecipe(WAVE_RECIPES[stage]);
   }
 
-  queueHandcraftedWave(types) {
-    for (let i = 0; i < types.length; i++) {
-      const type = types[i];
-      const baseDelay = type === 'brute' ? 1.65 : (type === 'spitter' ? 1.05 : 0.8);
-      this.spawnQueue.push({
-        type,
-        delay: baseDelay + (i % 3) * 0.12
+  queueWaveRecipe(recipe) {
+    if (!recipe?.packs) return;
+    this.usesAuthoredRecipe = true;
+    recipe.packs.forEach((pack, packIndex) => {
+      pack.enemies.forEach((type, enemyIndex) => {
+        const isPackTail = enemyIndex === pack.enemies.length - 1;
+        const helperIndex = this.currentWave === 10 && type !== 'dark_lord' ? enemyIndex : -1;
+        this.spawnQueue.push({
+          type,
+          // Enemies enter as a readable 3-5 target pack, followed by the
+          // authored 0.9-1.2 second breather.
+          delay: isPackTail ? pack.gap : 0.18,
+          packIndex,
+          bossHealthGate: helperIndex >= 0 ? (helperIndex <= 2 ? 0.72 : 0.42) : null
+        });
       });
-    }
+    });
   }
 
   update(dt, player, groundY, sketchBlocks, camera, onWaveComplete, platforms = [], friendlyTargets = []) {
@@ -135,7 +182,20 @@ export class WaveDirector {
     // Handle Spawning
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0 && this.spawnQueue.length > 0) {
-      if (this.zombies.length >= this.maxActiveEnemies) {
+      const activeBudget = Math.min(
+        ABSOLUTE_ACTIVE_ENEMY_CAP,
+        this.usesAuthoredRecipe && !BOSS_WAVES.has(this.currentWave)
+          ? NORMAL_ACTIVE_ENEMY_CAP
+          : ABSOLUTE_ACTIVE_ENEMY_CAP,
+        Math.max(1, Math.trunc(Number(this.maxActiveEnemies)) || ABSOLUTE_ACTIVE_ENEMY_CAP)
+      );
+      const queuedEnemy = this.spawnQueue[0];
+      const bossRatio = this.bossZombie && this.bossZombie.maxHp > 0
+        ? this.bossZombie.hp / this.bossZombie.maxHp
+        : 0;
+      const waitingForBossGate = Number.isFinite(queuedEnemy.bossHealthGate)
+        && bossRatio > queuedEnemy.bossHealthGate;
+      if (waitingForBossGate || this.zombies.length >= activeBudget) {
         // Poll at a low rate while capped rather than immediately replacing an
         // enemy in the same frame it is removed.
         this.spawnTimer = 0.2;
@@ -171,12 +231,12 @@ export class WaveDirector {
       dark_lord: {
         BossClass: DarkLord,
         color: '#ff0033',
-        banner: '⚔️ THE DARK LORD HAS ARRIVED! ⚔️'
+        banner: '⚔️ DARK LORD // BACKUP ⚔️'
       },
       king_orange: {
         BossClass: KingOrange,
         color: '#ff8a00',
-        banner: '♛ CORRUPTED KING ORANGE REPLAY ♛'
+        banner: '♛ KING ORANGE // REPLAY ♛'
       },
       h4c3r: {
         BossClass: H4C3R,
@@ -195,6 +255,13 @@ export class WaveDirector {
       camera?.addZoomPunch?.(-0.035);
       particles.addShockwave(spawnX, groundY - 30, 240, bossConfig.color, 12);
       particles.addTextBanner(spawnX, groundY - 100, bossConfig.banner, bossConfig.color);
+      const speechKey = type === 'dark_lord' ? 'darkLord' : (type === 'king_orange' ? 'kingOrange' : 'h4c3r');
+      speech.shoutBoss(spawnX, groundY, speechKey, 'intro', 1.55, {
+        anchor: boss,
+        speakerKey: speechKey,
+        repeatKey: `${speechKey}:intro`,
+        cooldownMs: 0
+      });
       return;
     }
 
@@ -207,7 +274,7 @@ export class WaveDirector {
       camera?.addShake?.(0.6);
       camera?.focusOn?.(spawnX, groundY - 105, 0.65, 0.92);
       camera?.addZoomPunch?.(-0.025);
-      particles.addTextBanner(spawnX, groundY - 80, '💀 TITAN UNDEAD SPAWNED! 💀', '#ff2244');
+      particles.addTextBanner(spawnX, groundY - 80, '💀 TITAN UNDEAD 💀', '#ff2244');
     }
 
     // Spawn dust puff
@@ -243,8 +310,9 @@ export class WaveDirector {
   }
 
   draw(ctx) {
+    const crowded = this.zombies.length >= NORMAL_ACTIVE_ENEMY_CAP;
     for (const z of this.zombies) {
-      z.draw(ctx);
+      z.draw(ctx, crowded);
     }
   }
 

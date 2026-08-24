@@ -1,7 +1,17 @@
 // Compact comic speech bubbles. The figures are mostly visual performers, so
 // their voices are deliberately tiny punchlines rather than paragraphs.
 
-import { audio } from './audio.js?v=7.0';
+import { audio } from './audio.js?v=8.2';
+
+export const MAX_SPEECH_CHARS = 24;
+export const MAX_SPEECH_LINES = 2;
+export const MAX_SPEECH_BUBBLES = 3;
+
+export const BOSS_SPEECH_EVENTS = Object.freeze({
+  darkLord: Object.freeze(['default', 'intro', 'summon', 'phase', 'hurt', 'defeat']),
+  kingOrange: Object.freeze(['default', 'intro', 'command', 'phase', 'defeat']),
+  h4c3r: Object.freeze(['default', 'intro', 'select', 'phase', 'root', 'defeat'])
+});
 
 // Curated, original micro-lines based on each character's gameplay role. Keep
 // entries short enough to read during a fast fight and safe for younger players.
@@ -78,31 +88,38 @@ export const SPEECH_CORPUS = {
     green: ['ENCORE LATER!', 'BASS BREAK!']
   },
 
-  darkLord: [
-    'RUN, LITTLE FILE.',
-    'VIRABOTS, FETCH!',
-    'I OWN THIS SCREEN.',
-    'NO ESCAPE KEY.'
-  ],
+  darkLord: {
+    default: ['RUN, LITTLE FILE.', 'VIRABOTS, FETCH!', 'NO ESCAPE KEY.'],
+    intro: ['BACKUP ONLINE.', 'OLD FIGHT. NEW DOOM.'],
+    summon: ['SWARM, GO!', 'VIRABOTS, FETCH!'],
+    phase: ['POWER: MAX.', 'BACKUP OVERCLOCKED.'],
+    hurt: ['CORRUPTED, NOT WEAK.', 'THAT FRAME WAS MINE.'],
+    defeat: ['BACKUP DELETED.', 'NOT... AGAIN.']
+  },
 
-  kingOrange: [
-    'THE STAFF IS MINE.',
-    'CHECKMATE, ORANGE.',
-    "KNEEL. OR DON'T.",
-    'POWER NEEDS A CROWN.'
-  ],
+  // King Orange is explicitly a trapped playback, not the real character.
+  kingOrange: {
+    default: ['LOOP COMMAND: FIGHT.', 'REPLAYING ATTACK.', 'THE LOOP COMMANDS ME.'],
+    intro: ['REPLAY LOADED.', 'THIS IS ONLY A COPY.'],
+    command: ['BLOCKS: EXECUTE!', 'COMMAND STACK: GO!'],
+    phase: ['LOOP SPEED: DOUBLE.', 'REWIND. TRY AGAIN.'],
+    defeat: ['REPLAY RELEASED.', 'BREAK... THE LOOP.']
+  },
 
-  h4c3r: [
-    'ACCESS GRANTED.',
-    'PATCH THIS.',
-    'I AM ROOT.',
-    'YOUR TURN EXPIRED.'
-  ]
+  h4c3r: {
+    default: ['ACCESS GRANTED.', 'PATCH THIS.', 'I AM ROOT.'],
+    intro: ['WELCOME TO MY SCREEN.', 'RESTORE KEY DETECTED.'],
+    select: ['CLICK. DRAG. DELETE.', 'YOU ARE SELECTED.'],
+    phase: ['NEW PHASE DEPLOYED.', 'PATCH REJECTED.'],
+    root: ['ROOT OWNS THIS CANVAS.', 'PERMISSION: DENIED.'],
+    defeat: ['SESSION TERMINATED.', 'LOGGING... OUT?']
+  }
 };
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 function bubblePriority(speakerType) {
+  if (speakerType === 'campaign') return 5;
   if (speakerType === 'h4c3r' || speakerType === 'kingOrange' || speakerType === 'darkLord') return 4;
   if (speakerType === 'playerAwakened') return 3;
   if (speakerType.startsWith('ally-')) return 2;
@@ -117,6 +134,7 @@ function bubblePalette(speakerType) {
     darkLord: ['#190008', '#ff294d', '#ff8ba0', '#ff1744'],
     kingOrange: ['#2b1600', '#ff9800', '#ffe0a3', '#ffd54f'],
     h4c3r: ['#001b20', '#00f5ff', '#c5fcff', '#8cff00'],
+    campaign: ['#081c24', '#67e8f9', '#e6fdff', '#ffe100'],
     'ally-red': ['#fff4f4', '#ff3344', '#66101a', '#ff3344'],
     'ally-blue': ['#f2f8ff', '#2299ff', '#073b68', '#2299ff'],
     'ally-yellow': ['#fffbe5', '#e2ae00', '#503d00', '#ffcc00'],
@@ -134,6 +152,27 @@ function addRoundedRect(ctx, x, y, width, height, radius) {
 function measureWidth(ctx, text) {
   const metrics = ctx.measureText?.(text);
   return Number.isFinite(metrics?.width) ? metrics.width : String(text).length * 8;
+}
+
+function normalizeSpeechText(text) {
+  const compact = String(text ?? '').trim().replace(/\s+/g, ' ');
+  if (!compact) return '…';
+  if (compact.length <= MAX_SPEECH_CHARS) return compact;
+  return `${compact.slice(0, MAX_SPEECH_CHARS - 1).trimEnd()}…`;
+}
+
+function resolveSpeechPool(category, eventName) {
+  const categoryPool = SPEECH_CORPUS[category];
+  if (Array.isArray(categoryPool)) return categoryPool;
+  if (!categoryPool || typeof categoryPool !== 'object') return null;
+  if (eventName && Array.isArray(categoryPool[eventName])) return categoryPool[eventName];
+  return Array.isArray(categoryPool.default) ? categoryPool.default : null;
+}
+
+function compareLayoutPriority(a, b) {
+  return (b.priority - a.priority) ||
+    (Number(b.leader) - Number(a.leader)) ||
+    (b.leaderTick - a.leaderTick);
 }
 
 function wrapText(ctx, text, maxWidth) {
@@ -154,24 +193,32 @@ function wrapText(ctx, text, maxWidth) {
 
   // The corpus is intentionally short; this is a defensive fallback for any
   // future caller that passes a longer line.
-  if (lines.length > 2) {
+  if (lines.length > MAX_SPEECH_LINES) {
     lines[1] = `${lines.slice(1).join(' ').slice(0, 20).trimEnd()}…`;
-    lines.length = 2;
+    lines.length = MAX_SPEECH_LINES;
   }
   return lines.length ? lines : ['…'];
 }
 
 export class SpeechBubbleManager {
-  constructor(clock = () => Date.now()) {
+  constructor(clock = () => globalThis.performance?.now?.() ?? 0) {
     this.bubbles = [];
     this.lastShoutTimes = new Map();
+    this.lastLineBySpeaker = new Map();
     this.clock = clock;
-    this.maxBubbles = 3;
+    this.maxBubbles = MAX_SPEECH_BUBBLES;
+    this.leaderTick = 0;
+    this.layoutScratch = [];
+    this.placedScratch = [];
   }
 
   reset() {
     this.bubbles.length = 0;
     this.lastShoutTimes.clear();
+    this.lastLineBySpeaker.clear();
+    this.leaderTick = 0;
+    this.layoutScratch.length = 0;
+    this.placedScratch.length = 0;
   }
 
   // Spawn a world-anchored line that will be laid out in stable screen space.
@@ -190,15 +237,24 @@ export class SpeechBubbleManager {
     if (lastShout !== undefined && now - lastShout < cooldownMs) return false;
 
     const priority = options.priority ?? bubblePriority(speakerType);
+    const leader = options.leader === true;
+    const incomingRank = priority * 2 + (leader ? 1 : 0);
     const existingIndex = this.bubbles.findIndex((bubble) => bubble.speakerKey === speakerKey);
     if (existingIndex >= 0) this.bubbles.splice(existingIndex, 1);
 
     if (this.bubbles.length >= this.maxBubbles) {
       let replacementIndex = 0;
       for (let i = 1; i < this.bubbles.length; i++) {
-        if (this.bubbles[i].priority < this.bubbles[replacementIndex].priority) replacementIndex = i;
+        const candidateRank = this.bubbles[i].priority * 2 + (this.bubbles[i].leader ? 1 : 0);
+        const replacementRank = this.bubbles[replacementIndex].priority * 2 + (this.bubbles[replacementIndex].leader ? 1 : 0);
+        if (candidateRank < replacementRank ||
+            (candidateRank === replacementRank && this.bubbles[i].leaderTick < this.bubbles[replacementIndex].leaderTick)) {
+          replacementIndex = i;
+        }
       }
-      if (this.bubbles[replacementIndex].priority > priority) return false;
+      const replacement = this.bubbles[replacementIndex];
+      const replacementRank = replacement.priority * 2 + (replacement.leader ? 1 : 0);
+      if (replacementRank > incomingRank) return false;
       this.bubbles.splice(replacementIndex, 1);
     }
 
@@ -209,10 +265,12 @@ export class SpeechBubbleManager {
     this.bubbles.push({
       x,
       y,
-      text: String(text),
+      text: normalizeSpeechText(text),
       speakerType,
       speakerKey,
       priority,
+      leader,
+      leaderTick: ++this.leaderTick,
       anchor: options.anchor || null,
       anchorOffsetX: options.anchorOffsetX || 0,
       anchorOffsetY: options.anchorOffsetY ?? -44,
@@ -226,16 +284,36 @@ export class SpeechBubbleManager {
 
   // Sample a role-specific one-liner from the compact corpus.
   shout(x, y, category = 'playerAttack', subKey = null, duration = 1.45, options = {}) {
-    let pool = SPEECH_CORPUS[category];
-    if (subKey && pool && pool[subKey]) pool = pool[subKey];
+    const pool = resolveSpeechPool(category, subKey);
     if (!Array.isArray(pool) || pool.length === 0) return false;
 
-    const text = pool[Math.floor(Math.random() * pool.length)];
     const isAllyLine = (category === 'allies' || category === 'allyHurt') && subKey;
     const speakerType = isAllyLine ? `ally-${subKey}` : category;
-    return this.spawnBubble(x, y, text, speakerType, duration, {
+    const isBossLine = Object.hasOwn(BOSS_SPEECH_EVENTS, category);
+    const speakerKey = options.speakerKey || (isAllyLine ? `${category}:${subKey}` : `${category}:default`);
+    const repeatKey = options.repeatKey || speakerKey;
+    const lastLine = this.lastLineBySpeaker.get(repeatKey);
+    const choices = pool.length > 1 ? pool.filter((line) => line !== lastLine) : pool;
+    const text = choices[Math.floor(Math.random() * choices.length)];
+    const didSpawn = this.spawnBubble(x, y, text, speakerType, duration, {
       ...options,
-      speakerKey: options.speakerKey || `${category}:${subKey || 'default'}`
+      speakerKey,
+      priority: options.priority ?? (isBossLine ? 4 : undefined)
+    });
+    if (didSpawn) this.lastLineBySpeaker.set(repeatKey, text);
+    return didSpawn;
+  }
+
+  // Event routing keeps boss lines tied to readable moments instead of a
+  // constant random chatter stream. Intro/defeat lines win equal-priority ties.
+  shoutBoss(x, y, bossName, eventName = 'default', duration = 1.6, options = {}) {
+    if (!Object.hasOwn(BOSS_SPEECH_EVENTS, bossName)) return false;
+    const supportedEvents = BOSS_SPEECH_EVENTS[bossName];
+    const event = supportedEvents.includes(eventName) ? eventName : 'default';
+    return this.shout(x, y, bossName, event, duration, {
+      ...options,
+      priority: options.priority ?? 4,
+      leader: options.leader ?? (event === 'intro' || event === 'defeat')
     });
   }
 
@@ -305,7 +383,12 @@ export class SpeechBubbleManager {
       safeBottom = Math.min(height - 8, middle + 36);
     }
     const maxTextWidth = Math.max(96, Math.min(184, width - 48));
-    const placed = [];
+    const placed = this.placedScratch;
+    placed.length = 0;
+    const layoutOrder = this.layoutScratch;
+    layoutOrder.length = 0;
+    for (const bubble of this.bubbles) layoutOrder.push(bubble);
+    layoutOrder.sort(compareLayoutPriority);
 
     ctx.save();
     ctx.font = "800 14px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
@@ -313,7 +396,7 @@ export class SpeechBubbleManager {
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
 
-    for (const bubble of this.bubbles) {
+    for (const bubble of layoutOrder) {
       const speaker = this.getScreenAnchor(bubble, camera);
       const lines = wrapText(ctx, bubble.text, maxTextWidth);
       const textWidth = Math.max(...lines.map((line) => measureWidth(ctx, line)));
@@ -322,8 +405,10 @@ export class SpeechBubbleManager {
       const halfW = bubbleW / 2;
       const halfH = bubbleH / 2;
 
-      const centerX = clamp(speaker.x, halfW + 10, width - halfW - 10);
-      const desiredY = clamp(speaker.y - 44 + bubble.riseOffset, safeTop + halfH, safeBottom - halfH);
+      const preferredX = speaker.x;
+      const preferredY = speaker.y - 44 + bubble.riseOffset;
+      const centerX = clamp(preferredX, halfW + 10, width - halfW - 10);
+      const desiredY = clamp(preferredY, safeTop + halfH, safeBottom - halfH);
 
       // Evaluate a fixed set of lanes against every prior bubble. Sequential
       // nudges can dodge bubble B and land back on bubble A when three allies
@@ -349,11 +434,34 @@ export class SpeechBubbleManager {
       const tailBaseY = speakerBelow ? halfH - 1 : -halfH + 1;
       const tailTipY = speakerBelow ? halfH + 11 : -halfH - 11;
       const tailX = clamp(speaker.x - centerX, -halfW + 14, halfW - 14);
+      const layoutDisplacement = Math.hypot(centerX - preferredX, centerY - preferredY);
 
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.translate(centerX, centerY);
       ctx.scale(bubble.popScale, bubble.popScale);
+
+      // If HUD clamping or a higher-priority bubble forced this line away from
+      // its preferred lane, a thin leader tick preserves speaker ownership.
+      if (layoutDisplacement > 24) {
+        const speakerLocalX = speaker.x - centerX;
+        const speakerLocalY = speaker.y - centerY;
+        const leaderDx = speakerLocalX - tailX;
+        const leaderDy = speakerLocalY - tailTipY;
+        const leaderDistance = Math.hypot(leaderDx, leaderDy) || 1;
+        const leaderLength = Math.min(48, Math.max(16, leaderDistance - 10));
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailTipY);
+        ctx.lineTo(
+          tailX + leaderDx / leaderDistance * leaderLength,
+          tailTipY + leaderDy / leaderDistance * leaderLength
+        );
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 1.25;
+        ctx.globalAlpha = alpha * 0.72;
+        ctx.stroke();
+        ctx.globalAlpha = alpha;
+      }
 
       // Tail first so the body covers its inner seam.
       ctx.beginPath();

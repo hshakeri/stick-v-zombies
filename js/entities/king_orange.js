@@ -1,9 +1,9 @@
-import { StickFigureRenderer } from './stickman.js?v=7.0';
-import { particles } from '../engine/particles.js?v=7.0';
-import { audio } from '../engine/audio.js?v=7.0';
-import { projectiles } from './projectiles.js?v=7.0';
-import { combat } from '../systems/combat.js?v=7.0';
-import { speech } from '../engine/speech.js?v=7.0';
+import { StickFigureRenderer } from './stickman.js?v=8.2';
+import { particles } from '../engine/particles.js?v=8.2';
+import { audio } from '../engine/audio.js?v=8.2';
+import { projectiles } from './projectiles.js?v=8.2';
+import { combat } from '../systems/combat.js?v=8.2';
+import { speech } from '../engine/speech.js?v=8.2';
 
 const ARENA_LEFT = -980;
 const ARENA_RIGHT = 980;
@@ -73,11 +73,12 @@ export class KingOrange {
     this.renderer = new StickFigureRenderer(this.color, this.strokeWidth, this.scale, false);
   }
 
-  update(dt, groundY, player, sketchBlocks, camera, platforms = []) {
+  update(dt, groundY, player, sketchBlocks, camera, platforms = [], enemies = [], friendlyTargets = []) {
     if (this.isDead) return;
 
     this.animTimer += dt;
     this.platforms = platforms;
+    this.friendlyTargets = friendlyTargets;
     this.auraTimer -= dt;
 
     if (this.hurtTimer > 0) {
@@ -121,7 +122,7 @@ export class KingOrange {
       camera?.addZoomPunch?.(0.05);
       particles.addShockwave(this.x, this.y - 38, 190, '#ffb020', 10);
       particles.addTextBanner(this.x, this.y - 105, 'COMMAND BLOCK ONLINE', '#ffcc33');
-      speech.shout(this.x, this.y, 'kingOrange', null, 1.45, { anchor: this, priority: 4 });
+      this.sayEvent('COMMANDS: ONLINE.', 'phase-two');
     } else if (this.phase === 2 && ratio <= 0.33) {
       this.phase = 3;
       this.state = 'recovery';
@@ -132,7 +133,7 @@ export class KingOrange {
       camera?.addZoomPunch?.(0.07);
       particles.addShockwave(this.x, this.y - 52, 240, '#d94cff', 12);
       particles.addTextBanner(this.x, this.y - 112, 'REPLAY SINGULARITY!', '#ef74ff');
-      speech.shout(this.x, this.y, 'kingOrange', null, 1.45, { anchor: this, priority: 4 });
+      this.sayEvent('VOID: OPEN.', 'phase-three');
     }
   }
 
@@ -216,6 +217,7 @@ export class KingOrange {
               player.takeDamage(20, player.x >= impactX ? 1 : -1, 500);
             }
           }
+          this.hitAllies((ally) => Math.abs(ally.x - impactX) < 155 && groundY - ally.y < 62, 20, impactX);
           this.beginRecovery(0.58);
         }
         break;
@@ -273,6 +275,7 @@ export class KingOrange {
           for (const x of this.commandXs) {
             particles.createDust(x, groundY, 7);
           }
+          this.hitAllies((ally) => this.commandXs.some((x) => Math.abs(ally.x - x) < 42), 17);
         }
         break;
       }
@@ -319,10 +322,15 @@ export class KingOrange {
           const pull = (1 - pullDist / 520) * 175;
           player.vx += Math.sign(pullDx || 1) * pull * dt;
         }
-        if (this.singularityTick <= 0 && pullDist < 82 && playerCanBeHit(player)) {
-          this.singularityTick = 0.55;
-          player.takeDamage(8, player.x >= this.x ? 1 : -1, 230);
-          particles.createHitSparks(player.x, player.y - 30, 4, '#d94cff');
+        if (this.singularityTick <= 0) {
+          let hit = false;
+          if (pullDist < 82 && playerCanBeHit(player)) {
+            player.takeDamage(8, player.x >= this.x ? 1 : -1, 230);
+            particles.createHitSparks(player.x, player.y - 30, 4, '#d94cff');
+            hit = true;
+          }
+          hit = this.hitAllies((ally) => Math.abs(ally.x - this.x) < 82, 8) || hit;
+          if (hit) this.singularityTick = 0.55;
         }
         if (this.stateTimer <= 0) this.beginRecovery(0.85);
         break;
@@ -356,10 +364,12 @@ export class KingOrange {
       this.state = 'gold_windup';
       this.stateTimer = 0.58;
       audio.playDarkBladeSlash();
+      this.sayEvent('CHECK.', 'gold-dash');
     } else if (move === 'volley') {
       this.state = 'volley_windup';
       this.stateTimer = 0.62;
       audio.playDoomLaserCharge();
+      this.sayEvent('HIGH. LOW.', 'volley');
     } else if (move === 'slam') {
       this.state = 'slam_windup';
       this.stateTimer = 0.72;
@@ -373,12 +383,34 @@ export class KingOrange {
         clamp(player.x + escapeSide * 145, ARENA_LEFT + 60, ARENA_RIGHT - 60)
       ];
       audio.playDoomLaserCharge();
+      this.sayEvent('MIND THE FLOOR.', 'command');
     } else {
       this.state = 'singularity_windup';
       this.stateTimer = 0.95;
       audio.playDoomLaserCharge();
       particles.addTextBanner(this.x, this.y - 104, 'RUN FROM THE VOID!', '#ef74ff');
+      this.sayEvent('COME CLOSER.', 'singularity');
     }
+  }
+
+  hitAllies(test, damage, originX = this.x) {
+    let hit = false;
+    for (const ally of this.friendlyTargets || []) {
+      if (!ally || ally.isDead || ally.retreating || ally.isTargetable !== true || !test(ally)) continue;
+      ally.takeDamage(damage, ally.x >= originX ? 1 : -1);
+      hit = true;
+    }
+    return hit;
+  }
+
+  sayEvent(text, eventKey) {
+    speech.spawnBubble(this.x, this.y, text, 'kingOrange', 1.35, {
+      anchor: this,
+      priority: 4,
+      speakerKey: 'kingOrange',
+      eventKey,
+      cooldownMs: 1400
+    });
   }
 
   beginRecovery(duration) {
@@ -433,8 +465,19 @@ export class KingOrange {
     projectiles.clearByOwner(this.projectileOwner);
     combat.registerKill(this);
     audio.playBossVictoryFanfare();
-    particles.createHitSparks(this.x, this.y - 45, 30, '#ff9a32');
-    particles.addShockwave(this.x, this.y - 38, 210, '#d94cff', 12);
+    speech.shoutBoss(this.x, this.y, 'kingOrange', 'defeat', 1.8, {
+      anchor: this, speakerKey: 'kingOrange', repeatKey: 'kingOrange:defeat', cooldownMs: 0
+    });
+    particles.emitImpact({
+      x: this.x,
+      y: this.y - 38,
+      profile: 'heavy',
+      color: '#ff9a32',
+      arc: false,
+      shockwaveColor: '#d94cff',
+      shockwaveRadius: 210,
+      shockwaveThickness: 12
+    });
     particles.addTextBanner(this.x, this.y - 108, 'CORRUPTED REPLAY CLEARED', '#ffee88');
   }
 
@@ -536,6 +579,20 @@ export class KingOrange {
         ctx.arc(this.x, this.y - 86, radius + ring * 20, this.animTimer * ring, this.animTimer * ring + Math.PI * 1.4);
         ctx.stroke();
       }
+    } else if (this.state === 'recovery') {
+      const progress = Math.max(0, Math.min(1, this.stateTimer / 0.9));
+      ctx.globalAlpha = 0.5 + Math.sin(this.animTimer * 11) * 0.12;
+      ctx.strokeStyle = '#7dffb3';
+      ctx.fillStyle = '#d9ffe7';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 7]);
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y, 46 + progress * 12, 9, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '800 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('OPEN!', this.x, this.y - 112);
     }
 
     ctx.restore();
@@ -578,8 +635,22 @@ export class KingOrange {
 
   drawStaff(ctx) {
     let angle = -0.42;
-    if (this.state.endsWith('windup')) angle = -1.02;
-    if (this.state === 'gold_dash' || this.state === 'command_active' || this.state === 'volley') angle = 1.14;
+    if (this.state.endsWith('windup')) {
+      const duration = {
+        gold_windup: 0.58,
+        slam_windup: 0.72,
+        volley_windup: 0.62,
+        command_windup: 0.78,
+        singularity_windup: 0.95
+      }[this.state] || 0.7;
+      const progress = smoothstep(1 - this.stateTimer / duration);
+      angle = -0.42 + (-1.02 + 0.42) * progress;
+    }
+    if (this.state === 'gold_dash' || this.state === 'command_active' || this.state === 'volley') {
+      const activeDuration = this.state === 'gold_dash' ? 0.24 : (this.state === 'command_active' ? 0.34 : 0.78);
+      const progress = smoothstep(1 - this.stateTimer / activeDuration);
+      angle = -1.02 + (1.14 + 1.02) * progress;
+    }
 
     ctx.save();
     ctx.translate(this.x + this.facing * 14, this.y - 35);
@@ -622,4 +693,9 @@ export class KingOrange {
     }
     ctx.restore();
   }
+}
+
+function smoothstep(value) {
+  const t = clamp(value, 0, 1);
+  return t * t * (3 - 2 * t);
 }

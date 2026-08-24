@@ -1,7 +1,7 @@
 // Combat and Combo Score Management Engine
 
-import { audio } from '../engine/audio.js?v=7.0';
-import { particles } from '../engine/particles.js?v=7.0';
+import { audio } from '../engine/audio.js?v=8.2';
+import { particles } from '../engine/particles.js?v=8.2';
 
 export class CombatSystem {
   constructor() {
@@ -15,6 +15,7 @@ export class CombatSystem {
 
     // Ink drops in arena
     this.inkDrops = [];
+    this.simTime = 0;
   }
 
   resetRun(startingInk = 0) {
@@ -25,6 +26,7 @@ export class CombatSystem {
     this.comboTimer = 0;
     this.totalKills = 0;
     this.inkDrops.length = 0;
+    this.simTime = 0;
   }
 
   clearArena() {
@@ -33,6 +35,7 @@ export class CombatSystem {
   }
 
   update(dt, player) {
+    this.simTime += Math.max(0, Math.min(Number(dt) || 0, 0.1));
     // Update Combo Timer
     if (this.combo > 0) {
       this.comboTimer -= dt;
@@ -112,6 +115,7 @@ export class CombatSystem {
   }
 
   spawnInkDrop(x, y, value) {
+    if (this.inkDrops.length >= 32) this.inkDrops.shift();
     this.inkDrops.push({
       x,
       y,
@@ -157,7 +161,7 @@ export class CombatSystem {
     for (const drop of this.inkDrops) {
       ctx.save();
       ctx.translate(drop.x, drop.y);
-      const bob = Math.sin(Date.now() * 0.008 + drop.x) * 3;
+      const bob = Math.sin(this.simTime * 8 + drop.x) * 3;
       ctx.fillStyle = '#44ddff';
       ctx.shadowColor = '#00ffff';
       ctx.shadowBlur = 10;

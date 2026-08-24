@@ -1,8 +1,173 @@
-// Stage Progression, Desktop Level Generator, Obstacle Courses, and Door Portals
 
-import { particles } from '../engine/particles.js?v=7.0';
-import { audio } from '../engine/audio.js?v=7.0';
-import { projectiles } from '../entities/projectiles.js?v=7.0';
+import { particles } from '../engine/particles.js?v=8.2';
+import { audio } from '../engine/audio.js?v=8.2';
+import { projectiles } from '../entities/projectiles.js?v=8.2';
+
+const freezeBeat = (beat) => Object.freeze({
+  ...beat,
+  ...(beat.allyReaction ? { allyReaction: Object.freeze({ ...beat.allyReaction }) } : {})
+});
+
+export const CAMPAIGN_BEATS = Object.freeze({
+  1: freezeBeat({
+    act: 'I - BUG ON THE LOOSE',
+    mission: 'STOP THE DESKTOP BUG',
+    clearText: 'TRAIL FOUND!',
+    clue: 'RESTORE.KEY WAS SPLIT',
+    bossLabel: null,
+    allyReaction: { ally: 'red', line: 'BUGS NEED BONKS!' }
+  }),
+  2: freezeBeat({
+    act: 'I - BUG ON THE LOOSE',
+    mission: 'FOLLOW THE BAD FRAMES',
+    clearText: 'FRAMES REPAIRED!',
+    clue: 'THE BUG SKIPPED AHEAD',
+    bossLabel: null,
+    allyReaction: { ally: 'green', line: 'FOUND THE BAD BEAT!' }
+  }),
+  3: freezeBeat({
+    act: 'I - BUG ON THE LOOSE',
+    mission: 'CHECK THE FAKE DOWNLOAD',
+    clearText: 'DOWNLOAD TRACED!',
+    clue: 'USER: H4C3R?',
+    bossLabel: null,
+    allyReaction: { ally: 'blue', line: 'POTION THIEF!' }
+  }),
+  4: freezeBeat({
+    act: 'I - BUG ON THE LOOSE',
+    mission: 'OPEN THE FIREWALL',
+    clearText: 'FIREWALL OPEN!',
+    clue: 'KEY SIGNAL IN CRASH DUMP',
+    bossLabel: null,
+    allyReaction: { ally: 'red', line: 'KNOCK KNOCK!' }
+  }),
+  5: freezeBeat({
+    act: 'I - BUG ON THE LOOSE',
+    mission: 'DEFEAT THE TITAN',
+    clearText: 'RESTORE KEY 1/3!',
+    clue: 'NEXT TRACE: RECYCLE BIN',
+    bossLabel: 'TITAN UNDEAD',
+    allyReaction: { ally: 'yellow', line: 'ONE KEY, TWO TO GO!' }
+  }),
+  6: freezeBeat({
+    act: 'II - DELETED TRAIL',
+    mission: 'UNDELETE THE TRAIL',
+    clearText: 'TRACE RESTORED!',
+    clue: 'OLD BATTLES WERE COPIED',
+    bossLabel: null,
+    allyReaction: { ally: 'cursor', line: 'UNDELETE COMPLETE.' }
+  }),
+  7: freezeBeat({
+    act: 'II - DELETED TRAIL',
+    mission: 'CROSS THE BLOCK BACKUP',
+    clearText: 'BACKUP CLEAN!',
+    clue: 'REMOTE CODE BELOW',
+    bossLabel: null,
+    allyReaction: { ally: 'yellow', line: 'BLOCKS? MY THING.' }
+  }),
+  8: freezeBeat({
+    act: 'II - DELETED TRAIL',
+    mission: 'RUN THE CLEANUP',
+    clearText: 'REMOTE USER FOUND!',
+    clue: 'H4C3R IS CONNECTED',
+    bossLabel: null,
+    allyReaction: { ally: 'cursor', line: 'USER TRACE LOCKED.' }
+  }),
+  9: freezeBeat({
+    act: 'II - DELETED TRAIL',
+    mission: 'SHUT THE VIRABOT NEXUS',
+    clearText: 'NEXUS OFFLINE!',
+    clue: 'DARK BACKUP ACTIVE',
+    bossLabel: null,
+    allyReaction: { ally: 'blue', line: 'THAT CODE LOOKS SICK.' }
+  }),
+  10: freezeBeat({
+    act: 'II - DELETED TRAIL',
+    mission: 'CLEAR THE DARK BACKUP',
+    clearText: 'RESTORE KEY 2/3!',
+    clue: 'A REPLAY HOLDS PIECE 3',
+    bossLabel: 'DARK LORD // BACKUP',
+    allyReaction: { ally: 'red', line: 'BACKUP: BONKED.' }
+  }),
+  11: freezeBeat({
+    act: 'III - REPLAY TRAP',
+    mission: "FREE THE KING'S REPLAY",
+    clearText: 'RESTORE KEY 3/3!',
+    clue: 'TRACE: ROOT://H4C3R',
+    bossLabel: 'KING ORANGE // REPLAY',
+    allyReaction: { ally: 'yellow', line: 'THAT WAS A COPY!' }
+  }),
+  12: freezeBeat({
+    act: 'III - REPLAY TRAP',
+    mission: 'CHASE THE FAKE TABS',
+    clearText: 'RIGHT TAB FOUND!',
+    clue: 'TRACE MOVED TO CLOUD',
+    bossLabel: null,
+    allyReaction: { ally: 'cursor', line: 'WRONG TAB. AGAIN.' }
+  }),
+  13: freezeBeat({
+    act: 'III - REPLAY TRAP',
+    mission: 'SYNC THE ROOT TRACE',
+    clearText: 'TRACE LOCKED!',
+    clue: 'ROOT GATE LOCATED',
+    bossLabel: null,
+    allyReaction: { ally: 'green', line: 'CLOUDS HAVE BAD WIFI.' }
+  }),
+  14: freezeBeat({
+    act: 'III - REPLAY TRAP',
+    mission: 'BREAK THE ROOT GATE',
+    clearText: 'MAINFRAME OPEN!',
+    clue: 'H4C3R IS INSIDE',
+    bossLabel: null,
+    allyReaction: { ally: 'red', line: 'FINAL DOOR. BIG BONK.' }
+  }),
+  15: freezeBeat({
+    act: 'III - REPLAY TRAP',
+    mission: 'LOG OUT H4C3R',
+    clearText: 'SYSTEM RESTORED!',
+    clue: 'RESTORE KEY COMPLETE',
+    bossLabel: 'H4C3R',
+    allyReaction: { ally: 'green', line: 'FINAL BOSS MUSIC!' }
+  })
+});
+
+export const MAX_ENVIRONMENT_DECORATIONS = 24;
+
+const ENVIRONMENT_COLORS = Object.freeze({
+  desktop: '#7d8caf', animate: '#9299bd', downloads: '#62c4ff', firewall: '#ff4f64',
+  bsod: '#d5ecff', recycle: '#75d6da', minecraft: '#ff682c', terminal: '#45ff82',
+  virabot: '#ff397b', dark_core: '#ff234d', command_realm: '#ffb340',
+  browser_glitch: '#5ce1ff', cloud_cache: '#a6e3ff', root_gateway: '#42ff8a',
+  zero_day: '#74edff'
+});
+
+function createEnvironmentDecorations(stage, theme) {
+  const color = ENVIRONMENT_COLORS[theme] || ENVIRONMENT_COLORS.desktop;
+  const decorations = Array.from({ length: MAX_ENVIRONMENT_DECORATIONS }, (_, index) => Object.freeze({
+    layer: index % 2,
+    x: -1020 + ((index * 347 + stage * 89) % 2040),
+    y: -625 + ((index * 173 + stage * 61) % 470),
+    size: 2 + ((index * 5 + stage) % 7),
+    speed: 0.12 + ((index + stage) % 5) * 0.025,
+    phase: ((index * 37 + stage * 13) % 360) * Math.PI / 180,
+    shape: (index + stage) % 3,
+    color
+  }));
+  return Object.freeze(decorations);
+}
+
+function strokeGridPath(ctx, minX, maxX, minY, maxY, stepX, stepY = stepX) {
+  ctx.beginPath();
+  for (let x = minX; x <= maxX; x += stepX) {
+    ctx.moveTo(x, minY);
+    ctx.lineTo(x, maxY);
+  }
+  for (let y = minY; y <= maxY; y += stepY) {
+    ctx.moveTo(minX, y);
+    ctx.lineTo(maxX, y);
+  }
+  ctx.stroke();
+}
 
 export class StageManager {
   constructor() {
@@ -11,7 +176,6 @@ export class StageManager {
     this.stageName = 'Main Desktop';
     this.theme = 'desktop'; // 'desktop', 'animate', 'downloads', 'firewall', 'bsod'
 
-    // Arena World Boundaries
     this.bounds = {
       minX: -1100,
       maxX: 1100,
@@ -20,7 +184,6 @@ export class StageManager {
       groundY: 0
     };
 
-    // Stage Entities
     this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
     this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
     this.platforms = [];
@@ -29,12 +192,14 @@ export class StageManager {
     this.laserHazards = [];
     this.errorPopups = [];
 
-    // Objective state
     this.isObjectiveComplete = false;
     this.doorTransitionTimer = 0;
     this.exitFocusTimer = -1;
+    this.stageTime = 0;
+    this.campaignBeat = CAMPAIGN_BEATS[1];
+    this.environmentDecorations = Object.freeze([]);
+    this.solidPlatformsScratch = [];
 
-    // Build Stage 1 on init
     this.loadStage(1);
   }
 
@@ -47,8 +212,9 @@ export class StageManager {
     this.exitDoor.isOpen = false;
     this.doorTransitionTimer = 0;
     this.exitFocusTimer = -1;
+    this.stageTime = 0;
+    this.campaignBeat = CAMPAIGN_BEATS[stage];
 
-    // Reset collections
     this.platforms = [];
     this.movingPlatforms = [];
     this.desktopIcons = [];
@@ -102,6 +268,13 @@ export class StageManager {
         this.buildStage15ZeroDayMainframe();
         break;
     }
+
+    this.environmentDecorations = createEnvironmentDecorations(stage, this.theme);
+  }
+
+  getCampaignBeat(stageNum = this.currentStage) {
+    const stage = Math.max(1, Math.min(this.maxStage, Math.trunc(Number(stageNum)) || 1));
+    return CAMPAIGN_BEATS[stage];
   }
 
   resolveStageExit(nextStage, onComplete, onAdvance) {
@@ -113,7 +286,6 @@ export class StageManager {
     return 'advance';
   }
 
-  // --- STAGE BUILDERS ---
 
   buildStage1Desktop() {
     this.stageName = 'Main Desktop';
@@ -122,7 +294,6 @@ export class StageManager {
     this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
     this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 
-    // Desktop App Windows as Platforms
     this.platforms = [
       { x: -650, y: -160, width: 220, height: 20, title: 'Notepad.exe - Notes.txt', appType: 'notepad' },
       { x: -350, y: -280, width: 200, height: 20, title: 'Calculator.exe', appType: 'calc' },
@@ -131,7 +302,6 @@ export class StageManager {
       { x: 680, y: -160, width: 200, height: 20, title: 'Command_Prompt.cmd', appType: 'cmd' }
     ];
 
-    // Desktop Shortcut Icons
     this.desktopIcons = [
       { x: -850, y: -80, label: 'Recycle Bin', icon: '🗑️' },
       { x: -850, y: -200, label: 'My Computer', icon: '💻' },
@@ -142,7 +312,6 @@ export class StageManager {
       { x: 850, y: -200, label: 'Secret_Folder', icon: '📁' }
     ];
 
-    // 1 Horizontal moving platform (Media Player)
     this.movingPlatforms.push({
       x: -100,
       y: -360,
@@ -165,7 +334,6 @@ export class StageManager {
     this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
     this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 
-    // Timeline Scrubber & Canvas Tool Platforms
     this.platforms = [
       { x: -700, y: -180, width: 200, height: 20, title: 'Toolbox - Brush & Pencil', appType: 'tools' },
       { x: -250, y: -160, width: 240, height: 20, title: 'Layer 1: Stick Animation', appType: 'layer' },
@@ -173,7 +341,6 @@ export class StageManager {
       { x: 700, y: -200, width: 200, height: 20, title: 'Color Swatches Palette', appType: 'palette' }
     ];
 
-    // Moving Timeline Scrubbers (Horizontal and Vertical)
     this.movingPlatforms.push({
       x: 0,
       y: -320,
@@ -202,7 +369,6 @@ export class StageManager {
       axis: 'y'
     });
 
-    // Drawing Laser Hazards (Timed security pointer beams)
     this.laserHazards.push({
       x: -120,
       y: -240,
@@ -228,7 +394,6 @@ export class StageManager {
     this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
     this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 
-    // Download bars and corrupted archive platforms
     this.platforms = [
       { x: -680, y: -180, width: 220, height: 20, title: 'Download_1: Cheats.zip (98%)', appType: 'download' },
       { x: -280, y: -240, width: 190, height: 20, title: 'Corrupted_Script.js', appType: 'glitch' },
@@ -236,7 +401,6 @@ export class StageManager {
       { x: 680, y: -180, width: 220, height: 20, title: 'Download_2: Patch.iso (100%)', appType: 'download' }
     ];
 
-    // Vertical Download Elevator
     this.movingPlatforms.push({
       x: 0,
       y: -200,
@@ -251,7 +415,6 @@ export class StageManager {
       axis: 'y'
     });
 
-    // Error 404 Popup Dialogs that act as bouncy/hazardous popups
     this.errorPopups.push({
       x: -460,
       y: -140,
@@ -291,7 +454,6 @@ export class StageManager {
       { x: 700, y: -200, width: 220, height: 20, title: 'Firewall_Node_B', appType: 'security' }
     ];
 
-    // Fast moving security scanners
     this.movingPlatforms.push({
       x: 0,
       y: -220,
@@ -306,7 +468,6 @@ export class StageManager {
       axis: 'x'
     });
 
-    // Timed Firewall Lasers
     this.laserHazards.push({
       x: -500,
       y: -100,
@@ -337,7 +498,6 @@ export class StageManager {
     this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
     this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 
-    // Big Boss Arena layout with elevated crash dump platforms
     this.platforms = [
       { x: -550, y: -180, width: 240, height: 22, title: '*** STOP: 0x0000007B (MEMORY DUMP)', appType: 'bsod' },
       { x: 550, y: -180, width: 240, height: 22, title: '*** CRASH_DUMP: SYSTEM_OVERHEAT', appType: 'bsod' },
@@ -467,7 +627,6 @@ export class StageManager {
     this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
     this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 
-    // Dark Lord boss arena layout
     this.platforms = [
       { x: -560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_ALPHA [CRITICAL]', appType: 'dark_core' },
       { x: 560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_OMEGA [CRITICAL]', appType: 'dark_core' },
@@ -491,7 +650,6 @@ export class StageManager {
     this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
     this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 
-    // A broad, uncluttered duel floor with three useful escape platforms.
     this.platforms = [
       { x: -560, y: -170, width: 260, height: 24, title: 'GOLD_BLOCK_RAMPART', appType: 'command' },
       { x: 0, y: -310, width: 340, height: 26, title: 'COMMAND_BLOCK_THRONE', appType: 'command' },
@@ -568,7 +726,6 @@ export class StageManager {
       { x: 590, y: -185, width: 250, height: 22, title: 'AUTH_GATE_RIGHT', appType: 'terminal' }
     ];
 
-    // Alternating lanes keep movement lively without layering many hazards.
     this.laserHazards.push({
       x: -470, y: -95, width: 260, height: 9, timer: 0,
       cycleDuration: 3.2, activeDuration: 1.15, damage: 20
@@ -586,7 +743,6 @@ export class StageManager {
     this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
     this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 
-    // Keep the finale readable: H4C3R supplies the moving threats.
     this.platforms = [
       { x: -570, y: -180, width: 260, height: 24, title: 'FREE_TRANSFORM_LEFT', appType: 'zero_day' },
       { x: 0, y: -325, width: 360, height: 26, title: 'ROOT://H4C3R/CONTROL', appType: 'zero_day' },
@@ -600,10 +756,11 @@ export class StageManager {
   }
 
   update(dt, player, wavesDirector, onStageExit, camera = null) {
-    // Let the final boss's defeat camera land before revealing the exit. Other
-    // stages keep the immediate door pan that helps players navigate onward.
+    const safeDt = Math.max(0, Math.min(Number(dt) || 0, 0.1));
+    this.stageTime += safeDt;
+
     if (this.exitFocusTimer > 0) {
-      this.exitFocusTimer -= dt;
+      this.exitFocusTimer -= safeDt;
       if (this.exitFocusTimer <= 0) {
         this.exitFocusTimer = -1;
         camera?.focusOn?.(this.exitDoor.x, this.exitDoor.y - 45, 0.45, 0.96);
@@ -611,25 +768,29 @@ export class StageManager {
       }
     }
 
-    // 1. Update Moving Platforms
     for (const p of this.movingPlatforms) {
       if (p.axis === 'x') {
-        p.x += p.speed * p.dir * dt;
+        p.x += p.speed * p.dir * safeDt;
         if (p.x >= p.maxX) { p.x = p.maxX; p.dir = -1; }
         else if (p.x <= p.minX) { p.x = p.minX; p.dir = 1; }
       } else if (p.axis === 'y') {
-        p.y += p.speed * p.dir * dt;
+        p.y += p.speed * p.dir * safeDt;
         if (p.y >= p.maxY) { p.y = p.maxY; p.dir = -1; }
         else if (p.y <= p.minY) { p.y = p.minY; p.dir = 1; }
       }
     }
 
-    // 2. Update Laser Hazards
     for (const laser of this.laserHazards) {
-      laser.timer = (laser.timer + dt) % laser.cycleDuration;
+      laser.timer = (laser.timer + safeDt) % laser.cycleDuration;
       const isActive = laser.timer < laser.activeDuration;
 
-      // Damage player if walking into active laser beam
+      if (isActive && !laser.wasActive) {
+        laser.hookedHitTargets = new WeakSet();
+      } else if (!isActive) {
+        laser.hookedHitTargets = null;
+      }
+      laser.wasActive = isActive;
+
       if (!this.isObjectiveComplete && isActive && player && (player.iFrames || 0) <= 0 && !player.isRolling && !player.isAwakened) {
         if (player.x >= laser.x - 20 && player.x <= laser.x + laser.width + 20 &&
             Math.abs(player.y - 30 - laser.y) < 25) {
@@ -638,9 +799,32 @@ export class StageManager {
           particles.createHitSparks(player.x, laser.y, 8, '#ff2244');
         }
       }
+
+      if (!this.isObjectiveComplete && this.theme === 'firewall' && isActive && Array.isArray(player?.currentZombies)) {
+        let zappedHookTarget = false;
+        for (const zombie of player.currentZombies) {
+          if (!zombie || zombie.isDead || zombie.hookPullTimer <= 0 || typeof zombie.takeDamage !== 'function') continue;
+          if (laser.hookedHitTargets?.has(zombie)) continue;
+
+          const radius = Number(zombie.radius) || 18;
+          const height = Number(zombie.height) || 58;
+          const overlapsLane = zombie.x + radius >= laser.x && zombie.x - radius <= laser.x + laser.width;
+          const beamTop = laser.y - laser.height / 2;
+          const beamBottom = laser.y + laser.height / 2;
+          const hookSweepTop = zombie.y - height - 48;
+          const hookSweepBottom = zombie.y + 8;
+          if (!overlapsLane || beamBottom < hookSweepTop || beamTop > hookSweepBottom) continue;
+
+          laser.hookedHitTargets?.add(zombie);
+          const knockbackDirection = zombie.x < laser.x + laser.width / 2 ? -1 : 1;
+          zombie.takeDamage(laser.damage, knockbackDirection, 360, true);
+          particles.createHitSparks(zombie.x, laser.y, 8, '#ffea00');
+          zappedHookTarget = true;
+        }
+        if (zappedHookTarget) audio.playLaserZap();
+      }
     }
 
-    // 3. Check Objective / Exit Door Unlock
     const allEnemiesDefeated = wavesDirector && wavesDirector.isWaveActive &&
                                wavesDirector.spawnQueue.length === 0 &&
                                wavesDirector.zombies.length === 0;
@@ -650,6 +834,10 @@ export class StageManager {
       this.exitDoor.isOpen = true;
       projectiles.clearHostileEffects?.();
       audio.playDoorUnlock();
+      const clearText = this.campaignBeat?.clearText || 'STAGE CLEAR!';
+      const clearX = Number.isFinite(player?.x) ? player.x : 0;
+      const clearY = Number.isFinite(player?.y) ? player.y - 86 : -86;
+      particles.addTextBanner(clearX, clearY, `★ ${clearText} ★`, '#ffee00');
       particles.addTextBanner(this.exitDoor.x, this.exitDoor.y - 120, '★ EXIT DOOR OPEN! ★', '#33ff88');
       particles.addShockwave(this.exitDoor.x, this.exitDoor.y - 45, 120, '#33ff88', 8);
       if (this.currentStage === this.maxStage) {
@@ -660,15 +848,13 @@ export class StageManager {
       }
     }
 
-    // 4. Check if player enters Exit Door
     if (this.exitDoor.isOpen && player && !player.isDead) {
       const distToExit = Math.hypot(player.x - this.exitDoor.x, player.y - this.exitDoor.y);
       if (distToExit < 60) {
-        this.doorTransitionTimer += dt;
+        this.doorTransitionTimer += safeDt;
         particles.createAwakeningAura(this.exitDoor.x, this.exitDoor.y - 45, 2);
 
         if (this.doorTransitionTimer > 0.4) {
-          // Transition to next stage
           this.doorTransitionTimer = -999;
           this.exitDoor.isOpen = false;
           audio.playDoorEnter();
@@ -683,31 +869,28 @@ export class StageManager {
   }
 
   getAllSolidPlatforms() {
-    return [...this.platforms, ...this.movingPlatforms];
+    const output = this.solidPlatformsScratch;
+    output.length = 0;
+    for (const platform of this.platforms) output.push(platform);
+    for (const platform of this.movingPlatforms) output.push(platform);
+    return output;
   }
 
-  // --- RENDERING ---
 
-  draw(ctx, groundY) {
-    // 1. Draw Desktop Wallpaper & Grid Background
+  draw(ctx, groundY, crowded = false) {
+    this.crowdedRender = crowded;
     this.drawDesktopBackground(ctx, groundY);
 
-    // 2. Draw Desktop Icons
     this.drawDesktopIcons(ctx);
 
-    // 3. Draw Error Popups
     this.drawErrorPopups(ctx);
 
-    // 4. Draw Doors (Entrance & Exit)
     this.drawDoors(ctx, groundY);
 
-    // 5. Draw Platforms & Moving Windows
     this.drawPlatforms(ctx);
 
-    // 6. Draw Laser Hazards
     this.drawLaserHazards(ctx);
 
-    // 7. Draw Windows Taskbar at bottom
     this.drawTaskbar(ctx, groundY);
   }
 
@@ -733,19 +916,11 @@ export class StageManager {
     };
 
     if (this.theme === 'animate') {
-      // Dark Charcoal Flash/Animate Workspace
       paintBackdrop('#2d2f3a');
 
-      // Grid Lines
       ctx.strokeStyle = 'rgba(70, 75, 95, 0.4)';
       ctx.lineWidth = 1;
-      for (let x = minX; x <= maxX; x += 50) {
-        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
-      }
-      for (let y = minY; y <= maxY; y += 50) {
-        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
-      }
-      // Ruler at top
+      strokeGridPath(ctx, minX, maxX, minY, maxY, 50);
       ctx.fillStyle = '#1e2029';
       ctx.fillRect(minX, minY, maxX - minX, 24);
       ctx.fillStyle = '#888ea6';
@@ -754,10 +929,8 @@ export class StageManager {
         ctx.fillText(`${x}`, x + 5, minY + 16);
       }
     } else if (this.theme === 'bsod') {
-      // Blue Screen of Death (BSOD) Wallpaper
       paintBackdrop('#0047b3');
 
-      // BSOD Crash Dump Text
       ctx.fillStyle = '#ffffff';
       ctx.font = "14px monospace";
       ctx.fillText(":( A problem has been detected and the OS has been shut down.", minX + 60, minY + 80);
@@ -766,20 +939,13 @@ export class StageManager {
       ctx.fillText("*** ALAN_BECKER_STICKMAN_SYS - ADDRESS F86B5A89 BASE AT F86B4000", minX + 60, minY + 170);
       ctx.fillText(">>> DEFEAT THE TITAN UNDEAD TO REBOOT SYSTEM <<<", minX + 60, minY + 210);
     } else if (this.theme === 'firewall') {
-      // Neon Security Grid
       paintBackdrop('#111827');
       ctx.strokeStyle = '#ff3344';
       ctx.lineWidth = 1;
       ctx.globalAlpha = 0.2;
-      for (let x = minX; x <= maxX; x += 60) {
-        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
-      }
-      for (let y = minY; y <= maxY; y += 60) {
-        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
-      }
+      strokeGridPath(ctx, minX, maxX, minY, maxY, 60);
       ctx.globalAlpha = 1.0;
     } else if (this.theme === 'downloads') {
-      // Download manager / quarantine zone with readable transfer lanes.
       paintBackdrop('#17243a');
       for (let y = minY + 70; y < maxY - 40; y += 95) {
         ctx.fillStyle = 'rgba(72, 137, 205, 0.12)';
@@ -789,7 +955,6 @@ export class StageManager {
         ctx.fillRect(minX + 62, y + 7, (maxX - minX - 124) * progress, 14);
       }
     } else if (this.theme === 'recycle') {
-      // Recycle-bin interior: cool metal panels and descending data scraps.
       paintBackdrop('#172b35');
       ctx.strokeStyle = 'rgba(117, 214, 218, 0.18)';
       ctx.lineWidth = 2;
@@ -802,8 +967,6 @@ export class StageManager {
         ctx.fillText(i % 2 ? '01' : '{}', minX + 80 + i * 118, minY + 70 + (i % 4) * 110);
       }
     } else if (this.theme === 'minecraft') {
-      // Original voxel-like Nether-inspired data cavern. Large tiles keep the
-      // reference legible without loading any bitmap assets.
       paintBackdrop('#29151d');
       const tile = 80;
       for (let y = minY; y < maxY; y += tile) {
@@ -816,9 +979,8 @@ export class StageManager {
       ctx.fillStyle = 'rgba(255, 88, 20, 0.34)';
       ctx.fillRect(minX, minY + 95, maxX - minX, 12);
     } else if (this.theme === 'virabot') {
-      // Infection nexus: a sparse pulsing network instead of particle spam.
       paintBackdrop('#180a24');
-      const pulse = 0.35 + Math.sin(Date.now() * 0.003) * 0.08;
+      const pulse = 0.35 + Math.sin(this.stageTime * 3) * 0.08;
       ctx.strokeStyle = `rgba(255, 35, 104, ${pulse})`;
       ctx.fillStyle = 'rgba(255, 35, 104, 0.2)';
       ctx.lineWidth = 2;
@@ -832,38 +994,24 @@ export class StageManager {
       ctx.stroke();
       ctx.fill();
     } else if (this.theme === 'dark_core') {
-      // The Dark Core - Corrupted Red Cyber Void (TDL Boss Arena)
       paintBackdrop('#140005');
 
-      // Crimson Glitch Grid
       ctx.strokeStyle = 'rgba(255, 0, 50, 0.25)';
       ctx.lineWidth = 1;
-      for (let x = minX; x <= maxX; x += 50) {
-        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
-      }
-      for (let y = minY; y <= maxY; y += 50) {
-        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
-      }
+      strokeGridPath(ctx, minX, maxX, minY, maxY, 50);
 
-      // Warning matrix text
       ctx.fillStyle = '#ff1133';
       ctx.font = "bold 14px monospace";
       ctx.shadowColor = '#ff0033';
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = this.crowdedRender ? 0 : 12;
       ctx.fillText(">>> CRITICAL THREAT: THE_DARK_LORD.EXE HAS CORRUPTED THE CORE <<<", minX + 60, minY + 80);
       ctx.fillText(">>> SYSTEM INTEGRITY: 0% | VIRABOT POWER LEVEL: MAXIMUM <<<", minX + 60, minY + 110);
       ctx.fillText(">>> DEFEAT THE DARK LORD TO OPEN THE OUTERNET PATH <<<", minX + 60, minY + 140);
     } else if (this.theme === 'command_realm') {
-      // A corrupted playback of King Orange's command-block arena.
       paintBackdrop('#241306');
       ctx.strokeStyle = 'rgba(255, 157, 35, 0.26)';
       ctx.lineWidth = 2;
-      for (let x = minX; x <= maxX; x += 80) {
-        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
-      }
-      for (let y = minY; y <= maxY; y += 80) {
-        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
-      }
+      strokeGridPath(ctx, minX, maxX, minY, maxY, 80);
       ctx.fillStyle = 'rgba(255, 192, 66, 0.18)';
       for (let i = 0; i < 12; i++) {
         const x = minX + 90 + i * 180;
@@ -874,7 +1022,7 @@ export class StageManager {
       ctx.fillStyle = '#ffb13b';
       ctx.font = 'bold 14px monospace';
       ctx.fillText('ARCHIVE://KING_ORANGE — CORRUPTED REPLAY', minX + 60, minY + 70);
-      ctx.fillText('BREAK THE LOOP. SAVE THE KING.', minX + 60, minY + 100);
+      ctx.fillText('REPLAY // NOT THE REAL KING', minX + 60, minY + 100);
     } else if (this.theme === 'browser_glitch') {
       paintBackdrop('#10192d');
       ctx.fillStyle = '#202c47';
@@ -921,12 +1069,7 @@ export class StageManager {
       paintBackdrop('#020d08');
       ctx.strokeStyle = 'rgba(55, 255, 128, 0.19)';
       ctx.lineWidth = 1;
-      for (let x = minX; x <= maxX; x += 64) {
-        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
-      }
-      for (let y = minY; y <= maxY; y += 64) {
-        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
-      }
+      strokeGridPath(ctx, minX, maxX, minY, maxY, 64);
       ctx.fillStyle = 'rgba(52, 255, 123, 0.32)';
       ctx.font = '13px monospace';
       const commands = ['sudo unlock --root', 'AUTH FAILED', 'retrying…', 'port 31337 open'];
@@ -958,35 +1101,28 @@ export class StageManager {
       ctx.fillText('ROOT ACCESS GRANTED TO: H4C3R', minX + 60, minY + 58);
       ctx.fillText('FREE_TRANSFORM.sys ACTIVE', minX + 60, minY + 84);
     } else if (this.theme === 'terminal') {
-      // Hacker Terminal Green Grid
       paintBackdrop('#051108');
       ctx.strokeStyle = 'rgba(50, 255, 100, 0.2)';
       ctx.lineWidth = 1;
-      for (let x = minX; x <= maxX; x += 50) {
-        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
-      }
-      for (let y = minY; y <= maxY; y += 50) {
-        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
-      }
+      strokeGridPath(ctx, minX, maxX, minY, maxY, 50);
       ctx.fillStyle = '#33ff77';
       ctx.font = "14px monospace";
       ctx.fillText("root@desktop:~$ ./firewall_purge --force", minX + 60, minY + 80);
     } else {
-      // Classic Desktop Theme (Slate / Windows blue)
       paintBackdrop('#262c3e');
 
-      // Desktop grid
       ctx.strokeStyle = 'rgba(55, 62, 85, 0.6)';
       ctx.lineWidth = 1;
-      for (let x = minX; x <= maxX; x += 60) {
-        ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x, maxY); ctx.stroke();
-      }
-      for (let y = minY; y <= maxY; y += 60) {
-        ctx.beginPath(); ctx.moveTo(minX, y); ctx.lineTo(maxX, y); ctx.stroke();
-      }
+      strokeGridPath(ctx, minX, maxX, minY, maxY, 60);
     }
 
-    // Ground Line
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.setLineDash([]);
+    this.drawEnvironmentMotifs(ctx, 0);
+    this.drawCampaignSignal(ctx, minX, minY);
+    this.drawEnvironmentMotifs(ctx, 1);
+
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 6;
     ctx.beginPath();
@@ -994,7 +1130,6 @@ export class StageManager {
     ctx.lineTo(maxX, groundY);
     ctx.stroke();
 
-    // Boundary walls
     ctx.strokeStyle = '#ff3344';
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -1005,23 +1140,78 @@ export class StageManager {
     ctx.restore();
   }
 
+  drawEnvironmentMotifs(ctx, layer) {
+    const decorations = this.environmentDecorations || [];
+    const driftRange = this.bounds.maxX - this.bounds.minX + 120;
+    const driftStart = this.bounds.minX - 60;
+
+    ctx.save();
+    ctx.globalAlpha = layer === 0 ? 0.1 : 0.18;
+    ctx.fillStyle = decorations[0]?.color || ENVIRONMENT_COLORS.desktop;
+    ctx.strokeStyle = decorations[0]?.color || ENVIRONMENT_COLORS.desktop;
+    ctx.lineWidth = layer === 0 ? 1 : 1.5;
+    ctx.beginPath();
+
+    for (const motif of decorations) {
+      if (motif.layer !== layer) continue;
+      const drift = this.stageTime * motif.speed * (layer === 0 ? 16 : 28);
+      const wrappedX = driftStart + (((motif.x - driftStart + drift) % driftRange) + driftRange) % driftRange;
+      const y = motif.y + Math.sin(this.stageTime * motif.speed * 4 + motif.phase) * (layer === 0 ? 5 : 9);
+
+      if (motif.shape === 0) {
+        ctx.fillRect(wrappedX, y, motif.size, motif.size);
+      } else if (motif.shape === 1) {
+        ctx.moveTo(wrappedX - motif.size, y);
+        ctx.lineTo(wrappedX, y - motif.size);
+        ctx.lineTo(wrappedX + motif.size, y);
+      } else {
+        ctx.moveTo(wrappedX - motif.size, y);
+        ctx.lineTo(wrappedX + motif.size, y);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawCampaignSignal(ctx, minX, minY) {
+    const beat = this.campaignBeat;
+    if (!beat) return;
+
+    ctx.save();
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.fillText(beat.act, this.bounds.maxX - 48, minY + 48);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+    ctx.fillText(`MISSION // ${beat.mission}`, this.bounds.maxX - 48, minY + 69);
+
+    if (beat.bossLabel) {
+      ctx.fillStyle = this.currentStage === 15 ? '#67e8f9' : '#ffc857';
+      ctx.fillText(`TARGET // ${beat.bossLabel}`, this.bounds.maxX - 48, minY + 90);
+    }
+
+    if (this.currentStage === 3 || this.currentStage === 8 || this.currentStage === 14) {
+      ctx.fillStyle = '#67e8f9';
+      ctx.fillText(`TRACE // ${beat.clue}`, this.bounds.maxX - 48, minY + 111);
+    }
+    ctx.restore();
+  }
+
   drawDesktopIcons(ctx) {
     for (const icon of this.desktopIcons) {
       ctx.save();
-      // Icon Box
       ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
       ctx.lineWidth = 1;
       ctx.fillRect(icon.x - 30, icon.y - 40, 60, 50);
       ctx.strokeRect(icon.x - 30, icon.y - 40, 60, 50);
 
-      // Emoji / Icon Glyph
       ctx.font = "24px sans-serif";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(icon.icon, icon.x, icon.y - 15);
 
-      // Label
       ctx.fillStyle = '#ffffff';
       ctx.font = "bold 10px 'Nunito', sans-serif";
       ctx.fillText(icon.label, icon.x, icon.y + 20);
@@ -1032,14 +1222,12 @@ export class StageManager {
   drawErrorPopups(ctx) {
     for (const pop of this.errorPopups) {
       ctx.save();
-      // Window Body
       ctx.fillStyle = '#ece9d8';
       ctx.strokeStyle = '#0055ea';
       ctx.lineWidth = 2;
       ctx.fillRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, pop.height);
       ctx.strokeRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, pop.height);
 
-      // Title bar
       ctx.fillStyle = '#0055ea';
       ctx.fillRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, 18);
       ctx.fillStyle = '#ffffff';
@@ -1047,7 +1235,6 @@ export class StageManager {
       ctx.textAlign = 'left';
       ctx.fillText(pop.title, pop.x - pop.width / 2 + 6, pop.y - pop.height / 2 + 13);
 
-      // Message
       ctx.fillStyle = '#000000';
       ctx.font = "bold 11px sans-serif";
       ctx.textAlign = 'center';
@@ -1057,7 +1244,6 @@ export class StageManager {
   }
 
   drawDoors(ctx, groundY) {
-    // 1. Entrance Door (Start Portal)
     ctx.save();
     ctx.fillStyle = '#0f172a';
     ctx.strokeStyle = '#38bdf8';
@@ -1070,7 +1256,6 @@ export class StageManager {
     ctx.fillText("START", this.entranceDoor.x, groundY - this.entranceDoor.height - 8);
     ctx.restore();
 
-    // 2. Exit Door (Goal Portal)
     ctx.save();
     const isOpen = this.exitDoor.isOpen;
     ctx.fillStyle = isOpen ? '#022c22' : '#3f1118';
@@ -1079,15 +1264,13 @@ export class StageManager {
     ctx.fillRect(this.exitDoor.x - 32, groundY - this.exitDoor.height, 64, this.exitDoor.height);
     ctx.strokeRect(this.exitDoor.x - 32, groundY - this.exitDoor.height, 64, this.exitDoor.height);
 
-    // Glowing Interactive Vortex if open
     if (isOpen) {
       ctx.shadowColor = '#10b981';
       ctx.shadowBlur = 24;
       ctx.fillStyle = '#10b981';
       ctx.fillRect(this.exitDoor.x - 24, groundY - this.exitDoor.height + 8, 48, this.exitDoor.height - 16);
 
-      // Swirling inner cyber vortex
-      const time = Date.now() * 0.006;
+      const time = this.stageTime * 6;
       ctx.fillStyle = '#6ee7b7';
       for (let i = 0; i < 4; i++) {
         const vy = (groundY - this.exitDoor.height + 14) + ((time * 25 + i * 15) % (this.exitDoor.height - 28));
@@ -1096,14 +1279,12 @@ export class StageManager {
         ctx.fill();
       }
 
-      // Bouncing Guide Arrow above door
-      const bounce = Math.sin(Date.now() * 0.008) * 8;
+      const bounce = Math.sin(this.stageTime * 8) * 8;
       ctx.fillStyle = '#ffea00';
       ctx.font = "bold 13px 'Bungee', cursive";
       ctx.textAlign = 'center';
       ctx.fillText("⬇ ENTER EXIT ⬇", this.exitDoor.x, groundY - this.exitDoor.height - 16 + bounce);
     } else {
-      // Locked Icon
       ctx.fillStyle = '#ef4444';
       ctx.font = "bold 11px 'Bungee', cursive";
       ctx.textAlign = 'center';
@@ -1119,12 +1300,11 @@ export class StageManager {
       const halfW = p.width / 2;
       const topY = p.y - p.height;
 
-      // Window Platform Body
       if (p.appType === 'dark_core') {
         ctx.fillStyle = '#180006';
         ctx.strokeStyle = '#ff0033';
         ctx.shadowColor = '#ff0033';
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = this.crowdedRender ? 0 : 12;
       } else if (p.appType === 'bsod') {
         ctx.fillStyle = '#002277';
         ctx.strokeStyle = '#38bdf8';
@@ -1137,11 +1317,9 @@ export class StageManager {
       ctx.fillRect(p.x - halfW, topY, p.width, p.height);
       ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
 
-      // Window Titlebar Header (Top 8px)
       ctx.fillStyle = p.appType === 'dark_core' ? '#3b000d' : (p.appType === 'bsod' ? '#003399' : '#334155');
       ctx.fillRect(p.x - halfW, topY, p.width, 9);
 
-      // Authentic Traffic-Light Window Controls [ Red | Yellow | Green ]
       const ctrlY = topY + 4.5;
       ctx.fillStyle = '#ff5f56';
       ctx.beginPath(); ctx.arc(p.x + halfW - 20, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
@@ -1150,7 +1328,6 @@ export class StageManager {
       ctx.fillStyle = '#27c93f';
       ctx.beginPath(); ctx.arc(p.x + halfW - 6, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
 
-      // Title Text
       ctx.fillStyle = p.appType === 'dark_core' ? '#ff6688' : (p.appType === 'bsod' ? '#ffffff' : '#94a3b8');
       ctx.font = "bold 9px 'Nunito', sans-serif";
       ctx.textAlign = 'left';
@@ -1164,17 +1341,14 @@ export class StageManager {
       const isActive = laser.timer < laser.activeDuration;
       ctx.save();
       if (isActive) {
-        // Lethal Red Security Beam
         ctx.fillStyle = '#ff2244';
         ctx.shadowColor = '#ff2244';
         ctx.shadowBlur = 14;
         ctx.fillRect(laser.x, laser.y - laser.height / 2, laser.width, laser.height);
 
-        // Core white ray
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(laser.x, laser.y - 2, laser.width, 4);
       } else {
-        // Warning Dotted Laser Line
         ctx.strokeStyle = 'rgba(255, 68, 68, 0.4)';
         ctx.lineWidth = 2;
         ctx.setLineDash([6, 6]);
@@ -1184,7 +1358,6 @@ export class StageManager {
         ctx.stroke();
       }
 
-      // Emitter nodes at left and right
       ctx.fillStyle = '#444';
       ctx.fillRect(laser.x - 8, laser.y - 8, 8, 16);
       ctx.fillRect(laser.x + laser.width, laser.y - 8, 8, 16);
@@ -1197,18 +1370,15 @@ export class StageManager {
     const maxX = this.bounds.maxX + 500;
 
     ctx.save();
-    // Solid Ground Substrate foundation below groundY
     ctx.fillStyle = '#0b0d13';
     ctx.fillRect(minX, groundY, maxX - minX, 1000);
 
-    // Windows Taskbar bar
     ctx.fillStyle = '#11131c';
     ctx.strokeStyle = '#2d3147';
     ctx.lineWidth = 2;
     ctx.fillRect(this.bounds.minX, groundY, this.bounds.maxX - this.bounds.minX, 42);
     ctx.strokeRect(this.bounds.minX, groundY, this.bounds.maxX - this.bounds.minX, 42);
 
-    // Start Button
     ctx.fillStyle = '#0078d7';
     ctx.fillRect(this.bounds.minX + 10, groundY + 6, 80, 30);
     ctx.fillStyle = '#ffffff';
@@ -1216,7 +1386,6 @@ export class StageManager {
     ctx.textAlign = 'center';
     ctx.fillText("🪟 START", this.bounds.minX + 50, groundY + 25);
 
-    // Active Taskbar App Tabs
     const tabs = ['Stick_vs_Zombies.exe', 'Animation_v2.fla', 'Zombies_Horde.cmd'];
     tabs.forEach((tab, i) => {
       const tx = this.bounds.minX + 100 + i * 160;
@@ -1228,13 +1397,15 @@ export class StageManager {
       ctx.fillText(tab, tx + 75, groundY + 23);
     });
 
-    // Right System Tray Clock
     ctx.fillStyle = '#ffffff';
     ctx.font = "bold 12px monospace";
     ctx.textAlign = 'right';
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    ctx.fillText(`🔊 100% | 📅 ${timeStr}`, this.bounds.maxX - 20, groundY + 25);
+    const elapsedSeconds = Math.floor(this.stageTime);
+    const runMinutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+    const runSeconds = String(elapsedSeconds % 60).padStart(2, '0');
+    const clearedThrough = this.currentStage - (this.isObjectiveComplete ? 0 : 1);
+    const keyPieces = clearedThrough < 5 ? 0 : (clearedThrough < 10 ? 1 : (clearedThrough < 11 ? 2 : 3));
+    ctx.fillText(`KEY ${keyPieces}/3 | RUN ${runMinutes}:${runSeconds}`, this.bounds.maxX - 20, groundY + 25);
 
     ctx.restore();
   }

@@ -1,9 +1,9 @@
-import { StickFigureRenderer } from './stickman.js?v=7.0';
-import { particles } from '../engine/particles.js?v=7.0';
-import { audio } from '../engine/audio.js?v=7.0';
-import { projectiles } from './projectiles.js?v=7.0';
-import { combat } from '../systems/combat.js?v=7.0';
-import { speech } from '../engine/speech.js?v=7.0';
+import { StickFigureRenderer } from './stickman.js?v=8.2';
+import { particles } from '../engine/particles.js?v=8.2';
+import { audio } from '../engine/audio.js?v=8.2';
+import { projectiles } from './projectiles.js?v=8.2';
+import { combat } from '../systems/combat.js?v=8.2';
+import { speech } from '../engine/speech.js?v=8.2';
 
 const ARENA_MIN_X = -980;
 const ARENA_MAX_X = 980;
@@ -69,6 +69,7 @@ export class H4C3R {
     this.auraTimer = 0;
     this.groundY = y;
     this.camera = null;
+    this.friendlyHits = [];
 
     this.inkReward = 500;
     this.scoreReward = 9000;
@@ -77,7 +78,7 @@ export class H4C3R {
     this.renderer.glowColor = CYAN;
   }
 
-  update(dt, groundY, player, sketchBlocks, camera, platforms = []) {
+  update(dt, groundY, player, sketchBlocks, camera, platforms = [], enemies = [], friendlyTargets = []) {
     if (this.isDead) return;
 
     const safeDt = clamp(Number(dt) || 0, 0, 0.05);
@@ -85,6 +86,7 @@ export class H4C3R {
     this.groundY = groundY;
     this.platforms = platforms;
     this.camera = camera || this.camera;
+    this.friendlyTargets = friendlyTargets;
 
     if (this.phase === 1 && this.hp <= this.maxHp * 0.55) {
       this.beginPhaseTwo(camera);
@@ -140,7 +142,7 @@ export class H4C3R {
     camera?.focusOn?.(this.x, this.y - 75, 0.75, 1.06);
     particles.addShockwave(this.x, this.y - 34, 220, CYAN, 12);
     particles.addTextBanner(this.x, this.y - 105, 'FIREWALL: OFFLINE', LIME);
-    speech.shout(this.x, this.y, 'h4c3r', null, 1.45, { anchor: this, priority: 4 });
+    this.sayEvent('FIREWALL: OFF.', 'phase-two');
   }
 
   updateAI(dt, player, camera) {
@@ -191,8 +193,9 @@ export class H4C3R {
         this.stateTimer -= dt;
         this.pose = 'run';
         const progress = 1 - this.stateTimer / this.stateDuration;
+        const previousX = this.x;
         this.x = lerp(this.dashStartX, this.dashTargetX, smoothstep(progress));
-        this.resolveDashHit(player);
+        this.resolveDashHit(player, previousX);
 
         if (this.stateTimer <= 0) {
           this.x = this.dashTargetX;
@@ -211,6 +214,7 @@ export class H4C3R {
           this.state = 'bracket_wall';
           this.stateDuration = this.stateTimer = 0.2;
           this.attackHit = false;
+          this.friendlyHits.length = 0;
           audio.playLaserZap();
           camera?.addShake?.(0.28);
           camera?.addZoomPunch?.(0.035);
@@ -235,6 +239,7 @@ export class H4C3R {
           this.state = 'terminal_beam';
           this.stateDuration = this.stateTimer = 0.32;
           this.attackHit = false;
+          this.friendlyHits.length = 0;
           audio.playDoomLaserFire();
           camera?.addShake?.(0.34);
           camera?.addZoomPunch?.(0.055);
@@ -302,7 +307,7 @@ export class H4C3R {
     this.attackHit = false;
     audio.playTeleportZap();
     camera?.addZoomPunch?.(-0.025);
-    speech.shout(this.x, this.y, 'h4c3r', null, 1.45, { anchor: this, priority: 4 });
+    this.sayEvent('PING.', 'packet');
   }
 
   launchPacketDash(camera) {
@@ -311,7 +316,13 @@ export class H4C3R {
     this.dashStartX = this.x;
     this.attackHit = false;
     audio.playTeleportZap();
-    particles.triggerSpeedlines(0.28);
+    particles.triggerSpeedlines({
+      x: (this.dashStartX + this.dashTargetX) * 0.5,
+      y: this.y - 34,
+      duration: 0.28,
+      lineCount: 18,
+      seed: (Math.trunc(this.dashStartX) ^ Math.trunc(this.dashTargetX) ^ this.attackIndex) >>> 0
+    });
     camera?.addShake?.(0.2);
     camera?.addZoomPunch?.(0.035);
   }
@@ -327,7 +338,7 @@ export class H4C3R {
     audio.playDoomLaserCharge();
     camera?.addZoomPunch?.(-0.055);
     camera?.focusOn?.(this.safeGapX, this.groundY - 115, 0.5, 0.91);
-    speech.shout(this.x, this.y, 'h4c3r', null, 1.45, { anchor: this, priority: 4 });
+    this.sayEvent('FIND THE GAP.', 'bracket');
   }
 
   startTerminalBeam(player, camera) {
@@ -340,7 +351,17 @@ export class H4C3R {
     audio.playDoomLaserCharge();
     camera?.focusOn?.((this.x + player.x) * 0.5, this.groundY - 105, 0.58, 0.94);
     camera?.addZoomPunch?.(-0.035);
-    speech.shout(this.x, this.y, 'h4c3r', null, 1.45, { anchor: this, priority: 4 });
+    this.sayEvent('NO ESC KEY.', 'terminal');
+  }
+
+  sayEvent(text, eventKey) {
+    speech.spawnBubble(this.x, this.y, text, 'h4c3r', 1.35, {
+      anchor: this,
+      priority: 4,
+      speakerKey: 'h4c3r',
+      eventKey,
+      cooldownMs: 1400
+    });
   }
 
   startRecovery(duration) {
@@ -350,9 +371,10 @@ export class H4C3R {
     this.vx = 0;
   }
 
-  resolveDashHit(player) {
+  resolveDashHit(player, previousX = this.x) {
     if (this.attackHit || !this.canHitPlayer(player)) return;
-    const dx = player.x - this.x;
+    const closestX = clamp(player.x, Math.min(previousX, this.x), Math.max(previousX, this.x));
+    const dx = player.x - closestX;
     const dy = (player.y - 30) - (this.y - 34);
     if (Math.abs(dx) < 72 && Math.abs(dy) < 78) {
       this.attackHit = true;
@@ -364,23 +386,36 @@ export class H4C3R {
   resolveBracketHit(player) {
     if (this.attackHit) return;
     this.attackHit = true;
-    if (!this.canHitPlayer(player)) return;
-
-    if (Math.abs(player.x - this.safeGapX) > this.safeGapHalf) {
+    if (this.canHitPlayer(player) && Math.abs(player.x - this.safeGapX) > this.safeGapHalf) {
       const direction = player.x < this.safeGapX ? -1 : 1;
       player.takeDamage(this.phase === 2 ? 29 : 24, direction, 390);
       particles.createHitSparks(player.x, player.y - 35, 10, CYAN);
     }
+    for (const ally of this.friendlyTargets || []) {
+      if (!ally || ally.isDead || ally.retreating || ally.isTargetable !== true) continue;
+      if (Math.abs(ally.x - this.safeGapX) > this.safeGapHalf) {
+        ally.takeDamage(this.phase === 2 ? 29 : 24, ally.x < this.safeGapX ? -1 : 1, 390);
+      }
+    }
   }
 
   resolveBeamHit(player) {
-    if (this.attackHit || !this.canHitPlayer(player)) return;
-    const playerCenterY = player.y - 30;
-    const isAhead = this.facing > 0 ? player.x >= this.x - 24 : player.x <= this.x + 24;
-    if (isAhead && Math.abs(playerCenterY - this.beamY) < 38) {
-      this.attackHit = true;
-      player.takeDamage(32, this.facing, 500);
-      particles.createHitSparks(player.x, this.beamY, 12, CYAN);
+    if (!this.attackHit && this.canHitPlayer(player)) {
+      const playerCenterY = player.y - 30;
+      const isAhead = this.facing > 0 ? player.x >= this.x - 24 : player.x <= this.x + 24;
+      if (isAhead && Math.abs(playerCenterY - this.beamY) < 38) {
+        this.attackHit = true;
+        player.takeDamage(32, this.facing, 500);
+        particles.createHitSparks(player.x, this.beamY, 12, CYAN);
+      }
+    }
+    for (const ally of this.friendlyTargets || []) {
+      if (!ally || ally.isDead || ally.retreating || ally.isTargetable !== true || this.friendlyHits.includes(ally)) continue;
+      const centerY = ally.y - (ally.height || 60) * 0.5;
+      const ahead = this.facing > 0 ? ally.x >= this.x - 24 : ally.x <= this.x + 24;
+      if (!ahead || Math.abs(centerY - this.beamY) >= 38) continue;
+      this.friendlyHits.push(ally);
+      ally.takeDamage(32, this.facing, 500);
     }
   }
 
@@ -455,11 +490,29 @@ export class H4C3R {
 
     audio.playBossVictoryFanfare();
     audio.playZombieDeath();
+    speech.shoutBoss(this.x, this.y, 'h4c3r', 'defeat', 1.8, {
+      anchor: this, speakerKey: 'h4c3r', repeatKey: 'h4c3r:defeat', cooldownMs: 0
+    });
     this.camera?.addShake?.(0.85);
     this.camera?.addZoomPunch?.(0.09);
     this.camera?.focusOn?.(this.x, this.y - 65, 0.8, 1.08);
-    particles.createHitSparks(this.x, this.y - 38, 48, CYAN);
-    particles.addShockwave(this.x, this.y - 25, 240, LIME, 15);
+    particles.emitImpact({
+      x: this.x,
+      y: this.y - 30,
+      profile: 'heavy',
+      color: CYAN,
+      arc: false,
+      shockwaveColor: LIME,
+      shockwaveRadius: 240,
+      shockwaveThickness: 15
+    });
+    particles.triggerSpeedlines({
+      x: this.x,
+      y: this.y - 60,
+      duration: 0.3,
+      boss: true,
+      seed: 0x48344352
+    });
     particles.addTextBanner(this.x, this.y - 105, '★ H4C3R LOGGED OUT ★', '#ffee00');
   }
 
@@ -522,6 +575,27 @@ export class H4C3R {
     if (this.state === 'packet_telegraph') this.drawPacketTelegraph(ctx);
     if (this.state === 'bracket_telegraph' || this.state === 'bracket_wall') this.drawBracketWall(ctx);
     if (this.state === 'terminal_telegraph' || this.state === 'terminal_beam') this.drawTerminalBeam(ctx);
+    if (this.state === 'recover') this.drawRecoveryCue(ctx);
+  }
+
+  drawRecoveryCue(ctx) {
+    const progress = Math.max(0, Math.min(1, this.stateTimer / 0.92));
+    const pulse = 0.58 + Math.sin(this.animTimer * 12) * 0.12;
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = LIME;
+    ctx.fillStyle = '#dfffc2';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([5, 7]);
+    ctx.beginPath();
+    ctx.ellipse(this.x, this.groundY, 48 + progress * 12, 9, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '800 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('PUNISH_', this.x, this.y - 114);
+    ctx.restore();
   }
 
   drawPacketTelegraph(ctx) {

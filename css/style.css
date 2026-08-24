@@ -1,6 +1,4 @@
 /* Stick vs Zombies: The Second Coming Style */
-@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@700;900&family=Permanent+Marker&display=swap');
-
 :root {
   --orange-hero: #ff7700;
   --orange-glow: #ffa500;
@@ -66,6 +64,54 @@ body, html {
   pointer-events: none;
   box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.7);
   z-index: 10;
+}
+
+.mission-strip {
+  position: absolute;
+  z-index: 24;
+  top: clamp(104px, 17vh, 150px);
+  left: 50%;
+  width: min(680px, calc(100vw - 32px));
+  min-height: 54px;
+  padding: 9px 18px;
+  border: 2px solid rgba(255, 187, 69, 0.72);
+  border-radius: 11px;
+  background: linear-gradient(90deg, rgba(11, 13, 23, 0.95), rgba(33, 26, 18, 0.92), rgba(11, 13, 23, 0.95));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.42);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 14px;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -12px) scale(0.98);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.mission-strip.active {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
+}
+
+.mission-strip strong {
+  color: #fff7d6;
+  font-family: 'Bungee', Impact, 'Arial Black', sans-serif;
+  font-size: clamp(13px, 1.7vw, 19px);
+  letter-spacing: 0.04em;
+}
+
+.mission-strip-act,
+.mission-strip-lesson {
+  font-family: 'Bungee', Impact, 'Arial Black', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+}
+
+.mission-strip-act { color: #ffb545; }
+
+.mission-strip-lesson {
+  grid-column: 2;
+  color: #65dcff;
 }
 
 /* HUD Overlay */
@@ -607,7 +653,6 @@ body, html {
   position: absolute;
   inset: 0;
   background: rgba(8, 9, 14, 0.85);
-  backdrop-filter: blur(8px);
   z-index: 100;
   display: flex;
   justify-content: center;
@@ -1431,6 +1476,16 @@ body, html {
 
 /* Short screens use every vertical pixel; the title remains scrollable. */
 @media (max-height: 600px) {
+  .mission-strip {
+    top: max(58px, calc(48px + env(safe-area-inset-top)));
+    min-height: 42px;
+    padding: 5px 12px;
+  }
+
+  .mission-strip strong { font-size: 12px; }
+  .mission-strip-act,
+  .mission-strip-lesson { font-size: 8px; }
+
   #title-screen {
     padding-top: max(10px, env(safe-area-inset-top));
     padding-bottom: max(10px, env(safe-area-inset-bottom));
@@ -1498,4 +1553,6 @@ body, html {
   .boss-health-container.dark-lord-boss {
     animation: none;
   }
+
+  .mission-strip { transition: opacity 80ms linear; }
 }

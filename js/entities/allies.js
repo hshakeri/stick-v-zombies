@@ -1,11 +1,23 @@
-import { StickFigureRenderer } from './stickman.js?v=7.0';
-import { particles } from '../engine/particles.js?v=7.0';
-import { audio } from '../engine/audio.js?v=7.0';
-import { projectiles } from './projectiles.js?v=7.0';
-import { speech } from '../engine/speech.js?v=7.0';
+import { StickFigureRenderer } from './stickman.js?v=8.2';
+import { particles } from '../engine/particles.js?v=8.2';
+import { audio } from '../engine/audio.js?v=8.2';
+import { projectiles } from './projectiles.js?v=8.2';
+import { speech } from '../engine/speech.js?v=8.2';
 
 const ALLY_ARENA_BOUND = 1030;
-const ALLY_READY_TIME = 0.3;
+const ALLY_READY_TIME = 0.55;
+const ALLY_EFFECT_RADIUS = Object.freeze({
+  red: 220,
+  blue: 520,
+  yellow: 600,
+  green: 480
+});
+const ALLY_COLORS = Object.freeze({
+  red: '#ff3344',
+  blue: '#2299ff',
+  yellow: '#ffcc00',
+  green: '#33dd66'
+});
 
 export class AllyManager {
   constructor() {
@@ -46,6 +58,8 @@ export class AllyManager {
     this.activeAllies = [];
     this.turrets = [];
     this.activeCursors = [];
+    this.combatTargets = [];
+    this.summonTargets = [];
 
     // Renderers for allies (Solid filled heads for Red, Blue, Yellow, Green!)
     this.renderers = {
@@ -66,6 +80,8 @@ export class AllyManager {
     this.activeAllies.length = 0;
     this.turrets.length = 0;
     this.activeCursors.length = 0;
+    this.combatTargets.length = 0;
+    this.summonTargets.length = 0;
     for (const key of Object.keys(this.cooldowns)) {
       this.cooldowns[key] = savedRecovery[key] || 0;
       this.recoveryStates[key] = this.cooldowns[key] > 0;
@@ -133,7 +149,7 @@ export class AllyManager {
 
             // Damage and launch all nearby zombies
             for (const z of zombies) {
-              if (!z.isDead && Math.abs(z.x - ally.x) < 220) {
+              if (!z.isDead && Math.abs(z.x - ally.x) < ALLY_EFFECT_RADIUS.red) {
                 z.takeDamage(140, ally.x < z.x ? 1 : -1, 800, true);
               }
             }
@@ -141,6 +157,7 @@ export class AllyManager {
               anchor: ally,
               priority: 2
             });
+            this.beginReturn(ally);
           }
         } else if (ally.hasActed && ally.timer > 1.2) {
           // Exit after exactly one landing impact.
@@ -165,9 +182,12 @@ export class AllyManager {
               player.heal(45);
               particles.addDamageText(player.x, player.y - 40, '+45 HP', false, '#33ff88');
             }
-            // Slow down all zombies on screen
+            // Blue's potion cloud is powerful, but placement matters: only
+            // enemies inside the visible cast radius are frozen.
             for (const z of zombies) {
-              if (!z.isDead && typeof z.applyFreeze === 'function') {
+              if (!z.isDead
+                  && Math.hypot(z.x - ally.x, z.y - ally.y) <= ALLY_EFFECT_RADIUS.blue
+                  && typeof z.applyFreeze === 'function') {
                 z.applyFreeze(6.0); // Slow for 6 seconds
                 particles.createHitSparks(z.x, z.y - 30, 8, '#2299ff');
               }
@@ -177,6 +197,7 @@ export class AllyManager {
               anchor: ally,
               priority: 2
             });
+            this.beginReturn(ally);
           }
         } else if (ally.timer > 1.4) {
           this.beginReturn(ally);
@@ -194,20 +215,33 @@ export class AllyManager {
           if (ally.readyTimer >= ALLY_READY_TIME) {
             ally.hasActed = true;
             audio.playBlockPlace();
-            this.turrets.push({
+            const turret = {
               x: ally.x,
               y: groundY,
               fireTimer: 0,
-              duration: 18.0,
-              maxDuration: 18.0,
+              duration: 12.0,
+              maxDuration: 12.0,
               range: 600,
-              damage: 26
-            });
+              damage: 26,
+              hitsRemaining: 3,
+              maxHits: 3,
+              hurtTimer: 0,
+              isAlly: true,
+              isTurret: true,
+              isDead: false,
+              isTargetable: true,
+              retreating: false,
+              radius: 20,
+              height: 42
+            };
+            turret.takeDamage = (amount, knockbackDir = 0) => this.damageTurret(turret, amount, knockbackDir);
+            this.turrets.push(turret);
             particles.addTextBanner(ally.x, ally.y - 50, 'REDSTONE TURRET ACTIVE!', '#ffcc00');
             speech.shout(ally.x, ally.y, 'allies', 'yellow', 1.35, {
               anchor: ally,
               priority: 2
             });
+            this.beginReturn(ally);
           }
         } else if (ally.timer > 1.2) {
           this.beginReturn(ally);
@@ -225,11 +259,26 @@ export class AllyManager {
           if (ally.readyTimer >= ALLY_READY_TIME) {
             ally.hasActed = true;
             audio.playWaveStart();
-            projectiles.spawnMusicNoteWave(ally.x, groundY - 30, ally.facing);
-            projectiles.spawnMusicNoteWave(ally.x, groundY - 30, -ally.facing);
-            // Stun all zombies
+            projectiles.spawnMusicNoteWave(
+              ally.x,
+              groundY - 30,
+              ally.facing,
+              ALLY_EFFECT_RADIUS.green,
+              groundY
+            );
+            projectiles.spawnMusicNoteWave(
+              ally.x,
+              groundY - 30,
+              -ally.facing,
+              ALLY_EFFECT_RADIUS.green,
+              groundY
+            );
+            // The note projectiles can travel farther, while the guaranteed
+            // stun is limited to Green's visible performance circle.
             for (const z of zombies) {
-              if (!z.isDead && typeof z.applyStun === 'function') {
+              if (!z.isDead
+                  && Math.hypot(z.x - ally.x, z.y - ally.y) <= ALLY_EFFECT_RADIUS.green
+                  && typeof z.applyStun === 'function') {
                 z.applyStun(4.0);
               }
             }
@@ -239,6 +288,7 @@ export class AllyManager {
               anchor: ally,
               priority: 2
             });
+            this.beginReturn(ally);
           }
         } else if (ally.timer > 1.4) {
           this.beginReturn(ally);
@@ -256,8 +306,11 @@ export class AllyManager {
       const turret = this.turrets[i];
       turret.duration -= dt;
       turret.fireTimer -= dt;
+      turret.hurtTimer = Math.max(0, turret.hurtTimer - dt);
 
-      if (turret.duration <= 0) {
+      if (turret.isDead || turret.duration <= 0) {
+        turret.isDead = true;
+        turret.isTargetable = false;
         particles.createDust(turret.x, turret.y, 8);
         this.turrets.splice(i, 1);
         continue;
@@ -364,6 +417,21 @@ export class AllyManager {
     ally.pose = 'jump_rise';
   }
 
+  damageTurret(turret, amount = 1) {
+    if (!turret || turret.isDead || turret.isTargetable !== true) return false;
+    turret.hitsRemaining = Math.max(0, turret.hitsRemaining - 1);
+    turret.hurtTimer = 0.16;
+    particles.createHitSparks(turret.x, turret.y - 24, 7, '#ffcc00');
+    audio.playBlockPlace();
+    if (turret.hitsRemaining <= 0) {
+      turret.isDead = true;
+      turret.isTargetable = false;
+      turret.duration = 0;
+      particles.addComicPopup(turret.x, turret.y - 48, 'SHORT CIRCUIT!', '#ffcc00', '#ffffff');
+    }
+    return true;
+  }
+
   injureAlly(ally, amount = 1, knockbackDir = 0) {
     if (!ally || ally.retreating || ally.isTargetable !== true) return false;
 
@@ -382,12 +450,7 @@ export class AllyManager {
     );
     this.recoveryStates[ally.type] = true;
 
-    const color = {
-      red: '#ff3344',
-      blue: '#2299ff',
-      yellow: '#ffcc00',
-      green: '#33dd66'
-    }[ally.type] || '#ffffff';
+    const color = ALLY_COLORS[ally.type] || '#ffffff';
     audio.playPlayerHurt();
     particles.createHitSparks(ally.x, ally.y - 30, 9, color);
     particles.addComicPopup(ally.x, ally.y - 65, 'FALL BACK!', color, '#ffffff');
@@ -400,18 +463,32 @@ export class AllyManager {
   }
 
   getCombatTargets() {
-    return this.activeAllies.filter((ally) =>
-      ally.isAlly === true
-      && ally.isTargetable === true
-      && ally.retreating !== true
-      && ally.life > 0
-    );
+    // Reuse one small array: this is requested twice per frame by the game
+    // loop, and target collection should not create avoidable garbage.
+    this.combatTargets.length = 0;
+    for (const ally of this.activeAllies) {
+      if (ally.isAlly === true
+          && ally.isTargetable === true
+          && ally.retreating !== true
+          && ally.life > 0) {
+        this.combatTargets.push(ally);
+      }
+    }
+    for (const turret of this.turrets) {
+      if (!turret.isDead && turret.isTargetable === true && turret.duration > 0) {
+        this.combatTargets.push(turret);
+      }
+    }
+    return this.combatTargets;
   }
 
-  draw(ctx) {
+  draw(ctx, crowded = false) {
     // 1. Draw Turrets
     for (const t of this.turrets) {
       ctx.save();
+      if (t.hurtTimer > 0) {
+        ctx.globalAlpha = 0.6 + Math.sin(t.hurtTimer * 80) * 0.25;
+      }
       // Turret base
       ctx.fillStyle = '#444';
       ctx.fillRect(t.x - 14, t.y - 20, 28, 20);
@@ -426,11 +503,37 @@ export class AllyManager {
       // Duration bar
       ctx.fillStyle = '#ffcc00';
       ctx.fillRect(t.x - 15, t.y - 40, 30 * (t.duration / t.maxDuration), 4);
+      // Three simple armor pips make its destructibility readable without a
+      // second health-bar system.
+      for (let hit = 0; hit < t.maxHits; hit++) {
+        ctx.fillStyle = hit < t.hitsRemaining ? '#fff06a' : '#4c4652';
+        ctx.fillRect(t.x - 14 + hit * 10, t.y - 48, 7, 4);
+      }
       ctx.restore();
     }
 
     // 2. Draw Active Allies
     for (const ally of this.activeAllies) {
+      if (!ally.retreating && !ally.hasActed && ally.readyTimer > 0) {
+        const color = ALLY_COLORS[ally.type] || '#ffffff';
+        const effectRadius = ALLY_EFFECT_RADIUS[ally.type] || 220;
+        const progress = Math.min(1, ally.readyTimer / ALLY_READY_TIME);
+        ctx.save();
+        ctx.globalAlpha = 0.24 + progress * 0.28;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([14, 9]);
+        ctx.beginPath();
+        ctx.ellipse(ally.x, ally.y - 2, effectRadius, Math.max(22, effectRadius * 0.075), 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.82;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(ally.x, ally.y - 3, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+        ctx.stroke();
+        ctx.restore();
+      }
       const renderer = this.renderers[ally.type];
       if (renderer) {
         renderer.draw(ctx, {
@@ -494,7 +597,7 @@ export class AllyManager {
       // Draw OS Mouse Pointer Arrow
       ctx.translate(c.x, c.y);
       ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = crowded ? 0 : 8;
       ctx.shadowOffsetX = 3;
       ctx.shadowOffsetY = 3;
 
@@ -536,12 +639,16 @@ export class AllyManager {
       // Find highest threat living zombie
       let targetZombie = null;
       let minDist = 9999;
-      if (zombies && zombies.length > 0) {
+      const summonTargets = this.summonTargets;
+      summonTargets.length = 0;
+      for (const zombie of zombies || []) summonTargets.push(zombie);
+      projectiles.collectHostileTargets?.(summonTargets);
+      if (summonTargets.length > 0) {
         // Bosses always outrank ordinary brutes, even if a brute appears first
         // in the wave array.
-        targetZombie = zombies.find((z) => !z.isDead && z.isBoss) || null;
+        targetZombie = summonTargets.find((z) => !z.isDead && z.isBoss) || null;
         if (!targetZombie) {
-          for (const z of zombies) {
+          for (const z of summonTargets) {
             if (z.isDead) continue;
             const dist = Math.abs(z.x - targetX);
             if (z.type === 'brute' || z.type === 'titan_boss') {

@@ -21,6 +21,8 @@ export class Camera {
     this.shakeOffsetX = 0;
     this.shakeOffsetY = 0;
     this.shakeRotation = 0;
+    this.shakeClock = 0;
+    this.shakePhase = 0;
 
     // Hitstop / Freeze-frame
     this.hitstopTimer = 0;
@@ -56,12 +58,24 @@ export class Camera {
   getRenderPixelRatio(devicePixelRatio = globalThis.window?.devicePixelRatio || 1, maxBackingPixels = 10_000_000) {
     const { width, height } = this.getViewportSize();
     const budgetRatio = Math.sqrt(maxBackingPixels / Math.max(1, width * height));
-    return Math.max(0.75, Math.min(2, devicePixelRatio, budgetRatio));
+    // No minimum DPR: an ultrawide display must still obey the hard backing
+    // pixel budget. CSS dimensions remain unchanged, so play space and input
+    // coordinates are unaffected when the backing store is downscaled.
+    return Math.max(Number.EPSILON, Math.min(2, devicePixelRatio, budgetRatio));
   }
 
   getTargetPosition(target) {
     const { height } = this.getViewportSize();
-    const leadX = target.facing * 70;
+    const vx = Number.isFinite(target.vx) ? target.vx : 0;
+    const vy = Number.isFinite(target.vy) ? target.vy : 0;
+    // Velocity communicates where the player is actually going. At very low
+    // speed, retain a smaller facing lead so aiming never feels cramped.
+    const leadX = Math.abs(vx) > 35
+      ? clamp(vx * 0.18, -90, 90)
+      : clamp((target.facing || 1) * 58, -90, 90);
+    const airborneLeadY = target.isGrounded === false
+      ? clamp(vy * 0.06, -35, 35)
+      : 0;
     // Keep the ground near 74% of the screen. This leaves room for the HUD on
     // short landscape screens without making jumps feel vertically cramped.
     // On short landscape screens, lift the ground above the two-row touch pad.
@@ -70,7 +84,7 @@ export class Camera {
       : Math.max(82, Math.min(190, height * 0.24));
     return {
       x: target.x + leadX,
-      y: target.y - groundOffset
+      y: target.y - groundOffset + airborneLeadY
     };
   }
 
@@ -106,8 +120,23 @@ export class Camera {
     this.zoomPunch = 0;
     this.focusCue = null;
     this.trauma = 0;
+    this.shakeOffsetX = 0;
+    this.shakeOffsetY = 0;
+    this.shakeRotation = 0;
+    this.shakeClock = 0;
     this.hitstopTimer = 0;
     this.clampToArena();
+  }
+
+  clearTransient() {
+    this.focusCue = null;
+    this.trauma = 0;
+    this.shakeOffsetX = 0;
+    this.shakeOffsetY = 0;
+    this.shakeRotation = 0;
+    this.hitstopTimer = 0;
+    this.hitstopCooldown = 0;
+    this.zoomPunch = 0;
   }
 
   update(dt, target, zombieCount = 0) {
@@ -140,9 +169,15 @@ export class Camera {
     // input or allocates per-frame effects.
     if (this.focusCue) {
       this.focusCue.remaining -= dt;
+      this.focusCue.elapsed += dt;
       const fadeWindow = Math.min(0.24, this.focusCue.duration * 0.4);
-      const strength = clamp01(this.focusCue.remaining / Math.max(0.01, fadeWindow));
-      const easedStrength = strength * strength * (3 - 2 * strength);
+      const introStrength = smoothstep01(
+        this.focusCue.elapsed / Math.max(0.01, this.focusCue.introDuration)
+      );
+      const outroStrength = smoothstep01(
+        this.focusCue.remaining / Math.max(0.01, fadeWindow)
+      );
+      const easedStrength = introStrength * outroStrength;
       this.targetX += (this.focusCue.x - this.targetX) * easedStrength;
       this.targetY += (this.focusCue.y - this.targetY) * easedStrength;
       desiredZoom += (this.focusCue.zoom - desiredZoom) * easedStrength;
@@ -163,25 +198,50 @@ export class Camera {
     this.clampToArena();
 
     // Screen Shake calculations
+    const safeDt = Math.max(0, Math.min(0.1, Number(dt) || 0));
+    const shakeResponse = 1 - Math.exp(-30 * safeDt);
     if (this.trauma > 0) {
       const shakePower = Math.pow(this.trauma, 2);
-      const angle = Math.random() * Math.PI * 2;
       const maxOffset = 21 * shakePower;
-      this.shakeOffsetX = Math.cos(angle) * maxOffset;
-      this.shakeOffsetY = Math.sin(angle) * maxOffset;
-      this.shakeRotation = (Math.random() * 2 - 1) * 0.018 * shakePower * this.motionScale;
+      this.shakeClock += safeDt;
+
+      // Fixed-frequency, phase-shifted waves avoid the one-frame shimmer of
+      // Math.random() while retaining an irregular hand-held impact response.
+      const phase = this.shakePhase;
+      const targetX = (
+        Math.sin(this.shakeClock * 37 + phase)
+        + Math.sin(this.shakeClock * 71 + phase * 0.37) * 0.35
+      ) / 1.35 * maxOffset;
+      const targetY = (
+        Math.sin(this.shakeClock * 43 + phase + 1.91)
+        + Math.sin(this.shakeClock * 67 + phase * 0.61) * 0.3
+      ) / 1.3 * maxOffset;
+      const targetRotation = Math.sin(this.shakeClock * 31 + phase * 0.73)
+        * 0.018 * shakePower * this.motionScale;
+
+      this.shakeOffsetX += (targetX - this.shakeOffsetX) * shakeResponse;
+      this.shakeOffsetY += (targetY - this.shakeOffsetY) * shakeResponse;
+      this.shakeRotation += (targetRotation - this.shakeRotation) * shakeResponse;
 
       // Decay trauma
-      this.trauma = Math.max(0, this.trauma - dt * 2.2);
+      this.trauma = Math.max(0, this.trauma - safeDt * 2.2);
     } else {
-      this.shakeOffsetX = 0;
-      this.shakeOffsetY = 0;
-      this.shakeRotation = 0;
+      // Damping the tail to rest reads as one impulse instead of a hard snap.
+      this.shakeOffsetX += (0 - this.shakeOffsetX) * shakeResponse;
+      this.shakeOffsetY += (0 - this.shakeOffsetY) * shakeResponse;
+      this.shakeRotation += (0 - this.shakeRotation) * shakeResponse;
+      if (Math.abs(this.shakeOffsetX) < 0.005) this.shakeOffsetX = 0;
+      if (Math.abs(this.shakeOffsetY) < 0.005) this.shakeOffsetY = 0;
+      if (Math.abs(this.shakeRotation) < 0.00001) this.shakeRotation = 0;
     }
   }
 
   addShake(amount = 0.3) {
+    if (!Number.isFinite(amount) || amount <= 0) return;
     this.trauma = Math.min(1.0, this.trauma + amount * this.motionScale);
+    // Golden-angle stepping makes consecutive impacts distinct yet fully
+    // deterministic for identical gameplay input.
+    this.shakePhase = (this.shakePhase + 2.399963229728653) % (Math.PI * 2);
   }
 
   // Positive values punch in; negative values briefly pull back. The bounded
@@ -209,6 +269,8 @@ export class Camera {
       y: cueY,
       duration: safeDuration,
       remaining: safeDuration,
+      elapsed: 0,
+      introDuration: Math.max(0.08, Math.min(0.12, safeDuration * 0.22)),
       zoom: reducedMotion
         ? this.targetZoom + (requestedZoom - this.targetZoom) * this.motionScale
         : requestedZoom
@@ -288,4 +350,13 @@ export class Camera {
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, value));
+}
+
+function smoothstep01(value) {
+  const t = clamp01(value);
+  return t * t * (3 - 2 * t);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }

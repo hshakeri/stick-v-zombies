@@ -1,10 +1,10 @@
 // Upgrade Shop and Animator Workshop System
 
-import { combat } from './combat.js?v=7.0';
-import { audio } from '../engine/audio.js?v=7.0';
-import { allies } from '../entities/allies.js?v=7.0';
-import { weapons } from '../entities/weapons.js?v=7.0';
-import { particles } from '../engine/particles.js?v=7.0';
+import { combat } from './combat.js?v=8.2';
+import { audio } from '../engine/audio.js?v=8.2';
+import { allies } from '../entities/allies.js?v=8.2';
+import { weapons } from '../entities/weapons.js?v=8.2';
+import { particles } from '../engine/particles.js?v=8.2';
 
 export class ShopSystem {
   constructor() {
@@ -65,9 +65,9 @@ export class ShopSystem {
       },
       {
         id: 'lifesteal',
-        name: 'Ink Vampirism',
-        icon: '🩸',
-        desc: 'Restores 6% of all damage dealt as health.',
+        name: 'Ink Recharge',
+        icon: '✒️',
+        desc: 'Recycles 6% of strike damage into Orange’s health.',
         level: 0,
         maxLevel: 3,
         baseCost: 60,
