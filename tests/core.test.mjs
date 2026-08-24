@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=8.5';
-import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=8.5';
+import { Camera } from '../js/engine/camera.js?v=8.7';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=8.7';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,20 +14,20 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=8.5';
-import { AllyManager, allies } from '../js/entities/allies.js?v=8.5';
-import { DarkLord } from '../js/entities/dark_lord.js?v=8.5';
-import { H4C3R } from '../js/entities/h4c3r.js?v=8.5';
-import { KingOrange } from '../js/entities/king_orange.js?v=8.5';
-import { LuckyOrb } from '../js/entities/lucky_orb.js?v=8.5';
-import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.5';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.5';
-import { Zombie } from '../js/entities/zombies.js?v=8.5';
-import { weapons } from '../js/entities/weapons.js?v=8.5';
-import { combat } from '../js/systems/combat.js?v=8.5';
-import { shop } from '../js/systems/shop.js?v=8.5';
-import { Game } from '../js/main.js?v=8.5';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.5';
+} from '../js/engine/speech.js?v=8.7';
+import { AllyManager, allies } from '../js/entities/allies.js?v=8.7';
+import { DarkLord } from '../js/entities/dark_lord.js?v=8.7';
+import { H4C3R } from '../js/entities/h4c3r.js?v=8.7';
+import { KingOrange } from '../js/entities/king_orange.js?v=8.7';
+import { LuckyOrb } from '../js/entities/lucky_orb.js?v=8.7';
+import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.7';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.7';
+import { Zombie } from '../js/entities/zombies.js?v=8.7';
+import { weapons } from '../js/entities/weapons.js?v=8.7';
+import { combat } from '../js/systems/combat.js?v=8.7';
+import { shop } from '../js/systems/shop.js?v=8.7';
+import { Game } from '../js/main.js?v=8.7';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.7';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -38,9 +38,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=8.5';
+} from '../js/systems/waves.js?v=8.7';
 
-const RELEASE_MODULE_VERSION = '8.5';
+const RELEASE_MODULE_VERSION = '8.7';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -836,7 +836,50 @@ test('new boss renderers are pure and expose the wave-director contract', () => 
     for (let i = 0; i < 10; i += 1) boss.draw(context);
   }
 
-  assert.equal(particles.particles.length, 0);
+	assert.equal(particles.particles.length, 0);
+});
+
+test('Lucky Orb art is deterministic, balanced, and state-readable', () => {
+	const render = (phase, state) => {
+		const trace = [];
+		const context = new Proxy({}, {
+			get(target, property) {
+				if (property in target) return target[property];
+				return (...args) => trace.push([String(property), ...args]);
+			},
+			set(target, property, value) {
+				target[property] = value;
+				trace.push([String(property), value]);
+				return true;
+			}
+		});
+		const orb = new LuckyOrb(80, 0);
+		Object.assign(orb, { phase, state, animTimer: 1.125, stateTimer: 0.4, stateDuration: 0.8 });
+		orb.rollTargetX = -360;
+		orb.dropXs.set([-180, 0, 180]);
+		const before = [orb.x, orb.y, orb.stateTimer, orb.attackIndex, ...orb.dropXs];
+		orb.draw(context);
+		assert.deepEqual([orb.x, orb.y, orb.stateTimer, orb.attackIndex, ...orb.dropXs], before);
+		assert.equal(trace.filter(([op]) => op === 'save').length, trace.filter(([op]) => op === 'restore').length);
+		assert.ok(trace.every((entry) => entry.slice(1).every((value) =>
+			typeof value !== 'number' || Number.isFinite(value))));
+		const primitives = new Set([
+			'arc', 'beginPath', 'closePath', 'ellipse', 'fill', 'fillRect', 'fillText',
+			'lineTo', 'moveTo', 'stroke', 'strokeRect'
+		]);
+		const primitiveCount = trace.filter(([op]) => primitives.has(op)).length;
+		assert.ok(primitiveCount < 180, `${state} emitted ${primitiveCount} drawing primitives`);
+		return trace;
+	};
+	assert.deepEqual(render(1, 'idle'), render(1, 'idle'));
+	const idleStyles = render(1, 'idle').flat();
+	assert.ok(idleStyles.includes('#ffffff') && idleStyles.includes('#ffd43b'));
+	const phaseStyles = render(2, 'phase_shift').flat();
+	assert.ok(phaseStyles.includes('#ef5cff'), 'phase shift should briefly reveal H4C3R corruption');
+	const dropStyles = render(2, 'drop_active').flat();
+	assert.ok(['#55dfff', '#687080', '#ef4b3f'].every((color) => dropStyles.includes(color)));
+	render(1, 'roll_windup');
+	render(1, 'roll_active');
 });
 
 test('Lucky Orb roll and prize drop damage only after their telegraphs and only once', () => {
@@ -898,6 +941,11 @@ test('Lucky Orb speech follows roll, drop, phase, and defeat events', () => {
   }
   assert.deepEqual(calls.map((call) => call[3]), ['roll', 'drop', 'phase', 'defeat']);
   assert.ok(calls.every((call) => call[2] === 'luckyOrb'));
+  assert.deepEqual(calls.slice(0, 2).map((call) => call[5].cooldownMs), [2800, 2800]);
+  const manager = new SpeechBubbleManager(() => 0);
+  const anchor = new LuckyOrb(0, 0);
+  manager.shoutBoss(0, 0, 'luckyOrb', 'intro', 1.5, { anchor, cooldownMs: 0 });
+  assert.equal(manager.bubbles[0].anchorOffsetY, -108);
 });
 
 test('boss telegraphs stay grounded and H4C3R has one wave-owned intro', () => {

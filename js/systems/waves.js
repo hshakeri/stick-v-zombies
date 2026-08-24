@@ -1,12 +1,12 @@
 
-import { Zombie } from '../entities/zombies.js?v=8.5';
-import { DarkLord } from '../entities/dark_lord.js?v=8.5';
-import { KingOrange } from '../entities/king_orange.js?v=8.5';
-import { H4C3R } from '../entities/h4c3r.js?v=8.5';
-import { LuckyOrb } from '../entities/lucky_orb.js?v=8.5';
-import { audio } from '../engine/audio.js?v=8.5';
-import { particles } from '../engine/particles.js?v=8.5';
-import { speech } from '../engine/speech.js?v=8.5';
+import { Zombie } from '../entities/zombies.js?v=8.7';
+import { DarkLord } from '../entities/dark_lord.js?v=8.7';
+import { KingOrange } from '../entities/king_orange.js?v=8.7';
+import { H4C3R } from '../entities/h4c3r.js?v=8.7';
+import { LuckyOrb } from '../entities/lucky_orb.js?v=8.7';
+import { audio } from '../engine/audio.js?v=8.7';
+import { particles } from '../engine/particles.js?v=8.7';
+import { speech } from '../engine/speech.js?v=8.7';
 
 const BOSS_WAVES = new Set([5, 10, 11, 15, 16]);
 export const ABSOLUTE_ACTIVE_ENEMY_CAP = 12;
@@ -255,7 +255,7 @@ export class WaveDirector {
       camera?.focusOn?.(spawnX, groundY - 90, 0.7, 0.9);
       camera?.addZoomPunch?.(-0.035);
       particles.addShockwave(spawnX, groundY - 30, 240, bossConfig.color, 12);
-      particles.addTextBanner(spawnX, groundY - 100, bossConfig.banner, bossConfig.color);
+      particles.addTextBanner(spawnX, groundY + (boss.bannerOffsetY ?? -100), bossConfig.banner, bossConfig.color);
       const speechKey = { dark_lord: 'darkLord', king_orange: 'kingOrange', lucky_orb: 'luckyOrb', h4c3r: 'h4c3r' }[type];
       speech.shoutBoss(spawnX, groundY, speechKey, 'intro', 1.55, {
         anchor: boss,

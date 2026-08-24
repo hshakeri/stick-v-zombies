@@ -1,16 +1,16 @@
 
-import { audio } from './engine/audio.js?v=8.5';
-import { input } from './engine/input.js?v=8.5';
-import { Camera } from './engine/camera.js?v=8.5';
-import { particles } from './engine/particles.js?v=8.5';
-import { Player } from './entities/player.js?v=8.5';
-import { waves } from './systems/waves.js?v=8.5';
-import { combat } from './systems/combat.js?v=8.5';
-import { shop } from './systems/shop.js?v=8.5';
-import { stages } from './systems/stages.js?v=8.5';
-import { projectiles } from './entities/projectiles.js?v=8.5';
-import { allies } from './entities/allies.js?v=8.5';
-import { speech } from './engine/speech.js?v=8.5';
+import { audio } from './engine/audio.js?v=8.7';
+import { input } from './engine/input.js?v=8.7';
+import { Camera } from './engine/camera.js?v=8.7';
+import { particles } from './engine/particles.js?v=8.7';
+import { Player } from './entities/player.js?v=8.7';
+import { waves } from './systems/waves.js?v=8.7';
+import { combat } from './systems/combat.js?v=8.7';
+import { shop } from './systems/shop.js?v=8.7';
+import { stages } from './systems/stages.js?v=8.7';
+import { projectiles } from './entities/projectiles.js?v=8.7';
+import { allies } from './entities/allies.js?v=8.7';
+import { speech } from './engine/speech.js?v=8.7';
 
 export class Game {
   constructor() {
@@ -337,7 +337,7 @@ export class Game {
       7: 'STAFF PICKUP · E ANVIL',
       8: 'AIR CHASE · ALLIES 2–4',
       10: 'FULL METER? PRESS R',
-      15: 'WATCH GOLD RINGS · MOVE LATE',
+      15: 'READ GOLD MARKERS · MOVE LATE',
       16: 'FINAL PATCH · USE R'
     }[stage] || 'CHAIN MOVES · WATCH RINGS';
   }

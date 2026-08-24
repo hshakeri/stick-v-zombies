@@ -1,7 +1,7 @@
 
-import { particles } from '../engine/particles.js?v=8.5';
-import { audio } from '../engine/audio.js?v=8.5';
-import { combat } from '../systems/combat.js?v=8.5';
+import { particles } from '../engine/particles.js?v=8.7';
+import { audio } from '../engine/audio.js?v=8.7';
+import { combat } from '../systems/combat.js?v=8.7';
 
 const MAX_PROJECTILES = 64;
 const MAX_HOSTILE_PROJECTILES = 32;

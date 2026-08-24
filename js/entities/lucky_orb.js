@@ -1,7 +1,7 @@
-import { particles } from '../engine/particles.js?v=8.5';
-import { audio } from '../engine/audio.js?v=8.5';
-import { speech } from '../engine/speech.js?v=8.5';
-import { combat } from '../systems/combat.js?v=8.5';
+import { particles } from '../engine/particles.js?v=8.7';
+import { audio } from '../engine/audio.js?v=8.7';
+import { speech } from '../engine/speech.js?v=8.7';
+import { combat } from '../systems/combat.js?v=8.7';
 
 const LEFT = -980;
 const RIGHT = 980;
@@ -27,6 +27,7 @@ export class LuckyOrb {
 		Object.assign(this, {
 			x, y, vx: 0, vy: 0, groundY: y,
 			type: 'lucky_orb', name: 'THE LUCKY ORB', hookClass: 'anchor',
+			speechOffsetY: -108, bannerOffsetY: -145,
 			isBoss: true, isDead: false, isGrounded: true, isHurt: false, isAwakened: false,
 			maxHp: 1220, hp: 1220, radius: 46, height: 118, color: GOLD,
 			inkReward: 470, scoreReward: 8200,
@@ -171,7 +172,9 @@ export class LuckyOrb {
 		}
 		this.attackHit = false;
 		this.friendlyHits.clear();
-		speech.shoutBoss(this.x, this.y, 'luckyOrb', 'roll', 1.35, { anchor: this });
+		speech.shoutBoss(this.x, this.y, 'luckyOrb', 'roll', 1.35, {
+			anchor: this, speakerKey: 'luckyOrb', cooldownMs: 2800
+		});
 	}
 
 	launchRoll(camera) {
@@ -199,7 +202,9 @@ export class LuckyOrb {
 		this.dropResolved = false;
 		this.friendlyHits.clear();
 		audio.playDoomLaserCharge();
-		speech.shoutBoss(this.x, this.y, 'luckyOrb', 'drop', 1.35, { anchor: this });
+		speech.shoutBoss(this.x, this.y, 'luckyOrb', 'drop', 1.35, {
+			anchor: this, speakerKey: 'luckyOrb', cooldownMs: 2800
+		});
 		camera?.focusOn?.(predicted, this.groundY - 125, 0.5, 0.95);
 	}
 
@@ -322,33 +327,89 @@ export class LuckyOrb {
 	draw(ctx) {
 		if (this.isDead) return;
 		this.drawTelegraph(ctx);
-		const bob = Math.sin(this.animTimer * 3.6) * 4;
-		const cy = this.y - 64 + bob;
+		const rolling = this.state === 'roll_active';
+		const bob = Math.sin(this.animTimer * 3.6) * 5;
+		const cy = this.y - 72 + bob;
+		if (rolling) {
+			ctx.save();
+			ctx.fillStyle = GOLD;
+			for (let i = 3; i > 0; i--) {
+				ctx.globalAlpha = 0.07 * i;
+				ctx.beginPath();
+				ctx.ellipse(this.x - this.rollDirection * i * 24, cy, 28 - i * 3, 12, 0, 0, Math.PI * 2);
+				ctx.fill();
+			}
+			ctx.restore();
+		}
+		ctx.save();
+		ctx.globalAlpha = 0.2;
+		ctx.fillStyle = '#000000';
+		ctx.beginPath();
+		ctx.ellipse(this.x, this.groundY - 3, rolling ? 66 : 48, 9, 0, 0, Math.PI * 2);
+		ctx.fill();
+		ctx.restore();
 		ctx.save();
 		ctx.translate(this.x, cy);
-		ctx.rotate(this.state === 'roll_active'
-			? this.rollDirection * (1 - this.stateTimer / this.stateDuration) * Math.PI * 5
-			: Math.sin(this.animTimer * 1.4) * 0.07);
-		ctx.globalAlpha = this.isHurt ? 0.72 : 1;
-		ctx.strokeStyle = this.phase === 2 ? MAGENTA : '#8b4d00';
-		ctx.fillStyle = this.isHurt ? '#ffffff' : GOLD;
-		ctx.lineWidth = 8;
-		ctx.beginPath();
-		ctx.arc(0, 0, 46, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.stroke();
-		ctx.fillStyle = '#181220';
-		ctx.strokeStyle = '#ffffff';
+		const charge = this.state === 'roll_windup' ? 1 - this.stateTimer / this.stateDuration : 0;
+		const phasePulse = this.state === 'phase_shift' ? 1 + Math.sin(this.animTimer * 22) * 0.1 : 1;
+		ctx.scale((rolling ? 1.26 : 1 - charge * 0.16) * phasePulse,
+			(rolling ? 0.8 : 1 + charge * 0.1) * phasePulse);
+		ctx.rotate(rolling ? 0 : Math.sin(this.animTimer * 1.4) * 0.035);
+		for (let i = -1; i <= 1; i++) {
+			if (this.phase === 1 && i) continue;
+			ctx.save();
+			ctx.globalAlpha = this.phase === 2 ? (i ? 0.42 : 0.58) : 0.38;
+			ctx.rotate(i * (this.state === 'drop_windup' ? 0.62 : 0.42));
+			ctx.fillStyle = '#6f3500'; ctx.fillRect(-4, -48, 8, 116);
+			ctx.fillStyle = GOLD; ctx.fillRect(-1, -47, 3, 114);
+			ctx.translate(0, -58);
+			ctx.rotate(this.animTimer * 2.6);
+			this.drawPrize(ctx, 0, 0, 3, 10);
+			ctx.restore();
+		}
+		this.drawFragments(ctx, false);
+		ctx.save();
+		ctx.rotate(this.animTimer * 0.18);
+		ctx.strokeStyle = this.state === 'phase_shift' ? MAGENTA : '#fff2b0';
 		ctx.lineWidth = 4;
-		ctx.fillRect(-20, -22, 40, 44);
-		ctx.strokeRect(-20, -22, 40, 44);
-		ctx.fillStyle = '#ffffff';
-		ctx.font = "900 34px 'Arial Black', Impact, sans-serif";
-		ctx.textAlign = 'center';
-		ctx.textBaseline = 'middle';
-		ctx.fillText('?', 0, 0);
+		for (let i = 0; i < 6; i++) {
+			const angle = i * Math.PI / 3;
+			const inner = 44;
+			const outer = 57 + (i % 2) * 7 + Math.sin(this.animTimer * 5 + i) * 2;
+			ctx.beginPath();
+			ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+			ctx.lineTo(Math.cos(angle + 0.1) * outer, Math.sin(angle + 0.1) * outer);
+			ctx.stroke();
+		}
 		ctx.restore();
-		this.drawOrbiters(ctx, cy);
+		const cageOpen = this.state === 'phase_shift' ? 9 : charge * 7;
+		for (let i = 0; i < 4; i++) {
+			const angle = Math.PI / 4 + i * Math.PI / 2 + Math.sin(this.animTimer * 0.8) * 0.025;
+			const distance = 45 + cageOpen;
+			ctx.save();
+			ctx.translate(Math.cos(angle) * distance, Math.sin(angle) * distance);
+			ctx.rotate(angle + Math.PI / 4);
+			ctx.fillStyle = i % 2 ? ORANGE : GOLD;
+			ctx.strokeStyle = this.state === 'phase_shift' ? MAGENTA : '#754100';
+			ctx.lineWidth = 3;
+			ctx.fillRect(-12, -10, 24, 20); ctx.strokeRect(-12, -10, 24, 20);
+			ctx.fillStyle = '#fff1a8'; ctx.fillRect(-8, -6, 7, 6);
+			ctx.restore();
+		}
+		ctx.globalAlpha = this.isHurt ? 0.95 : 0.2;
+		ctx.fillStyle = this.isHurt ? '#ffffff' : GOLD;
+		ctx.beginPath(); ctx.arc(0, 0, 43, 0, Math.PI * 2); ctx.fill();
+		ctx.globalAlpha = 1;
+		ctx.fillStyle = this.isHurt ? '#ffffff' : '#ffe895';
+		ctx.beginPath(); ctx.arc(0, 0, 31, 0, Math.PI * 2); ctx.fill();
+		ctx.fillStyle = '#fff9da';
+		ctx.beginPath(); ctx.arc(-2, -3, 22, 0, Math.PI * 2); ctx.fill();
+		ctx.fillStyle = '#ffffff';
+		ctx.beginPath(); ctx.arc(-4, -5, 14, 0, Math.PI * 2); ctx.fill();
+		ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+		ctx.beginPath(); ctx.moveTo(-29, 0); ctx.lineTo(-17, 0); ctx.moveTo(17, 0); ctx.lineTo(29, 0); ctx.stroke();
+		this.drawFragments(ctx, true);
+		ctx.restore();
 	}
 
 	drawTelegraph(ctx) {
@@ -358,14 +419,26 @@ export class LuckyOrb {
 		ctx.textBaseline = 'middle';
 		ctx.font = "900 16px 'Arial Black', Impact, sans-serif";
 		if (this.state === 'roll_windup') {
+			const min = Math.min(this.x, this.rollTargetX);
+			const span = Math.abs(this.rollTargetX - this.x);
+			const dir = Math.sign(this.rollTargetX - this.x) || 1;
+			ctx.globalAlpha = pulse * 0.35;
+			ctx.fillStyle = ORANGE;
+			ctx.fillRect(min, this.groundY - 18, span, 14);
 			ctx.globalAlpha = pulse;
 			ctx.strokeStyle = ORANGE;
-			ctx.lineWidth = 5;
-			ctx.setLineDash([13, 8]);
-			ctx.strokeRect(Math.min(this.x, this.rollTargetX) - 48, this.groundY - 112,
-				Math.abs(this.rollTargetX - this.x) + 96, 116);
+			ctx.lineWidth = 4;
+			ctx.beginPath(); ctx.moveTo(this.x, this.groundY - 11); ctx.lineTo(this.rollTargetX, this.groundY - 11); ctx.stroke();
+			for (let i = 1; i < 4; i++) {
+				const x = this.x + (this.rollTargetX - this.x) * i / 4;
+				ctx.beginPath();
+				ctx.moveTo(x - dir * 12, this.groundY - 23);
+				ctx.lineTo(x + dir * 5, this.groundY - 11);
+				ctx.lineTo(x - dir * 12, this.groundY + 1);
+				ctx.stroke();
+			}
 			ctx.fillStyle = '#ffffff';
-			ctx.fillText('ROLL!', (this.x + this.rollTargetX) * 0.5, this.groundY - 128);
+			ctx.fillText('LUCKY ROLL!', (this.x + this.rollTargetX) * 0.5, this.groundY - 43);
 		} else if (this.state === 'drop_windup' || this.state === 'drop_active') {
 			const active = this.state === 'drop_active';
 			const progress = active ? 1 - this.stateTimer / this.stateDuration : 0;
@@ -373,11 +446,12 @@ export class LuckyOrb {
 				const x = this.dropXs[i];
 				ctx.globalAlpha = active ? 1 : pulse;
 				ctx.strokeStyle = i === 0 ? MAGENTA : ORANGE;
+				ctx.fillStyle = i === 0 ? 'rgba(239,92,255,0.18)' : 'rgba(255,138,34,0.16)';
 				ctx.lineWidth = 4;
-				ctx.setLineDash(active ? [] : [9, 7]);
 				ctx.beginPath();
 				ctx.ellipse(x, this.groundY, 58, 13, 0, 0, Math.PI * 2);
-				ctx.stroke();
+				ctx.fill(); ctx.stroke();
+				ctx.beginPath(); ctx.ellipse(x, this.groundY, 31, 7, 0, 0, Math.PI * 2); ctx.stroke();
 				if (active) this.drawPrize(ctx, x, this.groundY - 290 + smoothstep(progress) * 260, i);
 			}
 			if (!active) {
@@ -388,46 +462,47 @@ export class LuckyOrb {
 		ctx.restore();
 	}
 
-	drawOrbiters(ctx, y) {
+	drawFragments(ctx, front) {
 		ctx.save();
-		ctx.translate(this.x, y);
-		ctx.lineWidth = 2;
-		for (let i = 0; i < 2; i++) {
-			ctx.strokeStyle = i ? MAGENTA : CYAN;
-			ctx.beginPath();
-			ctx.ellipse(0, 0, 61 + i * 7, 19 + i * 3,
-				this.animTimer * (i ? -1.2 : 1.5) + i * Math.PI * 0.5, 0, Math.PI * 2);
-			ctx.stroke();
-		}
 		ctx.font = '900 10px Impact, sans-serif';
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 		for (let i = 0; i < 3; i++) {
 			const angle = this.animTimer * 1.25 + i * Math.PI * 2 / 3;
-			const x = Math.cos(angle) * 72;
-			const cubeY = Math.sin(angle) * 27;
-			ctx.fillStyle = i === 0 ? MAGENTA : GOLD;
-			ctx.fillRect(x - 7, cubeY - 7, 14, 14);
-			ctx.fillStyle = '#181220';
-			ctx.fillText('?', x, cubeY);
+			const depth = Math.sin(angle);
+			if ((depth >= 0) !== front) continue;
+			const scale = 0.78 + (depth + 1) * 0.14;
+			ctx.save();
+			ctx.translate(Math.cos(angle) * 75, depth * 29);
+			ctx.scale(scale, scale);
+			this.drawPrize(ctx, 0, 0, 3, 10);
+			ctx.restore();
 		}
 		ctx.restore();
 	}
 
-	drawPrize(ctx, x, y, index) {
+	drawPrize(ctx, x, y, index, size = 17) {
 		ctx.save();
 		ctx.translate(x, y);
 		ctx.rotate(this.animTimer * (index % 2 ? -2.6 : 2.6));
-		ctx.fillStyle = index === 0 ? MAGENTA : GOLD;
-		ctx.strokeStyle = '#25172b';
-		ctx.lineWidth = 5;
-		ctx.fillRect(-17, -17, 34, 34);
-		ctx.strokeRect(-17, -17, 34, 34);
-		ctx.fillStyle = '#ffffff';
-		ctx.font = "900 23px 'Arial Black', Impact, sans-serif";
-		ctx.textAlign = 'center';
-		ctx.textBaseline = 'middle';
-		ctx.fillText('?', 0, 0);
+		ctx.lineWidth = 4;
+		if (index === 0) {
+			ctx.fillStyle = '#55dfff'; ctx.strokeStyle = '#15465b';
+			ctx.beginPath(); ctx.arc(0, 3, size, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+			ctx.fillStyle = '#fff'; ctx.fillRect(-5, -size - 6, 10, 9);
+		} else if (index === 1) {
+			ctx.fillStyle = '#687080'; ctx.strokeStyle = '#242833';
+			ctx.fillRect(-size, -5, size * 2, 14); ctx.strokeRect(-size, -5, size * 2, 14);
+			ctx.fillRect(-size - 5, -size, size * 2 + 10, 8);
+		} else {
+			ctx.fillStyle = index === 2 ? '#ef4b3f' : GOLD;
+			ctx.strokeStyle = index === 2 ? '#651512' : '#754100';
+			ctx.fillRect(-size, -size, size * 2, size * 2); ctx.strokeRect(-size, -size, size * 2, size * 2);
+			ctx.fillStyle = index === 2 ? '#fff4df' : '#4a2600';
+			ctx.font = `900 ${Math.round(size * 1.3)}px Impact, sans-serif`;
+			ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+			ctx.fillText(index === 2 ? 'T' : '?', 0, 1);
+		}
 		ctx.restore();
 	}
 }

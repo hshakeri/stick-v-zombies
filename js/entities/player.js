@@ -1,11 +1,11 @@
-import { StickFigureRenderer } from './stickman.js?v=8.5';
-import { particles } from '../engine/particles.js?v=8.5';
-import { audio } from '../engine/audio.js?v=8.5';
-import { projectiles } from './projectiles.js?v=8.5';
-import { weapons } from './weapons.js?v=8.5';
-import { allies } from './allies.js?v=8.5';
-import { combat } from '../systems/combat.js?v=8.5';
-import { speech } from '../engine/speech.js?v=8.5';
+import { StickFigureRenderer } from './stickman.js?v=8.7';
+import { particles } from '../engine/particles.js?v=8.7';
+import { audio } from '../engine/audio.js?v=8.7';
+import { projectiles } from './projectiles.js?v=8.7';
+import { weapons } from './weapons.js?v=8.7';
+import { allies } from './allies.js?v=8.7';
+import { combat } from '../systems/combat.js?v=8.7';
+import { speech } from '../engine/speech.js?v=8.7';
 
 const defineMove = (move) => Object.freeze(move);
 

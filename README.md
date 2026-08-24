@@ -71,7 +71,7 @@ Sixteen computer-desktop stages with obstacles, platforms, a clear **Start Door*
 - **Stage 12: Glitch Browser Run**: Fight through broken tabs and moving browser-card platforms, with an 18-second stunning eraser pickup.
 - **Stage 13: Corrupted Cloud Cache**: Cross drifting sync nodes while a compact malware wave closes in.
 - **Stage 14: Root Access Gateway**: Break through the last security grid guarding the zero-day mainframe.
-- **Stage 15: Lucky Dimension Cache**: Outplay **The Lucky Orb**, a radiant chance engine with readable roulette rolls, bouncing sweeps, and three marked drop zones. A heavy final impact sends it home instead of destroying it.
+- **Stage 15: Lucky Dimension Cache**: Outplay **The Lucky Orb**, a white-hot chance engine controlling a broken Lucky Block cage and golden staff echoes. Read its gold movement rail and three distinct drop silhouettes before a heavy final impact sends it home.
 - **Stage 16: Zero-Day Mainframe**: The original zero-day editor **H4C3R** attacks with packet dashes, bracket walls, decoys, and a telegraphed terminal beam.
 
 ---

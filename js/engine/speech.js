@@ -1,4 +1,4 @@
-import { audio } from './audio.js?v=8.5';
+import { audio } from './audio.js?v=8.7';
 export const MAX_SPEECH_CHARS = 24;
 export const MAX_SPEECH_LINES = 2;
 export const MAX_SPEECH_BUBBLES = 3;
@@ -94,7 +94,7 @@ export const SPEECH_CORPUS = {
     default: ['ROLL AGAIN?', 'LUCK: LOADED.'],
     intro: ['CHANCE ENGINE: ON.', 'FEELING LUCKY?'],
     roll: ['BAD ROLL!', 'BOUNCE THIS!'],
-    drop: ['PICK A SAFE SQUARE.', 'JACKPOT INCOMING!'],
+    drop: ['PICK A SAFE SPOT.', 'JACKPOT INCOMING!'],
     phase: ['ODDS: DOUBLED.', 'REROLLING!'],
     defeat: ['ORB SENT HOME.', 'LUCK RAN OUT!']
   },
@@ -246,7 +246,7 @@ export class SpeechBubbleManager {
       leaderTick: ++this.leaderTick,
       anchor: options.anchor || null,
       anchorOffsetX: options.anchorOffsetX || 0,
-      anchorOffsetY: options.anchorOffsetY ?? -44,
+      anchorOffsetY: options.anchorOffsetY ?? options.anchor?.speechOffsetY ?? -44,
       life: safeDuration,
       maxLife: safeDuration,
       popScale: 0.86,
