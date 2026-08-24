@@ -1,11 +1,11 @@
 // Stick Zombie Horde Entities (Walker, Runner, Spitter, Brute, Titan Boss)
 
-import { StickFigureRenderer } from './stickman.js';
-import { particles } from '../engine/particles.js';
-import { audio } from '../engine/audio.js';
-import { projectiles } from './projectiles.js';
-import { combat } from '../systems/combat.js';
-import { speech } from '../engine/speech.js';
+import { StickFigureRenderer } from './stickman.js?v=7.0';
+import { particles } from '../engine/particles.js?v=7.0';
+import { audio } from '../engine/audio.js?v=7.0';
+import { projectiles } from './projectiles.js?v=7.0';
+import { combat } from '../systems/combat.js?v=7.0';
+import { speech } from '../engine/speech.js?v=7.0';
 
 const HOOK_PULL_ARENA_BOUND = 1060;
 

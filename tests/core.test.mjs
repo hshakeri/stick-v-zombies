@@ -1,21 +1,57 @@
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js';
-import { ParticleSystem, particles } from '../js/engine/particles.js';
-import { SPEECH_CORPUS, SpeechBubbleManager, speech } from '../js/engine/speech.js';
-import { AllyManager, allies } from '../js/entities/allies.js';
-import { DarkLord } from '../js/entities/dark_lord.js';
-import { H4C3R } from '../js/entities/h4c3r.js';
-import { KingOrange } from '../js/entities/king_orange.js';
-import { Player } from '../js/entities/player.js';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js';
-import { Zombie } from '../js/entities/zombies.js';
-import { weapons } from '../js/entities/weapons.js';
-import { combat } from '../js/systems/combat.js';
-import { shop } from '../js/systems/shop.js';
-import { StageManager } from '../js/systems/stages.js';
-import { WaveDirector } from '../js/systems/waves.js';
+import { Camera } from '../js/engine/camera.js?v=7.0';
+import { ParticleSystem, particles } from '../js/engine/particles.js?v=7.0';
+import { SPEECH_CORPUS, SpeechBubbleManager, speech } from '../js/engine/speech.js?v=7.0';
+import { AllyManager, allies } from '../js/entities/allies.js?v=7.0';
+import { DarkLord } from '../js/entities/dark_lord.js?v=7.0';
+import { H4C3R } from '../js/entities/h4c3r.js?v=7.0';
+import { KingOrange } from '../js/entities/king_orange.js?v=7.0';
+import { Player } from '../js/entities/player.js?v=7.0';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=7.0';
+import { Zombie } from '../js/entities/zombies.js?v=7.0';
+import { weapons } from '../js/entities/weapons.js?v=7.0';
+import { combat } from '../js/systems/combat.js?v=7.0';
+import { shop } from '../js/systems/shop.js?v=7.0';
+import { StageManager } from '../js/systems/stages.js?v=7.0';
+import { WaveDirector } from '../js/systems/waves.js?v=7.0';
+
+const RELEASE_MODULE_VERSION = '7.0';
+
+function listJavaScriptFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return listJavaScriptFiles(path);
+    return entry.isFile() && entry.name.endsWith('.js') ? [path] : [];
+  });
+}
+
+test('browser module graph uses one coherent cache version', () => {
+  const jsRoot = fileURLToPath(new URL('../js/', import.meta.url));
+  const graphFiles = [...listJavaScriptFiles(jsRoot), fileURLToPath(import.meta.url)];
+  const expectedSuffix = `.js?v=${RELEASE_MODULE_VERSION}`;
+  const relativeImport = /from\s+['"](\.{1,2}\/[^'"]+\.js(?:\?[^'"]*)?)['"]/g;
+  let importCount = 0;
+
+  for (const file of graphFiles) {
+    const source = readFileSync(file, 'utf8');
+    for (const match of source.matchAll(relativeImport)) {
+      importCount += 1;
+      assert.ok(
+        match[1].endsWith(expectedSuffix),
+        `${file} has an unversioned or mismatched import: ${match[1]}`
+      );
+    }
+  }
+
+  const html = readFileSync(fileURLToPath(new URL('../index.html', import.meta.url)), 'utf8');
+  assert.match(html, new RegExp(`js/main\\.js\\?v=${RELEASE_MODULE_VERSION}`));
+  assert.ok(importCount >= 60, `expected the complete module graph, found ${importCount} imports`);
+});
 
 function createCanvasContextMock() {
   const calls = {

@@ -1,7 +1,7 @@
 // Compact comic speech bubbles. The figures are mostly visual performers, so
 // their voices are deliberately tiny punchlines rather than paragraphs.
 
-import { audio } from './audio.js';
+import { audio } from './audio.js?v=7.0';
 
 // Curated, original micro-lines based on each character's gameplay role. Keep
 // entries short enough to read during a fast fight and safe for younger players.

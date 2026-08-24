@@ -1,7 +1,7 @@
 // Projectiles, spawned Sketch Blocks, Anvils, and Hazards
 
-import { particles } from '../engine/particles.js';
-import { audio } from '../engine/audio.js';
+import { particles } from '../engine/particles.js?v=7.0';
+import { audio } from '../engine/audio.js?v=7.0';
 
 export class ProjectileManager {
   constructor() {

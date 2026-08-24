@@ -1,17 +1,17 @@
 // Main Game Coordinator and Canvas Loop
 
-import { audio } from './engine/audio.js';
-import { input } from './engine/input.js';
-import { Camera } from './engine/camera.js';
-import { particles } from './engine/particles.js';
-import { Player } from './entities/player.js';
-import { waves } from './systems/waves.js';
-import { combat } from './systems/combat.js';
-import { shop } from './systems/shop.js';
-import { stages } from './systems/stages.js';
-import { projectiles } from './entities/projectiles.js';
-import { allies } from './entities/allies.js';
-import { speech } from './engine/speech.js';
+import { audio } from './engine/audio.js?v=7.0';
+import { input } from './engine/input.js?v=7.0';
+import { Camera } from './engine/camera.js?v=7.0';
+import { particles } from './engine/particles.js?v=7.0';
+import { Player } from './entities/player.js?v=7.0';
+import { waves } from './systems/waves.js?v=7.0';
+import { combat } from './systems/combat.js?v=7.0';
+import { shop } from './systems/shop.js?v=7.0';
+import { stages } from './systems/stages.js?v=7.0';
+import { projectiles } from './entities/projectiles.js?v=7.0';
+import { allies } from './entities/allies.js?v=7.0';
+import { speech } from './engine/speech.js?v=7.0';
 
 class Game {
   constructor() {
@@ -408,7 +408,7 @@ class Game {
         this.camera,
         () => {},
         currentPlatforms,
-        allies.getCombatTargets()
+        allies.getCombatTargets?.() || []
       );
     } catch (e) { console.error('Waves update error:', e); }
 
@@ -431,7 +431,7 @@ class Game {
         waves.zombies,
         this.player,
         this.camera,
-        allies.getCombatTargets()
+        allies.getCombatTargets?.() || []
       );
     } catch (e) { console.error('Projectiles update error:', e); }
 
@@ -556,7 +556,7 @@ class Game {
       const el = document.getElementById(id);
       if (!el) return;
       const cd = allies.cooldowns[type] || 0;
-      const recovering = allies.recoveryStates[type] === true;
+      const recovering = allies.recoveryStates?.[type] === true;
       if (cd > 0) {
         el.style.opacity = '0.5';
         el.style.filter = 'grayscale(0.6)';
@@ -596,7 +596,19 @@ class Game {
   }
 
   render() {
-    this.syncHUD();
+    // HUD markup can be briefly newer than a cached dependency while a static
+    // host rolls out a release. Never let a compatibility error there prevent
+    // the independent Canvas world pass from painting.
+    try {
+      this.syncHUD();
+    } catch (error) {
+      const message = error?.message || String(error);
+      const signature = `HUD sync:${message}`;
+      if (!this.reportedErrors.has(signature)) {
+        this.reportedErrors.add(signature);
+        console.error('HUD sync error:', error);
+      }
+    }
     const ctx = this.ctx;
     const width = this.canvas.clientWidth || window.innerWidth;
     const height = this.canvas.clientHeight || window.innerHeight;

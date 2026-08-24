@@ -1,11 +1,11 @@
 // Wave Director and Enemy Spawning Manager
 
-import { Zombie } from '../entities/zombies.js';
-import { DarkLord } from '../entities/dark_lord.js';
-import { KingOrange } from '../entities/king_orange.js';
-import { H4C3R } from '../entities/h4c3r.js';
-import { audio } from '../engine/audio.js';
-import { particles } from '../engine/particles.js';
+import { Zombie } from '../entities/zombies.js?v=7.0';
+import { DarkLord } from '../entities/dark_lord.js?v=7.0';
+import { KingOrange } from '../entities/king_orange.js?v=7.0';
+import { H4C3R } from '../entities/h4c3r.js?v=7.0';
+import { audio } from '../engine/audio.js?v=7.0';
+import { particles } from '../engine/particles.js?v=7.0';
 
 const BOSS_WAVES = new Set([5, 10, 11, 15]);
 

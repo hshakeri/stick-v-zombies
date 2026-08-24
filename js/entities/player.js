@@ -1,11 +1,11 @@
-import { StickFigureRenderer } from './stickman.js';
-import { particles } from '../engine/particles.js';
-import { audio } from '../engine/audio.js';
-import { projectiles } from './projectiles.js';
-import { weapons } from './weapons.js';
-import { allies } from './allies.js';
-import { combat } from '../systems/combat.js';
-import { speech } from '../engine/speech.js';
+import { StickFigureRenderer } from './stickman.js?v=7.0';
+import { particles } from '../engine/particles.js?v=7.0';
+import { audio } from '../engine/audio.js?v=7.0';
+import { projectiles } from './projectiles.js?v=7.0';
+import { weapons } from './weapons.js?v=7.0';
+import { allies } from './allies.js?v=7.0';
+import { combat } from '../systems/combat.js?v=7.0';
+import { speech } from '../engine/speech.js?v=7.0';
 
 export class Player {
   constructor(x = 0, y = 0) {

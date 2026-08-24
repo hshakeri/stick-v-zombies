@@ -1,8 +1,8 @@
-import { StickFigureRenderer } from './stickman.js';
-import { particles } from '../engine/particles.js';
-import { audio } from '../engine/audio.js';
-import { projectiles } from './projectiles.js';
-import { speech } from '../engine/speech.js';
+import { StickFigureRenderer } from './stickman.js?v=7.0';
+import { particles } from '../engine/particles.js?v=7.0';
+import { audio } from '../engine/audio.js?v=7.0';
+import { projectiles } from './projectiles.js?v=7.0';
+import { speech } from '../engine/speech.js?v=7.0';
 
 const ALLY_ARENA_BOUND = 1030;
 const ALLY_READY_TIME = 0.3;

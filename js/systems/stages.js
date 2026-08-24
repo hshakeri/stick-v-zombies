@@ -1,8 +1,8 @@
 // Stage Progression, Desktop Level Generator, Obstacle Courses, and Door Portals
 
-import { particles } from '../engine/particles.js';
-import { audio } from '../engine/audio.js';
-import { projectiles } from '../entities/projectiles.js';
+import { particles } from '../engine/particles.js?v=7.0';
+import { audio } from '../engine/audio.js?v=7.0';
+import { projectiles } from '../entities/projectiles.js?v=7.0';
 
 export class StageManager {
   constructor() {
