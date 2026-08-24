@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Orange Stickman vs Zombies - The Second Coming</title>
-  <link rel="stylesheet" href="css/style.css?v=4.0">
+  <link rel="stylesheet" href="css/style.css?v=6.0">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23ff7700%22 stroke=%22white%22 stroke-width=%228%22/></svg>">
 </head>
 <body>
@@ -96,6 +96,11 @@
             <div class="skill-icon">🤼</div>
             <div class="skill-key">F</div>
           </div>
+          <div class="skill-slot ready" id="skill-hook" title="Vector Hook: pull slow zombies; heavies pull you (H)">
+            <div class="skill-icon">🪝</div>
+            <div class="skill-key">H</div>
+            <div id="cd-hook-overlay" class="skill-cd-overlay"></div>
+          </div>
           <div class="skill-slot ready" id="skill-roll" title="Dodge Roll (Shift / L)">
             <div class="skill-icon">💨</div>
             <div class="skill-key">SHIFT</div>
@@ -118,30 +123,35 @@
           <div class="ally-slot red" id="ally-red-slot" title="Summon Red (Brawler Punch - Key 1)">
             <div class="ally-badge red">R</div>
             <div class="skill-key">1</div>
+            <div class="ally-cd-overlay" id="ally-red-status"></div>
           </div>
           <div class="ally-slot blue" id="ally-blue-slot" title="Summon Blue (Freeze Net / Potions - Key 2)">
             <div class="ally-badge blue">B</div>
             <div class="skill-key">2</div>
+            <div class="ally-cd-overlay" id="ally-blue-status"></div>
           </div>
           <div class="ally-slot yellow" id="ally-yellow-slot" title="Summon Yellow (Redstone Turret - Key 3)">
             <div class="ally-badge yellow">Y</div>
             <div class="skill-key">3</div>
+            <div class="ally-cd-overlay" id="ally-yellow-status"></div>
           </div>
           <div class="ally-slot green" id="ally-green-slot" title="Summon Green (Stun Music Wave - Key 4)">
             <div class="ally-badge green">G</div>
             <div class="skill-key">4</div>
+            <div class="ally-cd-overlay" id="ally-green-status"></div>
           </div>
           <div class="ally-slot" id="ally-cursor-slot" style="border-color: #00d2ff;" title="Summon Animator Cursor Pointer (Deletes Zombie - Key 5)">
             <div class="ally-badge" style="background: #00d2ff; color: #000; font-size: 14px;">🖱️</div>
             <div class="skill-key">5</div>
+            <div class="ally-cd-overlay" id="ally-cursor-status"></div>
           </div>
         </div>
 
         <!-- Quick Action Buttons -->
         <div class="hud-quick-buttons">
-          <button id="btn-open-shop" class="hud-btn">🛒 Upgrades (B)</button>
-          <button id="btn-pause" class="hud-btn">⏸️ Pause (Esc)</button>
-          <button id="btn-audio-toggle" class="hud-btn" title="Toggle Sound / BGM">🔊 Audio: ON</button>
+          <button id="btn-open-shop" class="hud-btn" aria-label="Open upgrades (B)" title="Open upgrades (B)"><span class="hud-btn-icon" aria-hidden="true">🛒</span><span class="hud-btn-label">Upgrades (B)</span></button>
+          <button id="btn-pause" class="hud-btn" aria-label="Pause (Escape)" title="Pause (Escape)"><span class="hud-btn-icon" aria-hidden="true">⏸️</span><span class="hud-btn-label">Pause (Esc)</span></button>
+          <button id="btn-audio-toggle" class="hud-btn" aria-label="Toggle sound and music" title="Toggle Sound / BGM"><span class="hud-btn-icon" aria-hidden="true">🔊</span><span class="hud-btn-label">Audio: ON</span></button>
         </div>
       </div>
     </div>
@@ -189,6 +199,10 @@
           <div class="controls-row">
             <span>Grab &amp; throw</span>
             <span class="control-keys"><kbd class="key-badge">F / G</kbd><span>or</span><kbd class="key-badge">Q + W</kbd></span>
+          </div>
+          <div class="controls-row advanced-control">
+            <span>Vector hook</span>
+            <span class="control-keys"><kbd class="key-badge">H</kbd><span>slow foes come to you; heavies pull back</span></span>
           </div>
           <div class="controls-row advanced-control">
             <span>Rising Dragon</span>
@@ -343,6 +357,7 @@
         <button class="virtual-btn" id="vbtn-attack" style="background: rgba(255, 119, 0, 0.7);">👊</button>
         <button class="virtual-btn" id="vbtn-weapon" style="background: rgba(255, 200, 0, 0.7);">✏️</button>
         <button class="virtual-btn virtual-grab" id="vbtn-grab" aria-label="Grab and throw" title="Grab &amp; throw">🤼</button>
+        <button class="virtual-btn virtual-hook" id="vbtn-hook" aria-label="Vector hook" title="Hook slow zombies; beware heavies">🪝</button>
         <button class="virtual-btn" id="vbtn-super" style="background: rgba(255, 50, 50, 0.7);">⚡</button>
         <button class="virtual-btn" id="vbtn-roll">💨</button>
         <button class="virtual-btn" id="vbtn-block">🧱</button>
@@ -352,6 +367,6 @@
   </div>
 
   <!-- Game Modules -->
-  <script type="module" src="js/main.js?v=4.0"></script>
+  <script type="module" src="js/main.js?v=6.0"></script>
 </body>
 </html>

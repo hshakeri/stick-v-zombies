@@ -71,6 +71,13 @@ export const SPEECH_CORPUS = {
     ]
   },
 
+  allyHurt: {
+    red: ['TACTICAL NAP!', 'RED NEEDS A REBOOT!'],
+    blue: ['POTION DOWN!', 'BREW BREAK!'],
+    yellow: ['REBOOTING LOGIC!', 'CIRCUIT BREAK!'],
+    green: ['ENCORE LATER!', 'BASS BREAK!']
+  },
+
   darkLord: [
     'RUN, LITTLE FILE.',
     'VIRABOTS, FETCH!',
@@ -224,7 +231,8 @@ export class SpeechBubbleManager {
     if (!Array.isArray(pool) || pool.length === 0) return false;
 
     const text = pool[Math.floor(Math.random() * pool.length)];
-    const speakerType = category === 'allies' && subKey ? `ally-${subKey}` : category;
+    const isAllyLine = (category === 'allies' || category === 'allyHurt') && subKey;
+    const speakerType = isAllyLine ? `ally-${subKey}` : category;
     return this.spawnBubble(x, y, text, speakerType, duration, {
       ...options,
       speakerKey: options.speakerKey || `${category}:${subKey || 'default'}`
@@ -274,6 +282,12 @@ export class SpeechBubbleManager {
       safeBottom = Math.min(safeBottom, height - 118);
     } else if (coarsePointer && width <= 500) {
       safeBottom = Math.min(safeBottom, height - 290);
+    }
+
+    // The bottom HUD becomes a two-row grid at this desktop/tablet width.
+    // Keep dialogue above both the hotbar and the centered ally row.
+    if (width <= 1080) {
+      safeBottom = Math.min(safeBottom, height - 122);
     }
 
     // At tablet widths the HUD becomes a two-row grid and its boss bar sits

@@ -527,6 +527,30 @@ body, html {
 .ally-slot.yellow { border-color: #ffcc00; }
 .ally-slot.green { border-color: #33dd66; }
 
+.ally-slot.recovering {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 10px rgba(255, 65, 85, 0.48);
+}
+
+.ally-cd-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(5, 7, 12, 0.72);
+  color: #ffffff;
+  font: 900 12px 'Nunito', sans-serif;
+  text-shadow: 0 1px 3px #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ally-slot.recovering .ally-cd-overlay {
+  color: #ff8c98;
+}
+
 .ally-slot.locked {
   opacity: 0.35;
   filter: grayscale(1);
@@ -1096,6 +1120,11 @@ body, html {
   background: rgba(156, 82, 205, 0.76);
 }
 
+.virtual-hook {
+  background: rgba(0, 155, 195, 0.78);
+  border-color: rgba(87, 231, 255, 0.72);
+}
+
 .touch-utility-controls {
   position: absolute;
   left: 50%;
@@ -1124,12 +1153,12 @@ body, html {
 }
 
 #vbtn-jump {
-  grid-column: 3 / span 2;
-  border-radius: 999px;
+  border-color: rgba(255, 184, 77, 0.72);
+  background: rgba(220, 104, 20, 0.8);
 }
 
 /* Compact wide/tablet layouts before any HUD group can collide. */
-@media (max-width: 1180px) {
+@media (max-width: 1280px) {
   #hud-overlay {
     padding:
       max(14px, env(safe-area-inset-top))
@@ -1153,6 +1182,21 @@ body, html {
   .ally-slot { width: 42px; height: 42px; }
   .hud-quick-buttons { gap: 6px; }
   .hud-btn { padding: 7px 10px; font-size: 11px; }
+}
+
+@media (max-width: 1080px) {
+  .hud-bottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "skills quick"
+      "allies allies";
+    align-items: end;
+  }
+
+  .hud-skills { grid-area: skills; }
+  .hud-allies { grid-area: allies; justify-self: center; }
+  .hud-quick-buttons { grid-area: quick; }
 }
 
 @media (max-width: 860px) {
@@ -1199,6 +1243,19 @@ body, html {
   .hud-skills { grid-area: skills; }
   .hud-allies { grid-area: allies; justify-self: center; }
   .hud-quick-buttons { grid-area: quick; }
+}
+
+@media (max-width: 760px) {
+  .hud-btn {
+    width: 40px;
+    min-width: 40px;
+    height: 36px;
+    padding: 5px;
+    justify-content: center;
+  }
+
+  .hud-btn-icon { font-size: 16px; }
+  .hud-btn-label { display: none; }
 }
 
 @media (max-width: 600px) {
@@ -1291,8 +1348,8 @@ body, html {
   .controls-row { gap: 6px; }
 }
 
-/* Touch layouts keep the ally strip above the virtual pad; combat and grab
-   already have dedicated virtual buttons. */
+/* Touch layouts keep the ally strip above the virtual pad; combat, grab, and
+   hook already have dedicated virtual buttons. */
 @media (hover: none) and (pointer: coarse) {
   #mobile-controls { display: flex; }
 

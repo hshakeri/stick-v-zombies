@@ -10,6 +10,7 @@ import { H4C3R } from '../js/entities/h4c3r.js';
 import { KingOrange } from '../js/entities/king_orange.js';
 import { Player } from '../js/entities/player.js';
 import { ProjectileManager, projectiles } from '../js/entities/projectiles.js';
+import { Zombie } from '../js/entities/zombies.js';
 import { weapons } from '../js/entities/weapons.js';
 import { combat } from '../js/systems/combat.js';
 import { shop } from '../js/systems/shop.js';
@@ -132,8 +133,13 @@ test('Red ally ground slam damages each nearby zombie exactly once', () => {
     facing: 1,
     pose: 'dive_kick',
     timer: 0,
+    readyTimer: 0,
     life: 2.5,
-    hasActed: false
+    hasActed: false,
+    isAlly: true,
+    isTargetable: false,
+    retreating: false,
+    hurtTimer: 0
   });
 
   manager.update(0.01, 0, [zombie], null, camera);
@@ -143,6 +149,182 @@ test('Red ally ground slam damages each nearby zombie exactly once', () => {
 
   assert.equal(damageCalls, 1);
   assert.equal(manager.activeAllies[0].hasActed, true);
+  particles.reset();
+});
+
+test('Red and Green have a real vulnerable ready beat before their assists fire', () => {
+  particles.reset();
+  speech.reset();
+
+  for (const type of ['red', 'green']) {
+    const manager = new AllyManager();
+    const walker = new Zombie(80, 0, 'walker', 1);
+    walker.isGrounded = true;
+    let playerHits = 0;
+    const player = {
+      x: 0, y: 0, isDead: false,
+      takeDamage() { playerHits += 1; },
+      heal() {}
+    };
+    const camera = { addShake() {}, addZoomPunch() {} };
+    assert.equal(manager.summonAlly(type, player.x, 0, 1, [walker]), true);
+
+    for (let frame = 0; frame < 90 && !manager.recoveryStates[type]; frame += 1) {
+      walker.update(1 / 60, 0, player, [], camera, [], [walker], manager.getCombatTargets());
+      manager.update(1 / 60, 0, [walker], player, camera);
+    }
+
+    assert.equal(manager.recoveryStates[type], true, `${type} should be interceptable before acting`);
+    assert.equal(manager.activeAllies[0]?.hasActed, false, `${type} should lose an unsafe assist`);
+    assert.equal(playerHits, 0, `${type} should visibly intercept the nearby bite`);
+  }
+
+  particles.reset();
+  speech.reset();
+});
+
+test('runner leap contact can intercept every real stick-ally summon', () => {
+  particles.reset();
+  speech.reset();
+
+  for (const type of ['red', 'blue', 'yellow', 'green']) {
+    const manager = new AllyManager();
+    const runner = new Zombie(200, 0, 'runner', 1);
+    runner.isGrounded = true;
+    let playerHits = 0;
+    const player = {
+      x: 0, y: 0, isDead: false,
+      takeDamage() { playerHits += 1; },
+      heal() {}
+    };
+    const camera = { addShake() {}, addZoomPunch() {} };
+    manager.summonAlly(type, 0, 0, 1, [runner]);
+
+    for (let frame = 0; frame < 120 && !manager.recoveryStates[type]; frame += 1) {
+      runner.update(1 / 60, 0, player, [], camera, [], [runner], manager.getCombatTargets());
+      manager.update(1 / 60, 0, [runner], player, camera);
+    }
+
+    assert.equal(manager.recoveryStates[type], true, `${type} should be able to block a runner leap`);
+    assert.equal(playerHits, 0);
+  }
+
+  particles.reset();
+  speech.reset();
+});
+
+test('stunning a runner cancels its leap contact instead of delaying the hit', () => {
+  const runner = new Zombie(0, -20, 'runner', 1);
+  runner.leapActive = true;
+  runner.applyStun(0.2);
+  assert.equal(runner.leapActive, false);
+});
+
+test('ally calls and Yellow turrets stay inside the arena at an outward wall', () => {
+  particles.reset();
+  const manager = new AllyManager();
+  const camera = { addShake() {}, addZoomPunch() {} };
+  const player = { heal() {} };
+
+  assert.equal(manager.summonAlly('yellow', 1075, 0, 1, []), true);
+  assert.ok(manager.activeAllies[0].x <= 1030);
+  for (let frame = 0; frame < 60; frame += 1) {
+    manager.update(1 / 60, 0, [], player, camera);
+  }
+
+  assert.equal(manager.turrets.length, 1);
+  assert.ok(Math.abs(manager.turrets[0].x) <= 1030);
+
+  const cursorManager = new AllyManager();
+  assert.equal(cursorManager.summonAlly('cursor', 1075, 0, 1, []), true);
+  assert.ok(Math.abs(cursorManager.activeCursors[0].startX) <= 1030);
+  particles.reset();
+});
+
+test('one zombie hit interrupts an ally and starts one extended recovery', () => {
+  particles.reset();
+  speech.reset();
+  const manager = new AllyManager();
+  assert.equal(manager.summonAlly('blue', 0, 0, 1, []), true);
+  const ally = manager.activeAllies[0];
+  ally.y = -80;
+  manager.update(0.01, 0, [], { heal() {} }, { addShake() {} });
+
+  assert.equal(manager.getCombatTargets()[0], ally);
+  assert.equal(ally.takeDamage(15, 1), true);
+  const recovery = manager.maxCooldowns.blue + 4;
+  assert.equal(ally.retreating, true);
+  assert.equal(ally.hasActed, false, 'an unsafe summon should lose its pending assist');
+  assert.equal(manager.cooldowns.blue, recovery);
+  assert.equal(manager.recoveryStates.blue, true);
+  assert.equal(manager.getCombatTargets().length, 0);
+
+  assert.equal(ally.takeDamage(15, 1), false);
+  assert.equal(manager.cooldowns.blue, recovery, 'the same injury must not stack twice');
+
+  manager.reset(false, true);
+  assert.equal(manager.cooldowns.blue, recovery, 'stage cleanup should preserve injury recovery');
+  manager.reset(false);
+  assert.equal(manager.cooldowns.blue, 0, 'a full reset should clear recovery');
+  particles.reset();
+  speech.reset();
+});
+
+test('a nearby zombie targets an ally and never redirects a stored bite', () => {
+  const camera = { addShake() {} };
+  let playerHits = 0;
+  let allyHits = 0;
+  const player = {
+    x: 48, y: 0, isDead: false,
+    takeDamage() { playerHits += 1; }
+  };
+  const ally = {
+    x: 24, y: 0, isAlly: true, isDead: false,
+    isTargetable: true, retreating: false,
+    takeDamage() { allyHits += 1; }
+  };
+  const walker = new Zombie(0, 0, 'walker', 1);
+  walker.isGrounded = true;
+
+  walker.update(0.01, 0, player, [], camera, [], [walker], [ally]);
+  walker.update(0.3, 0, player, [], camera, [], [walker], [ally]);
+  assert.equal(allyHits, 1);
+  assert.equal(playerHits, 0);
+
+  const secondWalker = new Zombie(0, 0, 'walker', 1);
+  secondWalker.isGrounded = true;
+  allyHits = 0;
+  secondWalker.update(0.01, 0, player, [], camera, [], [secondWalker], [ally]);
+  ally.isTargetable = false;
+  ally.retreating = true;
+  secondWalker.update(0.3, 0, player, [], camera, [], [secondWalker], [ally]);
+  assert.equal(allyHits, 0);
+  assert.equal(playerHits, 0, 'a telegraphed ally bite must miss instead of snapping to Orange');
+});
+
+test('hostile zombie projectiles can interrupt a targetable ally', () => {
+  particles.reset();
+  const manager = new ProjectileManager();
+  let allyHits = 0;
+  const ally = {
+    x: 0, y: 0, height: 60, radius: 18,
+    isAlly: true, isDead: false, isTargetable: true, retreating: false,
+    takeDamage() {
+      allyHits += 1;
+      this.isTargetable = false;
+      this.retreating = true;
+    }
+  };
+  const player = { x: 500, y: 0, isDead: false, isRolling: false, isAwakened: false, takeDamage() {} };
+  manager.projectiles.push({
+    type: 'acid', x: 0, y: -30, vx: 0, vy: 0,
+    radius: 12, damage: 8, isHostile: true, life: 1
+  });
+
+  manager.update(0.016, 0, [], player, { addShake() {} }, [ally]);
+
+  assert.equal(allyHits, 1);
+  assert.equal(manager.projectiles.length, 0);
   particles.reset();
 });
 
@@ -263,10 +445,7 @@ test('wide viewports cannot zoom beyond the painted arena framing', () => {
 
 test('short-screen camera anchor keeps the ground above touch controls', () => {
   const camera = new Camera({ clientWidth: 667, clientHeight: 375 });
-  const target = camera.getTargetPosition({ x: 0, y: 0, facing: 1 });
-  camera.x = target.x;
-  camera.y = target.y;
-  camera.zoom = 1;
+  camera.snapTo({ x: 0, y: 0, facing: 1 });
 
   const ground = camera.worldToScreen(0, 0);
   assert.ok(ground.y < 250, `ground should stay above the pad, received y=${ground.y}`);
@@ -647,6 +826,121 @@ test('boss-owned cleanup cannot strand the projectile that dealt the final hit',
   projectiles.reset();
 });
 
+test('vector hook gathers walkers and spitters but leaves runners alone', () => {
+  particles.reset();
+  const player = new Player(0, 0);
+  player.isGrounded = true;
+  player.facing = 1;
+  const walker = new Zombie(140, 0, 'walker', 1);
+  const spitter = new Zombie(300, 0, 'spitter', 1);
+  const runner = new Zombie(180, 0, 'runner', 1);
+  const originalHp = [walker.hp, spitter.hp, runner.hp];
+
+  assert.equal(player.executeVectorHook([walker, spitter, runner], { addShake() {}, addZoomPunch() {} }), true);
+  assert.equal(player.hookMode, 'pull');
+  assert.ok(walker.hookPullTimer > 0);
+  assert.ok(spitter.hookPullTimer > 0);
+  assert.equal(runner.hookPullTimer, 0);
+  assert.deepEqual([walker.hp, spitter.hp, runner.hp], originalHp, 'the utility hook must deal no damage');
+
+  const before = walker.x;
+  walker.update(0.1, 0, player, [], { addShake() {} }, [], [walker, spitter, runner], []);
+  assert.ok(walker.x < before, 'persistent hook movement must survive the zombie AI update');
+  particles.reset();
+});
+
+test('a heavy zombie reverses the hook and pulls Orange without i-frames', () => {
+  particles.reset();
+  const player = new Player(0, 0);
+  player.isGrounded = true;
+  player.facing = 1;
+  const spitter = new Zombie(180, 0, 'spitter', 1);
+  const brute = new Zombie(320, 0, 'brute', 1);
+  const bruteX = brute.x;
+
+  player.executeVectorHook([spitter, brute], { addShake() {}, addZoomPunch() {} });
+
+  assert.equal(player.hookMode, 'anchor');
+  assert.equal(player.hookPullTarget, brute);
+  assert.equal(spitter.hookPullTimer, 0, 'an anchor must override every lightweight catch');
+  assert.equal(player.iFrames, 0);
+  assert.equal(brute.x, bruteX, 'the heavy target must never be displaced');
+  assert.ok(brute.attackCooldown >= 0.35);
+
+  const previousDistance = Math.abs(brute.x - player.x);
+  player.updateReverseHookPull(0.1);
+  player.applyPhysics(0.1, 0, []);
+  assert.ok(Math.abs(brute.x - player.x) < previousDistance);
+  assert.equal(player.iFrames, 0, 'the risky pull must not grant invulnerability');
+
+  for (let frame = 0; frame < 30; frame += 1) {
+    player.updateReverseHookPull(1 / 60);
+    player.applyPhysics(1 / 60, 0, []);
+  }
+  assert.equal(player.hookPullTimer, 0);
+  assert.equal(player.hookPullTarget, null, 'an expired reverse pull must release its enemy reference');
+  particles.reset();
+});
+
+test('the hook never pushes close zombies away or pulls them beyond arena edges', () => {
+  particles.reset();
+
+  const closePlayer = new Player(0, 0);
+  closePlayer.isGrounded = true;
+  closePlayer.facing = 1;
+  const closeWalker = new Zombie(30, 0, 'walker', 1);
+  closeWalker.isGrounded = true;
+  closePlayer.executeVectorHook([closeWalker], { addShake() {}, addZoomPunch() {} });
+  assert.equal(closeWalker.hookPullTimer, 0);
+  assert.equal(closeWalker.x, 30);
+
+  for (const side of [-1, 1]) {
+    const edgePlayer = new Player(side * 990, 0);
+    edgePlayer.isGrounded = true;
+    edgePlayer.facing = side;
+    const edgeWalker = new Zombie(side * 1090, 0, 'walker', 1);
+    edgeWalker.isGrounded = true;
+    edgePlayer.executeVectorHook([edgeWalker], { addShake() {}, addZoomPunch() {} });
+    edgeWalker.update(0.1, 0, edgePlayer, [], { addShake() {} }, [], [edgeWalker], []);
+    assert.ok(Math.abs(edgeWalker.x) <= 1060, `hooked zombie escaped at x=${edgeWalker.x}`);
+  }
+
+  particles.reset();
+});
+
+test('story-boss hook latches buffer their next action without interrupting a telegraph', () => {
+  particles.reset();
+  const player = new Player(0, 0);
+  player.isGrounded = true;
+  player.facing = 1;
+  const storyBoss = {
+    x: 300, y: 0, radius: 36, height: 90,
+    isBoss: true, isDead: false, actionCooldown: 0
+  };
+
+  player.executeVectorHook([storyBoss], { addShake() {}, addZoomPunch() {} });
+  assert.ok(storyBoss.actionCooldown >= 0.35);
+  assert.equal(player.hookPullTarget, storyBoss);
+  particles.reset();
+});
+
+test('vector hook draw stays balanced and a miss uses the short cooldown', () => {
+  particles.reset();
+  const player = new Player(0, 0);
+  player.isGrounded = true;
+  player.renderer.draw = () => {};
+  const { calls, context } = createCanvasContextMock();
+
+  player.executeVectorHook([], { addShake() {}, addZoomPunch() {} });
+  player.draw(context);
+
+  assert.equal(player.hookMode, 'miss');
+  assert.equal(player.hookCooldown, 1);
+  assert.equal(calls.save, calls.restore);
+  assert.equal(calls.save, 1);
+  particles.reset();
+});
+
 test('speech corpus gives every ally terse, character-specific banter', () => {
   const allyNames = ['red', 'blue', 'yellow', 'green', 'cursor'];
   for (const allyName of allyNames) {
@@ -676,6 +970,20 @@ test('three simultaneous speech bubbles occupy distinct readable lanes', () => {
   const bubbleYs = calls.translate.slice(-3).map(([, y]) => y);
   assert.equal(new Set(bubbleYs).size, 3);
   assert.ok(bubbleYs.every((y) => y >= 180), 'bubbles should stay below the two-row compact HUD');
+});
+
+test('tablet dialogue stays above the two-row skills and ally HUD', () => {
+  const manager = new SpeechBubbleManager(() => 1000);
+  manager.spawnBubble(450, 700, 'HOOK READY!', 'player', 1.4, {
+    speakerKey: 'tablet-hud',
+    cooldownMs: 0
+  });
+  const { calls, context } = createCanvasContextMock();
+
+  manager.draw(context, null, 900, 720);
+
+  const [, bubbleY] = calls.translate.at(-1);
+  assert.ok(bubbleY <= 582, `bubble overlapped the tablet hotbar at y=${bubbleY}`);
 });
 
 test('an empty speech layer performs no canvas work', () => {

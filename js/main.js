@@ -170,7 +170,11 @@ class Game {
       btnAudio.addEventListener('click', () => {
         audio.init();
         const enabled = audio.toggleAudio();
-        btnAudio.innerText = enabled ? '🔊 Audio: ON' : '🔇 Audio: OFF';
+        const icon = btnAudio.querySelector('.hud-btn-icon');
+        const label = btnAudio.querySelector('.hud-btn-label');
+        if (icon) icon.textContent = enabled ? '🔊' : '🔇';
+        if (label) label.textContent = enabled ? 'Audio: ON' : 'Audio: OFF';
+        btnAudio.setAttribute('aria-label', enabled ? 'Mute sound and music' : 'Enable sound and music');
       });
     }
 
@@ -219,7 +223,7 @@ class Game {
     this.state = 'PLAYING';
     this.stageManager.loadStage(nextStage);
     projectiles.reset();
-    allies.reset(false);
+    allies.reset(false, true);
     particles.reset();
     speech.reset();
     combat.clearArena();
@@ -235,6 +239,7 @@ class Game {
     this.player.diveKick = false;
     this.player.isGrounded = true;
     this.player.airJuggleTarget = null;
+    this.player.cancelHook?.(true);
     this.player.squashX = 1.0;
     this.player.squashY = 1.0;
     const isBossCheckpoint = [5, 10, 11, 15].includes(nextStage);
@@ -257,6 +262,7 @@ class Game {
     audio.setIntensity(0);
     projectiles.reset();
     allies.reset(false);
+    this.player.cancelHook?.(true);
 
     const score = document.getElementById('victory-score');
     const kills = document.getElementById('victory-kills');
@@ -394,7 +400,16 @@ class Game {
 
     // 2. Update Wave Director
     try {
-      waves.update(simDt, this.player, this.groundY, projectiles.sketchBlocks, this.camera, () => {}, currentPlatforms);
+      waves.update(
+        simDt,
+        this.player,
+        this.groundY,
+        projectiles.sketchBlocks,
+        this.camera,
+        () => {},
+        currentPlatforms,
+        allies.getCombatTargets()
+      );
     } catch (e) { console.error('Waves update error:', e); }
 
     // 3. Update Stage Progression, Obstacles, and Doors
@@ -410,7 +425,14 @@ class Game {
 
     // 4. Update Projectiles & Hazards
     try {
-      projectiles.update(simDt, this.groundY, waves.zombies, this.player, this.camera);
+      projectiles.update(
+        simDt,
+        this.groundY,
+        waves.zombies,
+        this.player,
+        this.camera,
+        allies.getCombatTargets()
+      );
     } catch (e) { console.error('Projectiles update error:', e); }
 
     // 5. Update Allies (including Cursor Pointer)
@@ -530,10 +552,11 @@ class Game {
     }
 
     // Ally Cooldown Displays (Red, Blue, Yellow, Green, Cursor)
-    const syncAlly = (id, type) => {
+    const syncAlly = (id, type, statusId) => {
       const el = document.getElementById(id);
       if (!el) return;
       const cd = allies.cooldowns[type] || 0;
+      const recovering = allies.recoveryStates[type] === true;
       if (cd > 0) {
         el.style.opacity = '0.5';
         el.style.filter = 'grayscale(0.6)';
@@ -541,12 +564,18 @@ class Game {
         el.style.opacity = '1.0';
         el.style.filter = 'none';
       }
+      el.classList.toggle('recovering', recovering && cd > 0);
+      const status = document.getElementById(statusId);
+      if (status) {
+        status.innerText = cd > 0 ? `${recovering ? '↻' : ''}${Math.ceil(cd)}` : '';
+        status.style.opacity = cd > 0 ? '1' : '0';
+      }
     };
-    syncAlly('ally-red-slot', 'red');
-    syncAlly('ally-blue-slot', 'blue');
-    syncAlly('ally-yellow-slot', 'yellow');
-    syncAlly('ally-green-slot', 'green');
-    syncAlly('ally-cursor-slot', 'cursor');
+    syncAlly('ally-red-slot', 'red', 'ally-red-status');
+    syncAlly('ally-blue-slot', 'blue', 'ally-blue-status');
+    syncAlly('ally-yellow-slot', 'yellow', 'ally-yellow-status');
+    syncAlly('ally-green-slot', 'green', 'ally-green-status');
+    syncAlly('ally-cursor-slot', 'cursor', 'ally-cursor-status');
 
     const syncSkillCooldown = (slotId, overlayId, remaining) => {
       const slot = document.getElementById(slotId);
@@ -563,6 +592,7 @@ class Game {
     };
     syncSkillCooldown('skill-roll', 'cd-roll-overlay', this.player.rollCooldown);
     syncSkillCooldown('skill-block', 'cd-block-overlay', this.player.blockCooldown);
+    syncSkillCooldown('skill-hook', 'cd-hook-overlay', this.player.hookCooldown);
   }
 
   render() {

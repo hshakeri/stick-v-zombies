@@ -75,7 +75,7 @@ export class Camera {
   }
 
   clampToArena() {
-    const { width } = this.getViewportSize();
+    const { width, height } = this.getViewportSize();
     const halfView = width / (2 * Math.max(0.01, this.getEffectiveZoom()));
     const edgeInset = 24;
     const minCenter = this.minX + halfView - edgeInset;
@@ -86,7 +86,11 @@ export class Camera {
     } else {
       this.x = Math.max(minCenter, Math.min(maxCenter, this.x));
     }
-    this.y = Math.max(this.minY, Math.min(this.maxY, this.y));
+    // Short landscape needs the ground above the two-row touch pad. The world
+    // renderer paints a deep taskbar/substrate below y=0, so allowing a less
+    // negative camera center here cannot expose an unpainted arena edge.
+    const viewportMaxY = height <= 500 ? -32 : this.maxY;
+    this.y = Math.max(this.minY, Math.min(viewportMaxY, this.y));
   }
 
   snapTo(target) {

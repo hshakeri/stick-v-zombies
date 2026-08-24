@@ -4,6 +4,9 @@ import { audio } from '../engine/audio.js';
 import { projectiles } from './projectiles.js';
 import { speech } from '../engine/speech.js';
 
+const ALLY_ARENA_BOUND = 1030;
+const ALLY_READY_TIME = 0.3;
+
 export class AllyManager {
   constructor() {
     // Unlocked by default so player can summon friends anytime!
@@ -31,6 +34,15 @@ export class AllyManager {
       cursor: 8
     };
 
+    // True while an injured ally is doing the longer trip back into battle.
+    this.recoveryStates = {
+      red: false,
+      blue: false,
+      yellow: false,
+      green: false,
+      cursor: false
+    };
+
     this.activeAllies = [];
     this.turrets = [];
     this.activeCursors = [];
@@ -44,11 +56,20 @@ export class AllyManager {
     };
   }
 
-  reset(resetUpgrades = false) {
+  reset(resetUpgrades = false, preserveRecovery = false) {
+    const savedRecovery = {};
+    if (preserveRecovery) {
+      for (const key of Object.keys(this.cooldowns)) {
+        savedRecovery[key] = this.recoveryStates[key] ? this.cooldowns[key] : 0;
+      }
+    }
     this.activeAllies.length = 0;
     this.turrets.length = 0;
     this.activeCursors.length = 0;
-    for (const key of Object.keys(this.cooldowns)) this.cooldowns[key] = 0;
+    for (const key of Object.keys(this.cooldowns)) {
+      this.cooldowns[key] = savedRecovery[key] || 0;
+      this.recoveryStates[key] = this.cooldowns[key] > 0;
+    }
     if (resetUpgrades) {
       Object.assign(this.maxCooldowns, {
         red: 10,
@@ -65,6 +86,7 @@ export class AllyManager {
     for (const key of Object.keys(this.cooldowns)) {
       if (this.cooldowns[key] > 0) {
         this.cooldowns[key] = Math.max(0, this.cooldowns[key] - dt);
+        if (this.cooldowns[key] === 0) this.recoveryStates[key] = false;
       }
     }
 
@@ -73,13 +95,33 @@ export class AllyManager {
       const ally = this.activeAllies[i];
       ally.timer += dt;
       ally.life -= dt;
+      if (ally.hurtTimer > 0) {
+        ally.hurtTimer -= dt;
+        if (ally.hurtTimer <= 0) ally.isHurt = false;
+      }
+
+      // Allies can be intercepted during the last part of their entrance and
+      // throughout their action. A hit sends them home; it never mutates this
+      // array while zombie/projectile code may still hold the target reference.
+      if (!ally.retreating && ally.y >= groundY - 120) ally.isTargetable = true;
+      if (ally.retreating) {
+        ally.isTargetable = false;
+        ally.y -= 1050 * dt;
+        ally.pose = ally.isHurt ? 'hurt' : 'jump_rise';
+        if (ally.life <= 0) this.activeAllies.splice(i, 1);
+        continue;
+      }
 
       if (ally.type === 'red') {
         // Red dives down fast and executes explosive ground slam
         if (!ally.hasActed && ally.y < groundY) {
-          ally.y += 1400 * dt;
-          if (ally.y >= groundY) {
-            ally.y = groundY;
+          ally.y = Math.min(groundY, ally.y + 1400 * dt);
+        }
+        if (!ally.hasActed && ally.y >= groundY) {
+          ally.y = groundY;
+          ally.readyTimer += dt;
+          ally.pose = 'idle';
+          if (ally.readyTimer >= ALLY_READY_TIME) {
             ally.pose = 'attack_cross';
             ally.hasActed = true;
             // Slam shockwave
@@ -102,82 +144,104 @@ export class AllyManager {
           }
         } else if (ally.hasActed && ally.timer > 1.2) {
           // Exit after exactly one landing impact.
+          this.beginReturn(ally);
           ally.y -= 1000 * dt;
           ally.pose = 'jump_rise';
         }
       } else if (ally.type === 'blue') {
         // Blue drops in, throws healing potions to player and freeze webs
-        if (ally.timer < 0.35 && ally.y < groundY) {
-          ally.y += 900 * dt;
-        } else if (!ally.hasActed) {
-          ally.hasActed = true;
-          audio.playUpgradeBuy();
-          // Heal player
-          if (player) {
-            player.heal(45);
-            particles.addDamageText(player.x, player.y - 40, '+45 HP', false, '#33ff88');
-          }
-          // Slow down all zombies on screen
-          for (const z of zombies) {
-            if (!z.isDead && typeof z.applyFreeze === 'function') {
-              z.applyFreeze(6.0); // Slow for 6 seconds
-              particles.createHitSparks(z.x, z.y - 30, 8, '#2299ff');
+        if (!ally.hasActed && ally.y < groundY) {
+          ally.y = Math.min(groundY, ally.y + 900 * dt);
+        }
+        if (!ally.hasActed && ally.y >= groundY) {
+          ally.y = groundY;
+          ally.readyTimer += dt;
+          ally.pose = 'idle';
+          if (ally.readyTimer >= ALLY_READY_TIME) {
+            ally.hasActed = true;
+            audio.playUpgradeBuy();
+            // Heal player
+            if (player) {
+              player.heal(45);
+              particles.addDamageText(player.x, player.y - 40, '+45 HP', false, '#33ff88');
             }
+            // Slow down all zombies on screen
+            for (const z of zombies) {
+              if (!z.isDead && typeof z.applyFreeze === 'function') {
+                z.applyFreeze(6.0); // Slow for 6 seconds
+                particles.createHitSparks(z.x, z.y - 30, 8, '#2299ff');
+              }
+            }
+            particles.addTextBanner(ally.x, ally.y - 50, 'POTION SPLASH!', '#2299ff');
+            speech.shout(ally.x, ally.y, 'allies', 'blue', 1.35, {
+              anchor: ally,
+              priority: 2
+            });
           }
-          particles.addTextBanner(ally.x, ally.y - 50, 'POTION SPLASH!', '#2299ff');
-          speech.shout(ally.x, ally.y, 'allies', 'blue', 1.35, {
-            anchor: ally,
-            priority: 2
-          });
         } else if (ally.timer > 1.4) {
+          this.beginReturn(ally);
           ally.y -= 900 * dt;
         }
       } else if (ally.type === 'yellow') {
         // Yellow drops in, quickly builds a redstone turret, then teleports out
-        if (ally.timer < 0.3 && ally.y < groundY) {
-          ally.y += 900 * dt;
-        } else if (!ally.hasActed) {
-          ally.hasActed = true;
-          audio.playBlockPlace();
-          this.turrets.push({
-            x: ally.x,
-            y: groundY,
-            fireTimer: 0,
-            duration: 18.0,
-            maxDuration: 18.0,
-            range: 600,
-            damage: 26
-          });
-          particles.addTextBanner(ally.x, ally.y - 50, 'REDSTONE TURRET ACTIVE!', '#ffcc00');
-          speech.shout(ally.x, ally.y, 'allies', 'yellow', 1.35, {
-            anchor: ally,
-            priority: 2
-          });
+        if (!ally.hasActed && ally.y < groundY) {
+          ally.y = Math.min(groundY, ally.y + 900 * dt);
+        }
+        if (!ally.hasActed && ally.y >= groundY) {
+          ally.y = groundY;
+          ally.readyTimer += dt;
+          ally.pose = 'idle';
+          if (ally.readyTimer >= ALLY_READY_TIME) {
+            ally.hasActed = true;
+            audio.playBlockPlace();
+            this.turrets.push({
+              x: ally.x,
+              y: groundY,
+              fireTimer: 0,
+              duration: 18.0,
+              maxDuration: 18.0,
+              range: 600,
+              damage: 26
+            });
+            particles.addTextBanner(ally.x, ally.y - 50, 'REDSTONE TURRET ACTIVE!', '#ffcc00');
+            speech.shout(ally.x, ally.y, 'allies', 'yellow', 1.35, {
+              anchor: ally,
+              priority: 2
+            });
+          }
         } else if (ally.timer > 1.2) {
+          this.beginReturn(ally);
           ally.y -= 900 * dt;
         }
       } else if (ally.type === 'green') {
         // Green plays music staff wave
-        if (ally.timer < 0.3 && ally.y < groundY) {
-          ally.y += 900 * dt;
-        } else if (!ally.hasActed) {
-          ally.hasActed = true;
-          audio.playWaveStart();
-          projectiles.spawnMusicNoteWave(ally.x, groundY - 30, ally.facing);
-          projectiles.spawnMusicNoteWave(ally.x, groundY - 30, -ally.facing);
-          // Stun all zombies
-          for (const z of zombies) {
-            if (!z.isDead && typeof z.applyStun === 'function') {
-              z.applyStun(4.0);
+        if (!ally.hasActed && ally.y < groundY) {
+          ally.y = Math.min(groundY, ally.y + 900 * dt);
+        }
+        if (!ally.hasActed && ally.y >= groundY) {
+          ally.y = groundY;
+          ally.readyTimer += dt;
+          ally.pose = 'idle';
+          if (ally.readyTimer >= ALLY_READY_TIME) {
+            ally.hasActed = true;
+            audio.playWaveStart();
+            projectiles.spawnMusicNoteWave(ally.x, groundY - 30, ally.facing);
+            projectiles.spawnMusicNoteWave(ally.x, groundY - 30, -ally.facing);
+            // Stun all zombies
+            for (const z of zombies) {
+              if (!z.isDead && typeof z.applyStun === 'function') {
+                z.applyStun(4.0);
+              }
             }
+            particles.addTextBanner(ally.x, ally.y - 50, 'SONIC NOTE WAVE!', '#33dd66');
+            camera.addZoomPunch?.(0.025);
+            speech.shout(ally.x, ally.y, 'allies', 'green', 1.35, {
+              anchor: ally,
+              priority: 2
+            });
           }
-          particles.addTextBanner(ally.x, ally.y - 50, 'SONIC NOTE WAVE!', '#33dd66');
-          camera.addZoomPunch?.(0.025);
-          speech.shout(ally.x, ally.y, 'allies', 'green', 1.35, {
-            anchor: ally,
-            priority: 2
-          });
         } else if (ally.timer > 1.4) {
+          this.beginReturn(ally);
           ally.y -= 900 * dt;
         }
       }
@@ -293,6 +357,57 @@ export class AllyManager {
     }
   }
 
+  beginReturn(ally) {
+    if (!ally || ally.retreating) return;
+    ally.retreating = true;
+    ally.isTargetable = false;
+    ally.pose = 'jump_rise';
+  }
+
+  injureAlly(ally, amount = 1, knockbackDir = 0) {
+    if (!ally || ally.retreating || ally.isTargetable !== true) return false;
+
+    ally.isHurt = true;
+    ally.hurtTimer = 0.45;
+    ally.retreating = true;
+    ally.isTargetable = false;
+    ally.life = Math.min(ally.life, 0.72);
+    ally.x += Math.sign(knockbackDir || 0) * Math.min(18, Math.max(0, Number(amount) || 0));
+
+    // Restart recovery from the moment of injury. Adding four seconds to the
+    // base timer is visible and meaningful even after cooldown upgrades.
+    this.cooldowns[ally.type] = Math.max(
+      this.cooldowns[ally.type] || 0,
+      (this.maxCooldowns[ally.type] || 10) + 4
+    );
+    this.recoveryStates[ally.type] = true;
+
+    const color = {
+      red: '#ff3344',
+      blue: '#2299ff',
+      yellow: '#ffcc00',
+      green: '#33dd66'
+    }[ally.type] || '#ffffff';
+    audio.playPlayerHurt();
+    particles.createHitSparks(ally.x, ally.y - 30, 9, color);
+    particles.addComicPopup(ally.x, ally.y - 65, 'FALL BACK!', color, '#ffffff');
+    speech.shout(ally.x, ally.y, 'allyHurt', ally.type, 1.25, {
+      anchor: ally,
+      priority: 3,
+      cooldownMs: 0
+    });
+    return true;
+  }
+
+  getCombatTargets() {
+    return this.activeAllies.filter((ally) =>
+      ally.isAlly === true
+      && ally.isTargetable === true
+      && ally.retreating !== true
+      && ally.life > 0
+    );
+  }
+
   draw(ctx) {
     // 1. Draw Turrets
     for (const t of this.turrets) {
@@ -325,7 +440,7 @@ export class AllyManager {
           pose: ally.pose || 'idle',
           animTimer: ally.timer,
           isGrounded: true,
-          isHurt: false,
+          isHurt: ally.isHurt === true,
           isAwakened: false,
           scale: 1.0,
           alpha: 1.0
@@ -354,7 +469,7 @@ export class AllyManager {
 
       // Context Menu Popup ("Delete")
       if (c.showMenu) {
-        const menuX = c.x + 15;
+        const menuX = c.x > ALLY_ARENA_BOUND - 100 ? c.x - 100 : c.x + 15;
         const menuY = c.y - 20;
         ctx.fillStyle = '#f0f0f0';
         ctx.strokeStyle = '#999999';
@@ -414,6 +529,7 @@ export class AllyManager {
     }
 
     this.cooldowns[type] = this.maxCooldowns[type];
+    this.recoveryStates[type] = false;
     audio.playWhoosh();
 
     if (type === 'cursor') {
@@ -440,7 +556,8 @@ export class AllyManager {
         }
       }
 
-      const spawnX = targetZombie ? targetZombie.x + 180 : targetX + 200;
+      const desiredCursorX = targetZombie ? targetZombie.x + 180 : targetX + 200;
+      const spawnX = Math.max(-ALLY_ARENA_BOUND, Math.min(ALLY_ARENA_BOUND, desiredCursorX));
       const spawnY = targetZombie ? targetZombie.y - 250 : targetY - 250;
 
       this.activeCursors.push({
@@ -462,18 +579,32 @@ export class AllyManager {
     }
 
     const spawnY = type === 'red' ? targetY - 450 : targetY - 300;
-    const spawnX = targetX + (type === 'red' ? 60 * facing : -40 * facing);
+    // Land on Orange's facing side so placement is deliberate: call an ally
+    // into open space, or risk a nearby zombie intercepting the entrance.
+    const desiredSpawnX = targetX + (type === 'red' ? 60 : 45) * facing;
+    const spawnX = Math.max(-ALLY_ARENA_BOUND, Math.min(ALLY_ARENA_BOUND, desiredSpawnX));
 
-    this.activeAllies.push({
+    const ally = {
       type,
       x: spawnX,
       y: spawnY,
       facing,
       pose: type === 'red' ? 'dive_kick' : 'jump_rise',
       timer: 0,
+      readyTimer: 0,
       life: 2.5,
-      hasActed: false
-    });
+      hasActed: false,
+      isAlly: true,
+      isDead: false,
+      isTargetable: false,
+      retreating: false,
+      isHurt: false,
+      hurtTimer: 0,
+      radius: 18,
+      height: 62
+    };
+    ally.takeDamage = (amount, knockbackDir = 0) => this.injureAlly(ally, amount, knockbackDir);
+    this.activeAllies.push(ally);
 
     return true;
   }

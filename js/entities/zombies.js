@@ -7,6 +7,8 @@ import { projectiles } from './projectiles.js';
 import { combat } from '../systems/combat.js';
 import { speech } from '../engine/speech.js';
 
+const HOOK_PULL_ARENA_BOUND = 1060;
+
 export class Zombie {
   constructor(x, y, type = 'walker', wave = 1) {
     this.x = x;
@@ -25,6 +27,7 @@ export class Zombie {
 
     // Attack Windup and Interrupt System
     this.windupTimer = 0;
+    this.windupTarget = null;
     this.attackCooldown = 0;
     this.stateTimer = 0;
 
@@ -32,6 +35,11 @@ export class Zombie {
     this.freezeTimer = 0;
     this.stunTimer = 0;
     this.isGrounded = false;
+    this.hookPullTimer = 0;
+    this.hookPullSource = null;
+    this.hookPullSide = 1;
+    this.hookPullStopDistance = 76;
+    this.leapActive = false;
 
     // Stats configuration per type
     this.initStats(type, wave);
@@ -58,6 +66,7 @@ export class Zombie {
         this.scale = 0.85;
         this.inkReward = 8;
         this.scoreReward = 75;
+        this.hookClass = 'immune';
         break;
 
       case 'spitter':
@@ -73,6 +82,7 @@ export class Zombie {
         this.inkReward = 12;
         this.scoreReward = 100;
         this.preferredDist = 280;
+        this.hookClass = 'pullable';
         break;
 
       case 'brute':
@@ -87,6 +97,7 @@ export class Zombie {
         this.scale = 1.45;
         this.inkReward = 30;
         this.scoreReward = 300;
+        this.hookClass = 'anchor';
         break;
 
       case 'titan_boss':
@@ -103,6 +114,7 @@ export class Zombie {
         this.scoreReward = 2000;
         this.isBoss = true;
         this.bossPhase = 1;
+        this.hookClass = 'anchor';
         break;
 
       case 'walker':
@@ -118,11 +130,12 @@ export class Zombie {
         this.scale = 1.0;
         this.inkReward = 10;
         this.scoreReward = 100;
+        this.hookClass = 'pullable';
         break;
     }
   }
 
-  update(dt, groundY, player, sketchBlocks, camera, platforms = [], zombies = []) {
+  update(dt, groundY, player, sketchBlocks, camera, platforms = [], zombies = [], friendlyTargets = []) {
     if (this.isDead) return;
 
     this.platforms = platforms;
@@ -133,6 +146,13 @@ export class Zombie {
       this.attackCooldown -= dt;
     }
     if (this.freezeTimer > 0) this.freezeTimer -= dt;
+
+    // The hook owns movement for a few frames so ordinary AI cannot overwrite
+    // the pull velocity before physics integration.
+    if (this.hookPullTimer > 0) {
+      this.updateHookPull(dt, groundY, sketchBlocks);
+      return;
+    }
 
     // 1. Check Hit Stun
     if (this.hurtTimer > 0) {
@@ -157,28 +177,54 @@ export class Zombie {
 
     const currentSpeed = this.speed * (this.freezeTimer > 0 ? 0.45 : 1.0);
 
-    // 3. AI Behaviors
-    if (player && !player.isDead) {
-      const dx = player.x - this.x;
-      const dy = player.y - this.y;
-      const dist = Math.hypot(dx, dy);
+    // 3. AI Behaviors. Nearby vulnerable allies can intercept attention, but
+    // distant summons never drag a zombie away from Orange across the arena.
+    const combatTargets = this.getCombatTargets(player, friendlyTargets);
+    const target = this.selectCombatTarget(player, friendlyTargets);
 
-      this.facing = dx >= 0 ? 1 : -1;
-
-      // Handle Attack Windup
-      if (this.windupTimer > 0) {
-        this.windupTimer -= dt;
-        this.vx = 0;
-        this.pose = 'attack_jab'; // Raising arms to strike
-        if (this.windupTimer <= 0) {
-          // Windup complete -> execute strike
-          if (dist < 60) {
-            this.bitePlayer(player);
-          }
-        }
+    // A runner's leap has a physical contact hitbox. It can collide with the
+    // ally that blocks its path even if the jump originally started at Orange;
+    // the collision is spatial, not a mid-air target snap.
+    if (this.type === 'runner' && this.leapActive) {
+      const contactTarget = combatTargets
+        .filter((candidate) => this.isValidCombatTarget(candidate)
+          && Math.hypot(candidate.x - this.x, candidate.y - this.y) < 54)
+        .sort((a, b) => Math.hypot(a.x - this.x, a.y - this.y) - Math.hypot(b.x - this.x, b.y - this.y))[0];
+      if (contactTarget) {
+        this.leapActive = false;
+        this.attackCooldown = Math.max(this.attackCooldown, 1.2);
+        audio.playZombieGroan();
+        contactTarget.takeDamage(this.damage, contactTarget.x >= this.x ? 1 : -1, 320);
         this.applyPhysics(dt, groundY, sketchBlocks);
         return;
       }
+      if (this.isGrounded) this.leapActive = false;
+    }
+
+    // Finish only the attack that was visibly telegraphed. If that ally has
+    // already retreated, the bite misses instead of snapping onto Orange.
+    if (this.windupTimer > 0) {
+      this.windupTimer -= dt;
+      this.vx = 0;
+      this.pose = 'attack_jab';
+      if (this.windupTimer <= 0) {
+        const strikeTarget = this.windupTarget;
+        this.windupTarget = null;
+        if (this.isValidCombatTarget(strikeTarget)
+            && Math.hypot(strikeTarget.x - this.x, strikeTarget.y - this.y) < 60) {
+          this.biteTarget(strikeTarget);
+        }
+      }
+      this.applyPhysics(dt, groundY, sketchBlocks);
+      return;
+    }
+
+    if (target) {
+      const dx = target.x - this.x;
+      const dy = target.y - this.y;
+      const dist = Math.hypot(dx, dy);
+
+      this.facing = dx >= 0 ? 1 : -1;
 
       if (this.type === 'walker') {
         // Standard Zombie: Approach, telegraph windup, then bite
@@ -190,6 +236,7 @@ export class Zombie {
           if (this.attackCooldown <= 0) {
             // Start 0.28s windup so player can react and interrupt!
             this.windupTimer = 0.28;
+            this.windupTarget = target;
             this.pose = 'attack_jab';
           } else {
             this.pose = 'zombie_idle';
@@ -202,9 +249,12 @@ export class Zombie {
           this.pose = 'run';
         } else if (dist > 50 && this.isGrounded && this.attackCooldown <= 0) {
           // Leap attack
-          this.vy = -450;
+          // A low, fast arc crosses the target's body instead of harmlessly
+          // sailing over it, while still leaving a readable jump silhouette.
+          this.vy = -320;
           this.vx = this.facing * (currentSpeed * 1.5);
           this.isGrounded = false;
+          this.leapActive = true;
           this.pose = 'jump_rise';
           this.attackCooldown = 1.8;
           audio.playRunnerScreech();
@@ -213,6 +263,7 @@ export class Zombie {
           this.vx = 0;
           if (this.attackCooldown <= 0) {
             this.windupTimer = 0.22;
+            this.windupTarget = target;
             this.pose = 'attack_kick';
           } else {
             this.pose = 'zombie_idle';
@@ -229,7 +280,7 @@ export class Zombie {
         } else {
           this.vx = 0;
           if (this.attackCooldown <= 0) {
-            this.spitAcid(player);
+            this.spitAcid(target);
           } else {
             this.pose = 'zombie_idle';
           }
@@ -242,14 +293,14 @@ export class Zombie {
         } else {
           this.vx = 0;
           if (this.attackCooldown <= 0) {
-            this.bruteSlam(player, camera);
+            this.bruteSlam(combatTargets, camera);
           } else {
             this.pose = 'zombie_idle';
           }
         }
       } else if (this.type === 'titan_boss') {
         // Boss AI
-        this.updateBossAI(dt, dist, player, camera);
+        this.updateBossAI(dt, dist, target, camera, combatTargets);
       }
 
       // Horde Flocking / Separation Force (Prevents single-file smearing)
@@ -275,7 +326,7 @@ export class Zombie {
     this.applyPhysics(dt, groundY, sketchBlocks);
   }
 
-  updateBossAI(dt, dist, player, camera) {
+  updateBossAI(dt, dist, target, camera, combatTargets = [target]) {
     const currentSpeed = this.speed * (this.freezeTimer > 0 ? 0.45 : 1.0);
 
     if (this.hp < this.maxHp * 0.5 && this.bossPhase === 1) {
@@ -293,9 +344,96 @@ export class Zombie {
       this.vx = 0;
       this.pose = 'attack_cross';
       if (this.attackCooldown <= 0) {
-        this.titanSmash(player, camera);
+        this.titanSmash(combatTargets, camera);
       }
     }
+  }
+
+  isValidCombatTarget(target) {
+    if (!target || target.isDead || !Number.isFinite(target.x) || !Number.isFinite(target.y)) return false;
+    if (target.isAlly) return target.isTargetable === true && target.retreating !== true;
+    return true;
+  }
+
+  getCombatTargets(player, friendlyTargets = []) {
+    const targets = [];
+    if (this.isValidCombatTarget(player)) targets.push(player);
+    for (const ally of friendlyTargets || []) {
+      if (this.isValidCombatTarget(ally)) targets.push(ally);
+    }
+    return targets;
+  }
+
+  selectCombatTarget(player, friendlyTargets = []) {
+    const playerIsValid = this.isValidCombatTarget(player);
+    let target = playerIsValid ? player : null;
+    let bestScore = playerIsValid ? Math.hypot(player.x - this.x, player.y - this.y) : Infinity;
+
+    for (const ally of friendlyTargets || []) {
+      if (!this.isValidCombatTarget(ally)) continue;
+      const distance = Math.hypot(ally.x - this.x, ally.y - this.y);
+      // A small aggro bias makes the interception legible without letting a
+      // summon drag enemies across the arena. Calling on the wrong side still
+      // matters, but an ally near Orange is not ignored over a few pixels.
+      const score = distance - 55;
+      if (distance <= 340 && score < bestScore) {
+        target = ally;
+        bestScore = score;
+      }
+    }
+    return target;
+  }
+
+  applyHookPull(source, duration = 0.34, stopDistance = 76) {
+    if (this.isDead || this.hookClass !== 'pullable' || !source) return false;
+    this.hookPullSource = source;
+    this.hookPullSide = source.facing >= 0 ? 1 : -1;
+    this.hookPullTimer = Math.max(this.hookPullTimer, duration);
+    this.hookPullStopDistance = Math.max(58, stopDistance);
+    this.windupTimer = 0;
+    this.windupTarget = null;
+    this.attackCooldown = Math.max(this.attackCooldown, duration + 0.3);
+    if (Math.abs(this.x - source.x) <= this.hookPullStopDistance) {
+      // The hook gathers; it must never push an enemy that is already in the
+      // intended melee pocket farther away from Orange.
+      this.hookPullTimer = 0;
+      this.hookPullSource = null;
+      this.vx = 0;
+    }
+    return true;
+  }
+
+  updateHookPull(dt, groundY, sketchBlocks) {
+    const source = this.hookPullSource;
+    if (!source || source.isDead || !Number.isFinite(source.x)) {
+      this.hookPullTimer = 0;
+      this.hookPullSource = null;
+      this.vx *= 0.3;
+      this.applyPhysics(dt, groundY, sketchBlocks);
+      return;
+    }
+
+    this.hookPullTimer = Math.max(0, this.hookPullTimer - dt);
+    const destinationX = Math.max(
+      -HOOK_PULL_ARENA_BOUND,
+      Math.min(HOOK_PULL_ARENA_BOUND, source.x + this.hookPullSide * this.hookPullStopDistance)
+    );
+    const dx = destinationX - this.x;
+    const distance = Math.abs(dx);
+    this.facing = dx >= 0 ? 1 : -1;
+    this.pose = 'zombie_walk';
+    if (distance <= 12) {
+      this.hookPullTimer = 0;
+      this.hookPullSource = null;
+      this.vx *= 0.2;
+    } else {
+      this.vx = this.facing * Math.min(760, Math.max(360, distance * 4));
+    }
+    if (this.hookPullTimer <= 0) {
+      this.attackCooldown = Math.max(this.attackCooldown, 0.3);
+      this.hookPullSource = null;
+    }
+    this.applyPhysics(dt, groundY, sketchBlocks);
   }
 
   applyPhysics(dt, groundY, sketchBlocks) {
@@ -334,18 +472,18 @@ export class Zombie {
     }
   }
 
-  bitePlayer(player) {
+  biteTarget(target) {
     this.attackCooldown = 1.2;
     audio.playZombieGroan();
-    player.takeDamage(this.damage, this.facing, 250);
+    target.takeDamage(this.damage, this.facing, 250);
   }
 
-  spitAcid(player) {
+  spitAcid(target) {
     this.attackCooldown = 2.4;
     audio.playSpitterSpit();
-    const dx = player.x - this.x;
-    const dy = (player.y - 30) - (this.y - 40);
-    const dist = Math.hypot(dx, dy);
+    const dx = target.x - this.x;
+    const dy = (target.y - (target.height || 60) * 0.5) - (this.y - 40);
+    const dist = Math.hypot(dx, dy) || 1;
     const speed = 420;
     const vx = (dx / dist) * speed;
     const vy = (dy / dist) * speed - 120;
@@ -353,28 +491,30 @@ export class Zombie {
     projectiles.spawnAcidBlob(this.x + this.facing * 20, this.y - 40, vx, vy);
   }
 
-  bruteSlam(player, camera) {
+  bruteSlam(targets, camera) {
     this.attackCooldown = 2.6;
     audio.playBruteStomp();
-    camera.addShake(0.4);
+    camera?.addShake?.(0.4);
     particles.addShockwave(this.x + this.facing * 40, this.y, 140, '#228833', 10);
 
-    const dist = Math.hypot(player.x - this.x, player.y - this.y);
-    if (dist < 150) {
-      player.takeDamage(this.damage, this.facing, 500);
+    for (const target of targets || []) {
+      if (!this.isValidCombatTarget(target)) continue;
+      const dist = Math.hypot(target.x - this.x, target.y - this.y);
+      if (dist < 150) target.takeDamage(this.damage, target.x >= this.x ? 1 : -1, 500);
     }
   }
 
-  titanSmash(player, camera) {
+  titanSmash(targets, camera) {
     this.attackCooldown = 2.2;
     audio.playBossRoar();
-    camera.addShake(0.8);
+    camera?.addShake?.(0.8);
     particles.addShockwave(this.x + this.facing * 50, this.y, 240, '#ff2244', 16);
     particles.createHitSparks(this.x, this.y, 25, '#ff3344');
 
-    const dist = Math.hypot(player.x - this.x, player.y - this.y);
-    if (dist < 220) {
-      player.takeDamage(this.damage, this.facing, 700);
+    for (const target of targets || []) {
+      if (!this.isValidCombatTarget(target)) continue;
+      const dist = Math.hypot(target.x - this.x, target.y - this.y);
+      if (dist < 220) target.takeDamage(this.damage, target.x >= this.x ? 1 : -1, 700);
     }
   }
 
@@ -385,6 +525,8 @@ export class Zombie {
     this.isHurt = true;
     this.hurtTimer = 0.32; // Hit-stun duration
     this.windupTimer = 0; // Interrupt any pending attack immediately!
+    this.windupTarget = null;
+    this.leapActive = false;
     this.attackCooldown = Math.max(this.attackCooldown, 0.5); // Delay next attack
 
     // Apply knockback
@@ -405,6 +547,7 @@ export class Zombie {
 
   applyStun(duration = 3.0) {
     this.stunTimer = Math.max(this.stunTimer, duration);
+    this.leapActive = false;
   }
 
   die(isFinisher = false) {

@@ -33,6 +33,8 @@ class InputManager {
       blockPressed: false,
       grab: false,
       grabPressed: false,
+      hook: false,
+      hookPressed: false,
       super: false,
       superPressed: false
     };
@@ -55,12 +57,15 @@ class InputManager {
       blockPressed: false,
       grab: false,
       grabPressed: false,
+      hook: false,
+      hookPressed: false,
       super: false,
       superPressed: false,
       ally1: false,
       ally2: false,
       ally3: false,
       ally4: false,
+      ally5: false,
       shop: false,
       pause: false
     };
@@ -180,11 +185,13 @@ class InputManager {
     bindBtn('vbtn-roll', 'roll');
     bindBtn('vbtn-block', 'block');
     bindBtn('vbtn-grab', 'grab');
+    bindBtn('vbtn-hook', 'hook');
 
     // Bottom HUD skill slot buttons (clickable on desktop and touch)
     bindBtn('skill-punch', 'attack');
     bindBtn('skill-pencil', 'weapon');
     bindBtn('skill-grab', 'grab');
+    bindBtn('skill-hook', 'hook');
     bindBtn('skill-roll', 'roll');
     bindBtn('skill-block', 'block');
     bindBtn('skill-super', 'super');
@@ -222,6 +229,10 @@ class InputManager {
     // Grab & Throw (F, G)
     this.actions.grab = !!(this.keys['KeyF'] || this.keys['KeyG'] || this.touch.grab);
     this.actions.grabPressed = !!(this.keysPressed['KeyF'] || this.keysPressed['KeyG'] || this.touch.grabPressed);
+
+    // Vector Hook (H or touch/gamepad). One press casts one bounded chain.
+    this.actions.hook = !!(this.keys['KeyH'] || this.touch.hook);
+    this.actions.hookPressed = !!(this.keysPressed['KeyH'] || this.touch.hookPressed);
 
     // Awakening Super (R)
     this.actions.super = !!(this.keys['KeyR'] || this.touch.super);
@@ -268,6 +279,7 @@ class InputManager {
       [1, 'roll'],
       [5, 'block'],
       [4, 'grab'],
+      [6, 'hook'],
       [7, 'super']
     ];
     for (const [index, action] of heldBindings) {
@@ -301,6 +313,7 @@ class InputManager {
     this.touch.rollPressed = false;
     this.touch.blockPressed = false;
     this.touch.grabPressed = false;
+    this.touch.hookPressed = false;
     this.touch.superPressed = false;
     this.actions.jumpPressed = false;
     this.actions.attackPressed = false;
@@ -309,6 +322,7 @@ class InputManager {
     this.actions.blockPressed = false;
     this.actions.superPressed = false;
     this.actions.grabPressed = false;
+    this.actions.hookPressed = false;
     this.actions.ally1 = false;
     this.actions.ally2 = false;
     this.actions.ally3 = false;

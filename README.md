@@ -39,6 +39,7 @@ python3 -m http.server 8088
 | **Rising Dragon** | `↑` + `Q` | Launches nearby enemies into an aerial combo |
 | **Dive Kick / Ground Slam** | In mid-air: `↓` + `Q` / `W` | Plummets down and explodes into a shockwave on landing |
 | **Grab & Throw** | `F`, `G`, or `Q` + `W` | Grabs a nearby zombie and turns it into a crowd-clearing projectile |
+| **Vector Hook** | `H`, touch 🪝, or gamepad LT | Pulls nearby walkers and spitters into melee range; a brute or boss in the hook lane pulls Orange instead |
 | **Sketch Block / Anvil Drop** | `E`; `↓` + `E` or airborne `E` | Places a ground block, or drops an upgraded anvil from above |
 | **Roll Follow-up** | `Shift` / `L`, then `Q` or `W` | Converts a dodge into a low slide sweep |
 | **⚡ AWAKENING GOD MODE** | `R` (when meter is 100%) | Enter Awakening, then hold `W` or `Q` for the beam |
@@ -77,6 +78,12 @@ Fifteen computer-desktop stages with obstacles, platforms, a clear **Start Door*
 3. **Toxic Spitters**: Ranged zombies that maintain their distance and launch hazardous acid puddles.
 4. **Heavy Brutes**: Massive armored tank zombies that smash the ground causing shockwaves.
 5. **The Titan Undead (Boss)**: A multi-phase giant boss with enrage phases, seismic stomps, and minion swarms.
+
+### Tactical assists and the hook
+
+- Nearby zombies can intercept Red, Blue, Yellow, or Green during their entrance and action. One hit forces that ally to retreat and adds an injury delay to their cooldown, shown with a red `↻` timer on the summon slot.
+- Summon beside open space or after interrupting the nearest attacker. An ally that finishes its move returns on the normal timer; the Animator cursor remains an untargetable UI assist.
+- The Vector Hook reaches 420 world units in Orange's facing direction. It gathers every walker and spitter in that lane, leaves fast runners alone, and reverses if a brute, Titan, or story boss is caught. The hook deals no damage and grants no invulnerability.
 
 ---
 

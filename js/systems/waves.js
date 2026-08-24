@@ -129,7 +129,7 @@ export class WaveDirector {
     }
   }
 
-  update(dt, player, groundY, sketchBlocks, camera, onWaveComplete, platforms = []) {
+  update(dt, player, groundY, sketchBlocks, camera, onWaveComplete, platforms = [], friendlyTargets = []) {
     if (!this.isWaveActive) return;
 
     // Handle Spawning
@@ -149,7 +149,7 @@ export class WaveDirector {
     // Update active zombies / bosses
     for (let i = this.zombies.length - 1; i >= 0; i--) {
       const z = this.zombies[i];
-      z.update(dt, groundY, player, sketchBlocks, camera, platforms, this.zombies);
+      z.update(dt, groundY, player, sketchBlocks, camera, platforms, this.zombies, friendlyTargets);
 
       if (z.isDead) {
         this.zombies.splice(i, 1);

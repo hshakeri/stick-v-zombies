@@ -51,7 +51,7 @@ export class ProjectileManager {
     }
   }
 
-  update(dt, groundY, zombies, player, camera) {
+  update(dt, groundY, zombies, player, camera, friendlyTargets = []) {
     // 1. Update Projectiles
     this.isUpdatingProjectiles = true;
     try {
@@ -172,11 +172,28 @@ export class ProjectileManager {
         continue;
       }
 
-      // Check collision with Player (for hostile projectiles like Acid, Dark Waves, Virabots)
-      if (p.isHostile && player && !player.isRolling && !player.isAwakened) {
-        const dist = Math.hypot(p.x - player.x, p.y - (player.y - 30));
-        if (dist < p.radius + 20) {
-          player.takeDamage(p.damage, p.vx > 0 ? 1 : -1);
+      // Hostile shots can intercept a vulnerable summon as well as Orange.
+      if (p.isHostile) {
+        let collided = false;
+        if (player && !player.isRolling && !player.isAwakened) {
+          const dist = Math.hypot(p.x - player.x, p.y - (player.y - 30));
+          if (dist < p.radius + 20) {
+            player.takeDamage(p.damage, p.vx > 0 ? 1 : -1);
+            collided = true;
+          }
+        }
+        if (!collided) {
+          for (const ally of friendlyTargets || []) {
+            if (!ally || ally.isTargetable !== true || ally.retreating || ally.isDead) continue;
+            const dist = Math.hypot(p.x - ally.x, p.y - (ally.y - (ally.height || 60) * 0.5));
+            if (dist < p.radius + (ally.radius || 18)) {
+              ally.takeDamage(p.damage, p.vx > 0 ? 1 : -1);
+              collided = true;
+              break;
+            }
+          }
+        }
+        if (collided) {
           particles.createHitSparks(p.x, p.y, 8, '#ff0033');
           if (p.type !== 'virabot') {
             this.projectiles.splice(i, 1);
@@ -222,12 +239,23 @@ export class ProjectileManager {
         continue;
       }
 
-      // Damage player if standing in acid
-      if (player && !player.isRolling && h.tickTimer <= 0) {
-        if (Math.abs(player.x - h.x) < h.radius && Math.abs(player.y - h.y) < 20) {
+      // Damage player or a vulnerable ally standing in acid.
+      if (h.tickTimer <= 0) {
+        let hitTarget = false;
+        if (player && !player.isRolling
+            && Math.abs(player.x - h.x) < h.radius && Math.abs(player.y - h.y) < 20) {
           player.takeDamage(h.damage, 0);
-          h.tickTimer = 0.5; // Tick every half second
+          hitTarget = true;
         }
+        for (const ally of friendlyTargets || []) {
+          if (!ally || ally.isTargetable !== true || ally.retreating || ally.isDead) continue;
+          if (Math.abs(ally.x - h.x) < h.radius + (ally.radius || 18)
+              && Math.abs(ally.y - h.y) < 24) {
+            ally.takeDamage(h.damage, ally.x >= h.x ? 1 : -1);
+            hitTarget = true;
+          }
+        }
+        if (hitTarget) h.tickTimer = 0.5;
       }
     }
 
