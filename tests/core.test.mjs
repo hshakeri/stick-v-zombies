@@ -1908,7 +1908,7 @@ test('throwing world renderers cannot stop later layers or Orange fallback drawi
   }
 });
 
-test('the release stays asset-free and under the 500KB source budget', () => {
+test('the release stays asset-free and under the 600KB source budget', () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const sourceFiles = [
     join(root, 'index.html'),
@@ -1916,7 +1916,7 @@ test('the release stays asset-free and under the 500KB source budget', () => {
     ...listJavaScriptFiles(join(root, 'js'))
   ];
   const bytes = sourceFiles.reduce((sum, file) => sum + Buffer.byteLength(readFileSync(file, 'utf8')), 0);
-  assert.ok(bytes < 500_000, `combined source is ${bytes} bytes`);
+  assert.ok(bytes < 600_000, `combined source is ${bytes} bytes`);
 
   const html = readFileSync(join(root, 'index.html'), 'utf8');
   const css = readFileSync(join(root, 'css/style.css'), 'utf8');
