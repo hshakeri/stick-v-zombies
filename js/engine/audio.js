@@ -887,6 +887,9 @@ class SoundEngine {
       } catch (e) {}
     }
   }
+  setWhiteVoid(on) {
+    this.whiteVoidMode = on === true;
+  }
   setMusicAct(act) {
     const settings = { 1: [0, 120], 2: [3, 128], 3: [5, 136], 4: [-2, 132] }[act] || [0, 120];
     this.musicAct = act;
@@ -902,6 +905,12 @@ class SoundEngine {
     if (!this.enabled || !this.ctx || this.ctx.state === 'suspended') return;
     try {
       const t = Number.isFinite(when) ? when : this.ctx.currentTime;
+      if (this.whiteVoidMode) {
+        // Inside the white void: a lone heartbeat kick and a low drone.
+        if (step % 8 === 0) this.synthesizeDrum('kick', t, 0.3);
+        if (step % 16 === 0) this.synthesizeSynthNote(55 * this.actTranspose, t, 1.6, 'sine', 0.1);
+        return;
+      }
       if (step % 4 === 0) {
         this.synthesizeDrum('kick', t);
       }

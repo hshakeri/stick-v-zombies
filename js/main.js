@@ -984,7 +984,14 @@ export class Game {
     const width = this.canvas.clientWidth || window.innerWidth;
     const height = this.canvas.clientHeight || window.innerHeight;
 
-    ctx.fillStyle = '#1e212d';
+    // The clear color rides the white-void blend: dark desktop -> paper.
+    const voidBlend = this.stageManager.whiteVoidProgress || 0;
+    if (voidBlend > 0) {
+      const mix = (a, b) => Math.round(a + (b - a) * voidBlend);
+      ctx.fillStyle = `rgb(${mix(30, 242)}, ${mix(33, 239)}, ${mix(45, 232)})`;
+    } else {
+      ctx.fillStyle = '#1e212d';
+    }
     ctx.fillRect(0, 0, width, height);
 
     this.camera.apply(ctx);

@@ -4,6 +4,7 @@ import { audio } from '../engine/audio.js?v=8.8';
 import { projectiles } from './projectiles.js?v=8.8';
 import { combat } from '../systems/combat.js?v=8.8';
 import { speech } from '../engine/speech.js?v=8.8';
+import { stages } from '../systems/stages.js?v=8.8';
 const ARENA_MIN_X = -980;
 const ARENA_MAX_X = 980;
 const CYAN = '#00f5ff';
@@ -123,6 +124,9 @@ export class H4C3R {
     particles.addShockwave(this.x, this.y - 34, 220, CYAN, 12);
     particles.addTextBanner(this.x, this.y - 105, 'FIREWALL: OFFLINE', LIME);
     this.sayCorpus('phase', 1.55);
+    // The system crashes to a blank canvas — the AvA blank-.fla showdown.
+    stages.beginWhiteVoid?.();
+    audio.setWhiteVoid?.(true);
   }
   updateAI(dt, player, camera) {
     if (!player || player.isDead) {
@@ -427,6 +431,9 @@ export class H4C3R {
     this.state = 'defeated';
     this.clearOwnedProjectiles();
     combat.registerKill(this);
+    // Color floods back into the desktop on the killing blow.
+    stages.endWhiteVoid?.();
+    audio.setWhiteVoid?.(false);
     audio.playBossVictoryFanfare();
     audio.playZombieDeath();
     speech.shoutBoss(this.x, this.y, 'h4c3r', 'defeat', 1.8, {
@@ -461,6 +468,11 @@ export class H4C3R {
   }
   draw(ctx) {
     if (this.isDead) return;
+    // Inside the white void the boss re-inks as near-black line work on
+    // paper — Orange keeps his color; the villain becomes the drawing.
+    const voidInk = (stages.whiteVoidProgress || 0) > 0.6;
+    this.renderer.color = voidInk ? '#16181d' : this.color;
+    this.renderer.glowColor = voidInk ? null : CYAN;
     this.drawAttackLayer(ctx);
     this.drawDashDecoys(ctx);
     this.renderer.draw(ctx, {

@@ -225,6 +225,10 @@ export class StageManager {
 		this.exitFocusTimer = -1;
 		this.stageTime = 0;
 		this.campaignBeat = CAMPAIGN_BEATS[stage];
+		this.whiteVoidTarget = 0;
+		this.whiteVoidProgress = 0;
+		this.whiteVoidGlitch = 0;
+		audio.setWhiteVoid?.(false);
 
 		this.platforms = [];
 		this.movingPlatforms = [];
@@ -785,9 +789,31 @@ export class StageManager {
 		];
 	}
 
+	// --- White void ----------------------------------------------------------
+	// The one Alan Becker blank-.fla callback: H4C3R's last phase crashes the
+	// system to a paper-white canvas; color floods back on the killing blow.
+	beginWhiteVoid() {
+		this.whiteVoidTarget = 1;
+		this.whiteVoidGlitch = 0.8;
+	}
+
+	endWhiteVoid() {
+		this.whiteVoidTarget = 0;
+	}
+
 	update(dt, player, wavesDirector, onStageExit, camera = null) {
 		const safeDt = Math.max(0, Math.min(Number(dt) || 0, 0.1));
 		this.stageTime += safeDt;
+
+		const voidTarget = this.whiteVoidTarget || 0;
+		if (this.whiteVoidProgress !== voidTarget) {
+			const rate = voidTarget > this.whiteVoidProgress ? 1.4 : 2.0; // flood back faster
+			const step = rate * safeDt;
+			this.whiteVoidProgress = voidTarget > this.whiteVoidProgress
+				? Math.min(voidTarget, this.whiteVoidProgress + step)
+				: Math.max(voidTarget, this.whiteVoidProgress - step);
+		}
+		if (this.whiteVoidGlitch > 0) this.whiteVoidGlitch = Math.max(0, this.whiteVoidGlitch - safeDt);
 
 		if (this.exitFocusTimer > 0) {
 			this.exitFocusTimer -= safeDt;
@@ -933,11 +959,13 @@ export class StageManager {
 
 	draw(ctx, groundY, crowded = false) {
 		this.crowdedRender = crowded;
-		this.drawDesktopBackground(ctx, groundY);
-
-		this.drawDesktopIcons(ctx);
-
-		this.drawErrorPopups(ctx);
+		const voidBlend = this.whiteVoidProgress || 0;
+		if (voidBlend < 0.999) {
+			this.drawDesktopBackground(ctx, groundY);
+			this.drawDesktopIcons(ctx);
+			this.drawErrorPopups(ctx);
+		}
+		if (voidBlend > 0) this.drawWhiteVoid(ctx, groundY, voidBlend);
 
 		this.drawDoors(ctx, groundY);
 
@@ -945,7 +973,44 @@ export class StageManager {
 
 		this.drawLaserHazards(ctx);
 
-		this.drawTaskbar(ctx, groundY);
+		if (voidBlend < 0.6) this.drawTaskbar(ctx, groundY);
+	}
+
+	drawWhiteVoid(ctx, groundY, blend) {
+		const minX = this.bounds.minX - 1600;
+		const maxX = this.bounds.maxX + 1600;
+		const minY = this.bounds.minY - 1000;
+		ctx.save();
+		ctx.globalAlpha = blend;
+		ctx.fillStyle = '#f2efe8';
+		ctx.fillRect(minX, minY, maxX - minX, groundY - minY);
+		ctx.strokeStyle = '#1c1e24';
+		ctx.lineWidth = 3;
+		ctx.globalAlpha = blend * 0.9;
+		ctx.beginPath();
+		ctx.moveTo(minX, groundY + 2);
+		ctx.lineTo(maxX, groundY + 2);
+		ctx.stroke();
+		if (blend > 0.8) {
+			ctx.globalAlpha = (blend - 0.8) * 3;
+			ctx.fillStyle = '#9a958a';
+			ctx.font = '12px monospace';
+			ctx.textAlign = 'left';
+			ctx.fillText('untitled.fla — 100% — no layers', this.bounds.minX + 40, this.bounds.minY + 60);
+		}
+		// The crash-to-canvas glitch tear: horizontal shear bars during onset.
+		if (this.whiteVoidGlitch > 0) {
+			const bars = 7;
+			for (let i = 0; i < bars; i++) {
+				const seed = (Math.floor(this.stageTime * 18) * 31 + i * 97) | 0;
+				const jitter = ((Math.imul(seed, 0x9E3779B1) >>> 16) % 200) - 100;
+				const barY = this.bounds.minY + ((i + 0.5) / bars) * (groundY - this.bounds.minY);
+				ctx.globalAlpha = Math.min(0.7, this.whiteVoidGlitch);
+				ctx.fillStyle = i % 2 === 0 ? '#16181d' : '#67e8f9';
+				ctx.fillRect(this.bounds.minX + jitter, barY, this.bounds.maxX - this.bounds.minX, 5 + (i % 3) * 3);
+			}
+		}
+		ctx.restore();
 	}
 
 	drawDesktopBackground(ctx, groundY) {
