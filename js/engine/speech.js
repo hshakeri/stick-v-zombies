@@ -145,6 +145,34 @@ function addRoundedRect(ctx, x, y, width, height, radius) {
   if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y, width, height, radius);
   else ctx.rect(x, y, width, height);
 }
+// Deterministic wobble for hand-inked bubble outlines (same idea as the
+// stick-figure line boil: re-seeded on a slow clock, never per frame).
+function wobbleHash(seed) {
+  let h = Math.imul(seed | 0, 0x9E3779B1);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x85EBCA6B);
+  h ^= h >>> 13;
+  return ((h >>> 0) / 4294967295) * 2 - 1;
+}
+function addWobblyBubblePath(ctx, x, y, width, height, seed) {
+  const per = 10; // sample points per edge pair
+  const pts = [];
+  for (let i = 0; i < per; i++) pts.push([x + (width * i) / per, y]);
+  for (let i = 0; i < per / 2; i++) pts.push([x + width, y + (height * i) / (per / 2)]);
+  for (let i = 0; i < per; i++) pts.push([x + width - (width * i) / per, y + height]);
+  for (let i = 0; i < per / 2; i++) pts.push([x, y + height - (height * i) / (per / 2)]);
+  for (let i = 0; i < pts.length; i++) {
+    pts[i][0] += wobbleHash(seed + i * 97) * 1.6;
+    pts[i][1] += wobbleHash(seed + i * 97 + 41) * 1.6;
+  }
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i <= pts.length; i++) {
+    const current = pts[i % pts.length];
+    const previous = pts[i - 1];
+    ctx.quadraticCurveTo(previous[0], previous[1], (previous[0] + current[0]) / 2, (previous[1] + current[1]) / 2);
+  }
+  ctx.closePath();
+}
 function measureWidth(ctx, text) {
   const metrics = ctx.measureText?.(text);
   return Number.isFinite(metrics?.width) ? metrics.width : String(text).length * 8;
@@ -344,7 +372,7 @@ export class SpeechBubbleManager {
     for (const bubble of this.bubbles) layoutOrder.push(bubble);
     layoutOrder.sort(compareLayoutPriority);
     ctx.save();
-    ctx.font = "800 14px system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    ctx.font = "700 14px 'Comic Sans MS', 'Chalkboard SE', 'Comic Neue', sans-serif";
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
@@ -375,7 +403,14 @@ export class SpeechBubbleManager {
       , candidates[0]);
       placed.push({ x: centerX, y: centerY, w: bubbleW, h: bubbleH });
       const alpha = bubble.life < 0.24 ? clamp(bubble.life / 0.24, 0, 1) : 1;
-      const [bgColor, borderColor, textColor, accentColor] = bubblePalette(bubble.speakerType);
+      // Comic-book paint: every bubble is white with a wobbling black ink
+      // outline and black text; the speaker keeps their identity through
+      // the accent keyline and the tail pointing at them.
+      const accentColor = bubblePalette(bubble.speakerType)[1];
+      const bgColor = '#ffffff';
+      const borderColor = '#16181d';
+      const textColor = '#101318';
+      const wobbleSeed = Math.floor((bubble.maxLife - bubble.life) * 10) * 47 + bubble.leaderTick * 13;
       const speakerBelow = speaker.y >= centerY;
       const tailBaseY = speakerBelow ? halfH - 1 : -halfH + 1;
       const tailTipY = speakerBelow ? halfH + 11 : -halfH - 11;
@@ -406,7 +441,7 @@ export class SpeechBubbleManager {
       }
       ctx.beginPath();
       ctx.moveTo(tailX - 7, tailBaseY);
-      ctx.lineTo(tailX, tailTipY);
+      ctx.lineTo(tailX + wobbleHash(wobbleSeed + 5) * 2, tailTipY);
       ctx.lineTo(tailX + 7, tailBaseY);
       ctx.closePath();
       ctx.fillStyle = bgColor;
@@ -414,27 +449,24 @@ export class SpeechBubbleManager {
       ctx.lineWidth = 2.5;
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
-      ctx.beginPath();
-      addRoundedRect(ctx, -halfW + 4, -halfH + 4, bubbleW, bubbleH, 7);
-      ctx.fill();
       ctx.fillStyle = bgColor;
       ctx.strokeStyle = borderColor;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      addRoundedRect(ctx, -halfW, -halfH, bubbleW, bubbleH, 7);
+      addWobblyBubblePath(ctx, -halfW, -halfH, bubbleW, bubbleH, wobbleSeed);
       ctx.fill();
       ctx.stroke();
-      ctx.fillStyle = accentColor;
-      ctx.fillRect(-halfW + 4, -halfH + 4, 4, 4);
-      ctx.fillRect(halfW - 8, -halfH + 4, 4, 4);
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.beginPath();
+      addRoundedRect(ctx, -halfW + 3.5, -halfH + 3.5, bubbleW - 7, bubbleH - 7, 6);
+      ctx.stroke();
+      ctx.globalAlpha = alpha;
       ctx.fillStyle = textColor;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-      ctx.lineWidth = 1;
       const firstLineY = -((lines.length - 1) * 17) / 2;
       lines.forEach((line, index) => {
         const lineY = firstLineY + index * 17;
-        ctx.strokeText(line, 0, lineY);
         ctx.fillText(line, 0, lineY);
       });
       ctx.restore();

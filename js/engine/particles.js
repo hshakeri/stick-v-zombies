@@ -431,7 +431,7 @@ export class ParticleSystem {
       ctx.fill();
       ctx.stroke();
 
-      ctx.font = "900 18px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
+      ctx.font = "900 18px 'Bungee', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.strokeStyle = '#000000';
@@ -454,8 +454,8 @@ export class ParticleSystem {
       ctx.scale(scale, scale);
 
       ctx.font = t.isCrit
-        ? "900 22px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif"
-        : "bold 16px 'Nunito', sans-serif";
+        ? "900 22px 'Bungee', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif"
+        : "bold 16px 'Trebuchet MS', sans-serif";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 

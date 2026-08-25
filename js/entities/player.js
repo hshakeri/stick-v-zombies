@@ -119,6 +119,11 @@ export class Player {
     this.ghostTrails = [];
     this.ghostTrailTimer = 0;
     this.airJuggleTarget = null;
+    this.spawnProgress = 1; // 0..1: Orange is re-drawn limb by limb on stage entry
+  }
+
+  beginDrawIn() {
+    this.spawnProgress = 0;
   }
 
   update(dt, input, groundY, sketchBlocks, zombies, camera, platforms = []) {
@@ -144,6 +149,10 @@ export class Player {
 
     this.squashX += (1.0 - this.squashX) * Math.min(1, 14.0 * dt);
     this.squashY += (1.0 - this.squashY) * Math.min(1, 14.0 * dt);
+    if (this.spawnProgress < 1) {
+      this.spawnProgress = Math.min(1, this.spawnProgress + dt / 0.5);
+      particles.createPencilLeadTrail?.(this.x + (Math.random() - 0.5) * 20, this.y - 30 - Math.random() * 30, 1);
+    }
 
     const targetLean = this.isGrounded ? (this.vx / 450) * 0.16 : (this.vx / 600) * 0.08;
     this.leanAngle += (targetLean - this.leanAngle) * Math.min(1, 12.0 * dt);
@@ -1335,7 +1344,8 @@ export class Player {
       squashX: this.squashX,
       squashY: this.squashY,
       leanAngle: this.leanAngle,
-      actionPhase: this.activeMove ? this.moveProgress : null
+      actionPhase: this.activeMove ? this.moveProgress : null,
+      drawProgress: this.spawnProgress
     });
 
     if (this.isAwakened && this.isFiringLaser && this.pose !== 'roll') {

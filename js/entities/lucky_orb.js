@@ -437,7 +437,7 @@ export class LuckyOrb {
 		ctx.save();
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
-		ctx.font = "900 16px 'Arial Black', Impact, sans-serif";
+		ctx.font = "900 16px 'Bungee', 'Arial Black', Impact, sans-serif";
 		if (this.state === 'roll_windup') {
 			// Three landing markers joined by dashed hop arcs — the gaps
 			// between markers are the safe ground.
@@ -493,7 +493,7 @@ export class LuckyOrb {
 
 	drawFragments(ctx, front) {
 		ctx.save();
-		ctx.font = '900 10px Impact, sans-serif';
+		ctx.font = "900 10px 'Bungee', Impact, sans-serif";
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 		for (let i = 0; i < 3; i++) {
@@ -528,7 +528,7 @@ export class LuckyOrb {
 			ctx.strokeStyle = index === 2 ? '#651512' : '#754100';
 			ctx.fillRect(-size, -size, size * 2, size * 2); ctx.strokeRect(-size, -size, size * 2, size * 2);
 			ctx.fillStyle = index === 2 ? '#fff4df' : '#4a2600';
-			ctx.font = `900 ${Math.round(size * 1.3)}px Impact, sans-serif`;
+			ctx.font = `900 ${Math.round(size * 1.3)}px 'Bungee', Impact, sans-serif`;
 			ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 			ctx.fillText(index === 2 ? 'T' : '?', 0, 1);
 		}

@@ -1280,7 +1280,7 @@ export class StageManager {
 			ctx.fillText(icon.icon, icon.x, icon.y - 15);
 
 			ctx.fillStyle = '#ffffff';
-			ctx.font = "bold 10px 'Nunito', sans-serif";
+			ctx.font = "bold 10px 'Trebuchet MS', sans-serif";
 			ctx.fillText(icon.label, icon.x, icon.y + 20);
 			ctx.restore();
 		}
@@ -1318,7 +1318,7 @@ export class StageManager {
 		ctx.fillRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
 		ctx.strokeRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
 		ctx.fillStyle = '#38bdf8';
-		ctx.font = "900 11px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
+		ctx.font = "900 11px 'Bungee', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
 		ctx.textAlign = 'center';
 		ctx.fillText("START", this.entranceDoor.x, groundY - this.entranceDoor.height - 8);
 		ctx.restore();
@@ -1348,12 +1348,12 @@ export class StageManager {
 
 			const bounce = Math.sin(this.stageTime * 8) * 8;
 			ctx.fillStyle = '#ffea00';
-			ctx.font = "900 13px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
+			ctx.font = "900 13px 'Bungee', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
 			ctx.textAlign = 'center';
 			ctx.fillText("⬇ ENTER EXIT ⬇", this.exitDoor.x, groundY - this.exitDoor.height - 16 + bounce);
 		} else {
 			ctx.fillStyle = '#ef4444';
-			ctx.font = "900 11px Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
+			ctx.font = "900 11px 'Bungee', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
 			ctx.textAlign = 'center';
 			ctx.fillText("🔒 LOCKED", this.exitDoor.x, groundY - this.exitDoor.height - 8);
 		}
@@ -1396,7 +1396,7 @@ export class StageManager {
 			ctx.beginPath(); ctx.arc(p.x + halfW - 6, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
 
 			ctx.fillStyle = p.appType === 'dark_core' ? '#ff6688' : (p.appType === 'bsod' ? '#ffffff' : '#94a3b8');
-			ctx.font = "bold 9px 'Nunito', sans-serif";
+			ctx.font = "bold 9px 'Trebuchet MS', sans-serif";
 			ctx.textAlign = 'left';
 			ctx.fillText(p.title, p.x - halfW + 8, topY + 7);
 			ctx.restore();
@@ -1449,7 +1449,7 @@ export class StageManager {
 		ctx.fillStyle = '#0078d7';
 		ctx.fillRect(this.bounds.minX + 10, groundY + 6, 80, 30);
 		ctx.fillStyle = '#ffffff';
-		ctx.font = "bold 12px 'Nunito', sans-serif";
+		ctx.font = "bold 12px 'Trebuchet MS', sans-serif";
 		ctx.textAlign = 'center';
 		ctx.fillText("🪟 START", this.bounds.minX + 50, groundY + 25);
 
@@ -1459,7 +1459,7 @@ export class StageManager {
 			ctx.fillStyle = i === 0 ? '#262a3e' : '#181a26';
 			ctx.fillRect(tx, groundY + 6, 150, 28);
 			ctx.fillStyle = '#a5accb';
-			ctx.font = "11px 'Nunito', sans-serif";
+			ctx.font = "11px 'Trebuchet MS', sans-serif";
 			ctx.textAlign = 'center';
 			ctx.fillText(tab, tx + 75, groundY + 23);
 		});
@@ -1499,7 +1499,7 @@ export class StageManager {
 			ctx.strokeRect(x - 34, y - 16, 68, 32);
 		}
 		ctx.fillStyle = '#d1fae5';
-		ctx.font = "900 11px 'Nunito', sans-serif";
+		ctx.font = "900 11px 'Trebuchet MS', sans-serif";
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 		ctx.fillText(isLeft ? '◀ EXIT' : 'EXIT ▶', x, y);

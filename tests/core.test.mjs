@@ -74,7 +74,7 @@ test('browser module graph uses one coherent cache version', () => {
   assert.ok(importCount >= 60, `expected the complete module graph, found ${importCount} imports`);
 });
 
-test('display typography uses an asset-free retro pop-art stack', () => {
+test('display typography is self-contained: embedded subset plus safe fallbacks', () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const css = readFileSync(join(root, 'css/style.css'), 'utf8');
   const html = readFileSync(join(root, 'index.html'), 'utf8');
@@ -83,8 +83,18 @@ test('display typography uses an asset-free retro pop-art stack', () => {
     readFileSync(join(root, 'js/systems/stages.js'), 'utf8')
   ].join('\n');
 
-  assert.match(css, /--font-pop-art:\s*Impact,/);
-  assert.doesNotMatch(`${css}\n${html}\n${canvasSources}`, /Permanent Marker|Bungee|cursive/i);
+  // The pop-art face is an embedded OFL subset (a data URI — zero remote
+  // downloads) with Impact leading the fallback chain for platforms that
+  // block data fonts.
+  assert.match(css, /--font-pop-art:\s*'Bungee', Impact,/);
+  const fontFace = css.match(/@font-face\s*{[^}]+}/);
+  assert.ok(fontFace, 'the display font must ship as an @font-face block');
+  assert.match(fontFace[0], /src:\s*url\(data:font\/woff2;base64,/, 'the font must embed as a data URI');
+  assert.match(css, /SIL Open Font License/i, 'the OFL notice must accompany the embed');
+  const base64Payload = fontFace[0].match(/base64,([A-Za-z0-9+/=]+)/)?.[1] ?? '';
+  assert.ok(base64Payload.length > 0 && base64Payload.length < 40_000, 'the embedded subset stays small');
+  assert.doesNotMatch(`${css}\n${html}\n${canvasSources}`, /Permanent Marker|cursive/i);
+  assert.doesNotMatch(css, /url\(\s*["']?https?:\/\//i, 'fonts must never be fetched remotely');
 });
 
 function createCanvasContextMock() {

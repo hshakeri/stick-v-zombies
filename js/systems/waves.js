@@ -334,7 +334,7 @@ export class WaveDirector {
     }
 
     ctx.save();
-    ctx.font = "900 12px 'Nunito', sans-serif";
+    ctx.font = "900 12px 'Trebuchet MS', sans-serif";
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const [side, group] of Object.entries(groups)) {

@@ -42,6 +42,8 @@ export class Game {
     this.applySavedSettings();
     this.bindUIEvents();
     this.syncContinueButton();
+    // Warm the embedded display font so canvas text never flashes fallback.
+    document.fonts?.load?.('900 18px Bungee').catch?.(() => {});
 
     requestAnimationFrame((timestamp) => {
       this.lastTime = timestamp;
@@ -279,6 +281,7 @@ export class Game {
       }
       this.player.hp = this.player.maxHp;
     }
+    this.player.beginDrawIn?.();
     this.camera.snapTo(this.player);
     waves.startWave(stage);
     this.prepareWeaponPickup(stage);
@@ -317,6 +320,7 @@ export class Game {
     this.player.isGrounded = true;
     this.player.weaponType = 'pencil';
     this.player.temporaryWeaponTimer = 0;
+    this.player.beginDrawIn?.();
     this.camera.snapTo(this.player);
     this.camera.clearTransient?.();
     this.reportedLayerErrors.clear();
@@ -481,6 +485,7 @@ export class Game {
     const baselineHeal = this.player.maxHp * 0.18;
     const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
     this.player.heal(isBossCheckpoint ? Math.max(baselineHeal, bossSafetyHeal) : baselineHeal);
+    this.player.beginDrawIn?.();
     this.camera.snapTo(this.player);
 
     waves.startWave(nextStage);

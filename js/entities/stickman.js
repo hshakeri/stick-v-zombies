@@ -16,8 +16,11 @@ export class StickFigureRenderer {
       x, y, facing, pose, animTimer, isGrounded, isHurt,
       isAwakened, weaponType, weaponAngle, scale = 1.0, alpha = 1.0,
       squashX = 1.0, squashY = 1.0, leanAngle = 0, actionPhase = null,
-      suppressGlow = false
+      suppressGlow = false, drawProgress = 1
     } = state;
+    // drawProgress < 1 re-draws the figure limb by limb, like the animator
+    // sketching it into existence: legs, torso, arms, head, then the weapon.
+    const reveal = Math.max(0, Math.min(1, drawProgress));
 
     const hasActionPhase = Number.isFinite(actionPhase);
     const easedActionPhase = hasActionPhase ? smoothstep(actionPhase) : 0;
@@ -49,37 +52,44 @@ export class StickFigureRenderer {
 
     const bones = this.computePoseBones(pose, animTimer, isGrounded, isHurt);
     if (hasActionPhase) applyActionEnvelope(bones, easedActionPhase);
+    applyLineBoil(bones, animTimer, x);
 
-    this.drawLimb(ctx, bones.hip, bones.kneeL, bones.footL);
-    this.drawLimb(ctx, bones.hip, bones.kneeR, bones.footR);
+    if (reveal >= 0.12) this.drawLimb(ctx, bones.hip, bones.kneeL, bones.footL);
+    if (reveal >= 0.26) this.drawLimb(ctx, bones.hip, bones.kneeR, bones.footR);
 
-    ctx.beginPath();
-    ctx.moveTo(bones.hip.x, bones.hip.y);
-    if (this.isHunched) {
-      ctx.quadraticCurveTo(bones.hip.x + 12, (bones.hip.y + bones.neck.y) * 0.5, bones.neck.x, bones.neck.y);
-    } else if (pose === 'run' || pose === 'jump_rise') {
-      ctx.quadraticCurveTo((bones.hip.x + bones.neck.x) * 0.5 + 4, (bones.hip.y + bones.neck.y) * 0.5, bones.neck.x, bones.neck.y);
-    } else if (pose === 'attack_kick' || pose === 'dive_kick') {
-      ctx.quadraticCurveTo((bones.hip.x + bones.neck.x) * 0.5 - 5, (bones.hip.y + bones.neck.y) * 0.5, bones.neck.x, bones.neck.y);
-    } else {
-      ctx.lineTo(bones.neck.x, bones.neck.y);
-    }
-    ctx.stroke();
-
-    this.drawLimb(ctx, bones.shoulder, bones.elbowL, bones.handL);
-    this.drawLimb(ctx, bones.shoulder, bones.elbowR, bones.handR);
-
-    ctx.beginPath();
-    ctx.arc(bones.head.x, bones.head.y, bones.headRadius, 0, Math.PI * 2);
-    if (this.isHollowHead) {
-      ctx.stroke();
-    } else {
-      ctx.fillStyle = this.color;
-      ctx.fill();
+    if (reveal >= 0.4) {
+      ctx.beginPath();
+      ctx.moveTo(bones.hip.x, bones.hip.y);
+      if (this.isHunched) {
+        ctx.quadraticCurveTo(bones.hip.x + 12, (bones.hip.y + bones.neck.y) * 0.5, bones.neck.x, bones.neck.y);
+      } else if (pose === 'run' || pose === 'jump_rise') {
+        ctx.quadraticCurveTo((bones.hip.x + bones.neck.x) * 0.5 + 4, (bones.hip.y + bones.neck.y) * 0.5, bones.neck.x, bones.neck.y);
+      } else if (pose === 'attack_kick' || pose === 'dive_kick') {
+        ctx.quadraticCurveTo((bones.hip.x + bones.neck.x) * 0.5 - 5, (bones.hip.y + bones.neck.y) * 0.5, bones.neck.x, bones.neck.y);
+      } else {
+        ctx.lineTo(bones.neck.x, bones.neck.y);
+      }
       ctx.stroke();
     }
 
-    if (isAwakened) {
+    if (reveal >= 0.55) this.drawLimb(ctx, bones.shoulder, bones.elbowL, bones.handL);
+    if (reveal >= 0.68) this.drawLimb(ctx, bones.shoulder, bones.elbowR, bones.handR);
+
+    if (reveal >= 0.82) {
+      ctx.beginPath();
+      ctx.arc(bones.head.x, bones.head.y, bones.headRadius, 0, Math.PI * 2);
+      if (this.isHollowHead) {
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    if (reveal < 0.82) {
+      // Face overlays and the weapon wait for the head to be inked in.
+    } else if (isAwakened) {
       ctx.fillStyle = '#ffffff';
       ctx.shadowColor = '#ffffff';
       ctx.shadowBlur = 14;
@@ -132,7 +142,7 @@ export class StickFigureRenderer {
       ctx.stroke();
     }
 
-    if (weaponType) {
+    if (weaponType && reveal >= 1) {
       let angle = weaponAngle !== undefined ? weaponAngle : -0.6;
       if (pose === 'weapon_slash') {
         angle = hasActionPhase ? -1.12 + easedActionPhase * 2.47 : 1.35;
@@ -683,4 +693,34 @@ function resetBoneScratch(bones) {
 function smoothstep(value) {
   const t = Math.max(0, Math.min(1, value));
   return t * t * (3 - 2 * t);
+}
+
+// --- Line boil -------------------------------------------------------------
+// Hand-drawn animation "boils": the line work shimmers slightly from frame
+// to frame. We re-seed the jitter at ~11Hz (not per frame — per-frame reads
+// as noise, held frames read as ink) and hash deterministically so drawing
+// stays pure: the same state always renders the same picture.
+const BOIL_BONE_KEYS = Object.freeze([
+  'hip', 'kneeL', 'footL', 'kneeR', 'footR',
+  'neck', 'shoulder', 'elbowL', 'handL', 'elbowR', 'handR', 'head'
+]);
+const BOIL_AMPLITUDE = 1.2;
+
+function boilHash(seed) {
+  let h = Math.imul(seed | 0, 0x9E3779B1);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x85EBCA6B);
+  h ^= h >>> 13;
+  return ((h >>> 0) / 4294967295) * 2 - 1; // -1..1
+}
+
+function applyLineBoil(bones, animTimer, worldX) {
+  const tick = Math.floor((Number(animTimer) || 0) * 11);
+  const seed = tick * 31 + (((Number(worldX) || 0) * 7) | 0);
+  for (let i = 0; i < BOIL_BONE_KEYS.length; i++) {
+    const bone = bones[BOIL_BONE_KEYS[i]];
+    bone.x += boilHash(seed + i * 131) * BOIL_AMPLITUDE;
+    bone.y += boilHash(seed + i * 131 + 57) * BOIL_AMPLITUDE;
+  }
+  bones.headRadius += boilHash(seed + 997) * 0.5;
 }

@@ -578,21 +578,41 @@ export class ProjectileManager {
 
     for (const b of this.sketchBlocks) {
       ctx.save();
-      ctx.fillStyle = b.type === 'obsidian' ? '#1c1b29' : '#8d6e63';
+      const left = b.x - b.width / 2;
+      const top = b.y - b.height;
+      const perimeter = (b.width + b.height) * 2;
+      // Drawn-into-existence: the outline is sketched in over the first
+      // 0.25s of life, then the fill "inks in"; expiry erases in reverse.
+      const age = b.maxLife !== undefined ? b.maxLife - b.life : 25;
+      const drawIn = Math.min(1, age / 0.25);
+      const eraseOut = Math.min(1, Math.max(0, b.life) / 0.3);
+      const reveal = Math.min(drawIn, eraseOut);
+
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
-      ctx.strokeRect(b.x - b.width / 2, b.y - b.height, b.width, b.height);
-      ctx.fillRect(b.x - b.width / 2, b.y - b.height, b.width, b.height);
+      if (reveal < 1) {
+        ctx.setLineDash([perimeter]);
+        ctx.lineDashOffset = perimeter * (1 - reveal);
+      }
+      ctx.strokeRect(left, top, b.width, b.height);
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
 
-      ctx.strokeStyle = b.type === 'obsidian' ? '#443366' : '#5d4037';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(b.x - b.width / 2 + 4, b.y - b.height + 4, b.width - 8, b.height - 8);
+      if (reveal >= 1) {
+        ctx.fillStyle = b.type === 'obsidian' ? '#1c1b29' : '#8d6e63';
+        ctx.fillRect(left, top, b.width, b.height);
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeRect(left, top, b.width, b.height);
+        ctx.strokeStyle = b.type === 'obsidian' ? '#443366' : '#5d4037';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(left + 4, top + 4, b.width - 8, b.height - 8);
+      }
 
       if (b.hp < b.maxHp) {
         ctx.fillStyle = '#ff3344';
-        ctx.fillRect(b.x - 20, b.y - b.height - 10, 40, 4);
+        ctx.fillRect(b.x - 20, top - 10, 40, 4);
         ctx.fillStyle = '#44ee44';
-        ctx.fillRect(b.x - 20, b.y - b.height - 10, 40 * (b.hp / b.maxHp), 4);
+        ctx.fillRect(b.x - 20, top - 10, 40 * (b.hp / b.maxHp), 4);
       }
 
       ctx.restore();
@@ -926,6 +946,7 @@ export class ProjectileManager {
 
   spawnSketchBlock(x, y, type = 'obsidian') {
     audio.playBlockPlace();
+    audio.createNoiseBurst?.(0.18, 0.22, 3000); // pencil scratch as the outline draws in
     particles.createDust(x, y, 6);
     if (this.sketchBlocks.length >= MAX_SKETCH_BLOCKS) {
       const oldest = this.sketchBlocks.shift();
@@ -939,7 +960,8 @@ export class ProjectileManager {
       type,
       hp: type === 'obsidian' ? 200 : 100,
       maxHp: type === 'obsidian' ? 200 : 100,
-      life: 25.0 // Lasts 25 seconds
+      life: 25.0, // Lasts 25 seconds
+      maxLife: 25.0
     });
   }
 
