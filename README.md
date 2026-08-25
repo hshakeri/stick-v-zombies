@@ -31,7 +31,7 @@ python3 -m http.server 8088
 | **Move Left / Right** | `←` / `→` or `A` / `D` | Instant direction turning & sprint momentum |
 | **Jump / Double Jump / Wall Jump** | `↑` or `Space` | Double jump in air, wall kick off arena sides |
 | **Crouch / Drop Down** | `↓` or `S` | Drop through sketch platforms or duck |
-| **Dodge Roll** | `Shift` or `L` | Full invulnerability frames (i-frames) with ghost trails |
+| **Dodge Roll** | `Shift` or `L` | Full invulnerability frames (i-frames) with ghost trails; short cooldown, so time it |
 
 ### Combat & Skills (Left Side of Keyboard)
 | Action | Key / Input | Notes |
@@ -40,7 +40,7 @@ python3 -m http.server 8088
 | **Giant Pencil Slash** | `W`, `K`, or right click | Sweeping pencil slash; use `↓` + `W` for an EX javelin |
 | **Rising Dragon** | `↑` + `Q` | Launches nearby enemies into an aerial combo |
 | **Dive Kick / Ground Slam** | In mid-air: `↓` + `Q` / `W` | Plummets down and explodes into a shockwave on landing |
-| **Grab & Throw** | `F`, `G`, or `Q` + `W` | Grabs a nearby zombie and turns it into a crowd-clearing projectile |
+| **Grab & Throw** | `F`, `G`, or `Q` + `W` | Execute finisher (5s cooldown): rips a weakened, stunned, frozen, or launched zombie into a projectile; healthy targets take a heavy hit instead |
 | **Vector Hook** | `H`, touch 🪝, or gamepad LT | Pulls nearby walkers and spitters into melee range; a brute or boss in the hook lane pulls Orange instead |
 | **Sketch Block / Anvil Drop** | `E`; `↓` + `E` or airborne `E` | Places a ground block, or drops an upgraded anvil from above |
 | **Roll Follow-up** | `Shift` / `L`, then `Q` or `W` | Converts a dodge into a low slide sweep |
@@ -50,7 +50,9 @@ python3 -m http.server 8088
 | **Open Upgrades Shop** | `B` | Spend collected Ink to upgrade stats and unlock allies |
 | **Pause Game** | `Esc` or `P` | Pause menu |
 
-On defeat, **Retry Current Stage** keeps the stage, upgrades, Ink, and run statistics while resetting HP and transient combat effects. **Restart Campaign** remains available as a separate option.
+On defeat, **Retry Current Stage** keeps the stage and upgrades while rewinding Ink and score to the stage-entry checkpoint (upgrades bought mid-stage are never lost). **Restart Campaign** remains available as a separate option.
+
+Progress persists in your browser: the title screen offers **Continue** at your last stage checkpoint, best score and per-stage **S/A/B/C ranks** are recorded, and the audio, splatter, and reduced-effects settings survive reloads.
 
 ---
 
@@ -71,7 +73,7 @@ Sixteen computer-desktop stages with obstacles, platforms, a clear **Start Door*
 - **Stage 12: Glitch Browser Run**: Fight through broken tabs and moving browser-card platforms, with an 18-second stunning eraser pickup.
 - **Stage 13: Corrupted Cloud Cache**: Cross drifting sync nodes while a compact malware wave closes in.
 - **Stage 14: Root Access Gateway**: Break through the last security grid guarding the zero-day mainframe.
-- **Stage 15: Lucky Dimension Cache**: Outplay **The Lucky Orb**, a white-hot chance engine controlling a broken Lucky Block cage and golden staff echoes. Read its gold movement rail and three distinct drop silhouettes before a heavy final impact sends it home.
+- **Stage 15: Lucky Dimension Cache**: Outplay **The Lucky Orb**, a white-hot chance engine controlling a broken Lucky Block cage and golden staff echoes. Its signature move is a three-hop **Lucky Bounce** — stand in a hop gap or jump a landing beat — plus three telegraphed prize-drop silhouettes.
 - **Stage 16: Zero-Day Mainframe**: The original zero-day editor **H4C3R** attacks with packet dashes, bracket walls, decoys, and a telegraphed terminal beam.
 
 ---
@@ -85,7 +87,11 @@ Sixteen computer-desktop stages with obstacles, platforms, a clear **Start Door*
 5. **Glitch Crawlers**: Small, low-HP malware pests that scuttle in quickly and attack from below the crowd.
 6. **Shieldbearers**: Armored zombies that blunt light attacks from the front; flank them or use a heavy move.
 7. **Boom-Bugs**: Volatile zombies with a visible countdown ring. Interrupt them or dodge the comic burst.
-8. **The Titan Undead (Boss)**: A multi-phase giant boss with enrage phases, seismic stomps, and minion swarms.
+8. **Glitch Stalkers** (stage 12+): Purple corrupted sprinters that blink-teleport through your attacks — turn around fast, or set them up with stuns.
+9. **Wardens** (stage 12+): Tower-shielded brutes. Flank them or answer with heavy moves.
+10. **The Titan Undead (Boss)**: A multi-phase giant with enrage phases, seismic stomps, a telegraphed cross-arena leap, and its own war cries.
+
+Enemy damage and speed scale gently with stage number (hard-capped), so the late campaign stays dangerous even as Orange grows stronger.
 
 Zombie hits and defeats produce capped comic crimson splatter and short-lived floor stamps. This effect is procedural, adds no assets, and can be switched off from the pause menu with **Comic Splatter**.
 
@@ -107,11 +113,16 @@ Defeated zombies drop **Ink** (✒️) which can be spent between waves in the U
 - **Ink Recharge**: Recycle a little strike damage into Orange’s HP.
 - **Heavy Iron Anvil**: Increase anvil drop damage and shockwave radius.
 - **Stick Squad Synergy**: Shorten the normal return timer for Red, Blue, Yellow, and Green.
+- **Executioner's Rhythm**: Shorten the Grab & Throw cooldown.
+- **Ink Battery**: Repeatable — convert 150 Ink into +35% Awakening meter on the spot.
 
 ---
 
 ## 🎨 Visual & Audio Features
-- **100% Procedural Web Audio Synthesizer**: Crunchy punch impacts, whooshes, monster snarls, laser beams, and dynamic battle music.
+- **Hand-Drawn Line Boil**: Every stick figure's line work shimmers on a slow deterministic clock, like ink re-drawn frame to frame; sketch blocks draw themselves into existence and Orange is re-inked limb by limb at every stage door.
+- **Comic-Book Speech Bubbles**: White bubbles with wobbling ink outlines and per-speaker accent keylines.
+- **Embedded Pop-Art Font**: A 5KB OFL-licensed Bungee subset ships inside the stylesheet as a data URI, so the display type looks right on every platform with zero downloads.
+- **100% Procedural Web Audio Synthesizer**: Crunchy punch impacts, whooshes, monster snarls, laser beams, and dynamic battle music — now on a jitter-free lookahead scheduler with a master compressor, per-act key and tempo changes, and music that ducks on menus.
 - **Responsive Canvas Framing**: Resolution-independent camera coordinates, capped pixel density, safe arena bounds, and compact portrait/landscape HUD layouts.
 - **Readable Stick Animation**: Procedural skeleton poses, silhouettes, anticipation, afterimages, and motion lines.
 - **Combat Juice**: Hitstop impact frames, dynamic camera tracking and screen shake, comic star sparks, and stylized floating damage popups.
@@ -123,7 +134,7 @@ Defeated zombies drop **Ink** (✒️) which can be spent between waves in the U
 
 ## ✅ Development Checks
 
-The repository includes zero-dependency regression tests for canvas state safety, one-shot impacts, safe spawning, particle and pixel budgets, responsive camera framing, replay resets, and the final victory path.
+The repository includes zero-dependency regression tests for canvas state safety, one-shot impacts, safe spawning, particle and pixel budgets, responsive camera framing, replay resets, save-system round-trips, boss telegraph timing at 30/60/120Hz, and the final victory path.
 
 ```bash
 npm test
