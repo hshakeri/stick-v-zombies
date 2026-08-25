@@ -63,6 +63,7 @@ export class Game {
       this.ctx.resetTransform?.();
       this.ctx.scale(dpr, dpr);
       particles.configureForCanvas?.(this.canvas);
+      this.camera.invalidateViewport?.();
       this.camera.clampToArena();
     };
     window.addEventListener('resize', resize);
@@ -253,6 +254,7 @@ export class Game {
     const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 16 ? checkpoint.stage : 1;
     this.hideAllModals();
     this.state = 'PLAYING';
+    audio.setBGMDucked?.(false);
     this.reportedLayerErrors.clear();
     input.resetHeldInputs();
     projectiles.reset();
@@ -298,6 +300,7 @@ export class Game {
     const stage = this.stageManager.currentStage;
     this.hideAllModals();
     this.state = 'PLAYING';
+    audio.setBGMDucked?.(false);
     input.resetHeldInputs();
     projectiles.reset();
     allies.reset(false, false);
@@ -451,6 +454,7 @@ export class Game {
   advanceStage(nextStage) {
     this.hideAllModals();
     this.state = 'PLAYING';
+    audio.setBGMDucked?.(false);
     save.recordStageCleared(nextStage - 1);
     this.stageManager.loadStage(nextStage);
     projectiles.reset();
@@ -504,6 +508,7 @@ export class Game {
   completeGame() {
     this.state = 'VICTORY';
     audio.setIntensity(0);
+    audio.setBGMDucked?.(true);
     projectiles.reset();
     allies.reset(false);
     this.player.cancelHook?.(true);
@@ -525,6 +530,7 @@ export class Game {
     this.state = 'TITLE';
     input.resetHeldInputs();
     audio.setIntensity(0);
+    audio.setBGMDucked?.(true);
     const titleScreen = document.getElementById('title-screen');
     if (titleScreen) titleScreen.scrollTop = 0;
     this.showModal('title-screen');
@@ -532,12 +538,14 @@ export class Game {
 
   pauseGame() {
     this.state = 'PAUSED';
+    audio.setBGMDucked?.(true);
     this.showModal('pause-modal');
   }
 
   resumeGame() {
     this.hideModal('pause-modal');
     this.state = 'PLAYING';
+    audio.setBGMDucked?.(false);
     window.focus();
   }
 
@@ -556,6 +564,7 @@ export class Game {
   gameOver() {
     this.state = 'GAMEOVER';
     audio.setIntensity(0);
+    audio.setBGMDucked?.(true);
     save.recordRun(combat.score, combat.maxCombo, combat.totalKills);
 
     const elWave = document.getElementById('gameover-wave');
@@ -849,9 +858,14 @@ export class Game {
   renderLayer(name, draw) {
     const ctx = this.ctx;
     if (!this.layerContextGuard || this.layerContextGuard.source !== ctx) {
-      const nativeSave = ctx.save.bind(ctx);
-      const nativeRestore = ctx.restore.bind(ctx);
-      const boundMethods = new Map();
+      // Depth-tracked save/restore shadowed onto the real context only for
+      // the duration of each layer. Every other draw call stays a plain
+      // native call — the previous Proxy wrapper trapped all ~10-30k
+      // context accesses per frame.
+      const originalSave = ctx.save;
+      const originalRestore = ctx.restore;
+      const nativeSave = originalSave.bind(ctx);
+      const nativeRestore = originalRestore.bind(ctx);
       const state = { depth: 0 };
       const guardedSave = () => { state.depth += 1; nativeSave(); };
       const guardedRestore = () => {
@@ -860,30 +874,18 @@ export class Game {
           nativeRestore();
         }
       };
-      const proxy = new Proxy(ctx, {
-        get(target, property) {
-          if (property === 'save') return guardedSave;
-          if (property === 'restore') return guardedRestore;
-          const value = target[property];
-          if (typeof value !== 'function') return value;
-          const cached = boundMethods.get(property);
-          if (cached?.source === value) return cached.bound;
-          const bound = value.bind(target);
-          boundMethods.set(property, { source: value, bound });
-          return bound;
-        },
-        set(target, property, value) {
-          target[property] = value;
-          return true;
-        }
-      });
-      this.layerContextGuard = { source: ctx, proxy, state, nativeSave, nativeRestore };
+      this.layerContextGuard = {
+        source: ctx, state, nativeSave, nativeRestore,
+        originalSave, originalRestore, guardedSave, guardedRestore
+      };
     }
     const guard = this.layerContextGuard;
     guard.state.depth = 0;
+    ctx.save = guard.guardedSave;
+    ctx.restore = guard.guardedRestore;
     guard.nativeSave();
     try {
-      draw(guard.proxy);
+      draw(ctx);
       return true;
     } catch (error) {
       const signature = `${this.stageManager.currentStage}:${name}:${error?.message || String(error)}`;
@@ -893,6 +895,8 @@ export class Game {
       }
       return false;
     } finally {
+      ctx.save = guard.originalSave;
+      ctx.restore = guard.originalRestore;
       while (guard.state.depth > 0) {
         guard.state.depth -= 1;
         guard.nativeRestore();

@@ -46,6 +46,9 @@ export class Zombie {
     this.crawlerDashTimer = 0;
     this.shieldFlashTimer = 0;
     this.glitchHopCooldown = 0.35 + Math.random() * 0.5;
+    this.gaitScale = 0.92 + Math.random() * 0.16; // desyncs pack marching
+    this.squashX = 1.0;
+    this.squashY = 1.0;
     this.combatTargets = [];
     this.arenaGroundY = Number.isFinite(y) ? Math.max(0, y) : 0;
     this.sketchBlocks = [];
@@ -241,6 +244,8 @@ export class Zombie {
     if (Number.isFinite(groundY)) this.arenaGroundY = groundY;
     this.animTimer += dt;
     this.stateTimer += dt;
+    this.squashX += (1.0 - this.squashX) * Math.min(1, 14.0 * dt);
+    this.squashY += (1.0 - this.squashY) * Math.min(1, 14.0 * dt);
 
     if (this.attackCooldown > 0) {
       this.attackCooldown -= dt;
@@ -272,7 +277,7 @@ export class Zombie {
       return;
     }
 
-    const currentSpeed = this.speed * (this.freezeTimer > 0 ? 0.45 : 1.0);
+    const currentSpeed = this.speed * this.gaitScale * (this.freezeTimer > 0 ? 0.45 : 1.0);
 
     const combatTargets = this.getCombatTargets(player, friendlyTargets);
     const target = this.type === 'titan_boss'
@@ -482,10 +487,12 @@ export class Zombie {
           if (other !== this && !other.isDead && !other.isBoss) {
             const sepDx = this.x - other.x;
             const sepDist = Math.abs(sepDx);
-            const minDist = (this.radius + other.radius) + 10;
+            const minDist = (this.radius + other.radius) + 14;
             if (sepDist < minDist && Math.abs(this.y - other.y) < 35) {
-              const pushForce = (minDist - sepDist) * 4.0;
-              this.vx += (sepDx >= 0 ? 1 : -1) * pushForce;
+              // Strong enough that a pack strings out into a horde line
+              // instead of stacking into one silhouette.
+              const pushForce = (minDist - sepDist) * 9.0;
+              this.vx += (sepDx >= 0 ? 1 : (sepDx < 0 ? -1 : (this.animTimer > other.animTimer ? 1 : -1))) * pushForce;
             }
           }
         }
@@ -544,6 +551,8 @@ export class Zombie {
     }
     this.vx = 0;
     this.pose = 'attack_cross';
+    this.squashX = 0.92; // anticipation coil before the heavy hit
+    this.squashY = 1.08;
     audio.playWhoosh();
     return true;
   }
@@ -758,6 +767,8 @@ export class Zombie {
       this.vx *= Math.pow(0.88, dt * 60);
     }
     const previousY = this.y;
+    const impactVy = this.vy;
+    const wasAirborne = !this.isGrounded;
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
@@ -781,6 +792,13 @@ export class Zombie {
       this.isGrounded = true;
     } else if (!landedOnPlatform) {
       this.isGrounded = false;
+    }
+
+    // Landing squash, proportional to impact speed (same acting rule as
+    // the player) — enemies finally share the squash-and-stretch language.
+    if (wasAirborne && this.isGrounded && impactVy > 320) {
+      this.squashX = Math.min(1.3, 1 + impactVy / 2400);
+      this.squashY = Math.max(0.74, 1 - impactVy / 2800);
     }
   }
 
@@ -1019,6 +1037,8 @@ export class Zombie {
       isAwakened: false,
       scale: 1.0,
       alpha: 1.0,
+      squashX: this.squashX,
+      squashY: this.squashY,
       actionPhase: this.getActionRenderPhase(),
       combatActionPhase: this.actionPhase,
       suppressGlow: suppressOrdinaryGlow

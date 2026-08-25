@@ -3,11 +3,17 @@ class SoundEngine {
     this.ctx = null;
     this.enabled = true;
     this.bgmPlaying = false;
-    this.bgmTempo = 125; // BPM
+    this.bgmTempo = 120; // BPM
     this.bgmTimer = null;
     this.bgmStep = 0;
+    this.bgmNextStepTime = 0;
+    this.bgmDucked = false;
+    this.musicAct = 1;
+    this.actTranspose = 1.0;
+    this.actBaseTempo = 120;
     this.intensity = 0; // 0 (calm) to 1 (boss/super intense)
     this.masterGain = null;
+    this.compressor = null;
     this.sfxGain = null;
     this.bgmGain = null;
     this.noiseBuffer = null;
@@ -19,7 +25,16 @@ class SoundEngine {
       this.ctx = new AudioContext();
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.setValueAtTime(this.enabled ? 0.7 : 0.0, this.ctx.currentTime);
-      this.masterGain.connect(this.ctx.destination);
+      // A gentle master compressor: simultaneous heavy hits used to sum
+      // past 1.0 and hard-clip at the destination.
+      this.compressor = this.ctx.createDynamicsCompressor();
+      this.compressor.threshold.setValueAtTime(-14, this.ctx.currentTime);
+      this.compressor.knee.setValueAtTime(24, this.ctx.currentTime);
+      this.compressor.ratio.setValueAtTime(5, this.ctx.currentTime);
+      this.compressor.attack.setValueAtTime(0.004, this.ctx.currentTime);
+      this.compressor.release.setValueAtTime(0.18, this.ctx.currentTime);
+      this.masterGain.connect(this.compressor);
+      this.compressor.connect(this.ctx.destination);
       this.sfxGain = this.ctx.createGain();
       this.sfxGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
       this.sfxGain.connect(this.masterGain);
@@ -806,7 +821,7 @@ class SoundEngine {
       });
     } catch (e) {}
   }
-  createNoiseBurst(duration = 0.1, volume = 0.3, filterFreq = 1000) {
+  createNoiseBurst(duration = 0.1, volume = 0.3, filterFreq = 1000, destination = null, when = null) {
     if (!this.ctx || !this.enabled || !this.noiseBuffer) return;
     try {
       const whiteNoise = this.ctx.createBufferSource();
@@ -817,13 +832,15 @@ class SoundEngine {
       filter.frequency.value = filterFreq;
       filter.Q.value = 1.0;
       const gain = this.ctx.createGain();
-      const t = this.ctx.currentTime;
+      const t = Number.isFinite(when) ? when : this.ctx.currentTime;
       gain.gain.setValueAtTime(volume, t);
       gain.gain.linearRampToValueAtTime(0, t + duration);
       whiteNoise.connect(filter);
       filter.connect(gain);
-      gain.connect(this.sfxGain);
-      whiteNoise.start(t);
+      gain.connect(destination || this.sfxGain);
+      // Random read offset: every snare, hat, and hit gets its own slice of
+      // noise instead of the byte-identical opening of the buffer.
+      whiteNoise.start(t, Math.random() * 1.5);
       whiteNoise.stop(t + duration);
     } catch (e) {}
   }
@@ -831,31 +848,60 @@ class SoundEngine {
     if (this.bgmPlaying || !this.ctx) return;
     this.bgmPlaying = true;
     this.bgmStep = 0;
-    const scheduleNext = () => {
-      if (!this.bgmPlaying) return;
-      const tempo = Math.max(80, this.bgmTempo);
-      const stepInterval = (60 / tempo) / 4; // 16th note interval
-      this.playBGMStep(this.bgmStep);
-      this.bgmStep = (this.bgmStep + 1) % 32;
-      this.bgmTimer = setTimeout(scheduleNext, Math.max(50, stepInterval * 1000));
+    this.bgmNextStepTime = this.ctx.currentTime + 0.06;
+    // Lookahead scheduler (the classic Web Audio pattern): a coarse timer
+    // schedules every step due inside the next 120ms at exact AudioContext
+    // times, so notes stop inheriting setTimeout jitter.
+    const LOOKAHEAD = 0.12;
+    const scheduler = () => {
+      if (!this.bgmPlaying || !this.ctx) return;
+      if (typeof document !== 'undefined' && document.hidden) {
+        this.bgmNextStepTime = this.ctx.currentTime + 0.06; // no burst on return
+        return;
+      }
+      while (this.bgmNextStepTime < this.ctx.currentTime + LOOKAHEAD) {
+        this.playBGMStep(this.bgmStep, this.bgmNextStepTime);
+        this.bgmStep = (this.bgmStep + 1) % 32;
+        const tempo = Math.max(80, this.bgmTempo);
+        this.bgmNextStepTime += (60 / tempo) / 4; // 16th notes
+      }
     };
-    scheduleNext();
+    this.bgmTimer = setInterval(scheduler, 25);
+    scheduler();
   }
   stopBGM() {
     this.bgmPlaying = false;
     if (this.bgmTimer) {
-      clearTimeout(this.bgmTimer);
+      clearInterval(this.bgmTimer);
       this.bgmTimer = null;
     }
   }
+  setBGMDucked(ducked) {
+    this.bgmDucked = ducked === true;
+    if (this.bgmGain && this.ctx) {
+      try {
+        const t = this.ctx.currentTime;
+        this.bgmGain.gain.cancelScheduledValues(t);
+        this.bgmGain.gain.setValueAtTime(this.bgmGain.gain.value, t);
+        this.bgmGain.gain.linearRampToValueAtTime(this.bgmDucked ? 0.07 : 0.35, t + 0.3);
+      } catch (e) {}
+    }
+  }
+  setMusicAct(act) {
+    const settings = { 1: [0, 120], 2: [3, 128], 3: [5, 136], 4: [-2, 132] }[act] || [0, 120];
+    this.musicAct = act;
+    this.actTranspose = Math.pow(2, settings[0] / 12);
+    this.actBaseTempo = settings[1];
+    this.bgmTempo = this.actBaseTempo + Math.floor(this.intensity * 18);
+  }
   setIntensity(level) {
     this.intensity = Math.max(0, Math.min(1, level));
-    this.bgmTempo = 125 + Math.floor(this.intensity * 20);
+    this.bgmTempo = this.actBaseTempo + Math.floor(this.intensity * 18);
   }
-  playBGMStep(step) {
+  playBGMStep(step, when = null) {
     if (!this.enabled || !this.ctx || this.ctx.state === 'suspended') return;
     try {
-      const t = this.ctx.currentTime;
+      const t = Number.isFinite(when) ? when : this.ctx.currentTime;
       if (step % 4 === 0) {
         this.synthesizeDrum('kick', t);
       }
@@ -868,12 +914,12 @@ class SoundEngine {
       const bassScale = [65.41, 73.42, 77.78, 87.31, 98.00, 110.0];
       if (step % 2 === 0) {
         const noteIdx = (Math.floor(step / 4) + (step % 8 === 0 ? 0 : 2)) % bassScale.length;
-        const freq = bassScale[noteIdx];
+        const freq = bassScale[noteIdx] * this.actTranspose;
         this.synthesizeSynthNote(freq, t, 0.15, 'sawtooth', 0.18);
       }
       if (this.intensity > 0.3 && step % 2 === 1) {
         const arpNotes = [261.63, 311.13, 392.0, 523.25, 622.25, 784.0];
-        const leadFreq = arpNotes[(step * 3) % arpNotes.length];
+        const leadFreq = arpNotes[(step * 3) % arpNotes.length] * this.actTranspose;
         this.synthesizeSynthNote(leadFreq, t, 0.08, 'triangle', 0.12 * this.intensity);
       }
     } catch (e) {}
@@ -893,7 +939,7 @@ class SoundEngine {
         osc.start(t);
         osc.stop(t + 0.14);
       } else if (type === 'snare') {
-        this.createNoiseBurst(0.1, customGain * 0.7, 1800);
+        this.createNoiseBurst(0.1, customGain * 0.7, 1800, this.bgmGain, t);
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'triangle';
@@ -906,7 +952,7 @@ class SoundEngine {
         osc.start(t);
         osc.stop(t + 0.1);
       } else if (type === 'hihat') {
-        this.createNoiseBurst(0.03, customGain * 0.35, 7000);
+        this.createNoiseBurst(0.03, customGain * 0.35, 7000, this.bgmGain, t);
       }
     } catch (e) {}
   }

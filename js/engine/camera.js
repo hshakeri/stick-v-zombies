@@ -22,12 +22,21 @@ export class Camera {
     this.maxX = 1100;
     this.minY = -550;
     this.maxY = -70;
+    this.viewportCache = { width: 0, height: 0, stale: true };
+  }
+  invalidateViewport() {
+    this.viewportCache.stale = true;
   }
   getViewportSize() {
-    return {
-      width: this.canvas.clientWidth || window.innerWidth || 1280,
-      height: this.canvas.clientHeight || window.innerHeight || 720
-    };
+    // clientWidth/Height are layout reads and this runs many times per
+    // frame — cache the result and refresh once per update (or on resize).
+    const cache = this.viewportCache;
+    if (cache.stale || cache.width === 0) {
+      cache.width = this.canvas.clientWidth || window.innerWidth || 1280;
+      cache.height = this.canvas.clientHeight || window.innerHeight || 720;
+      cache.stale = false;
+    }
+    return cache;
   }
   getMinimumZoom() {
     const { width } = this.getViewportSize();
@@ -105,6 +114,7 @@ export class Camera {
     this.zoomPunch = 0;
   }
   update(dt, target, zombieCount = 0) {
+    this.invalidateViewport(); // one layout read per frame, then cached
     if (this.hitstopTimer > 0) {
       this.hitstopTimer -= dt;
     }

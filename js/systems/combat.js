@@ -134,22 +134,29 @@ export class CombatSystem {
     return { rank: 'D', title: 'NICE HIT' };
   }
   draw(ctx) {
+    if (this.inkDrops.length === 0) return;
+    // One state block for all drops; a soft alpha halo replaces the old
+    // per-drop shadowBlur (the single most expensive canvas property).
+    ctx.save();
+    ctx.fillStyle = '#44ddff';
     for (const drop of this.inkDrops) {
-      ctx.save();
-      ctx.translate(drop.x, drop.y);
       const bob = Math.sin(this.simTime * 8 + drop.x) * 3;
-      ctx.fillStyle = '#44ddff';
-      ctx.shadowColor = '#00ffff';
-      ctx.shadowBlur = 10;
+      const x = drop.x;
+      const y = drop.y + bob;
+      ctx.globalAlpha = 0.22;
       ctx.beginPath();
-      ctx.moveTo(0, -8 + bob);
-      ctx.quadraticCurveTo(6, 0 + bob, 6, 4 + bob);
-      ctx.arc(0, 4 + bob, 6, 0, Math.PI);
-      ctx.quadraticCurveTo(-6, 0 + bob, 0, -8 + bob);
+      ctx.arc(x, y, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 8);
+      ctx.quadraticCurveTo(x + 6, y, x + 6, y + 4);
+      ctx.arc(x, y + 4, 6, 0, Math.PI);
+      ctx.quadraticCurveTo(x - 6, y, x, y - 8);
       ctx.closePath();
       ctx.fill();
-      ctx.restore();
     }
+    ctx.restore();
   }
 }
 export const combat = new CombatSystem();

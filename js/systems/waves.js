@@ -150,6 +150,8 @@ export class WaveDirector {
     this.usesAuthoredRecipe = false;
 
     audio.playWaveStart();
+    // Each act gets its own key and tempo so sixteen stages stop sharing one loop.
+    audio.setMusicAct?.(this.currentWave <= 5 ? 1 : (this.currentWave <= 10 ? 2 : (this.currentWave <= 14 ? 3 : 4)));
     audio.setIntensity(BOSS_WAVES.has(this.currentWave) ? 0.95 : (this.currentWave >= 12 ? 0.55 : 0.2));
 
     this.generateWaveQueue(this.currentWave);

@@ -107,11 +107,13 @@ function createCanvasContextMock() {
 
   const context = new Proxy({}, {
     get(target, property) {
+      // Own properties win, exactly like a real CanvasRenderingContext2D:
+      // callers may shadow save/restore with instrumented versions.
+      if (property in target) return target[property];
       if (property === 'save') return () => { calls.save += 1; };
       if (property === 'restore') return () => { calls.restore += 1; };
       if (property === 'scale') return (...args) => { calls.scale.push(args); };
       if (property === 'translate') return (...args) => { calls.translate.push(args); };
-      if (property in target) return target[property];
       return () => {};
     },
     set(target, property, value) {

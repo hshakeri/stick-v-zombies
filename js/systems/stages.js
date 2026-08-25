@@ -1266,24 +1266,29 @@ export class StageManager {
 	}
 
 	drawDesktopIcons(ctx) {
+		if (this.desktopIcons.length === 0) return;
+		// One state block and two font switches total (font assignment
+		// forces text re-shaping, so keep it out of the per-icon loop).
+		ctx.save();
+		ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+		ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+		ctx.lineWidth = 1;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
 		for (const icon of this.desktopIcons) {
-			ctx.save();
-			ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-			ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-			ctx.lineWidth = 1;
 			ctx.fillRect(icon.x - 30, icon.y - 40, 60, 50);
 			ctx.strokeRect(icon.x - 30, icon.y - 40, 60, 50);
-
-			ctx.font = "24px sans-serif";
-			ctx.textAlign = 'center';
-			ctx.textBaseline = 'middle';
-			ctx.fillText(icon.icon, icon.x, icon.y - 15);
-
-			ctx.fillStyle = '#ffffff';
-			ctx.font = "bold 10px 'Trebuchet MS', sans-serif";
-			ctx.fillText(icon.label, icon.x, icon.y + 20);
-			ctx.restore();
 		}
+		ctx.font = "24px sans-serif";
+		for (const icon of this.desktopIcons) {
+			ctx.fillText(icon.icon, icon.x, icon.y - 15);
+		}
+		ctx.fillStyle = '#ffffff';
+		ctx.font = "bold 10px 'Trebuchet MS', sans-serif";
+		for (const icon of this.desktopIcons) {
+			ctx.fillText(icon.label, icon.x, icon.y + 20);
+		}
+		ctx.restore();
 	}
 
 	drawErrorPopups(ctx) {

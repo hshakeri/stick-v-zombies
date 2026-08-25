@@ -365,6 +365,9 @@ export class Player {
     this.movePhase = 'anticipation';
     this.moveProgress = 0;
     this.pose = definition.pose;
+    // Attack cycle animations (spin, flurry) key off animTimer — restart it
+    // so every move begins at the same visual phase instead of mid-swing.
+    this.animTimer = 0;
     if (options.weapon) this.weaponTimer = definition.duration;
     else this.attackTimer = definition.duration;
     return true;
