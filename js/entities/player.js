@@ -76,6 +76,7 @@ export class Player {
     this.rollDuration = 0.35;
     this.rollCooldown = 0;
 
+    this.grabCooldown = 0;
     this.blockCooldown = 0;
 
     this.hookCooldown = 0;
@@ -151,6 +152,7 @@ export class Player {
     }
     if (this.iFrames > 0) this.iFrames -= dt;
     if (this.rollCooldown > 0) this.rollCooldown -= dt;
+    if (this.grabCooldown > 0) this.grabCooldown -= dt;
     if (this.blockCooldown > 0) this.blockCooldown -= dt;
     if (this.hookCooldown > 0) this.hookCooldown -= dt;
     if (this.hookVisualTimer > 0) {
@@ -280,7 +282,7 @@ export class Player {
     if (input.actions.rollPressed && this.rollCooldown <= 0) {
       this.isRolling = true;
       this.rollTimer = this.rollDuration;
-      this.rollCooldown = 0.65;
+      this.rollCooldown = 0.95;
       this.iFrames = this.rollDuration + 0.05;
       audio.playDodge();
       particles.createDust(this.x, this.y, 6, this.facing);
@@ -661,6 +663,7 @@ export class Player {
 
   executeGrabAndThrow(zombies, camera) {
     if (this.activeMove || this.isDead || this.isHurt) return false;
+    if (this.grabCooldown > 0) return false;
     if (!zombies || !Array.isArray(zombies)) return false;
     let target = null;
     let minDist = 135; // Generous grab range
@@ -676,20 +679,32 @@ export class Player {
 
     if (!target) return false;
 
+    this.grabCooldown = 5.0;
     this.facing = target.x >= this.x ? 1 : -1;
     audio.playGrabThrow();
     return this.beginMove(MOVE_DEFINITIONS.grab, zombies, camera, { action: 'grab', target });
   }
 
+  // A grab only executes (rips) a target that has been set up first:
+  // weakened below half HP, stunned, frozen, or launched off the ground.
+  isGrabExecutePrimed(target) {
+    if (!target || target.isBoss) return false;
+    if (Number.isFinite(target.maxHp) && target.hp <= target.maxHp * 0.5) return true;
+    if ((target.stunTimer || 0) > 0 || (target.freezeTimer || 0) > 0) return true;
+    if (target.isGrounded === false) return true;
+    return false;
+  }
+
   resolveGrabContact(target, camera) {
     if (!target || target.isDead) return;
-    if (target.isBoss) {
+    if (target.isBoss || !this.isGrabExecutePrimed(target)) {
       this.iFrames = 0.25;
       audio.playFinisherImpact();
-      target.takeDamage(85 * this.damageMultiplier, this.facing, 420, true);
-      combat.registerHit(85 * this.damageMultiplier, true);
+      const requested = 85 * this.damageMultiplier;
+      const applied = target.takeDamage(requested, this.facing, 420, true) ?? requested;
+      combat.registerHit(applied, true);
       particles.emitImpact?.('heavy', target.x, target.y - 30, { color: '#ff7700', direction: this.facing });
-      particles.addComicPopup(target.x, target.y - 60, 'PROCESS BREAK!', '#ff6600', '#ffffff');
+      particles.addComicPopup(target.x, target.y - 60, target.isBoss ? 'PROCESS BREAK!' : 'LOOSENED!', '#ff6600', '#ffffff');
       if (camera) {
         camera.addShake(0.34);
         camera.addHitstop(0.05);
@@ -722,7 +737,7 @@ export class Player {
     particles.addComicPopup(this.x + this.facing * 60, this.y - 45, bannerText, '#ff0033', '#ffffff');
 
     target.die(true);
-    projectiles.spawnThrownZombie(this.x + this.facing * 40, this.y - 30, this.facing, 140);
+    projectiles.spawnThrownZombie(this.x + this.facing * 40, this.y - 30, this.facing, 90);
     speech.shout(this.x, this.y, 'playerAttack', null, 1.25, { anchor: this });
   }
 
@@ -850,7 +865,6 @@ export class Player {
       pose,
       crit: true
     });
-    this.iFrames = 0.2;
     audio.playSlash();
     audio.playPlayerEffort();
     return this.beginMove(definition, zombies, camera, {
@@ -885,6 +899,9 @@ export class Player {
   checkMeleeHits(zombies, range, damage, knockback, isCrit, sparkColor, camera, isUppercut = false, options = {}) {
     if (!zombies || !Array.isArray(zombies)) return false;
     let hitAny = false;
+    let hitCount = 0;
+    let totalApplied = 0;
+    let totalRequested = 0;
 
     for (const z of zombies) {
       if (z.isDead) continue;
@@ -895,8 +912,10 @@ export class Player {
 
       if (isFacingTarget && Math.hypot(dx, dy) < range + (z.radius || 20) + 40) {
         hitAny = true;
+        hitCount++;
         const appliedDamage = z.takeDamage(damage, this.facing, knockback, isCrit) ?? damage;
-        combat.registerHit(appliedDamage, isCrit);
+        totalApplied += appliedDamage;
+        totalRequested += damage;
         const impactY = z.y - (z.height || 50) * 0.5;
         if (particles.emitImpact) {
           particles.emitImpact(options.impactTier || (isCrit ? 'heavy' : 'light'), z.x, impactY, {
@@ -934,13 +953,17 @@ export class Player {
           audio.playBassDrop();
         }
 
-        this.addSuper(5.0 * this.superGainRate * Math.min(1, appliedDamage / damage));
-
-        if (this.lifesteal > 0) {
-          const healAmount = appliedDamage * this.lifesteal;
-          this.heal(healAmount);
-        }
       }
+    }
+
+    if (hitCount > 0) {
+      // One swing is one combo strike; crowds pay a score bonus instead of
+      // inflating the chain, and Awakening gain per swing is capped so a
+      // single crowd sweep can no longer half-fill the meter.
+      combat.registerStrike(totalApplied, hitCount, isCrit);
+      const meterGain = Math.min(11, 5 + 2 * (hitCount - 1));
+      this.addSuper(meterGain * this.superGainRate * Math.min(1, totalApplied / Math.max(1, totalRequested)));
+      if (this.lifesteal > 0) this.heal(totalApplied * this.lifesteal);
     }
 
     if (hitAny && camera) {
@@ -1181,6 +1204,7 @@ export class Player {
     this.isRolling = false;
     this.rollTimer = 0;
     this.rollCooldown = 0;
+    this.grabCooldown = 0;
     this.blockCooldown = 0;
     this.laserTickTimer = 0;
     this.diveKick = false;
@@ -1210,7 +1234,9 @@ export class Player {
     this.hurtTimer = 0.25;
     this.iFrames = 0.9; // Solid invulnerability frames to prevent spam hits
 
-    if (knockbackDir !== 0) {
+    // Weapon swings trade the old free i-frames for super armor:
+    // damage lands, but the swing is never knocked off course.
+    if (knockbackDir !== 0 && this.weaponTimer <= 0) {
       this.vx = knockbackDir * knockbackPower;
       this.vy = -knockbackPower * 0.4;
     }

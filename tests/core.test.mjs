@@ -1486,6 +1486,71 @@ test('move records preserve combo damage and contact once at 30, 60, and 120Hz',
   particles.reset();
 });
 
+test('grab is a cooldown-gated execute finisher, not a universal delete', () => {
+  combat.resetRun();
+  particles.reset();
+  projectiles.reset();
+  const camera = { addHitstop() {}, addZoomPunch() {}, addShake() {} };
+
+  const player = new Player(0, 0);
+  player.isGrounded = true;
+  const healthyBrute = new Zombie(60, 0, 'brute', 1);
+  healthyBrute.isGrounded = true;
+  assert.equal(player.executeGrabAndThrow([healthyBrute], camera), true);
+  for (let i = 0; i < 200 && player.activeMove; i++) player.updateActiveMove(1 / 60);
+  assert.equal(healthyBrute.isDead, false, 'a healthy grounded brute survives an un-primed grab');
+  assert.ok(healthyBrute.hp < healthyBrute.maxHp, 'the un-primed grab still deals heavy damage');
+  assert.ok(player.grabCooldown > 4, 'grab goes on a real cooldown');
+  assert.equal(player.executeGrabAndThrow([healthyBrute], camera), false, 'the cooldown gates the next grab');
+
+  const executioner = new Player(0, 0);
+  executioner.isGrounded = true;
+  const stunnedBrute = new Zombie(60, 0, 'brute', 1);
+  stunnedBrute.isGrounded = true;
+  stunnedBrute.stunTimer = 2;
+  assert.equal(executioner.executeGrabAndThrow([stunnedBrute], camera), true);
+  for (let i = 0; i < 200 && executioner.activeMove; i++) executioner.updateActiveMove(1 / 60);
+  assert.equal(stunnedBrute.isDead, true, 'a stunned target is primed for the execute');
+  assert.ok(
+    projectiles.projectiles.some((entry) => entry.type === 'thrown_zombie'),
+    'the execute still turns the target into a projectile'
+  );
+
+  projectiles.reset();
+  combat.resetRun();
+  particles.reset();
+});
+
+test('weapon swings give no free i-frames and crowd swings cap Awakening gain', () => {
+  combat.resetRun();
+  particles.reset();
+  const camera = { addHitstop() {}, addZoomPunch() {} };
+
+  const player = new Player(0, 0);
+  player.isGrounded = true;
+  player.executeWeaponAttack([], camera);
+  assert.ok(player.iFrames <= 0, 'weapon swings must not grant invulnerability');
+  assert.ok(player.weaponTimer > 0, 'the swing timer is running');
+  const hpBefore = player.hp;
+  player.takeDamage(10, 1, 400);
+  assert.equal(player.hp, hpBefore - 10, 'damage still lands mid-swing');
+  assert.equal(player.vx, 0, 'swing super-armor absorbs the knockback');
+
+  combat.resetRun();
+  const crowdPlayer = new Player(0, 0);
+  crowdPlayer.isGrounded = true;
+  const pack = Array.from({ length: 5 }, (_, i) => ({
+    x: 40 + i * 8, y: 0, radius: 18, height: 60, isDead: false,
+    takeDamage: (amount) => amount
+  }));
+  crowdPlayer.checkMeleeHits(pack, 100, 30, 400, false, '#fff', null);
+  assert.ok(crowdPlayer.superMeter <= 11.01, 'a five-target swing caps Awakening gain at 11');
+  assert.ok(crowdPlayer.superMeter >= 10.99, 'the capped gain still lands in full');
+  assert.equal(combat.combo, 1, 'one swing through five zombies counts as one combo strike');
+  combat.resetRun();
+  particles.reset();
+});
+
 test('the 120ms attack buffer expires early presses and accepts late presses', () => {
   const target = { x: 70, y: 0, radius: 18, height: 60, isDead: false, takeDamage() {} };
   const camera = { addHitstop() {}, addZoomPunch() {} };

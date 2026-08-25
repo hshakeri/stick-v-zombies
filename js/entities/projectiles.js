@@ -1025,7 +1025,7 @@ export class ProjectileManager {
       rotation: 0,
       radius: 28,
       damage,
-      pierce: 10,
+      pierce: 4,
       ownerIsPlayer: true,
       isHostile: false,
       critical: true,

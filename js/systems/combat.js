@@ -69,13 +69,17 @@ export class CombatSystem {
     }
   }
   registerHit(amount, isCrit = false) {
+    this.registerStrike(amount, 1, isCrit);
+  }
+  registerStrike(totalApplied, hitCount = 1, isCrit = false) {
     this.combo++;
     this.comboTimer = this.comboDuration;
     if (this.combo > this.maxCombo) {
       this.maxCombo = this.combo;
     }
     const multiplier = 1 + Math.floor(this.combo / 10) * 0.25;
-    this.addScore(Math.round(amount * multiplier));
+    const crowdBonus = 1 + 0.08 * Math.max(0, hitCount - 1);
+    this.addScore(Math.round(totalApplied * multiplier * crowdBonus));
     if (this.combo % 10 === 0) {
       audio.playComboMilestone(this.combo);
     }
@@ -115,11 +119,12 @@ export class CombatSystem {
     this.comboTimer = 0;
   }
   getRankTitle() {
-    if (this.combo >= 50) return { rank: 'SSS', title: 'GODLIKE STICKMAN!' };
-    if (this.combo >= 35) return { rank: 'S', title: 'STICK-TACULAR!' };
-    if (this.combo >= 20) return { rank: 'A', title: 'ANIMATOR POWER!' };
-    if (this.combo >= 10) return { rank: 'B', title: 'BRUTAL CHAIN!' };
-    if (this.combo >= 5) return { rank: 'C', title: 'COMBO RUNNER!' };
+    // Thresholds tuned for strike-count combos (one swing = one strike).
+    if (this.combo >= 30) return { rank: 'SSS', title: 'GODLIKE STICKMAN!' };
+    if (this.combo >= 22) return { rank: 'S', title: 'STICK-TACULAR!' };
+    if (this.combo >= 15) return { rank: 'A', title: 'ANIMATOR POWER!' };
+    if (this.combo >= 8) return { rank: 'B', title: 'BRUTAL CHAIN!' };
+    if (this.combo >= 4) return { rank: 'C', title: 'COMBO RUNNER!' };
     return { rank: 'D', title: 'NICE HIT' };
   }
   draw(ctx) {

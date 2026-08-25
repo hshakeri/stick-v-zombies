@@ -460,6 +460,11 @@ export class Game {
     this.player.cancelHook?.(true);
     this.player.squashX = 1.0;
     this.player.squashY = 1.0;
+    // An Awakening ends at the exit door (carrying god mode through would
+    // trivialize the next stage's opening) — but banked meter is kept.
+    if (this.player.isAwakened) this.player.deactivateAwakening?.();
+    this.player.temporaryWeaponTimer = 0;
+    this.player.weaponType = 'pencil';
     const isBossCheckpoint = [5, 10, 11, 15, 16].includes(nextStage);
     const baselineHeal = this.player.maxHp * 0.18;
     const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
@@ -774,7 +779,7 @@ export class Game {
       comboContainer.classList.add('active');
       const rankInfo = combat.getRankTitle();
       if (comboHits) comboHits.innerText = `${combat.combo} HITS`;
-      if (comboTitle) comboTitle.innerText = rankInfo.title;
+      if (comboTitle) comboTitle.innerText = `${rankInfo.rank} · ${rankInfo.title}`;
       if (comboBar) comboBar.style.width = `${(combat.comboTimer / combat.comboDuration) * 100}%`;
     } else if (comboContainer) {
       comboContainer.classList.remove('active');
@@ -821,6 +826,7 @@ export class Game {
     syncSkillCooldown('skill-roll', 'cd-roll-overlay', this.player.rollCooldown);
     syncSkillCooldown('skill-block', 'cd-block-overlay', this.player.blockCooldown);
     syncSkillCooldown('skill-hook', 'cd-hook-overlay', this.player.hookCooldown);
+    syncSkillCooldown('skill-grab', 'cd-grab-overlay', this.player.grabCooldown);
   }
 
   renderLayer(name, draw) {
