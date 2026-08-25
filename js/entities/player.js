@@ -1434,6 +1434,13 @@ export class Player {
       ctx.beginPath();
       ctx.arc(endX, endY, this.hookMode === 'anchor' ? 9 : 7, -Math.PI * 0.35, Math.PI * 1.15);
       ctx.stroke();
+      if (this.hookMode === 'anchor') {
+        // Shape cue on top of the color cue: an anchor pull is a hazard,
+        // and colorblind players need more than red-vs-cyan to read it.
+        ctx.font = "900 16px 'Bungee', Impact, sans-serif";
+        ctx.textAlign = 'center';
+        ctx.fillText('!', endX, endY - 20);
+      }
       ctx.setLineDash(this.hookMode === 'anchor' ? [12, 5] : [8, 6]);
     }
 

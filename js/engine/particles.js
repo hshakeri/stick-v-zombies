@@ -87,6 +87,17 @@ export class ParticleSystem {
     return this.splatterEnabled;
   }
 
+  setReducedEffects(enabled = false) {
+    // Reduced-motion coverage for the particle layer: fewer sparks and no
+    // full-screen speedlines (the camera already scales its own motion).
+    this.reducedEffects = Boolean(enabled);
+    if (this.reducedEffects) {
+      this.speedlinesTimer = 0;
+      this.speedlineEffect = null;
+    }
+    return this.reducedEffects;
+  }
+
   setLoadProfile(profile = 'normal') {
     if (profile === 'auto') {
       this.loadProfile = 'auto';
@@ -100,6 +111,7 @@ export class ParticleSystem {
   }
 
   triggerSpeedlines(options = 0.25) {
+    if (this.reducedEffects) return null;
     const config = typeof options === 'object' && options !== null
       ? options
       : { duration: options };
@@ -566,6 +578,7 @@ export class ParticleSystem {
   }
 
   createHitSparks(x, y, count = 8, color = '#ffdd44') {
+    if (this.reducedEffects) count = Math.max(1, Math.ceil(count / 2));
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 120 + Math.random() * 260;

@@ -78,6 +78,10 @@ export class Game {
   applySavedSettings() {
     shop.onPurchase = () => this.captureStageCheckpoint();
     particles.setSplatterEnabled?.(save.getSetting('splatter', true));
+    const prefersReducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    const reducedEffects = save.getSetting('reducedEffects', prefersReducedMotion) === true;
+    particles.setReducedEffects?.(reducedEffects);
+    this.camera.motionScale = reducedEffects ? 0.28 : 1;
     audio.setEnabled?.(save.getSetting('audio', true));
     const btnAudio = document.getElementById('btn-audio-toggle');
     if (btnAudio) {
@@ -201,6 +205,40 @@ export class Game {
       btnPauseShop.addEventListener('click', () => {
         this.hideModal('pause-modal');
         this.openShop();
+      });
+    }
+
+    const btnPauseMenu = document.getElementById('btn-pause-menu');
+    if (btnPauseMenu) btnPauseMenu.addEventListener('click', () => this.showTitleScreen());
+
+    const btnPauseAudio = document.getElementById('btn-pause-audio');
+    if (btnPauseAudio) {
+      const syncPauseAudioLabel = (enabled) => {
+        btnPauseAudio.textContent = enabled ? '🔊 Audio: ON' : '🔇 Audio: OFF';
+        btnPauseAudio.setAttribute('aria-pressed', String(enabled));
+      };
+      syncPauseAudioLabel(audio.enabled !== false);
+      btnPauseAudio.addEventListener('click', () => {
+        audio.init();
+        const enabled = audio.toggleAudio();
+        syncPauseAudioLabel(enabled);
+        save.setSetting('audio', enabled);
+        this.applySavedSettings();
+      });
+    }
+
+    const btnEffectsToggle = document.getElementById('btn-effects-toggle');
+    if (btnEffectsToggle) {
+      const syncEffectsLabel = (reduced) => {
+        btnEffectsToggle.textContent = reduced ? '✨ Effects: REDUCED' : '✨ Effects: FULL';
+        btnEffectsToggle.setAttribute('aria-pressed', String(reduced));
+      };
+      syncEffectsLabel(particles.reducedEffects === true);
+      btnEffectsToggle.addEventListener('click', () => {
+        const reduced = particles.setReducedEffects?.(particles.reducedEffects !== true) ?? false;
+        this.camera.motionScale = reduced ? 0.28 : 1;
+        syncEffectsLabel(reduced);
+        save.setSetting('reducedEffects', reduced);
       });
     }
 
