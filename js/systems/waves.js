@@ -216,7 +216,7 @@ export class WaveDirector {
     if (this.isWaveActive && this.spawnQueue.length === 0 && this.zombies.length === 0 && !this.isWaveClearing) {
       this.isWaveClearing = true;
       this.clearTimer = 1.0;
-      particles.addTextBanner(player.x, player.y - 70, `★ ALL ENEMIES CLEARED! ★`, '#ffee00');
+      // The stage manager announces the clear with its story clearText banner.
     }
   }
 

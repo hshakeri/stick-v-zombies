@@ -70,6 +70,11 @@ export class KingOrange {
     }
     if (this.freezeTimer > 0) this.freezeTimer -= dt;
     if (this.stunTimer > 0) this.stunTimer -= dt;
+    this.chatterTimer = (this.chatterTimer ?? 5) - dt;
+    if (this.chatterTimer <= 0 && this.state === 'idle') {
+      this.sayCorpus('default', 1.3);
+      this.chatterTimer = 7 + Math.random() * 4;
+    }
     this.updatePhase(camera);
     const statusScale = this.stunTimer > 0 ? 0.62 : (this.freezeTimer > 0 ? 0.76 : 1);
     const stepDt = dt * statusScale;
@@ -97,7 +102,7 @@ export class KingOrange {
       camera?.addZoomPunch?.(0.05);
       particles.addShockwave(this.x, this.y - 38, 190, '#ffb020', 10);
       particles.addTextBanner(this.x, this.y - 105, 'COMMAND BLOCK ONLINE', '#ffcc33');
-      this.sayEvent('COMMANDS: ONLINE.', 'phase-two');
+      this.sayCorpus('phase', 1.55);
     } else if (this.phase === 2 && ratio <= 0.33) {
       this.phase = 3;
       this.state = 'recovery';
@@ -108,7 +113,7 @@ export class KingOrange {
       camera?.addZoomPunch?.(0.07);
       particles.addShockwave(this.x, this.y - 52, 240, '#d94cff', 12);
       particles.addTextBanner(this.x, this.y - 112, 'REPLAY SINGULARITY!', '#ef74ff');
-      this.sayEvent('VOID: OPEN.', 'phase-three');
+      this.sayCorpus('phase', 1.55);
     }
   }
   updateAI(dt, groundY, player, camera) {
@@ -341,7 +346,7 @@ export class KingOrange {
         clamp(player.x + escapeSide * 145, ARENA_LEFT + 60, ARENA_RIGHT - 60)
       ];
       audio.playDoomLaserCharge();
-      this.sayEvent('MIND THE FLOOR.', 'command');
+      this.sayCorpus('command');
     } else {
       this.state = 'singularity_windup';
       this.stateTimer = 0.95;
@@ -365,6 +370,14 @@ export class KingOrange {
       priority: 4,
       speakerKey: 'kingOrange',
       eventKey,
+      cooldownMs: 1400
+    });
+  }
+  sayCorpus(eventName, duration = 1.35) {
+    speech.shoutBoss(this.x, this.y, 'kingOrange', eventName, duration, {
+      anchor: this,
+      speakerKey: 'kingOrange',
+      repeatKey: `kingOrange:${eventName}`,
       cooldownMs: 1400
     });
   }

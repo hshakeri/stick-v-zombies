@@ -83,6 +83,11 @@ export class DarkLord {
       this.hurtTimer -= dt;
       if (this.hurtTimer <= 0) this.isHurt = false;
     }
+    this.chatterTimer = (this.chatterTimer ?? 5) - dt;
+    if (this.chatterTimer <= 0 && this.state === 'idle') {
+      this.sayCorpus('default', 1.3);
+      this.chatterTimer = 7 + Math.random() * 4;
+    }
     const frozen = this.freezeTimer > 0;
     const stunned = this.stunTimer > 0;
     this.freezeTimer = Math.max(0, this.freezeTimer - dt);
@@ -315,7 +320,7 @@ export class DarkLord {
       this.state = 'summon_virabots';
       this.stateTimer = 0.6;
       audio.playViraBotSpawn();
-      this.sayEvent('FETCH, VIRABOTS!', 'virabots');
+      this.sayCorpus('summon');
     } else {
       this.state = 'walk';
       this.actionCooldown = 1.5;
@@ -404,6 +409,14 @@ export class DarkLord {
       cooldownMs: 1200
     });
   }
+  sayCorpus(eventName, duration = 1.35) {
+    speech.shoutBoss(this.x, this.y, 'darkLord', eventName, duration, {
+      anchor: this,
+      speakerKey: 'darkLord',
+      repeatKey: `darkLord:${eventName}`,
+      cooldownMs: 1200
+    });
+  }
   applyPhysics(dt, groundY, sketchBlocks) {
     if (this.state !== 'doom_laser' && this.state !== 'meteor_rise') {
       this.vy += 950 * dt;
@@ -431,6 +444,7 @@ export class DarkLord {
     if (Math.random() < 0.15 && this.state === 'idle') {
       this.startTeleport({ x: this.x + (Math.random() - 0.5) * 300 });
     }
+    if (Math.random() < 0.14) this.sayCorpus('hurt', 1.2);
     if (this.hp <= 0) {
       this.die();
     }

@@ -797,14 +797,28 @@ export class ParticleSystem {
 
   addTextBanner(x, y, text, color = '#ff8800') {
     if (this.damageTexts.length >= this.maxDamageTexts) this.damageTexts.shift();
+    // Lane-stack: drop below any live banner occupying the same spot so
+    // simultaneous announcements stay readable instead of overprinting.
+    let bannerY = y - 40;
+    let collided = true;
+    while (collided) {
+      collided = false;
+      for (const existing of this.damageTexts) {
+        if (existing.isBanner && Math.abs(existing.x - x) < 340 && Math.abs(existing.y - bannerY) < 44) {
+          bannerY = existing.y + 46;
+          collided = true;
+        }
+      }
+    }
     this.damageTexts.push({
       x,
-      y: y - 40,
+      y: bannerY,
       vx: 0,
       vy: -60,
       text,
       color,
       isCrit: true,
+      isBanner: true,
       life: 1.2,
       maxLife: 1.2
     });

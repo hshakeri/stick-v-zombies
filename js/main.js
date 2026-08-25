@@ -7,7 +7,7 @@ import { Player } from './entities/player.js?v=8.7';
 import { waves } from './systems/waves.js?v=8.7';
 import { combat } from './systems/combat.js?v=8.7';
 import { shop } from './systems/shop.js?v=8.7';
-import { stages } from './systems/stages.js?v=8.7';
+import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=8.7';
 import { projectiles } from './entities/projectiles.js?v=8.7';
 import { allies } from './entities/allies.js?v=8.7';
 import { speech } from './engine/speech.js?v=8.7';
@@ -351,19 +351,28 @@ export class Game {
     const lesson = document.getElementById('mission-lesson');
     if (act) act.textContent = `${prefix ? `${prefix} · ` : ''}${beat.act || `STAGE ${stage}`}`;
     if (mission) mission.textContent = beat.mission || this.stageManager.stageName;
+    const clue = document.getElementById('mission-clue');
+    if (clue) {
+      const previousClue = stage > 1 ? CAMPAIGN_BEATS[stage - 1]?.clue : null;
+      clue.textContent = previousClue ? `TRACE // ${previousClue}` : '';
+    }
     if (lesson) lesson.textContent = this.getStageLesson(stage);
     strip.classList.add('active');
-    this.missionStripTimer = stage === 1 || [5, 10, 11, 15, 16].includes(stage) ? 1.5 : 1.25;
+    this.missionStripTimer = stage === 1 || [5, 10, 11, 15, 16].includes(stage) ? 4.0 : 3.5;
+    this.missionStripGrace = 0.75;
   }
 
   updateMissionStrip(dt) {
     if (this.missionStripTimer <= 0) return;
     this.missionStripTimer = Math.max(0, this.missionStripTimer - dt);
-    const relevantInput = input.actions.left || input.actions.right || input.actions.jumpPressed ||
+    this.missionStripGrace = Math.max(0, (this.missionStripGrace ?? 0) - dt);
+    // Only fresh button presses dismiss the strip (never held movement),
+    // and only after a short grace so the objective is actually readable.
+    const relevantInput = input.actions.jumpPressed ||
       input.actions.attackPressed || input.actions.weaponPressed || input.actions.hookPressed ||
       input.actions.rollPressed || input.actions.grabPressed || input.actions.blockPressed ||
       input.actions.superPressed || input.actions.ally1 || input.actions.ally2 || input.actions.ally3 || input.actions.ally4;
-    if (relevantInput) this.missionStripTimer = 0;
+    if (relevantInput && this.missionStripGrace <= 0) this.missionStripTimer = 0;
     if (this.missionStripTimer === 0) document.getElementById('mission-strip')?.classList.remove('active');
   }
 

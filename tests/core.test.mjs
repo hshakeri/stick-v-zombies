@@ -800,6 +800,32 @@ test('clearing a stage gives the exit a brief camera cue', () => {
   projectiles.reset();
 });
 
+test('stage clear fires the written ally reaction and campaign clue', () => {
+  projectiles.reset();
+  particles.reset();
+  speech.reset();
+  const manager = new StageManager();
+  manager.loadStage(6);
+  const player = { x: -800, y: 0, isDead: false };
+  const clearedWave = { isWaveActive: true, spawnQueue: [], zombies: [] };
+
+  manager.update(0.016, player, clearedWave, () => {}, null);
+
+  const beat = CAMPAIGN_BEATS[6];
+  const banners = particles.damageTexts.filter((entry) => entry.isBanner).map((entry) => entry.text);
+  assert.ok(banners.some((text) => text.includes(beat.clearText)), 'the clear banner shows the story clearText');
+  assert.ok(banners.some((text) => text.includes(beat.clue)), 'the clue banner surfaces the campaign trace');
+  const reactionBubble = speech.bubbles.find((bubble) => bubble.speakerType === `ally-${beat.allyReaction.ally}`);
+  assert.ok(reactionBubble, 'the authored allyReaction line spawns as a speech bubble');
+  assert.equal(reactionBubble.text, beat.allyReaction.line);
+  const bannerYs = particles.damageTexts.filter((entry) => entry.isBanner && Math.abs(entry.x - player.x) < 340).map((entry) => entry.y);
+  const uniqueYs = new Set(bannerYs.map((y) => Math.round(y)));
+  assert.equal(uniqueYs.size, bannerYs.length, 'simultaneous banners occupy distinct lanes');
+  projectiles.reset();
+  particles.reset();
+  speech.reset();
+});
+
 test('the final exit waits for H4C3R defeat framing to finish', () => {
   projectiles.reset();
   const manager = new StageManager();

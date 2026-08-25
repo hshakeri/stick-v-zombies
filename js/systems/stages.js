@@ -2,6 +2,7 @@
 import { particles } from '../engine/particles.js?v=8.7';
 import { audio } from '../engine/audio.js?v=8.7';
 import { projectiles } from '../entities/projectiles.js?v=8.7';
+import { speech } from '../engine/speech.js?v=8.7';
 
 const freezeBeat = (beat) => Object.freeze({
 	...beat,
@@ -865,6 +866,17 @@ export class StageManager {
 			const clearX = Number.isFinite(player?.x) ? player.x : 0;
 			const clearY = Number.isFinite(player?.y) ? player.y - 86 : -86;
 			particles.addTextBanner(clearX, clearY, `★ ${clearText} ★`, '#ffee00');
+			if (this.campaignBeat?.clue) {
+				particles.addTextBanner(clearX, clearY, `TRACE // ${this.campaignBeat.clue}`, '#67e8f9');
+			}
+			const reaction = this.campaignBeat?.allyReaction;
+			if (reaction?.line) {
+				speech.spawnBubble(clearX + 60, clearY + 30, reaction.line, `ally-${reaction.ally}`, 1.9, {
+					speakerKey: `ally-${reaction.ally}:campaign`,
+					priority: 5,
+					cooldownMs: 0
+				});
+			}
 			particles.addTextBanner(this.exitDoor.x, this.exitDoor.y - 120, '★ EXIT DOOR OPEN! ★', '#33ff88');
 			particles.addShockwave(this.exitDoor.x, this.exitDoor.y - 45, 120, '#33ff88', 8);
 			if (this.currentStage === this.maxStage) {
@@ -1231,7 +1243,7 @@ export class StageManager {
 			ctx.fillText(`TARGET // ${beat.bossLabel}`, this.bounds.maxX - 48, minY + 90);
 		}
 
-		if (this.currentStage === 3 || this.currentStage === 8 || this.currentStage === 14) {
+		if (beat.clue) {
 			ctx.fillStyle = '#67e8f9';
 			ctx.fillText(`TRACE // ${beat.clue}`, this.bounds.maxX - 48, minY + 111);
 		}

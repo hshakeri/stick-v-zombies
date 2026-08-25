@@ -101,6 +101,10 @@ body, html {
 	grid-column: 2;
 	color: #65dcff;
 }
+.mission-strip-clue {
+	color: #9ef7c6;
+}
+.mission-strip-clue:empty { display: none; }
 #hud-overlay {
 	position: absolute;
 	inset: 0;

@@ -80,6 +80,11 @@ export class H4C3R {
       if (this.hurtTimer <= 0) this.isHurt = false;
     }
     if (this.freezeTimer > 0) this.freezeTimer = Math.max(0, this.freezeTimer - safeDt);
+    this.chatterTimer = (this.chatterTimer ?? 5) - safeDt;
+    if (this.chatterTimer <= 0 && this.state === 'idle') {
+      this.sayCorpus('default', 1.3);
+      this.chatterTimer = 7 + Math.random() * 4;
+    }
     this.auraTimer -= safeDt;
     if ((this.isAwakened || this.isTelegraphing()) && this.auraTimer <= 0) {
       this.auraTimer = this.isAwakened ? 0.1 : 0.16;
@@ -117,7 +122,7 @@ export class H4C3R {
     camera?.focusOn?.(this.x, this.y - 75, 0.75, 1.06);
     particles.addShockwave(this.x, this.y - 34, 220, CYAN, 12);
     particles.addTextBanner(this.x, this.y - 105, 'FIREWALL: OFFLINE', LIME);
-    this.sayEvent('FIREWALL: OFF.', 'phase-two');
+    this.sayCorpus('phase', 1.55);
   }
   updateAI(dt, player, camera) {
     if (!player || player.isDead) {
@@ -258,7 +263,7 @@ export class H4C3R {
     this.attackHit = false;
     audio.playTeleportZap();
     camera?.addZoomPunch?.(-0.025);
-    this.sayEvent('PING.', 'packet');
+    this.sayCorpus('select');
   }
   launchPacketDash(camera) {
     this.state = 'packet_dash';
@@ -299,7 +304,7 @@ export class H4C3R {
     audio.playDoomLaserCharge();
     camera?.focusOn?.((this.x + player.x) * 0.5, this.groundY - 105, 0.58, 0.94);
     camera?.addZoomPunch?.(-0.035);
-    this.sayEvent('NO ESC KEY.', 'terminal');
+    this.sayCorpus('root');
   }
   sayEvent(text, eventKey) {
     speech.spawnBubble(this.x, this.y, text, 'h4c3r', 1.35, {
@@ -307,6 +312,14 @@ export class H4C3R {
       priority: 4,
       speakerKey: 'h4c3r',
       eventKey,
+      cooldownMs: 1400
+    });
+  }
+  sayCorpus(eventName, duration = 1.35) {
+    speech.shoutBoss(this.x, this.y, 'h4c3r', eventName, duration, {
+      anchor: this,
+      speakerKey: 'h4c3r',
+      repeatKey: `h4c3r:${eventName}`,
       cooldownMs: 1400
     });
   }
