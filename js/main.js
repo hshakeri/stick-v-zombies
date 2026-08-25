@@ -11,6 +11,7 @@ import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=8.7';
 import { projectiles } from './entities/projectiles.js?v=8.7';
 import { allies } from './entities/allies.js?v=8.7';
 import { speech } from './engine/speech.js?v=8.7';
+import { save } from './systems/save.js?v=8.7';
 
 export class Game {
   constructor() {
@@ -38,7 +39,9 @@ export class Game {
   init() {
     this.setupResize();
     input.init(this.canvas, this.camera);
+    this.applySavedSettings();
     this.bindUIEvents();
+    this.syncContinueButton();
 
     requestAnimationFrame((timestamp) => {
       this.lastTime = timestamp;
@@ -69,12 +72,43 @@ export class Game {
     });
   }
 
+  applySavedSettings() {
+    particles.setSplatterEnabled?.(save.getSetting('splatter', true));
+    audio.setEnabled?.(save.getSetting('audio', true));
+    const btnAudio = document.getElementById('btn-audio-toggle');
+    if (btnAudio) {
+      const enabled = audio.enabled !== false;
+      const icon = btnAudio.querySelector('.hud-btn-icon');
+      const label = btnAudio.querySelector('.hud-btn-label');
+      if (icon) icon.textContent = enabled ? '🔊' : '🔇';
+      if (label) label.textContent = enabled ? 'Audio: ON' : 'Audio: OFF';
+    }
+  }
+
+  syncContinueButton() {
+    if (typeof document === 'undefined') return;
+    const btnContinue = document.getElementById('btn-continue-game');
+    if (!btnContinue) return;
+    const checkpoint = save.data.checkpoint;
+    const canContinue = Boolean(checkpoint && checkpoint.stage > 1);
+    btnContinue.style.display = canContinue ? '' : 'none';
+    if (canContinue) btnContinue.textContent = `↻ CONTINUE — STAGE ${checkpoint.stage}`;
+  }
+
   bindUIEvents() {
     const btnStart = document.getElementById('btn-start-game');
     if (btnStart) {
       btnStart.addEventListener('click', () => {
         audio.init();
         this.startGame();
+      });
+    }
+
+    const btnContinue = document.getElementById('btn-continue-game');
+    if (btnContinue) {
+      btnContinue.addEventListener('click', () => {
+        audio.init();
+        this.startGame({ fromCheckpoint: true });
       });
     }
 
@@ -176,6 +210,7 @@ export class Game {
       btnSplatterToggle.addEventListener('click', () => {
         const enabled = particles.setSplatterEnabled?.(particles.splatterEnabled === false) ?? true;
         syncSplatterLabel(enabled);
+        save.setSetting('splatter', enabled);
       });
     }
 
@@ -189,6 +224,7 @@ export class Game {
         if (icon) icon.textContent = enabled ? '🔊' : '🔇';
         if (label) label.textContent = enabled ? 'Audio: ON' : 'Audio: OFF';
         btnAudio.setAttribute('aria-label', enabled ? 'Mute sound and music' : 'Enable sound and music');
+        save.setSetting('audio', enabled);
       });
     }
 
@@ -209,7 +245,9 @@ export class Game {
     bindAllyClick('ally-cursor-slot', 'cursor');
   }
 
-  startGame() {
+  startGame(options = {}) {
+    const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
+    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 16 ? checkpoint.stage : 1;
     this.hideAllModals();
     this.state = 'PLAYING';
     this.reportedLayerErrors.clear();
@@ -219,15 +257,32 @@ export class Game {
     particles.reset();
     speech.reset();
     shop.reset();
-    combat.resetRun(50);
-    this.stageManager.loadStage(1);
+    combat.resetRun(checkpoint ? checkpoint.ink ?? 50 : 50);
+    this.stageManager.loadStage(stage);
     this.player = new Player(this.stageManager.entranceDoor.x + 30, this.groundY);
     this.player.isGrounded = true;
+    if (checkpoint) {
+      combat.score = checkpoint.score | 0;
+      combat.totalKills = checkpoint.totalKills | 0;
+      combat.maxCombo = checkpoint.maxCombo | 0;
+      // Re-apply saved upgrade levels through the shop so side effects
+      // (ally cooldowns, anvil damage) land exactly like a live purchase.
+      for (const savedUpgrade of checkpoint.upgrades || []) {
+        const upgrade = shop.upgrades.find((entry) => entry.id === savedUpgrade.id);
+        if (!upgrade) continue;
+        const targetLevel = Math.max(0, Math.min(upgrade.maxLevel, savedUpgrade.level | 0));
+        while (upgrade.level < targetLevel) {
+          upgrade.level++;
+          upgrade.apply(this.player);
+        }
+      }
+      this.player.hp = this.player.maxHp;
+    }
     this.camera.snapTo(this.player);
-    waves.startWave(1);
-    this.prepareWeaponPickup(1);
+    waves.startWave(stage);
+    this.prepareWeaponPickup(stage);
     this.captureStageCheckpoint();
-    this.showMissionStrip(1);
+    this.showMissionStrip(stage, checkpoint ? 'CONTINUE' : '');
   }
 
   restartGame() {
@@ -279,6 +334,8 @@ export class Game {
         superGainRate: this.player.superGainRate
       })
     });
+    save.setCheckpoint(this.stageCheckpoint);
+    this.syncContinueButton();
   }
 
   prepareWeaponPickup(stage) {
@@ -379,6 +436,7 @@ export class Game {
   advanceStage(nextStage) {
     this.hideAllModals();
     this.state = 'PLAYING';
+    save.recordStageCleared(nextStage - 1);
     this.stageManager.loadStage(nextStage);
     projectiles.reset();
     allies.reset(false, true);
@@ -427,6 +485,9 @@ export class Game {
     projectiles.reset();
     allies.reset(false);
     this.player.cancelHook?.(true);
+    save.recordRun(combat.score, combat.maxCombo, combat.totalKills);
+    save.recordVictory();
+    this.syncContinueButton();
 
     const score = document.getElementById('victory-score');
     const kills = document.getElementById('victory-kills');
@@ -473,16 +534,19 @@ export class Game {
   gameOver() {
     this.state = 'GAMEOVER';
     audio.setIntensity(0);
+    save.recordRun(combat.score, combat.maxCombo, combat.totalKills);
 
     const elWave = document.getElementById('gameover-wave');
     const elScore = document.getElementById('gameover-score');
     const elKills = document.getElementById('gameover-kills');
     const elCombo = document.getElementById('gameover-combo');
+    const elBest = document.getElementById('gameover-best');
 
     if (elWave) elWave.innerText = `STAGE ${this.stageManager.currentStage}`;
     if (elScore) elScore.innerText = combat.score;
     if (elKills) elKills.innerText = combat.totalKills;
     if (elCombo) elCombo.innerText = `${combat.maxCombo} HITS`;
+    if (elBest) elBest.innerText = save.data.best.score;
 
     this.showModal('gameover-modal');
   }

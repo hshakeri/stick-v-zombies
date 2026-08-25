@@ -18,7 +18,7 @@ class SoundEngine {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioContext();
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(this.enabled ? 0.7 : 0.0, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
       this.sfxGain = this.ctx.createGain();
       this.sfxGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
@@ -38,7 +38,10 @@ class SoundEngine {
     }
   }
   toggleAudio() {
-    this.enabled = !this.enabled;
+    return this.setEnabled(!this.enabled);
+  }
+  setEnabled(value) {
+    this.enabled = value !== false;
     if (this.masterGain && this.ctx) {
       try {
         this.masterGain.gain.setValueAtTime(this.enabled ? 0.7 : 0.0, this.ctx.currentTime);

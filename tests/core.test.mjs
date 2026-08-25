@@ -25,6 +25,7 @@ import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=
 import { Zombie } from '../js/entities/zombies.js?v=8.7';
 import { weapons } from '../js/entities/weapons.js?v=8.7';
 import { combat } from '../js/systems/combat.js?v=8.7';
+import { SaveSystem } from '../js/systems/save.js?v=8.7';
 import { shop } from '../js/systems/shop.js?v=8.7';
 import { Game } from '../js/main.js?v=8.7';
 import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.7';
@@ -1955,6 +1956,66 @@ test('throwing world renderers cannot stop later layers or Orange fallback drawi
     console.error = originalConsoleError;
     for (const [owner, key, original] of originals) owner[key] = original;
   }
+});
+
+test('save system round-trips, survives corruption, and degrades without storage', () => {
+  const makeMemoryStorage = () => {
+    const map = new Map();
+    return {
+      getItem: (key) => (map.has(key) ? map.get(key) : null),
+      setItem: (key, value) => map.set(key, String(value)),
+      map
+    };
+  };
+
+  const storage = makeMemoryStorage();
+  const first = new SaveSystem(storage);
+  assert.equal(first.isAvailable, true);
+  first.setSetting('audio', false);
+  first.recordStageCleared(9);
+  first.recordRun(4200, 31, 88);
+  first.setCheckpoint({
+    stage: 9,
+    ink: 250,
+    score: 4200,
+    totalKills: 88,
+    maxCombo: 31,
+    upgrades: [{ id: 'max_hp', level: 2 }]
+  });
+  first.flush();
+
+  const second = new SaveSystem(storage);
+  assert.equal(second.getSetting('audio', true), false);
+  assert.equal(second.data.highestStageCleared, 9);
+  assert.equal(second.data.best.score, 4200);
+  assert.equal(second.data.checkpoint.stage, 9);
+  assert.equal(second.data.checkpoint.ink, 250);
+  assert.deepEqual(second.data.checkpoint.upgrades, [{ id: 'max_hp', level: 2 }]);
+
+  second.recordVictory();
+  second.flush();
+  const third = new SaveSystem(storage);
+  assert.equal(third.data.unlocks.endless, true);
+  assert.equal(third.data.checkpoint, null, 'victory clears the campaign checkpoint');
+
+  storage.map.set('svz.save.v1', '{corrupt json!!');
+  const corrupted = new SaveSystem(storage);
+  assert.equal(corrupted.data.highestStageCleared, 0, 'corrupt saves fall back to defaults');
+
+  const throwing = {
+    getItem: () => { throw new Error('blocked'); },
+    setItem: () => { throw new Error('quota'); }
+  };
+  const guarded = new SaveSystem(throwing);
+  guarded.recordRun(10, 1, 1);
+  guarded.flush();
+  assert.equal(guarded.data.best.score, 10, 'in-memory state keeps working when storage throws');
+
+  const absent = new SaveSystem(null);
+  assert.equal(absent.isAvailable, false);
+  absent.setSetting('splatter', false);
+  absent.flush();
+  assert.equal(absent.getSetting('splatter', true), false);
 });
 
 test('the release stays asset-free and under the 600KB source budget', () => {

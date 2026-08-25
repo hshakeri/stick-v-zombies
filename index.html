@@ -150,6 +150,7 @@
       </div>
       <div class="title-actions">
         <button id="btn-start-game" class="primary-btn" style="font-size: 20px; padding: 14px 28px;">▶ PLAY NOW</button>
+        <button id="btn-continue-game" class="secondary-btn" style="display: none;">↻ CONTINUE</button>
         <button id="btn-how-to-play" class="secondary-btn">📖 Controls &amp; Tips</button>
       </div>
       <div class="controls-guide-card">
@@ -267,8 +268,11 @@
           <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
             <span>ZOMBIES ERADICATED:</span> <span id="gameover-kills" style="color: #44dd66;">0</span>
           </div>
-          <div style="display: flex; justify-content: space-between;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
             <span>MAX COMBO:</span> <span id="gameover-combo" style="color: var(--orange-glow);">0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span>BEST SCORE:</span> <span id="gameover-best" style="color: #67e8f9;">0</span>
           </div>
         </div>
         <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
