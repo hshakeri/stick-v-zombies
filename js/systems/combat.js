@@ -6,6 +6,7 @@ export class CombatSystem {
     this.ink = 0;
     this.combo = 0;
     this.maxCombo = 0;
+    this.stageMaxCombo = 0;
     this.comboTimer = 0;
     this.comboDuration = 3.2; // seconds before combo resets
     this.totalKills = 0;
@@ -17,6 +18,7 @@ export class CombatSystem {
     this.ink = startingInk;
     this.combo = 0;
     this.maxCombo = 0;
+    this.stageMaxCombo = 0;
     this.comboTimer = 0;
     this.totalKills = 0;
     this.inkDrops.length = 0;
@@ -24,6 +26,7 @@ export class CombatSystem {
   }
   clearArena() {
     this.resetCombo();
+    this.stageMaxCombo = 0;
     this.inkDrops.length = 0;
   }
   update(dt, player) {
@@ -76,6 +79,9 @@ export class CombatSystem {
     this.comboTimer = this.comboDuration;
     if (this.combo > this.maxCombo) {
       this.maxCombo = this.combo;
+    }
+    if (this.combo > this.stageMaxCombo) {
+      this.stageMaxCombo = this.combo;
     }
     const multiplier = 1 + Math.floor(this.combo / 10) * 0.25;
     const crowdBonus = 1 + 0.08 * Math.max(0, hitCount - 1);

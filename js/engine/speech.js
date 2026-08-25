@@ -3,6 +3,7 @@ export const MAX_SPEECH_CHARS = 24;
 export const MAX_SPEECH_LINES = 2;
 export const MAX_SPEECH_BUBBLES = 3;
 export const BOSS_SPEECH_EVENTS = Object.freeze({
+  titan: Object.freeze(['default', 'intro', 'phase', 'defeat']),
   darkLord: Object.freeze(['default', 'intro', 'summon', 'phase', 'hurt', 'defeat']),
   kingOrange: Object.freeze(['default', 'intro', 'command', 'phase', 'defeat']),
   luckyOrb: Object.freeze(['default', 'intro', 'roll', 'drop', 'phase', 'defeat']),
@@ -75,6 +76,12 @@ export const SPEECH_CORPUS = {
     yellow: ['REBOOTING LOGIC!', 'CIRCUIT BREAK!'],
     green: ['ENCORE LATER!', 'BASS BREAK!']
   },
+  titan: {
+    default: ['BIG PROCESS. NO EXIT.', 'CRASH. EVERYTHING.'],
+    intro: ['TITAN.EXE AWAKE.', 'SYSTEM SMASH TIME.'],
+    phase: ['RAGE: OVERCLOCKED.', 'ERROR: NO MERCY.'],
+    defeat: ['TITAN... SLEEPS.', 'PROCESS KILLED.']
+  },
   darkLord: {
     default: ['RUN, LITTLE FILE.', 'VIRABOTS, FETCH!', 'NO ESCAPE KEY.'],
     intro: ['BACKUP ONLINE.', 'OLD FIGHT. NEW DOOM.'],
@@ -110,7 +117,7 @@ export const SPEECH_CORPUS = {
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 function bubblePriority(speakerType) {
   if (speakerType === 'campaign') return 5;
-  if (speakerType === 'h4c3r' || speakerType === 'luckyOrb' || speakerType === 'kingOrange' || speakerType === 'darkLord') return 4;
+  if (speakerType === 'h4c3r' || speakerType === 'luckyOrb' || speakerType === 'kingOrange' || speakerType === 'darkLord' || speakerType === 'titan') return 4;
   if (speakerType === 'playerAwakened') return 3;
   if (speakerType.startsWith('ally-')) return 2;
   if (speakerType === 'playerAttack' || speakerType === 'playerHurt') return 1;
@@ -124,6 +131,7 @@ function bubblePalette(speakerType) {
     kingOrange: ['#2b1600', '#ff9800', '#ffe0a3', '#ffd54f'],
     luckyOrb: ['#2b1900', '#ffd43b', '#fff6bd', '#ef5cff'],
     h4c3r: ['#001b20', '#00f5ff', '#c5fcff', '#8cff00'],
+    titan: ['#120a02', '#ff5252', '#ffd0d0', '#ff1744'],
     campaign: ['#081c24', '#67e8f9', '#e6fdff', '#ffe100'],
     'ally-red': ['#fff4f4', '#ff3344', '#66101a', '#ff3344'],
     'ally-blue': ['#f2f8ff', '#2299ff', '#073b68', '#2299ff'],
@@ -204,6 +212,7 @@ export class SpeechBubbleManager {
       playerAttack: 1400,
       playerHurt: 1500,
       zombieGroan: 900,
+      titan: 1700,
       darkLord: 1700,
       kingOrange: 1700,
       luckyOrb: 1600,

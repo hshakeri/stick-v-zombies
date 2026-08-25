@@ -933,6 +933,21 @@ test('Lucky Orb roll and prize drop damage only after their telegraphs and only 
     }
     assert.equal(rollHits, 1, `${hz}Hz roll should sweep-hit once`);
 
+    // The bouncing roll only threatens near the ground: a player standing
+    // in a hop gap (mid-air crossing point) must never be touched.
+    let gapHits = 0;
+    const gapPlayer = {
+      x: -85, y: 0, vx: 0, height: 60, radius: 16,
+      isDead: false, isRolling: false, isAwakened: false, iFrames: 0,
+      takeDamage() { gapHits += 1; }
+    };
+    const gapOrb = new LuckyOrb(-420, 0);
+    gapOrb.startRoll({ ...gapPlayer, x: 0 }, camera);
+    for (let frame = 0; frame < hz * 3 && gapOrb.state !== 'recovery'; frame += 1) {
+      gapOrb.update(dt, 0, gapPlayer, [], camera);
+    }
+    assert.equal(gapHits, 0, `${hz}Hz roll must not hit a player in a hop gap`);
+
     let dropHits = 0;
     player.takeDamage = () => { dropHits += 1; };
     orb.x = 420;
@@ -1799,7 +1814,15 @@ test('successful ally casts use normal cooldowns and Yellow breaks after three h
     manager.update(1 / 60, 0, [], { heal() {} }, { addShake() {} });
   }
   const turret = manager.turrets[0];
-  assert.ok(turret.duration <= 12 && turret.duration > 11.9);
+  assert.ok(turret.duration <= 9 && turret.duration > 8.9, 'turret life is tuned to 9s');
+  manager.summonAlly('yellow', 60, 0, 1, []);
+  manager.cooldowns.yellow = 0;
+  manager.summonAlly('yellow', 120, 0, 1, []);
+  manager.cooldowns.yellow = 0;
+  for (let frame = 0; frame < 180 && manager.turrets.length < 2; frame += 1) {
+    manager.update(1 / 60, 0, [], { heal() {} }, { addShake() {} });
+  }
+  assert.ok(manager.turrets.length <= 2, 'no more than two turrets may stand at once');
   assert.equal(turret.takeDamage(99), true);
   assert.equal(turret.takeDamage(99), true);
   assert.equal(turret.isDead, false);

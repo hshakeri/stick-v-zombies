@@ -62,7 +62,7 @@ export const WAVE_RECIPES = Object.freeze({
   4: makeRecipe(WAVE_RECIPE_TOTALS[4], [
     makePack(0.9, ['runner', 'walker', 'crawler', 'spitter', 'crawler']),
     makePack(1.05, ['runner', 'brute', 'walker', 'shieldbearer', 'crawler']),
-    makePack(1.15, ['runner', 'spitter', 'brute', 'shieldbearer'])
+    makePack(1.15, ['runner', 'spitter', 'walker', 'shieldbearer'])
   ]),
   5: makeRecipe(WAVE_RECIPE_TOTALS[5], [
     makePack(1.2, ['titan_boss', 'runner', 'spitter', 'runner'])
@@ -96,21 +96,21 @@ export const WAVE_RECIPES = Object.freeze({
     makeSoloBossPack(1.2, 'king_orange')
   ]),
   12: makeRecipe(WAVE_RECIPE_TOTALS[12], [
-    makePack(0.9, ['runner', 'crawler', 'spitter', 'crawler', 'boom_bug']),
-    makePack(1.05, ['walker', 'shieldbearer', 'runner', 'brute', 'crawler']),
-    makePack(1.2, ['crawler', 'spitter', 'boom_bug', 'shieldbearer', 'runner'])
+    makePack(0.9, ['stalker', 'crawler', 'spitter', 'crawler', 'boom_bug']),
+    makePack(1.05, ['stalker', 'shieldbearer', 'runner', 'warden', 'crawler']),
+    makePack(1.2, ['crawler', 'spitter', 'boom_bug', 'shieldbearer', 'stalker'])
   ]),
   13: makeRecipe(WAVE_RECIPE_TOTALS[13], [
-    makePack(0.9, ['spitter', 'runner', 'crawler', 'boom_bug', 'brute']),
-    makePack(1.0, ['runner', 'shieldbearer', 'spitter', 'crawler']),
-    makePack(1.1, ['crawler', 'boom_bug', 'runner', 'brute']),
+    makePack(0.9, ['spitter', 'stalker', 'crawler', 'boom_bug', 'brute']),
+    makePack(1.0, ['runner', 'warden', 'spitter', 'crawler']),
+    makePack(1.1, ['crawler', 'boom_bug', 'stalker', 'brute']),
     makePack(1.2, ['shieldbearer', 'spitter', 'crawler', 'boom_bug'])
   ]),
   14: makeRecipe(WAVE_RECIPE_TOTALS[14], [
-    makePack(0.9, ['runner', 'spitter', 'crawler', 'boom_bug', 'shieldbearer']),
-    makePack(1.0, ['crawler', 'brute', 'runner', 'shieldbearer', 'boom_bug']),
+    makePack(0.9, ['stalker', 'spitter', 'crawler', 'boom_bug', 'shieldbearer']),
+    makePack(1.0, ['crawler', 'warden', 'stalker', 'shieldbearer', 'boom_bug']),
     makePack(1.1, ['walker', 'crawler', 'spitter', 'boom_bug', 'brute']),
-    makePack(1.2, ['runner', 'shieldbearer', 'crawler', 'spitter', 'boom_bug'])
+    makePack(1.2, ['runner', 'warden', 'crawler', 'spitter', 'boom_bug'])
   ]),
   15: makeRecipe(WAVE_RECIPE_TOTALS[15], [
     makeSoloBossPack(1.2, 'lucky_orb')
@@ -276,6 +276,12 @@ export class WaveDirector {
       camera?.focusOn?.(spawnX, groundY - 105, 0.65, 0.92);
       camera?.addZoomPunch?.(-0.025);
       particles.addTextBanner(spawnX, groundY - 80, '💀 TITAN UNDEAD 💀', '#ff2244');
+      speech.shoutBoss(spawnX, groundY, 'titan', 'intro', 1.55, {
+        anchor: zombie,
+        speakerKey: 'titan',
+        repeatKey: 'titan:intro',
+        cooldownMs: 0
+      });
     }
 
     particles.createDust(spawnX, groundY, 8);

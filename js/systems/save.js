@@ -116,6 +116,15 @@ export class SaveSystem {
     this.write();
   }
 
+  recordStageRank(stage, rank) {
+    const order = { S: 3, A: 2, B: 1, C: 0 };
+    const current = this.data.best.stageRanks[stage];
+    if (current === undefined || (order[rank] ?? 0) > (order[current] ?? 0)) {
+      this.data.best.stageRanks[stage] = rank;
+      this.write();
+    }
+  }
+
   recordVictory() {
     this.data.unlocks.endless = true;
     this.data.unlocks.bossRush = true;

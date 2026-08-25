@@ -90,6 +90,32 @@ export class ShopSystem {
         }
       },
       {
+        id: 'grab_mastery',
+        name: "Executioner's Rhythm",
+        icon: '🤼',
+        desc: 'Shortens the Grab & Throw cooldown by 0.75s per level.',
+        level: 0,
+        maxLevel: 3,
+        baseCost: 90,
+        costMultiplier: 1.8,
+        apply: (player) => {
+          player.grabCooldownMax = Math.max(2.75, (player.grabCooldownMax ?? 5.0) - 0.75);
+        }
+      },
+      {
+        id: 'ink_battery',
+        name: 'Ink Battery',
+        icon: '🔋',
+        desc: 'Converts 150 Ink into +35% Awakening meter, right now.',
+        level: 0,
+        maxLevel: 99,
+        baseCost: 150,
+        costMultiplier: 1.0,
+        apply: (player) => {
+          player.addSuper?.(35);
+        }
+      },
+      {
         id: 'ally_synergy',
         name: 'Stick Squad Synergy',
         icon: '👥',
@@ -99,10 +125,11 @@ export class ShopSystem {
         baseCost: 50,
         costMultiplier: 1.8,
         apply: () => {
-          allies.maxCooldowns.red = Math.max(5, allies.maxCooldowns.red * 0.75);
-          allies.maxCooldowns.blue = Math.max(6, allies.maxCooldowns.blue * 0.75);
-          allies.maxCooldowns.yellow = Math.max(7, allies.maxCooldowns.yellow * 0.75);
-          allies.maxCooldowns.green = Math.max(6, allies.maxCooldowns.green * 0.75);
+          // Floors chosen so every synergy level buys a real reduction.
+          allies.maxCooldowns.red = Math.max(4, allies.maxCooldowns.red * 0.75);
+          allies.maxCooldowns.blue = Math.max(5, allies.maxCooldowns.blue * 0.75);
+          allies.maxCooldowns.yellow = Math.max(8, allies.maxCooldowns.yellow * 0.75);
+          allies.maxCooldowns.green = Math.max(5, allies.maxCooldowns.green * 0.75);
         }
       }
     ];
@@ -127,6 +154,7 @@ export class ShopSystem {
       up.apply(player);
       audio.playUpgradeBuy();
       particles.addDamageText(player.x, player.y - 50, `${up.name} UPGRADED!`, true, '#ffea00');
+      this.onPurchase?.();
       this.renderShopUI(player);
       return true;
     }

@@ -60,6 +60,12 @@ export class Zombie {
 
   initStats(type, wave) {
     const waveScale = 1 + (wave - 1) * 0.12;
+    // Damage and speed grow far more gently than HP (and are hard-capped)
+    // so late stages stay threatening without turning into bullet sponges.
+    const damageScale = Math.min(1.6, 1 + (wave - 1) * 0.045);
+    const speedScale = Math.min(1.18, 1 + (wave - 1) * 0.015);
+    this.behavior = type;
+    this.hasShield = false;
 
     switch (type) {
       case 'runner':
@@ -121,6 +127,40 @@ export class Zombie {
         this.inkReward = 20;
         this.scoreReward = 220;
         this.hookClass = 'pullable';
+        this.hasShield = true;
+        break;
+
+      case 'stalker':
+        this.maxHp = Math.round(60 * waveScale);
+        this.hp = this.maxHp;
+        this.speed = 235;
+        this.damage = 16;
+        this.radius = 16;
+        this.height = 42;
+        this.color = '#b620e0'; // Glitch purple
+        this.strokeWidth = 4;
+        this.scale = 0.9;
+        this.inkReward = 16;
+        this.scoreReward = 180;
+        this.hookClass = 'immune';
+        this.behavior = 'runner';
+        break;
+
+      case 'warden':
+        this.maxHp = Math.round(260 * waveScale);
+        this.hp = this.maxHp;
+        this.speed = 70;
+        this.damage = 24;
+        this.radius = 30;
+        this.height = 84;
+        this.color = '#3d6b52'; // Armored moss
+        this.strokeWidth = 8;
+        this.scale = 1.5;
+        this.inkReward = 40;
+        this.scoreReward = 420;
+        this.hookClass = 'anchor';
+        this.behavior = 'brute';
+        this.hasShield = true;
         break;
 
       case 'boom_bug':
@@ -186,6 +226,11 @@ export class Zombie {
         this.hookClass = 'pullable';
         break;
     }
+
+    if (!this.isBoss) {
+      this.damage = Math.round(this.damage * damageScale);
+      this.speed = Math.round(this.speed * speedScale);
+    }
   }
 
   update(dt, groundY, player, sketchBlocks, camera, platforms = [], zombies = [], friendlyTargets = []) {
@@ -240,7 +285,7 @@ export class Zombie {
       return;
     }
 
-    if (this.type === 'crawler' && this.crawlerDashTimer > 0) {
+    if (this.behavior === 'crawler' && this.crawlerDashTimer > 0) {
       this.crawlerDashTimer = Math.max(0, this.crawlerDashTimer - dt);
       this.pose = 'attack_slide';
       this.vx = this.facing * this.speed * 2.65;
@@ -269,7 +314,7 @@ export class Zombie {
       return;
     }
 
-    if (this.type === 'runner' && this.leapActive) {
+    if (this.behavior === 'runner' && this.leapActive) {
       let contactTarget = null;
       let nearestContact = 54;
       for (const candidate of combatTargets) {
@@ -314,7 +359,7 @@ export class Zombie {
 
       this.facing = dx >= 0 ? 1 : -1;
 
-      if (this.type === 'walker') {
+      if (this.behavior === 'walker') {
         if (dist > 45) {
           this.vx = this.facing * currentSpeed;
           this.pose = 'zombie_walk';
@@ -328,7 +373,7 @@ export class Zombie {
             this.pose = 'zombie_idle';
           }
         }
-      } else if (this.type === 'crawler') {
+      } else if (this.behavior === 'crawler') {
         if (dist > 175) {
           const scuttle = 0.88 + Math.sin(this.animTimer * 17) * 0.12;
           this.vx = this.facing * currentSpeed * scuttle;
@@ -353,7 +398,7 @@ export class Zombie {
             this.pose = 'zombie_idle';
           }
         }
-      } else if (this.type === 'runner') {
+      } else if (this.behavior === 'runner') {
         if (dist > 180) {
           this.vx = this.facing * currentSpeed;
           this.pose = 'run';
@@ -376,7 +421,7 @@ export class Zombie {
             this.pose = 'zombie_idle';
           }
         }
-      } else if (this.type === 'spitter') {
+      } else if (this.behavior === 'spitter') {
         const retreatBlocked = (this.x <= -ZOMBIE_ARENA_BOUND + 8 && this.facing > 0)
           || (this.x >= ZOMBIE_ARENA_BOUND - 8 && this.facing < 0);
         if (dist < this.preferredDist - 60 && !retreatBlocked) {
@@ -393,7 +438,7 @@ export class Zombie {
             this.pose = 'zombie_idle';
           }
         }
-      } else if (this.type === 'brute') {
+      } else if (this.behavior === 'brute') {
         if (dist > 80) {
           this.vx = this.facing * currentSpeed;
           this.pose = 'zombie_walk';
@@ -405,7 +450,7 @@ export class Zombie {
             this.pose = 'zombie_idle';
           }
         }
-      } else if (this.type === 'shieldbearer') {
+      } else if (this.behavior === 'shieldbearer') {
         if (dist > 53) {
           this.vx = this.facing * currentSpeed;
           this.pose = 'zombie_walk';
@@ -419,7 +464,7 @@ export class Zombie {
             this.pose = 'zombie_idle';
           }
         }
-      } else if (this.type === 'boom_bug') {
+      } else if (this.behavior === 'boom_bug') {
         if (dist > 128) {
           this.vx = this.facing * currentSpeed;
           this.pose = 'zombie_walk';
@@ -428,7 +473,7 @@ export class Zombie {
           if (this.attackCooldown <= 0) this.beginHeavyAction('boom_burst');
           else this.pose = 'zombie_idle';
         }
-      } else if (this.type === 'titan_boss') {
+      } else if (this.behavior === 'titan_boss') {
         this.updateBossAI(dt, dist, target, camera, combatTargets);
       }
 
@@ -461,10 +506,18 @@ export class Zombie {
       this.speed *= 1.3;
       audio.playBossRoar();
       particles.addTextBanner(this.x, this.y - 120, 'TITAN ENRAGED!', '#ff1133');
-      camera.addShake(0.7);
+      camera?.addShake?.(0.7);
+      speech.shoutBoss(this.x, this.y, 'titan', 'phase', 1.55, {
+        anchor: this, speakerKey: 'titan', repeatKey: 'titan:phase', cooldownMs: 0
+      });
     }
 
     if (dist > 120) {
+      // Distant targets get a telegraphed seismic leap instead of a slow walk.
+      if (dist > 300 && this.attackCooldown <= 0 && this.isGrounded && target) {
+        this.beginHeavyAction('titan_leap', target.x);
+        return;
+      }
       this.vx = this.facing * currentSpeed;
       this.pose = 'run';
     } else {
@@ -476,15 +529,19 @@ export class Zombie {
     }
   }
 
-  beginHeavyAction(kind) {
+  beginHeavyAction(kind, targetX = null) {
     if (this.actionPhase !== 'idle') return false;
     const isTitan = kind === 'titan_smash';
+    const isLeap = kind === 'titan_leap';
     const isBoomBug = kind === 'boom_burst';
-    this.actionKind = isTitan ? 'titan_smash' : (isBoomBug ? 'boom_burst' : 'brute_slam');
+    this.actionKind = isTitan ? 'titan_smash' : (isLeap ? 'titan_leap' : (isBoomBug ? 'boom_burst' : 'brute_slam'));
     this.actionPhase = 'windup';
-    this.actionDuration = isTitan ? 0.75 : (isBoomBug ? 0.7 : 0.55);
+    this.actionDuration = isTitan ? 0.75 : (isLeap ? 0.6 : (isBoomBug ? 0.7 : 0.55));
     this.actionTimer = this.actionDuration;
     this.actionHitApplied = false;
+    if (isLeap) {
+      this.leapTargetX = Math.max(-ZOMBIE_ARENA_BOUND, Math.min(ZOMBIE_ARENA_BOUND, Number.isFinite(targetX) ? targetX : this.x));
+    }
     this.vx = 0;
     this.pose = 'attack_cross';
     audio.playWhoosh();
@@ -494,12 +551,27 @@ export class Zombie {
   updateHeavyAction(dt, combatTargets, camera) {
     if (this.actionPhase === 'idle') return false;
     const actionDt = dt * (this.freezeTimer > 0 ? 0.45 : 1);
-    this.vx = 0;
+    if (this.actionPhase !== 'leap') this.vx = 0;
 
     if (this.actionPhase === 'windup') {
       this.pose = 'attack_cross';
       this.actionTimer = Math.max(0, this.actionTimer - actionDt);
       if (this.actionTimer <= 0) {
+        if (this.actionKind === 'titan_leap') {
+          // Launch toward the telegraphed landing spot; damage lands on touchdown.
+          this.actionPhase = 'leap';
+          this.actionDuration = 2.0;
+          this.actionTimer = this.actionDuration;
+          const gravity = 950; // matches applyPhysics
+          const launchVy = -620;
+          const airTime = (2 * Math.abs(launchVy)) / gravity;
+          this.vy = launchVy;
+          this.vx = (this.leapTargetX - this.x) / Math.max(0.35, airTime);
+          this.isGrounded = false;
+          this.pose = 'jump_rise';
+          audio.playBossRoar();
+          return true;
+        }
         this.actionPhase = 'active';
         this.actionDuration = 0.1;
         this.actionTimer = this.actionDuration;
@@ -509,6 +581,23 @@ export class Zombie {
           else if (this.actionKind === 'boom_burst') this.boomBurst(combatTargets, camera);
           else this.bruteSlam(combatTargets, camera);
         }
+      }
+      return true;
+    }
+
+    if (this.actionPhase === 'leap') {
+      this.pose = this.vy < 0 ? 'jump_rise' : 'jump_fall';
+      this.actionTimer = Math.max(0, this.actionTimer - actionDt);
+      const shouldLand = (this.isGrounded && this.actionTimer < this.actionDuration - 0.1) || this.actionTimer <= 0;
+      if (shouldLand) {
+        if (!this.actionHitApplied) {
+          this.actionHitApplied = true;
+          this.titanLand(combatTargets, camera);
+        }
+        this.vx = 0;
+        this.actionPhase = 'recovery';
+        this.actionDuration = 0.5;
+        this.actionTimer = this.actionDuration;
       }
       return true;
     }
@@ -529,7 +618,7 @@ export class Zombie {
     this.actionTimer = Math.max(0, this.actionTimer - actionDt);
     if (this.actionTimer <= 0) {
       const recoveryCooldown = this.actionKind === 'titan_smash' ? 1.1
-        : (this.actionKind === 'boom_burst' ? 1.8 : 1.4);
+        : (this.actionKind === 'titan_leap' ? 1.5 : (this.actionKind === 'boom_burst' ? 1.8 : 1.4));
       this.actionPhase = 'idle';
       this.actionKind = null;
       this.actionDuration = 0;
@@ -537,6 +626,19 @@ export class Zombie {
       this.attackCooldown = Math.max(this.attackCooldown, recoveryCooldown);
     }
     return true;
+  }
+
+  titanLand(targets, camera) {
+    audio.playBruteStomp();
+    camera?.addShake?.(0.6);
+    particles.addShockwave(this.x, this.y, 200, '#ff8830', 13);
+    particles.createDust(this.x, this.y, 10);
+
+    for (const target of targets || []) {
+      if (!this.isValidCombatTarget(target)) continue;
+      const dist = Math.hypot(target.x - this.x, target.y - this.y);
+      if (dist < 180) target.takeDamage(26, target.x >= this.x ? 1 : -1, 620);
+    }
   }
 
   cancelHeavyAction(cooldown = 0.65) {
@@ -590,8 +692,8 @@ export class Zombie {
     if (rise <= 70 || Math.abs(dx) > 260 || Math.abs(dx) < 28) return false;
 
     this.facing = dx >= 0 ? 1 : -1;
-    this.vy = this.type === 'brute' ? -500 : -540;
-    this.vx = this.facing * Math.max(125, currentSpeed * (this.type === 'runner' ? 1.05 : 0.9));
+    this.vy = this.behavior === 'brute' ? -500 : -540;
+    this.vx = this.facing * Math.max(125, currentSpeed * (this.behavior === 'runner' ? 1.05 : 0.9));
     this.isGrounded = false;
     this.leapActive = false;
     this.pose = 'jump_rise';
@@ -792,7 +894,7 @@ export class Zombie {
   takeDamage(amount, knockbackDir = 1, knockbackPower = 380, isCrit = false) {
     if (this.isDead) return 0;
 
-    if (this.type === 'shieldbearer') {
+    if (this.hasShield) {
       const direction = Math.sign(knockbackDir) || 1;
       const hitShieldFront = direction === -this.facing;
       const isHeavyHit = amount >= 60 || knockbackPower >= 700;
@@ -819,8 +921,23 @@ export class Zombie {
     this.crawlerDashTimer = 0;
     this.attackCooldown = Math.max(this.attackCooldown, 0.5); // Delay next attack
 
-    this.vx = knockbackDir * knockbackPower;
-    this.vy = -Math.min(knockbackPower * 0.35, 220);
+    // Stalkers glitch-blink through their attacker instead of taking
+    // knockback (deterministic 40% roll seeded from the anim clock).
+    if (this.type === 'stalker' && this.hp > 0 && this.stunTimer <= 0 && this.freezeTimer <= 0
+        && (Math.abs((this.animTimer * 997) | 0) % 10) < 4) {
+      const blinkX = this.x - knockbackDir * 200;
+      particles.createHitSparks(this.x, this.y - 20, 6, '#e07bff');
+      this.x = Math.max(-ZOMBIE_ARENA_BOUND, Math.min(ZOMBIE_ARENA_BOUND, blinkX));
+      this.facing = knockbackDir >= 0 ? 1 : -1;
+      this.vx = 0;
+      this.vy = 0;
+      this.hurtTimer = 0.12;
+      particles.createHitSparks(this.x, this.y - 20, 8, '#e07bff');
+      particles.createDust(this.x, this.y, 4, this.facing);
+    } else {
+      this.vx = knockbackDir * knockbackPower;
+      this.vy = -Math.min(knockbackPower * 0.35, 220);
+    }
 
     particles.addDamageText(this.x, this.y - this.height * 0.8, amount, isCrit);
     particles.createZombieSplatter(this.x, this.y - this.height * 0.5, 8, this.color);
@@ -839,11 +956,14 @@ export class Zombie {
   }
 
   applyFreeze(duration = 4.0) {
-    this.freezeTimer = Math.max(this.freezeTimer, duration);
+    // Bosses shrug off crowd control like the story bosses do.
+    const applied = this.isBoss ? Math.min(1.6, Math.max(0, duration) * 0.4) : duration;
+    this.freezeTimer = Math.max(this.freezeTimer, applied);
   }
 
   applyStun(duration = 3.0) {
-    this.stunTimer = Math.max(this.stunTimer, duration);
+    const applied = this.isBoss ? Math.min(1.2, Math.max(0, duration) * 0.3) : duration;
+    this.stunTimer = Math.max(this.stunTimer, applied);
     this.windupTimer = 0;
     this.windupTarget = null;
     this.cancelHeavyAction(0.65);
@@ -855,6 +975,11 @@ export class Zombie {
     this.isDead = true;
     this.hp = 0;
     combat.registerKill(this);
+    if (this.type === 'titan_boss') {
+      speech.shoutBoss(this.x, this.y, 'titan', 'defeat', 1.8, {
+        anchor: this, speakerKey: 'titan', repeatKey: 'titan:defeat', cooldownMs: 0
+      });
+    }
     audio.playZombieDeath();
     particles.createZombieSplatter(this.x, this.y - this.height * 0.5, 24, this.color);
     particles.emitSplatter(this.x, this.y - this.height * 0.45, {
@@ -940,9 +1065,12 @@ export class Zombie {
   drawHeavyTelegraph(ctx) {
     if (this.actionPhase !== 'windup' || this.actionDuration <= 0) return;
     const isTitan = this.actionKind === 'titan_smash';
+    const isLeap = this.actionKind === 'titan_leap';
     const isBoomBug = this.actionKind === 'boom_burst';
-    const radius = isTitan ? 220 : (isBoomBug ? 125 : 150);
-    const color = isTitan ? '#ff2244' : (isBoomBug ? '#ff9f1c' : '#70ff66');
+    const radius = isTitan ? 220 : (isLeap ? 180 : (isBoomBug ? 125 : 150));
+    const color = isTitan ? '#ff2244' : (isLeap ? '#ff8830' : (isBoomBug ? '#ff9f1c' : '#70ff66'));
+    // The leap warns at its landing spot, everything else at the body.
+    const anchorX = isLeap ? this.leapTargetX : this.x;
     const progress = Math.max(0, Math.min(1, 1 - this.actionTimer / this.actionDuration));
     const pulse = 0.75 + Math.sin(this.animTimer * 15) * 0.15;
 
@@ -950,24 +1078,24 @@ export class Zombie {
     ctx.fillStyle = color;
     ctx.globalAlpha = 0.07 + progress * 0.11;
     ctx.beginPath();
-    ctx.ellipse(this.x, this.y - 2, radius, Math.max(18, radius * 0.11), 0, 0, Math.PI * 2);
+    ctx.ellipse(anchorX, this.y - 2, radius, Math.max(18, radius * 0.11), 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.globalAlpha = Math.min(1, (0.48 + progress * 0.46) * pulse);
     ctx.strokeStyle = color;
     ctx.shadowColor = color;
-    ctx.shadowBlur = isTitan ? 16 : (isBoomBug ? 13 : 10);
-    ctx.lineWidth = isTitan ? 6 : (isBoomBug ? 5 : 4);
+    ctx.shadowBlur = (isTitan || isLeap) ? 16 : (isBoomBug ? 13 : 10);
+    ctx.lineWidth = (isTitan || isLeap) ? 6 : (isBoomBug ? 5 : 4);
     ctx.setLineDash([16, 9]);
     ctx.beginPath();
-    ctx.ellipse(this.x, this.y - 2, radius, Math.max(18, radius * 0.11), 0, 0, Math.PI * 2);
+    ctx.ellipse(anchorX, this.y - 2, radius, Math.max(18, radius * 0.11), 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
 
     ctx.globalAlpha = 0.9;
     ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.arc(this.x, this.y - 5, isTitan ? 43 : (isBoomBug ? 35 : 31), -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+    ctx.arc(anchorX, this.y - 5, (isTitan || isLeap) ? 43 : (isBoomBug ? 35 : 31), -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
     ctx.stroke();
     ctx.restore();
   }
@@ -1077,6 +1205,42 @@ export class Zombie {
       ctx.beginPath();
       ctx.moveTo(12, -48); ctx.lineTo(28, -43);
       ctx.moveTo(12, -35); ctx.lineTo(28, -30);
+      ctx.stroke();
+    } else if (this.type === 'stalker') {
+      // Glitch shear bars so the blink teleporter reads as corrupted data.
+      const flicker = 0.55 + Math.abs(Math.sin(this.animTimer * 9)) * 0.4;
+      ctx.globalAlpha = flicker;
+      ctx.fillStyle = '#e07bff';
+      ctx.fillRect(-16, -40, 12 + ((this.animTimer * 13) | 0) % 9, 3);
+      ctx.fillRect(2, -26, 9 + ((this.animTimer * 17) | 0) % 7, 3);
+      ctx.fillStyle = '#7b2bd6';
+      ctx.fillRect(-10, -12, 14, 3);
+      ctx.globalAlpha = 1;
+    } else if (this.type === 'warden') {
+      // A tower shield wide enough to read as "flank me or go heavy".
+      const flash = this.shieldFlashTimer > 0;
+      ctx.fillStyle = flash ? '#d7f7ff' : '#1d3327';
+      ctx.strokeStyle = flash ? '#ffffff' : '#8fe8b0';
+      ctx.lineWidth = flash ? 5 : 3.5;
+      if (flash && !suppressOrdinaryGlow) {
+        ctx.shadowColor = '#9effc8';
+        ctx.shadowBlur = 14;
+      }
+      ctx.beginPath();
+      ctx.moveTo(16, -76);
+      ctx.lineTo(44, -66);
+      ctx.lineTo(42, -22);
+      ctx.quadraticCurveTo(36, -4, 19, 2);
+      ctx.quadraticCurveTo(6, -12, 7, -46);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = flash ? '#8affc4' : '#4f7a5f';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(15, -62); ctx.lineTo(36, -55);
+      ctx.moveTo(15, -46); ctx.lineTo(36, -39);
+      ctx.moveTo(15, -30); ctx.lineTo(36, -23);
       ctx.stroke();
     } else if (this.type === 'boom_bug') {
       const charging = this.actionKind === 'boom_burst' && this.actionPhase === 'windup';

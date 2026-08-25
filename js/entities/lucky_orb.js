@@ -11,6 +11,8 @@ const CYAN = '#35e6ff';
 const MAGENTA = '#ef5cff';
 const ATTACK_ORDER = Object.freeze(['roll', 'drop']);
 const PHASE_TWO_ORDER = Object.freeze(['roll', 'drop', 'roll']);
+const ROLL_HOP_COUNT = 3;
+const ROLL_HOP_HEIGHT = 150;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const smoothstep = (value) => {
 	const t = clamp(value, 0, 1);
@@ -105,17 +107,34 @@ export class LuckyOrb {
 				break;
 			case 'roll_active': {
 				this.stateTimer -= dt;
-				const previousX = this.x;
-				const progress = 1 - this.stateTimer / this.stateDuration;
-				this.x = this.rollStartX + (this.rollTargetX - this.rollStartX) * smoothstep(progress);
-				this.resolveRollHits(player, previousX);
+				const progress = clamp(1 - this.stateTimer / this.stateDuration, 0, 1);
+				const span = this.rollTargetX - this.rollStartX;
+				this.x = this.rollStartX + span * progress;
+				// The orb BOUNCES across the arena in three hops and only
+				// threatens at its touchdown points — stand in a hop gap or
+				// jump a landing beat; mid-air it sails harmlessly overhead.
+				const arc = Math.abs(Math.sin(progress * Math.PI * ROLL_HOP_COUNT));
+				this.y = this.groundY - ROLL_HOP_HEIGHT * arc;
+				const hopIndex = Math.min(ROLL_HOP_COUNT - 1, Math.floor(progress * ROLL_HOP_COUNT));
+				if (hopIndex !== this.rollHopIndex) {
+					this.rollHopIndex = hopIndex;
+					const landingX = this.rollStartX + span * (hopIndex / ROLL_HOP_COUNT);
+					particles.emitImpact({
+						x: landingX, y: this.groundY - 12, profile: 'light', color: GOLD,
+						shockwave: false, seed: 0x10cc + this.attackIndex * 7 + hopIndex
+					});
+					camera?.addShake?.(0.1);
+					this.resolveHopLanding(landingX, player);
+				}
 				if (this.stateTimer <= 0) {
 					this.x = this.rollTargetX;
+					this.y = this.groundY;
 					particles.emitImpact({
 						x: this.x, y: this.groundY - 18, profile: 'medium', color: GOLD,
 						shockwave: false, seed: 0x10cc + this.attackIndex
 					});
 					camera?.addShake?.(0.15);
+					this.resolveHopLanding(this.rollTargetX, player);
 					this.recover(this.phase === 2 ? 0.54 : 0.68);
 				}
 				break;
@@ -179,8 +198,9 @@ export class LuckyOrb {
 
 	launchRoll(camera) {
 		this.state = 'roll_active';
-		this.stateDuration = this.stateTimer = this.phase === 2 ? 0.28 : 0.34;
+		this.stateDuration = this.stateTimer = this.phase === 2 ? 0.42 : 0.52;
 		this.rollStartX = this.x;
+		this.rollHopIndex = 0;
 		audio.playDodge();
 		particles.triggerSpeedlines({
 			x: (this.rollStartX + this.rollTargetX) * 0.5,
@@ -208,13 +228,11 @@ export class LuckyOrb {
 		camera?.focusOn?.(predicted, this.groundY - 125, 0.5, 0.95);
 	}
 
-	resolveRollHits(player, previousX) {
-		const hitTest = (target) => {
-			const closestX = clamp(target.x, Math.min(previousX, this.x), Math.max(previousX, this.x));
-			const centerY = target.y - (target.height || 60) * 0.5;
-			return Math.abs(target.x - closestX) < this.radius + (target.radius || 20)
-				&& Math.abs(centerY - (this.y - 58)) < 74;
-		};
+	resolveHopLanding(landingX, player) {
+		// Framerate-independent: each touchdown checks a fixed radius around
+		// the exact landing point, and only grounded targets are in danger.
+		const hitTest = (target) => Math.abs(target.x - landingX) < this.radius + (target.radius || 20) + 12
+			&& Math.abs(target.y - this.groundY) < 74;
 		if (!this.attackHit && canHitPlayer(player) && hitTest(player)) {
 			this.attackHit = true;
 			player.takeDamage(this.phase === 2 ? 27 : 23, this.rollDirection, 500);
@@ -269,8 +287,10 @@ export class LuckyOrb {
 	}
 
 	applyPhysics(dt, groundY) {
-		if (this.state !== 'roll_active') this.x += this.vx * dt;
-		this.y = groundY;
+		if (this.state !== 'roll_active') {
+			this.x += this.vx * dt;
+			this.y = groundY; // the bouncing roll drives y itself
+		}
 		this.vy = 0;
 		this.isGrounded = true;
 		this.x = clamp(this.x, LEFT, RIGHT);
@@ -419,26 +439,35 @@ export class LuckyOrb {
 		ctx.textBaseline = 'middle';
 		ctx.font = "900 16px 'Arial Black', Impact, sans-serif";
 		if (this.state === 'roll_windup') {
-			const min = Math.min(this.x, this.rollTargetX);
-			const span = Math.abs(this.rollTargetX - this.x);
-			const dir = Math.sign(this.rollTargetX - this.x) || 1;
-			ctx.globalAlpha = pulse * 0.35;
-			ctx.fillStyle = ORANGE;
-			ctx.fillRect(min, this.groundY - 18, span, 14);
-			ctx.globalAlpha = pulse;
+			// Three landing markers joined by dashed hop arcs — the gaps
+			// between markers are the safe ground.
+			const span = this.rollTargetX - this.x;
 			ctx.strokeStyle = ORANGE;
-			ctx.lineWidth = 4;
-			ctx.beginPath(); ctx.moveTo(this.x, this.groundY - 11); ctx.lineTo(this.rollTargetX, this.groundY - 11); ctx.stroke();
-			for (let i = 1; i < 4; i++) {
-				const x = this.x + (this.rollTargetX - this.x) * i / 4;
+			ctx.globalAlpha = pulse * 0.8;
+			ctx.lineWidth = 3;
+			ctx.setLineDash([9, 8]);
+			for (let i = 0; i < ROLL_HOP_COUNT; i++) {
+				const fromX = this.x + span * (i / ROLL_HOP_COUNT);
+				const toX = this.x + span * ((i + 1) / ROLL_HOP_COUNT);
+				const midX = (fromX + toX) * 0.5;
 				ctx.beginPath();
-				ctx.moveTo(x - dir * 12, this.groundY - 23);
-				ctx.lineTo(x + dir * 5, this.groundY - 11);
-				ctx.lineTo(x - dir * 12, this.groundY + 1);
+				ctx.moveTo(fromX, this.groundY - 8);
+				ctx.quadraticCurveTo(midX, this.groundY - ROLL_HOP_HEIGHT, toX, this.groundY - 8);
 				ctx.stroke();
 			}
+			ctx.setLineDash([]);
+			ctx.lineWidth = 4;
+			for (let i = 1; i <= ROLL_HOP_COUNT; i++) {
+				const x = this.x + span * (i / ROLL_HOP_COUNT);
+				ctx.globalAlpha = pulse;
+				ctx.fillStyle = 'rgba(255,138,34,0.18)';
+				ctx.beginPath();
+				ctx.ellipse(x, this.groundY, 62, 13, 0, 0, Math.PI * 2);
+				ctx.fill(); ctx.stroke();
+				ctx.beginPath(); ctx.ellipse(x, this.groundY, 33, 7, 0, 0, Math.PI * 2); ctx.stroke();
+			}
 			ctx.fillStyle = '#ffffff';
-			ctx.fillText('LUCKY ROLL!', (this.x + this.rollTargetX) * 0.5, this.groundY - 43);
+			ctx.fillText('LUCKY BOUNCE!', (this.x + this.rollTargetX) * 0.5, this.groundY - 43);
 		} else if (this.state === 'drop_windup' || this.state === 'drop_active') {
 			const active = this.state === 'drop_active';
 			const progress = active ? 1 - this.stateTimer / this.stateDuration : 0;

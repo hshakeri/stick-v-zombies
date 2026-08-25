@@ -3,6 +3,8 @@ import { particles } from '../engine/particles.js?v=8.7';
 import { audio } from '../engine/audio.js?v=8.7';
 import { projectiles } from '../entities/projectiles.js?v=8.7';
 import { speech } from '../engine/speech.js?v=8.7';
+import { combat } from './combat.js?v=8.7';
+import { save } from './save.js?v=8.7';
 
 const freezeBeat = (beat) => Object.freeze({
 	...beat,
@@ -828,7 +830,9 @@ export class StageManager {
 				}
 			}
 
-			if (!this.isObjectiveComplete && this.theme === 'firewall' && isActive && Array.isArray(player?.currentZombies)) {
+			// Hooked zombies dragged through any live laser take its damage —
+			// hazards double as player tools on every laser stage, not just stage 4.
+			if (!this.isObjectiveComplete && isActive && Array.isArray(player?.currentZombies)) {
 				let zappedHookTarget = false;
 				for (const zombie of player.currentZombies) {
 					if (!zombie || zombie.isDead || zombie.hookPullTimer <= 0 || typeof zombie.takeDamage !== 'function') continue;
@@ -877,6 +881,10 @@ export class StageManager {
 					cooldownMs: 0
 				});
 			}
+			const stageRank = this.computeStageRank(combat.stageMaxCombo, player?.stageDamageTaken ?? 0);
+			particles.addTextBanner(clearX, clearY, `RANK ${stageRank}`,
+				stageRank === 'S' ? '#ffd700' : (stageRank === 'A' ? '#67e8f9' : '#c3c8e0'));
+			save.recordStageRank(this.currentStage, stageRank);
 			particles.addTextBanner(this.exitDoor.x, this.exitDoor.y - 120, '★ EXIT DOOR OPEN! ★', '#33ff88');
 			particles.addShockwave(this.exitDoor.x, this.exitDoor.y - 45, 120, '#33ff88', 8);
 			if (this.currentStage === this.maxStage) {
@@ -905,6 +913,13 @@ export class StageManager {
 				if (this.doorTransitionTimer > 0) this.doorTransitionTimer = 0;
 			}
 		}
+	}
+
+	computeStageRank(stageMaxCombo, damageTaken) {
+		if (stageMaxCombo >= 14 && damageTaken <= 25) return 'S';
+		if (stageMaxCombo >= 9 && damageTaken <= 70) return 'A';
+		if (stageMaxCombo >= 5 || damageTaken <= 100) return 'B';
+		return 'C';
 	}
 
 	getAllSolidPlatforms() {

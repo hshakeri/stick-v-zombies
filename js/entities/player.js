@@ -77,7 +77,9 @@ export class Player {
     this.rollCooldown = 0;
 
     this.grabCooldown = 0;
+    this.grabCooldownMax = 5.0;
     this.blockCooldown = 0;
+    this.stageDamageTaken = 0;
 
     this.hookCooldown = 0;
     this.hookRange = 420;
@@ -679,7 +681,7 @@ export class Player {
 
     if (!target) return false;
 
-    this.grabCooldown = 5.0;
+    this.grabCooldown = this.grabCooldownMax;
     this.facing = target.x >= this.x ? 1 : -1;
     audio.playGrabThrow();
     return this.beginMove(MOVE_DEFINITIONS.grab, zombies, camera, { action: 'grab', target });
@@ -1205,6 +1207,7 @@ export class Player {
     this.rollTimer = 0;
     this.rollCooldown = 0;
     this.grabCooldown = 0;
+    this.stageDamageTaken = 0;
     this.blockCooldown = 0;
     this.laserTickTimer = 0;
     this.diveKick = false;
@@ -1230,6 +1233,7 @@ export class Player {
     if (this.isDead || this.iFrames > 0 || this.isRolling || this.isAwakened) return;
 
     this.hp = Math.max(0, this.hp - amount);
+    this.stageDamageTaken += amount;
     this.isHurt = true;
     this.hurtTimer = 0.25;
     this.iFrames = 0.9; // Solid invulnerability frames to prevent spam hits

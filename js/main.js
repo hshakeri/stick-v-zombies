@@ -73,6 +73,7 @@ export class Game {
   }
 
   applySavedSettings() {
+    shop.onPurchase = () => this.captureStageCheckpoint();
     particles.setSplatterEnabled?.(save.getSetting('splatter', true));
     audio.setEnabled?.(save.getSetting('audio', true));
     const btnAudio = document.getElementById('btn-audio-toggle');
@@ -300,6 +301,14 @@ export class Game {
     particles.reset();
     speech.reset();
     combat.clearArena();
+    // Rewind run currency to the stage-entry checkpoint so dying can't
+    // farm ink from respawned enemies. Upgrades bought mid-stage refresh
+    // the checkpoint at purchase time, so they are never lost or refunded.
+    if (this.stageCheckpoint && this.stageCheckpoint.stage === stage) {
+      combat.ink = this.stageCheckpoint.ink ?? combat.ink;
+      combat.score = this.stageCheckpoint.score ?? combat.score;
+      combat.totalKills = this.stageCheckpoint.totalKills ?? combat.totalKills;
+    }
     this.stageManager.loadStage(stage);
     this.player.resetStageCombat?.(true);
     this.player.hp = this.player.maxHp;
@@ -394,6 +403,8 @@ export class Game {
       7: 'STAFF PICKUP · E ANVIL',
       8: 'AIR CHASE · ALLIES 2–4',
       10: 'FULL METER? PRESS R',
+      12: 'STALKERS BLINK · TURN FAST',
+      13: 'WARDENS: FLANK OR GO HEAVY',
       15: 'READ GOLD MARKERS · MOVE LATE',
       16: 'FINAL PATCH · USE R'
     }[stage] || 'CHAIN MOVES · WATCH RINGS';
@@ -465,6 +476,7 @@ export class Game {
     if (this.player.isAwakened) this.player.deactivateAwakening?.();
     this.player.temporaryWeaponTimer = 0;
     this.player.weaponType = 'pencil';
+    this.player.stageDamageTaken = 0;
     const isBossCheckpoint = [5, 10, 11, 15, 16].includes(nextStage);
     const baselineHeal = this.player.maxHp * 0.18;
     const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);

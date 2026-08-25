@@ -38,7 +38,7 @@ export class AllyManager {
       blue: 12,
       yellow: 14,
       green: 12,
-      cursor: 8
+      cursor: 14
     };
     this.recoveryStates = {
       red: false,
@@ -81,7 +81,7 @@ export class AllyManager {
         blue: 12,
         yellow: 14,
         green: 12,
-        cursor: 8
+        cursor: 14
       });
     }
   }
@@ -185,12 +185,14 @@ export class AllyManager {
           if (ally.readyTimer >= ALLY_READY_TIME) {
             ally.hasActed = true;
             audio.playBlockPlace();
+            // Cap the battery at two turrets — the oldest one powers down.
+            while (this.turrets.length >= 2) this.turrets.shift();
             const turret = {
               x: ally.x,
               y: groundY,
               fireTimer: 0,
-              duration: 12.0,
-              maxDuration: 12.0,
+              duration: 9.0,
+              maxDuration: 9.0,
               range: 600,
               damage: 26,
               hitsRemaining: 3,
@@ -325,14 +327,14 @@ export class AllyManager {
         camera.addZoomPunch?.(0.045);
         if (c.targetZombie && !c.targetZombie.isDead) {
           const isBoss = !!c.targetZombie.isBoss;
-          c.targetZombie.takeDamage(isBoss ? 90 : 9999, 1, 0, true);
+          c.targetZombie.takeDamage(isBoss ? 70 : 9999, 1, 0, true);
           particles.createHitSparks(tx, ty, 20, '#00d2ff');
           particles.addShockwave(tx, ty, 140, '#0099ff', 10);
           particles.addTextBanner(tx, ty - 60, isBoss ? '⚠️ [PROCESS INTERRUPTED]' : '🗑️ [FILE DELETED]', '#00d2ff');
         } else {
           for (const z of zombies) {
             if (!z.isDead && Math.abs(z.x - c.x) < 140) {
-              z.takeDamage(z.isBoss ? 90 : 9999, 1, 0, true);
+              z.takeDamage(z.isBoss ? 70 : 9999, 1, 0, true);
               particles.createHitSparks(z.x, z.y - 30, 20, '#00d2ff');
               particles.addTextBanner(z.x, z.y - 60, '🗑️ [FILE DELETED]', '#00d2ff');
               break;
