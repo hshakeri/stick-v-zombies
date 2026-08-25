@@ -391,16 +391,18 @@ export class H4C3R {
     return true;
   }
   takeDamage(amount, knockbackDir = 1, knockbackPower = 200, isCrit = false) {
-    if (this.isDead || !Number.isFinite(amount) || amount <= 0) return;
-    this.hp = Math.max(0, this.hp - amount);
+    if (this.isDead || !Number.isFinite(amount) || amount <= 0) return 0;
+    const applied = Math.min(this.hp, amount);
+    this.hp -= applied;
     this.isHurt = true;
     this.hurtTimer = 0.12;
     if (this.state === 'idle' || this.state === 'recover') {
       this.vx = knockbackDir * Math.min(95, Math.max(0, knockbackPower) * 0.22);
     }
-    particles.addDamageText(this.x, this.y - this.height * 0.8, amount, isCrit, CYAN);
+    particles.addDamageText(this.x, this.y - this.height * 0.8, applied, isCrit, CYAN);
     particles.createHitSparks(this.x, this.y - this.height * 0.52, 6, this.phase === 2 ? LIME : CYAN);
     if (this.hp <= 0) this.die();
+    return applied;
   }
   clearOwnedProjectiles() {
     projectiles.clearByOwner(this);

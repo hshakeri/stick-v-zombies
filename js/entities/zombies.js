@@ -783,6 +783,7 @@ export class Zombie {
 
     this.hp = 0;
     this.isDead = true;
+    combat.registerKill(this);
     this.actionPhase = 'idle';
     this.actionKind = null;
     particles.createStickLimbExplosion(this.x, this.y, 0, this.color);

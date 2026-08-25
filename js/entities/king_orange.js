@@ -393,14 +393,16 @@ export class KingOrange {
     this.stunTimer = Math.max(this.stunTimer, Math.min(0.32, duration * (1 - this.stunResistance)));
   }
   takeDamage(amount, knockbackDir = 1, knockbackPower = 200, isCrit = false) {
-    if (this.isDead) return;
-    this.hp = Math.max(0, this.hp - amount);
+    if (this.isDead || !Number.isFinite(amount) || amount <= 0) return 0;
+    const applied = Math.min(this.hp, amount);
+    this.hp -= applied;
     this.isHurt = true;
     this.hurtTimer = 0.14;
     this.vx += knockbackDir * knockbackPower * 0.2;
-    particles.addDamageText(this.x, this.y - this.height * 0.78, amount, isCrit, '#ff9a32');
+    particles.addDamageText(this.x, this.y - this.height * 0.78, applied, isCrit, '#ff9a32');
     particles.createHitSparks(this.x, this.y - 44, 5, '#ff9a32');
     if (this.hp <= 0) this.die();
+    return applied;
   }
   die() {
     if (this.isDead) return;

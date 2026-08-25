@@ -259,7 +259,8 @@ export class ProjectileManager {
 
           for (const z of zombies) {
             if (!z.isDead && Math.abs(z.x - p.x) < 140 && Math.abs(z.y - groundY) < 60) {
-              z.takeDamage(p.damage, p.x < z.x ? 1 : -1, 700, true);
+              const applied = z.takeDamage(p.damage, p.x < z.x ? 1 : -1, 700, true) ?? p.damage;
+              if (p.ownerIsPlayer) combat.registerHit(applied, true);
             }
           }
 
@@ -376,7 +377,8 @@ export class ProjectileManager {
               p.radius + (z.radius || 18)
             )) {
               p.hitZombies.add(z);
-              z.takeDamage(p.damage, p.vx > 0 ? 1 : -1, p.knockback || 300, p.isCrit);
+              const applied = z.takeDamage(p.damage, p.vx > 0 ? 1 : -1, p.knockback || 300, p.isCrit) ?? p.damage;
+              if (p.ownerIsPlayer) combat.registerHit(applied, p.isCrit === true);
               particles.createHitSparks(p.x, p.y, 8, p.sparkColor || '#ffaa00');
 
               if (p.pierce > 0) {
@@ -914,6 +916,7 @@ export class ProjectileManager {
       gravity: 1600, // Drops fast and heavy
       radius: 35,
       damage,
+      ownerIsPlayer: true,
       isHostile: false,
       critical: true,
       isLanded: false,
@@ -996,6 +999,7 @@ export class ProjectileManager {
       radius: 24,
       damage,
       pierce: 99, // Pierces all enemies
+      ownerIsPlayer: true,
       isHostile: false,
       critical: true,
       isCrit: true,
@@ -1022,6 +1026,7 @@ export class ProjectileManager {
       radius: 28,
       damage,
       pierce: 10,
+      ownerIsPlayer: true,
       isHostile: false,
       critical: true,
       isCrit: true,

@@ -427,7 +427,7 @@ export class Player {
     }
 
     if (move.action === 'javelin') {
-      projectiles.spawnJavelin(this.x + this.facing * 40, this.y - 30, this.facing, def.damage);
+      projectiles.spawnJavelin(this.x + this.facing * 40, this.y - 30, this.facing, Math.round(def.damage * this.damageMultiplier));
       particles.emitImpact?.('medium', this.x + this.facing * 34, this.y - 30, { color: '#ffb347', direction: this.facing });
       return;
     }

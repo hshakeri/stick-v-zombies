@@ -1140,6 +1140,29 @@ test('crawler, shieldbearer, and Boom-Bug have distinct readable counters', () =
   particles.reset();
 });
 
+test('self-detonating Boom-Bugs award their kill and bosses report applied damage', () => {
+  combat.resetRun();
+  const boomBug = new Zombie(0, 0, 'boom_bug', 6);
+  assert.equal(boomBug.beginHeavyAction('boom_burst'), true);
+  boomBug.updateHeavyAction(0.69, [], { addShake() {} });
+  boomBug.updateHeavyAction(0.02, [], { addShake() {} });
+  assert.equal(boomBug.isDead, true);
+  assert.equal(combat.totalKills, 1, 'a self-detonating Boom-Bug still counts as a kill');
+  assert.equal(combat.inkDrops.length, 1, 'the burst drops ink');
+  assert.equal(combat.inkDrops[0].value, boomBug.inkReward, 'the drop carries the full ink reward');
+  assert.ok(combat.score >= boomBug.scoreReward, 'the burst awards score');
+
+  for (const boss of [new DarkLord(0, 0), new KingOrange(0, 0), new H4C3R(0, 0), new LuckyOrb(0, 0)]) {
+    const name = boss.constructor.name;
+    assert.equal(boss.takeDamage(25, 1, 300, false), 25, `${name} reports applied damage`);
+    boss.hp = 10;
+    assert.equal(boss.takeDamage(999, 1, 300, false), 10, `${name} clamps overkill to remaining hp`);
+    assert.equal(boss.takeDamage(50, 1, 300, false), 0, `${name} reports zero once defeated`);
+  }
+  combat.resetRun();
+  particles.reset();
+});
+
 test('vector hook gathers every lightweight zombie but leaves runners alone', () => {
   particles.reset();
   const player = new Player(0, 0);

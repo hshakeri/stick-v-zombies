@@ -420,12 +420,13 @@ export class DarkLord {
     this.x = Math.max(-980, Math.min(980, this.x));
   }
   takeDamage(amount, knockbackDir = 1, knockbackPower = 200, isCrit = false) {
-    if (this.isDead) return;
-    this.hp = Math.max(0, this.hp - amount);
+    if (this.isDead || !Number.isFinite(amount) || amount <= 0) return 0;
+    const applied = Math.min(this.hp, amount);
+    this.hp -= applied;
     this.isHurt = true;
     this.hurtTimer = 0.15; // Shorter hit stun for boss resistance
     this.vx = knockbackDir * (knockbackPower * 0.35);
-    particles.addDamageText(this.x, this.y - this.height * 0.8, amount, isCrit, '#ff2244');
+    particles.addDamageText(this.x, this.y - this.height * 0.8, applied, isCrit, '#ff2244');
     particles.createHitSparks(this.x, this.y - this.height * 0.5, 6, '#ff0033');
     if (Math.random() < 0.15 && this.state === 'idle') {
       this.startTeleport({ x: this.x + (Math.random() - 0.5) * 300 });
@@ -433,6 +434,7 @@ export class DarkLord {
     if (this.hp <= 0) {
       this.die();
     }
+    return applied;
   }
   applyFreeze(duration = 4) {
     if (this.isDead) return false;
