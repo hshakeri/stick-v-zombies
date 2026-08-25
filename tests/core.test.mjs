@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=8.7';
-import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=8.7';
+import { Camera } from '../js/engine/camera.js?v=8.8';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=8.8';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,21 +14,21 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=8.7';
-import { AllyManager, allies } from '../js/entities/allies.js?v=8.7';
-import { DarkLord } from '../js/entities/dark_lord.js?v=8.7';
-import { H4C3R } from '../js/entities/h4c3r.js?v=8.7';
-import { KingOrange } from '../js/entities/king_orange.js?v=8.7';
-import { LuckyOrb } from '../js/entities/lucky_orb.js?v=8.7';
-import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.7';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.7';
-import { Zombie } from '../js/entities/zombies.js?v=8.7';
-import { weapons } from '../js/entities/weapons.js?v=8.7';
-import { combat } from '../js/systems/combat.js?v=8.7';
-import { SaveSystem } from '../js/systems/save.js?v=8.7';
-import { shop } from '../js/systems/shop.js?v=8.7';
-import { Game } from '../js/main.js?v=8.7';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.7';
+} from '../js/engine/speech.js?v=8.8';
+import { AllyManager, allies } from '../js/entities/allies.js?v=8.8';
+import { DarkLord } from '../js/entities/dark_lord.js?v=8.8';
+import { H4C3R } from '../js/entities/h4c3r.js?v=8.8';
+import { KingOrange } from '../js/entities/king_orange.js?v=8.8';
+import { LuckyOrb } from '../js/entities/lucky_orb.js?v=8.8';
+import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.8';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.8';
+import { Zombie } from '../js/entities/zombies.js?v=8.8';
+import { weapons } from '../js/entities/weapons.js?v=8.8';
+import { combat } from '../js/systems/combat.js?v=8.8';
+import { SaveSystem } from '../js/systems/save.js?v=8.8';
+import { shop } from '../js/systems/shop.js?v=8.8';
+import { Game } from '../js/main.js?v=8.8';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.8';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -39,9 +39,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=8.7';
+} from '../js/systems/waves.js?v=8.8';
 
-const RELEASE_MODULE_VERSION = '8.7';
+const RELEASE_MODULE_VERSION = '8.8';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

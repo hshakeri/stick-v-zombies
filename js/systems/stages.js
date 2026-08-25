@@ -1,10 +1,10 @@
 
-import { particles } from '../engine/particles.js?v=8.7';
-import { audio } from '../engine/audio.js?v=8.7';
-import { projectiles } from '../entities/projectiles.js?v=8.7';
-import { speech } from '../engine/speech.js?v=8.7';
-import { combat } from './combat.js?v=8.7';
-import { save } from './save.js?v=8.7';
+import { particles } from '../engine/particles.js?v=8.8';
+import { audio } from '../engine/audio.js?v=8.8';
+import { projectiles } from '../entities/projectiles.js?v=8.8';
+import { speech } from '../engine/speech.js?v=8.8';
+import { combat } from './combat.js?v=8.8';
+import { save } from './save.js?v=8.8';
 
 const freezeBeat = (beat) => Object.freeze({
 	...beat,
