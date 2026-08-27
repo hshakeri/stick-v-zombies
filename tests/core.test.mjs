@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=8.9';
-import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=8.9';
+import { Camera } from '../js/engine/camera.js?v=9.0';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.0';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,21 +14,21 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=8.9';
-import { AllyManager, allies } from '../js/entities/allies.js?v=8.9';
-import { DarkLord } from '../js/entities/dark_lord.js?v=8.9';
-import { H4C3R } from '../js/entities/h4c3r.js?v=8.9';
-import { KingOrange } from '../js/entities/king_orange.js?v=8.9';
-import { LuckyOrb } from '../js/entities/lucky_orb.js?v=8.9';
-import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.9';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.9';
-import { Zombie } from '../js/entities/zombies.js?v=8.9';
-import { weapons } from '../js/entities/weapons.js?v=8.9';
-import { combat } from '../js/systems/combat.js?v=8.9';
-import { SaveSystem } from '../js/systems/save.js?v=8.9';
-import { shop } from '../js/systems/shop.js?v=8.9';
-import { Game } from '../js/main.js?v=8.9';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.9';
+} from '../js/engine/speech.js?v=9.0';
+import { AllyManager, allies } from '../js/entities/allies.js?v=9.0';
+import { DarkLord } from '../js/entities/dark_lord.js?v=9.0';
+import { H4C3R } from '../js/entities/h4c3r.js?v=9.0';
+import { KingOrange } from '../js/entities/king_orange.js?v=9.0';
+import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.0';
+import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.0';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.0';
+import { Zombie } from '../js/entities/zombies.js?v=9.0';
+import { weapons } from '../js/entities/weapons.js?v=9.0';
+import { combat } from '../js/systems/combat.js?v=9.0';
+import { SaveSystem } from '../js/systems/save.js?v=9.0';
+import { shop } from '../js/systems/shop.js?v=9.0';
+import { Game } from '../js/main.js?v=9.0';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.0';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -39,9 +39,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=8.9';
+} from '../js/systems/waves.js?v=9.0';
 
-const RELEASE_MODULE_VERSION = '8.9';
+const RELEASE_MODULE_VERSION = '9.0';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -72,6 +72,15 @@ test('browser module graph uses one coherent cache version', () => {
   const html = readFileSync(fileURLToPath(new URL('../index.html', import.meta.url)), 'utf8');
   assert.match(html, new RegExp(`js/main\\.js\\?v=${RELEASE_MODULE_VERSION}`));
   assert.ok(importCount >= 60, `expected the complete module graph, found ${importCount} imports`);
+});
+
+test('the main menu exposes the game source without loading it during play', () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const html = readFileSync(join(root, 'index.html'), 'utf8');
+  const main = readFileSync(join(root, 'js/main.js'), 'utf8');
+  assert.match(html, /id="btn-view-code"[^>]*aria-label="View the game code on GitHub \(opens in a new tab\)"[^>]*>[^<]*GAME CODE<\/button>/);
+  assert.match(main, /btn-view-code[\s\S]{0,300}window\.open\('https:\/\/github\.com\/hshakeri\/stick-v-zombies', '_blank', 'noopener,noreferrer'\)/);
+  assert.doesNotMatch(html, /href=["']https:\/\/github\.com\/hshakeri\/stick-v-zombies/);
 });
 
 test('display typography is self-contained: embedded subset plus safe fallbacks', () => {
@@ -860,6 +869,27 @@ test('the final exit waits for H4C3R defeat framing to finish', () => {
   assert.equal(calls[1][0], 'zoom');
 });
 
+test('boss-stage exit pans wait for the death explosion focus', () => {
+  const manager = new StageManager();
+  manager.loadStage(11);
+  const calls = [];
+  const camera = {
+    focusOn(...args) { calls.push(['focus', ...args]); },
+    addZoomPunch(amount) { calls.push(['zoom', amount]); }
+  };
+  const player = { x: -800, y: 0, isDead: false };
+  const clearedWave = { isWaveActive: true, spawnQueue: [], zombies: [] };
+
+  manager.update(0.016, player, clearedWave, () => {}, camera);
+  assert.equal(manager.exitDoor.isOpen, true);
+  assert.deepEqual(calls, []);
+  for (let i = 0; i < 50; i += 1) manager.update(0.016, player, clearedWave, () => {}, camera);
+  assert.deepEqual(calls, [], 'the full 0.8s death focus must remain unobstructed');
+  for (let i = 0; i < 4; i += 1) manager.update(0.016, player, clearedWave, () => {}, camera);
+  assert.equal(calls[0][0], 'focus');
+  assert.equal(calls[1][0], 'zoom');
+});
+
 test('new boss renderers are pure and expose the wave-director contract', () => {
   particles.reset();
   const bosses = [new KingOrange(10, 0), new LuckyOrb(0, 0), new H4C3R(-10, 0)];
@@ -1215,6 +1245,70 @@ test('self-detonating Boom-Bugs award their kill and bosses report applied damag
   }
   combat.resetRun();
   particles.reset();
+});
+
+test('Titan and every story boss explode exactly once when defeated', () => {
+  combat.resetRun();
+  particles.reset();
+  speech.reset();
+  const originalExplosion = particles.emitBossExplosion;
+  const explosions = [];
+  particles.emitBossExplosion = function emitTrackedBossExplosion(options) {
+    explosions.push(options);
+    return originalExplosion.call(this, options);
+  };
+
+  try {
+    const bosses = [
+      new Zombie(0, 0, 'titan_boss', 5),
+      new DarkLord(0, 0),
+      new KingOrange(0, 0),
+      new LuckyOrb(0, 0),
+      new H4C3R(0, 0)
+    ];
+    for (const boss of bosses) {
+      boss.hp = 1;
+      assert.ok(boss.takeDamage(99, 1, 300, false) > 0);
+      assert.equal(boss.isDead, true);
+      const explosionCount = explosions.length;
+      boss.die();
+      assert.equal(explosions.length, explosionCount, `${boss.type} cannot explode twice`);
+    }
+
+    assert.equal(explosions.length, bosses.length);
+    assert.deepEqual(explosions.map((entry) => entry.stickFigure), [true, true, true, false, true]);
+    assert.ok(explosions.every((entry) => entry.radius >= 250));
+    assert.ok(particles.comicPopups.some((entry) => entry.text === 'KABOOM!'));
+    assert.ok(particles.particles.length <= particles.maxParticles);
+    assert.ok(particles.shockwaves.length <= particles.maxShockwaves);
+    assert.ok(particles.limbDebris.length <= particles.maxLimbDebris);
+  } finally {
+    particles.emitBossExplosion = originalExplosion;
+    combat.resetRun();
+    particles.reset();
+    speech.reset();
+  }
+});
+
+test('wave removal briefly frames a defeated boss before the exit pan', () => {
+  const director = new WaveDirector();
+  const boss = new KingOrange(720, 0);
+  const focusCalls = [];
+  const camera = { focusOn(...args) { focusCalls.push(args); } };
+  director.isWaveActive = true;
+  director.currentWave = 11;
+  director.spawnQueue = [];
+  director.zombies = [boss];
+  boss.die();
+
+  director.update(1 / 60, { x: -800, y: 0, isDead: false }, 0, [], camera, () => {});
+  assert.equal(director.zombies.length, 0);
+  assert.equal(focusCalls.length, 1);
+  assert.equal(focusCalls[0][0], boss.x);
+  assert.equal(focusCalls[0][3], 1.06);
+  combat.resetRun();
+  particles.reset();
+  speech.reset();
 });
 
 test('vector hook gathers every lightweight zombie but leaves runners alone', () => {
@@ -1910,6 +2004,42 @@ test('impact profiles, deterministic speedlines, and every effect pool stay boun
   assert.ok(first.limbDebris.length <= 24);
 });
 
+test('boss explosions are seeded, readable, pure to draw, and bounded under load', () => {
+  const first = new ParticleSystem();
+  const second = new ParticleSystem();
+  const options = {
+    x: 40, y: -55, bodyY: 0, groundY: 0, radius: 270,
+    color: '#ff5533', accent: '#ffee77', stickFigure: false, seed: 4242
+  };
+  const one = first.emitBossExplosion(options);
+  const two = second.emitBossExplosion(options);
+  const firstShards = first.limbDebris.filter((entry) => entry.isShard);
+  const secondShards = second.limbDebris.filter((entry) => entry.isShard);
+
+  assert.deepEqual(one, two);
+  assert.deepEqual(firstShards, secondShards);
+  assert.equal(firstShards.length, 10);
+  assert.equal(first.shockwaves.length, 2);
+  assert.equal(first.comicPopups.at(-1)?.text, 'KABOOM!');
+  assert.equal(first.speedlineEffect?.angles.length, 24);
+
+  const snapshot = JSON.stringify([first.particles, first.shockwaves, first.limbDebris]);
+  const { context, calls } = createCanvasContextMock();
+  first.draw(context);
+  assert.equal(JSON.stringify([first.particles, first.shockwaves, first.limbDebris]), snapshot);
+  assert.equal(calls.save, calls.restore);
+
+  first.setLoadProfile('low');
+  first.setReducedEffects(true);
+  for (let index = 0; index < 80; index += 1) {
+    first.emitBossExplosion({ ...options, x: index, seed: index, stickFigure: true });
+  }
+  assert.ok(first.particles.length <= 220);
+  assert.ok(first.shockwaves.length <= 8);
+  assert.ok(first.comicPopups.length <= 6);
+  assert.ok(first.limbDebris.length <= 24);
+});
+
 test('comic splatter is deterministic, bounded, pure to draw, and parent-toggleable', () => {
   const first = new ParticleSystem();
   const second = new ParticleSystem();
@@ -2153,7 +2283,7 @@ test('save system round-trips, survives corruption, and degrades without storage
   assert.equal(absent.getSetting('splatter', true), false);
 });
 
-test('the release stays asset-free and under the 600KB source budget', () => {
+test('the release stays asset-free and under the 500KB source budget', () => {
   const root = fileURLToPath(new URL('../', import.meta.url));
   const sourceFiles = [
     join(root, 'index.html'),
@@ -2161,7 +2291,7 @@ test('the release stays asset-free and under the 600KB source budget', () => {
     ...listJavaScriptFiles(join(root, 'js'))
   ];
   const bytes = sourceFiles.reduce((sum, file) => sum + Buffer.byteLength(readFileSync(file, 'utf8')), 0);
-  assert.ok(bytes < 600_000, `combined source is ${bytes} bytes`);
+  assert.ok(bytes < 500_000, `combined source is ${bytes} bytes`);
 
   const html = readFileSync(join(root, 'index.html'), 'utf8');
   const css = readFileSync(join(root, 'css/style.css'), 'utf8');

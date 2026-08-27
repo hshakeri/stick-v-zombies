@@ -126,6 +126,7 @@ Defeated zombies drop **Ink** (✒️) which can be spent between waves in the U
 - **Responsive Canvas Framing**: Resolution-independent camera coordinates, capped pixel density, safe arena bounds, and compact portrait/landscape HUD layouts.
 - **Readable Stick Animation**: Procedural skeleton poses, silhouettes, anticipation, afterimages, and motion lines.
 - **Combat Juice**: Hitstop impact frames, dynamic camera tracking and screen shake, comic star sparks, and stylized floating damage popups.
+- **Boss Finish Bursts**: Every boss ends in a capped procedural explosion of colored shards, stick fragments, rings, speedlines, and a comic `KABOOM!`.
 - **Cinematic Camera Beats**: Brief boss reveals, exit-door pans, and capped impact zooms keep encounters lively without stealing control.
 - **Readable Character Banter**: Short, character-specific quips for Orange, every ally, the bosses, and the zombie malware stay fixed in screen space.
 - **Lightweight Rendering**: Canvas 2D vectors and Web Audio only, with bounded particles and throttled continuous effects.

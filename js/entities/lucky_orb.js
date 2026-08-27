@@ -1,8 +1,7 @@
-import { particles } from '../engine/particles.js?v=8.9';
-import { audio } from '../engine/audio.js?v=8.9';
-import { speech } from '../engine/speech.js?v=8.9';
-import { combat } from '../systems/combat.js?v=8.9';
-
+import { particles } from '../engine/particles.js?v=9.0';
+import { audio } from '../engine/audio.js?v=9.0';
+import { speech } from '../engine/speech.js?v=9.0';
+import { combat } from '../systems/combat.js?v=9.0';
 const LEFT = -980;
 const RIGHT = 980;
 const GOLD = '#ffd43b';
@@ -18,12 +17,10 @@ const smoothstep = (value) => {
 	const t = clamp(value, 0, 1);
 	return t * t * (3 - 2 * t);
 };
-
 function canHitPlayer(player) {
 	return Boolean(player && !player.isDead && !player.isRolling
 		&& !player.isAwakened && (player.iFrames || 0) <= 0);
 }
-
 export class LuckyOrb {
 	constructor(x, y) {
 		Object.assign(this, {
@@ -43,7 +40,6 @@ export class LuckyOrb {
 		this.friendlyHits = new Set();
 		this.friendlyTargets = [];
 	}
-
 	update(dt, groundY, player, sketchBlocks, camera, platforms = [], enemies = [], friendlyTargets = []) {
 		if (this.isDead) return;
 		const safeDt = clamp(Number(dt) || 0, 0, 0.05);
@@ -51,19 +47,16 @@ export class LuckyOrb {
 		this.groundY = groundY;
 		this.camera = camera || this.camera;
 		this.friendlyTargets = friendlyTargets;
-
 		if (this.phase === 1 && this.hp <= this.maxHp * 0.5) this.beginPhaseTwo(camera);
 		this.hurtTimer = Math.max(0, this.hurtTimer - safeDt);
 		this.isHurt = this.hurtTimer > 0;
 		this.freezeTimer = Math.max(0, this.freezeTimer - safeDt);
 		this.stunTimer = Math.max(0, this.stunTimer - safeDt);
 		const stepDt = safeDt * (this.freezeTimer > 0 ? 0.72 : 1);
-
 		if (this.stunTimer > 0 && this.state !== 'phase_shift') this.vx = 0;
 		else this.updateAI(stepDt, player, camera);
 		this.applyPhysics(stepDt, groundY);
 	}
-
 	beginPhaseTwo(camera) {
 		this.phase = 2;
 		this.isAwakened = true;
@@ -79,7 +72,6 @@ export class LuckyOrb {
 			anchor: this, speakerKey: 'luckyOrb:phase', cooldownMs: 0
 		});
 	}
-
 	updateAI(dt, player, camera) {
 		if (!player || player.isDead) {
 			this.vx *= Math.pow(0.02, dt * 10);
@@ -87,7 +79,6 @@ export class LuckyOrb {
 		}
 		const dx = player.x - this.x;
 		if (this.state === 'idle' || this.state === 'recovery') this.facing = dx >= 0 ? 1 : -1;
-
 		switch (this.state) {
 			case 'idle':
 				this.actionCooldown -= dt;
@@ -110,9 +101,6 @@ export class LuckyOrb {
 				const progress = clamp(1 - this.stateTimer / this.stateDuration, 0, 1);
 				const span = this.rollTargetX - this.rollStartX;
 				this.x = this.rollStartX + span * progress;
-				// The orb BOUNCES across the arena in three hops and only
-				// threatens at its touchdown points — stand in a hop gap or
-				// jump a landing beat; mid-air it sails harmlessly overhead.
 				const arc = Math.abs(Math.sin(progress * Math.PI * ROLL_HOP_COUNT));
 				this.y = this.groundY - ROLL_HOP_HEIGHT * arc;
 				const hopIndex = Math.min(ROLL_HOP_COUNT - 1, Math.floor(progress * ROLL_HOP_COUNT));
@@ -168,7 +156,6 @@ export class LuckyOrb {
 				this.actionCooldown = 0.6;
 		}
 	}
-
 	chooseAttack(player, camera) {
 		const order = this.phase === 2 ? PHASE_TWO_ORDER : ATTACK_ORDER;
 		const attack = order[this.attackIndex % order.length];
@@ -176,7 +163,6 @@ export class LuckyOrb {
 		if (attack === 'drop') this.startDrops(player, camera);
 		else this.startRoll(player, camera);
 	}
-
 	startRoll(player, camera) {
 		this.state = 'roll_windup';
 		this.stateDuration = this.stateTimer = this.phase === 2 ? 0.56 : 0.68;
@@ -195,7 +181,6 @@ export class LuckyOrb {
 			anchor: this, speakerKey: 'luckyOrb', cooldownMs: 2800
 		});
 	}
-
 	launchRoll(camera) {
 		this.state = 'roll_active';
 		this.stateDuration = this.stateTimer = this.phase === 2 ? 0.42 : 0.52;
@@ -211,7 +196,6 @@ export class LuckyOrb {
 		});
 		camera?.addShake?.(0.18);
 	}
-
 	startDrops(player, camera) {
 		this.state = 'drop_windup';
 		this.stateDuration = this.stateTimer = this.phase === 2 ? 0.7 : 0.82;
@@ -227,10 +211,7 @@ export class LuckyOrb {
 		});
 		camera?.focusOn?.(predicted, this.groundY - 125, 0.5, 0.95);
 	}
-
 	resolveHopLanding(landingX, player) {
-		// Framerate-independent: each touchdown checks a fixed radius around
-		// the exact landing point, and only grounded targets are in danger.
 		const hitTest = (target) => Math.abs(target.x - landingX) < this.radius + (target.radius || 20) + 12
 			&& Math.abs(target.y - this.groundY) < 74;
 		if (!this.attackHit && canHitPlayer(player) && hitTest(player)) {
@@ -240,7 +221,6 @@ export class LuckyOrb {
 		}
 		this.hitAllies(hitTest, this.phase === 2 ? 27 : 23, this.rollDirection);
 	}
-
 	resolveDrops(player, camera) {
 		this.dropResolved = true;
 		const radius = 58;
@@ -270,7 +250,6 @@ export class LuckyOrb {
 		audio.playBruteStomp();
 		camera?.addShake?.(0.28);
 	}
-
 	hitAllies(test, damage, fixedDirection = 0) {
 		for (const ally of this.friendlyTargets || []) {
 			if (!ally || ally.isDead || ally.retreating || ally.isTargetable !== true
@@ -279,35 +258,30 @@ export class LuckyOrb {
 			ally.takeDamage(damage, fixedDirection || (ally.x >= this.x ? 1 : -1), 430);
 		}
 	}
-
 	recover(duration) {
 		this.state = 'recovery';
 		this.stateDuration = this.stateTimer = duration;
 		this.vx = 0;
 	}
-
 	applyPhysics(dt, groundY) {
 		if (this.state !== 'roll_active') {
 			this.x += this.vx * dt;
-			this.y = groundY; // the bouncing roll drives y itself
+			this.y = groundY;
 		}
 		this.vy = 0;
 		this.isGrounded = true;
 		this.x = clamp(this.x, LEFT, RIGHT);
 	}
-
 	applyFreeze(duration = 4) {
 		if (this.isDead) return false;
 		this.freezeTimer = Math.max(this.freezeTimer, Math.min(0.78, Math.max(0, duration) * 0.19));
 		return true;
 	}
-
 	applyStun(duration = 3) {
 		if (this.isDead) return false;
 		this.stunTimer = Math.max(this.stunTimer, Math.min(0.46, Math.max(0, duration) * 0.15));
 		return true;
 	}
-
 	takeDamage(amount, knockbackDir = 1, knockbackPower = 200, isCrit = false) {
 		if (this.isDead || !Number.isFinite(amount) || amount <= 0) return 0;
 		const applied = Math.min(this.hp, amount);
@@ -322,7 +296,6 @@ export class LuckyOrb {
 		if (this.hp <= 0) this.die();
 		return applied;
 	}
-
 	die() {
 		if (this.isDead) return;
 		this.isDead = true;
@@ -331,19 +304,18 @@ export class LuckyOrb {
 		this.state = 'defeated';
 		combat.registerKill(this);
 		audio.playBossVictoryFanfare();
+		audio.playFinisherImpact();
 		speech.shoutBoss(this.x, this.y, 'luckyOrb', 'defeat', 1.8, {
 			anchor: this, speakerKey: 'luckyOrb:defeat', cooldownMs: 0
 		});
 		this.camera?.addShake?.(0.72);
 		this.camera?.addZoomPunch?.(0.075);
-		particles.emitImpact({
-			x: this.x, y: this.y - 62, profile: 'heavy', color: GOLD,
-			arc: false, shockwaveColor: MAGENTA, shockwaveRadius: 225,
-			shockwaveThickness: 14, boss: true, seed: 0x10cc70
+		particles.emitBossExplosion({
+			x: this.x, y: this.y - 62, bodyY: this.y, groundY: this.groundY,
+			color: GOLD, accent: CYAN, radius: 265,
+			stickFigure: false, seed: 0x10cc70
 		});
-		particles.addTextBanner(this.x, this.y - 128, '★ ORB SENT HOME! ★', CYAN);
 	}
-
 	draw(ctx) {
 		if (this.isDead) return;
 		this.drawTelegraph(ctx);
@@ -431,7 +403,6 @@ export class LuckyOrb {
 		this.drawFragments(ctx, true);
 		ctx.restore();
 	}
-
 	drawTelegraph(ctx) {
 		const pulse = 0.62 + Math.sin(this.animTimer * 18) * 0.18;
 		ctx.save();
@@ -439,8 +410,6 @@ export class LuckyOrb {
 		ctx.textBaseline = 'middle';
 		ctx.font = "900 16px 'Bungee', 'Arial Black', Impact, sans-serif";
 		if (this.state === 'roll_windup') {
-			// Three landing markers joined by dashed hop arcs — the gaps
-			// between markers are the safe ground.
 			const span = this.rollTargetX - this.x;
 			ctx.strokeStyle = ORANGE;
 			ctx.globalAlpha = pulse * 0.8;
@@ -490,7 +459,6 @@ export class LuckyOrb {
 		}
 		ctx.restore();
 	}
-
 	drawFragments(ctx, front) {
 		ctx.save();
 		ctx.font = "900 10px 'Bungee', Impact, sans-serif";
@@ -509,7 +477,6 @@ export class LuckyOrb {
 		}
 		ctx.restore();
 	}
-
 	drawPrize(ctx, x, y, index, size = 17) {
 		ctx.save();
 		ctx.translate(x, y);
