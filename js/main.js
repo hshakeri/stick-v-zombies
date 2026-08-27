@@ -119,7 +119,7 @@ export class Game {
 	}
 	const btnViewCode = document.getElementById('btn-view-code');
 	if (btnViewCode) btnViewCode.addEventListener('click', () => {
-	  window.open('https://github.com/hshakeri/stick-v-zombies', '_blank', 'noopener,noreferrer');
+	  window.open('https://github.com/hshakeri/stick-v-zombies/tree/main/js', '_blank', 'noopener,noreferrer');
 	});
 	const btnTryAgain = document.getElementById('btn-try-again');
 	if (btnTryAgain) {

@@ -79,7 +79,7 @@ test('the main menu exposes the game source without loading it during play', () 
   const html = readFileSync(join(root, 'index.html'), 'utf8');
   const main = readFileSync(join(root, 'js/main.js'), 'utf8');
   assert.match(html, /id="btn-view-code"[^>]*aria-label="View the game code on GitHub \(opens in a new tab\)"[^>]*>[^<]*GAME CODE<\/button>/);
-  assert.match(main, /btn-view-code[\s\S]{0,300}window\.open\('https:\/\/github\.com\/hshakeri\/stick-v-zombies', '_blank', 'noopener,noreferrer'\)/);
+  assert.match(main, /btn-view-code[\s\S]{0,300}window\.open\('https:\/\/github\.com\/hshakeri\/stick-v-zombies\/tree\/main\/js', '_blank', 'noopener,noreferrer'\)/);
   assert.doesNotMatch(html, /href=["']https:\/\/github\.com\/hshakeri\/stick-v-zombies/);
 });
 
