@@ -37,7 +37,7 @@ python3 -m http.server 8088
 | Action | Key / Input | Notes |
 | :--- | :--- | :--- |
 | **Martial Arts Combo / Air Chase** | `Q`, `J`, or left click | 5-hit chain with an uppercut launcher and airborne follow-up |
-| **Giant Pencil Slash** | `W`, `K`, or right click | Sweeping pencil slash; use `↓` + `W` for an EX javelin |
+| **Giant Pencil Slash** | `W`, `K`, or right click | Sweeping pencil slash; `↓` + `W` spends 20% Awakening meter on an arena-piercing EX javelin |
 | **Rising Dragon** | `↑` + `Q` | Launches nearby enemies into an aerial combo |
 | **Dive Kick / Ground Slam** | In mid-air: `↓` + `Q` / `W` | Plummets down and explodes into a shockwave on landing |
 | **Grab & Throw** | `F`, `G`, or `Q` + `W` | Execute finisher (5s cooldown): rips a weakened, stunned, frozen, or launched zombie into a projectile; healthy targets take a heavy hit instead |

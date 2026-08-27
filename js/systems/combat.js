@@ -1,5 +1,5 @@
-import { audio } from '../engine/audio.js?v=8.8';
-import { particles } from '../engine/particles.js?v=8.8';
+import { audio } from '../engine/audio.js?v=8.9';
+import { particles } from '../engine/particles.js?v=8.9';
 export class CombatSystem {
   constructor() {
     this.score = 0;

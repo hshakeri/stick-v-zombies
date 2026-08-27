@@ -1,7 +1,7 @@
-import { particles } from '../engine/particles.js?v=8.8';
-import { audio } from '../engine/audio.js?v=8.8';
-import { speech } from '../engine/speech.js?v=8.8';
-import { combat } from '../systems/combat.js?v=8.8';
+import { particles } from '../engine/particles.js?v=8.9';
+import { audio } from '../engine/audio.js?v=8.9';
+import { speech } from '../engine/speech.js?v=8.9';
+import { combat } from '../systems/combat.js?v=8.9';
 
 const LEFT = -980;
 const RIGHT = 980;

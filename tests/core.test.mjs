@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=8.8';
-import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=8.8';
+import { Camera } from '../js/engine/camera.js?v=8.9';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=8.9';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,21 +14,21 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=8.8';
-import { AllyManager, allies } from '../js/entities/allies.js?v=8.8';
-import { DarkLord } from '../js/entities/dark_lord.js?v=8.8';
-import { H4C3R } from '../js/entities/h4c3r.js?v=8.8';
-import { KingOrange } from '../js/entities/king_orange.js?v=8.8';
-import { LuckyOrb } from '../js/entities/lucky_orb.js?v=8.8';
-import { ATTACK_BUFFER_SECONDS, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.8';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.8';
-import { Zombie } from '../js/entities/zombies.js?v=8.8';
-import { weapons } from '../js/entities/weapons.js?v=8.8';
-import { combat } from '../js/systems/combat.js?v=8.8';
-import { SaveSystem } from '../js/systems/save.js?v=8.8';
-import { shop } from '../js/systems/shop.js?v=8.8';
-import { Game } from '../js/main.js?v=8.8';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.8';
+} from '../js/engine/speech.js?v=8.9';
+import { AllyManager, allies } from '../js/entities/allies.js?v=8.9';
+import { DarkLord } from '../js/entities/dark_lord.js?v=8.9';
+import { H4C3R } from '../js/entities/h4c3r.js?v=8.9';
+import { KingOrange } from '../js/entities/king_orange.js?v=8.9';
+import { LuckyOrb } from '../js/entities/lucky_orb.js?v=8.9';
+import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=8.9';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=8.9';
+import { Zombie } from '../js/entities/zombies.js?v=8.9';
+import { weapons } from '../js/entities/weapons.js?v=8.9';
+import { combat } from '../js/systems/combat.js?v=8.9';
+import { SaveSystem } from '../js/systems/save.js?v=8.9';
+import { shop } from '../js/systems/shop.js?v=8.9';
+import { Game } from '../js/main.js?v=8.9';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=8.9';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -39,9 +39,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=8.8';
+} from '../js/systems/waves.js?v=8.9';
 
-const RELEASE_MODULE_VERSION = '8.8';
+const RELEASE_MODULE_VERSION = '8.9';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -1541,6 +1541,41 @@ test('grab is a cooldown-gated execute finisher, not a universal delete', () => 
   assert.ok(
     projectiles.projectiles.some((entry) => entry.type === 'thrown_zombie'),
     'the execute still turns the target into a projectile'
+  );
+
+  projectiles.reset();
+  combat.resetRun();
+  particles.reset();
+});
+
+test('the EX javelin spends Awakening meter and falls back to a slash when broke', () => {
+  combat.resetRun();
+  particles.reset();
+  projectiles.reset();
+  const camera = { addHitstop() {}, addZoomPunch() {} };
+
+  const player = new Player(0, 0);
+  player.isGrounded = true;
+  player.superMeter = 50;
+  assert.equal(player.executeJavelinThrow([], camera), true);
+  assert.equal(player.superMeter, 50 - JAVELIN_METER_COST, 'the javelin consumes its meter cost');
+  for (let i = 0; i < 60 && player.activeMove; i++) player.updateActiveMove(1 / 60);
+  assert.ok(
+    projectiles.projectiles.some((entry) => entry.type === 'javelin'),
+    'the paid javelin actually launches'
+  );
+
+  const broke = new Player(0, 0);
+  broke.isGrounded = true;
+  broke.superMeter = JAVELIN_METER_COST - 1;
+  broke.executeJavelinThrow([], camera);
+  assert.equal(broke.superMeter, JAVELIN_METER_COST - 1, 'no meter is taken when the throw cannot be paid for');
+  assert.ok(broke.weaponTimer > 0, 'the button falls back to an ordinary pencil slash');
+  for (let i = 0; i < 60 && broke.activeMove; i++) broke.updateActiveMove(1 / 60);
+  assert.equal(
+    projectiles.projectiles.filter((entry) => entry.type === 'javelin').length,
+    1,
+    'no free javelin spawns without meter'
   );
 
   projectiles.reset();

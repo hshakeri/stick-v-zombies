@@ -1,10 +1,10 @@
 // Upgrade Shop and Animator Workshop System
 
-import { combat } from './combat.js?v=8.8';
-import { audio } from '../engine/audio.js?v=8.8';
-import { allies } from '../entities/allies.js?v=8.8';
-import { weapons } from '../entities/weapons.js?v=8.8';
-import { particles } from '../engine/particles.js?v=8.8';
+import { combat } from './combat.js?v=8.9';
+import { audio } from '../engine/audio.js?v=8.9';
+import { allies } from '../entities/allies.js?v=8.9';
+import { weapons } from '../entities/weapons.js?v=8.9';
+import { particles } from '../engine/particles.js?v=8.9';
 
 export class ShopSystem {
   constructor() {

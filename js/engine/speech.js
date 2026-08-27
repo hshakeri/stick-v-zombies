@@ -1,4 +1,4 @@
-import { audio } from './audio.js?v=8.8';
+import { audio } from './audio.js?v=8.9';
 export const MAX_SPEECH_CHARS = 24;
 export const MAX_SPEECH_LINES = 2;
 export const MAX_SPEECH_BUBBLES = 3;

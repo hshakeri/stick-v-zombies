@@ -1,11 +1,11 @@
-import { StickFigureRenderer } from './stickman.js?v=8.8';
-import { particles } from '../engine/particles.js?v=8.8';
-import { audio } from '../engine/audio.js?v=8.8';
-import { projectiles } from './projectiles.js?v=8.8';
-import { weapons } from './weapons.js?v=8.8';
-import { allies } from './allies.js?v=8.8';
-import { combat } from '../systems/combat.js?v=8.8';
-import { speech } from '../engine/speech.js?v=8.8';
+import { StickFigureRenderer } from './stickman.js?v=8.9';
+import { particles } from '../engine/particles.js?v=8.9';
+import { audio } from '../engine/audio.js?v=8.9';
+import { projectiles } from './projectiles.js?v=8.9';
+import { weapons } from './weapons.js?v=8.9';
+import { allies } from './allies.js?v=8.9';
+import { combat } from '../systems/combat.js?v=8.9';
+import { speech } from '../engine/speech.js?v=8.9';
 
 const defineMove = (move) => Object.freeze(move);
 
@@ -26,6 +26,7 @@ export const MOVE_DEFINITIONS = Object.freeze({
 });
 
 export const ATTACK_BUFFER_SECONDS = 0.12;
+export const JAVELIN_METER_COST = 20;
 
 export class Player {
   constructor(x = 0, y = 0) {
@@ -80,6 +81,7 @@ export class Player {
     this.grabCooldownMax = 5.0;
     this.blockCooldown = 0;
     this.stageDamageTaken = 0;
+    this.javelinHintTimer = 0;
 
     this.hookCooldown = 0;
     this.hookRange = 420;
@@ -164,6 +166,7 @@ export class Player {
     if (this.iFrames > 0) this.iFrames -= dt;
     if (this.rollCooldown > 0) this.rollCooldown -= dt;
     if (this.grabCooldown > 0) this.grabCooldown -= dt;
+    if (this.javelinHintTimer > 0) this.javelinHintTimer -= dt;
     if (this.blockCooldown > 0) this.blockCooldown -= dt;
     if (this.hookCooldown > 0) this.hookCooldown -= dt;
     if (this.hookVisualTimer > 0) {
@@ -757,6 +760,18 @@ export class Player {
 
   executeJavelinThrow(zombies, camera) {
     if (this.activeMove || this.isDead || this.isHurt) return false;
+    // The EX javelin is a true EX move: it spends Awakening meter. A full
+    // bar buys five arena-piercing throws OR one Awakening — spamming ↓+W
+    // is no longer a free win button.
+    if (this.superMeter < JAVELIN_METER_COST) {
+      if (this.javelinHintTimer <= 0) {
+        this.javelinHintTimer = 1.2;
+        particles.addDamageText(this.x, this.y - 72, 'EX NEEDS ⚡ METER', false, '#ffb347');
+      }
+      // Fall back to the ordinary pencil slash so the button still answers.
+      return this.executeWeaponAttack(zombies, camera);
+    }
+    this.superMeter -= JAVELIN_METER_COST;
     this.squashX = 0.8;
     this.squashY = 1.25;
     audio.playSlash();

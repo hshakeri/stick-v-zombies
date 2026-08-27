@@ -1,12 +1,12 @@
 
-import { Zombie } from '../entities/zombies.js?v=8.8';
-import { DarkLord } from '../entities/dark_lord.js?v=8.8';
-import { KingOrange } from '../entities/king_orange.js?v=8.8';
-import { H4C3R } from '../entities/h4c3r.js?v=8.8';
-import { LuckyOrb } from '../entities/lucky_orb.js?v=8.8';
-import { audio } from '../engine/audio.js?v=8.8';
-import { particles } from '../engine/particles.js?v=8.8';
-import { speech } from '../engine/speech.js?v=8.8';
+import { Zombie } from '../entities/zombies.js?v=8.9';
+import { DarkLord } from '../entities/dark_lord.js?v=8.9';
+import { KingOrange } from '../entities/king_orange.js?v=8.9';
+import { H4C3R } from '../entities/h4c3r.js?v=8.9';
+import { LuckyOrb } from '../entities/lucky_orb.js?v=8.9';
+import { audio } from '../engine/audio.js?v=8.9';
+import { particles } from '../engine/particles.js?v=8.9';
+import { speech } from '../engine/speech.js?v=8.9';
 
 const BOSS_WAVES = new Set([5, 10, 11, 15, 16]);
 export const ABSOLUTE_ACTIVE_ENEMY_CAP = 12;
