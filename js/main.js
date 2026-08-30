@@ -1,16 +1,16 @@
-import { audio } from './engine/audio.js?v=9.0';
-import { input } from './engine/input.js?v=9.0';
-import { Camera } from './engine/camera.js?v=9.0';
-import { particles } from './engine/particles.js?v=9.0';
-import { Player } from './entities/player.js?v=9.0';
-import { waves } from './systems/waves.js?v=9.0';
-import { combat } from './systems/combat.js?v=9.0';
-import { shop } from './systems/shop.js?v=9.0';
-import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=9.0';
-import { projectiles } from './entities/projectiles.js?v=9.0';
-import { allies } from './entities/allies.js?v=9.0';
-import { speech } from './engine/speech.js?v=9.0';
-import { save } from './systems/save.js?v=9.0';
+import { audio } from './engine/audio.js?v=9.2';
+import { input } from './engine/input.js?v=9.2';
+import { Camera } from './engine/camera.js?v=9.2';
+import { particles } from './engine/particles.js?v=9.2';
+import { Player } from './entities/player.js?v=9.2';
+import { waves } from './systems/waves.js?v=9.2';
+import { combat } from './systems/combat.js?v=9.2';
+import { shop } from './systems/shop.js?v=9.2';
+import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=9.2';
+import { projectiles } from './entities/projectiles.js?v=9.2';
+import { allies } from './entities/allies.js?v=9.2';
+import { speech } from './engine/speech.js?v=9.2';
+import { save } from './systems/save.js?v=9.2';
 export class Game {
   constructor() {
 	this.canvas = document.getElementById('gameCanvas');
@@ -258,6 +258,7 @@ export class Game {
 	bindAllyClick('ally-yellow-slot', 'yellow');
 	bindAllyClick('ally-green-slot', 'green');
 	bindAllyClick('ally-cursor-slot', 'cursor');
+	bindAllyClick('ally-chosen-slot', 'chosen');
   }
   startGame(options = {}) {
 	const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
@@ -779,6 +780,7 @@ export class Game {
 	syncAlly('ally-yellow-slot', 'yellow', 'ally-yellow-status');
 	syncAlly('ally-green-slot', 'green', 'ally-green-status');
 	syncAlly('ally-cursor-slot', 'cursor', 'ally-cursor-status');
+	syncAlly('ally-chosen-slot', 'chosen', 'ally-chosen-status');
 	const syncSkillCooldown = (slotId, overlayId, remaining) => {
 	  const slot = this.getHudElement(slotId);
 	  const overlay = this.getHudElement(overlayId);

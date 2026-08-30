@@ -1,9 +1,9 @@
-import { particles } from '../engine/particles.js?v=9.0';
-import { audio } from '../engine/audio.js?v=9.0';
-import { projectiles } from '../entities/projectiles.js?v=9.0';
-import { speech } from '../engine/speech.js?v=9.0';
-import { combat } from './combat.js?v=9.0';
-import { save } from './save.js?v=9.0';
+import { particles } from '../engine/particles.js?v=9.2';
+import { audio } from '../engine/audio.js?v=9.2';
+import { projectiles } from '../entities/projectiles.js?v=9.2';
+import { speech } from '../engine/speech.js?v=9.2';
+import { combat } from './combat.js?v=9.2';
+import { save } from './save.js?v=9.2';
 const freezeBeat = (beat) => Object.freeze({
 	...beat,
 	...(beat.allyReaction ? { allyReaction: Object.freeze({ ...beat.allyReaction }) } : {})

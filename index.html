@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Orange Stickman vs Zombies - The Second Coming</title>
-  <link rel="stylesheet" href="css/style.css?v=9.0">
+  <link rel="stylesheet" href="css/style.css?v=9.2">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23ff7700%22 stroke=%22white%22 stroke-width=%228%22/></svg>">
 </head>
 <body>
@@ -107,31 +107,12 @@
 		  </div>
 		</div>
 		<div class="hud-allies">
-		  <div class="ally-slot red" id="ally-red-slot" title="Summon Red (Brawler Punch - Key 1)">
-			<div class="ally-badge red">R</div>
-			<div class="skill-key">1</div>
-			<div class="ally-cd-overlay" id="ally-red-status"></div>
-		  </div>
-		  <div class="ally-slot blue" id="ally-blue-slot" title="Summon Blue (Freeze Net / Potions - Key 2)">
-			<div class="ally-badge blue">B</div>
-			<div class="skill-key">2</div>
-			<div class="ally-cd-overlay" id="ally-blue-status"></div>
-		  </div>
-		  <div class="ally-slot yellow" id="ally-yellow-slot" title="Summon Yellow (Redstone Turret - Key 3)">
-			<div class="ally-badge yellow">Y</div>
-			<div class="skill-key">3</div>
-			<div class="ally-cd-overlay" id="ally-yellow-status"></div>
-		  </div>
-		  <div class="ally-slot green" id="ally-green-slot" title="Summon Green (Stun Music Wave - Key 4)">
-			<div class="ally-badge green">G</div>
-			<div class="skill-key">4</div>
-			<div class="ally-cd-overlay" id="ally-green-status"></div>
-		  </div>
-		  <div class="ally-slot" id="ally-cursor-slot" style="border-color: #00d2ff;" title="Summon Animator Cursor Pointer (Deletes Zombie - Key 5)">
-			<div class="ally-badge" style="background: #00d2ff; color: #000; font-size: 14px;">🖱️</div>
-			<div class="skill-key">5</div>
-			<div class="ally-cd-overlay" id="ally-cursor-status"></div>
-		  </div>
+		  <div class="ally-slot red" id="ally-red-slot" title="Red: Brawler Punch (1)"><div class="ally-badge red">R</div><div class="skill-key">1</div><div class="ally-cd-overlay" id="ally-red-status"></div></div>
+		  <div class="ally-slot blue" id="ally-blue-slot" title="Blue: Freeze / Heal (2)"><div class="ally-badge blue">B</div><div class="skill-key">2</div><div class="ally-cd-overlay" id="ally-blue-status"></div></div>
+		  <div class="ally-slot yellow" id="ally-yellow-slot" title="Yellow: Turret (3)"><div class="ally-badge yellow">Y</div><div class="skill-key">3</div><div class="ally-cd-overlay" id="ally-yellow-status"></div></div>
+		  <div class="ally-slot green" id="ally-green-slot" title="Green: Stun Wave (4)"><div class="ally-badge green">G</div><div class="skill-key">4</div><div class="ally-cd-overlay" id="ally-green-status"></div></div>
+		  <div class="ally-slot" id="ally-cursor-slot" style="border-color:#00d2ff" title="Cursor: Delete (5)"><div class="ally-badge" style="background:#00d2ff;color:#000;font-size:14px">🖱️</div><div class="skill-key">5</div><div class="ally-cd-overlay" id="ally-cursor-status"></div></div>
+		  <div class="ally-slot chosen" id="ally-chosen-slot" title="TCO: Sweep (6)"><div class="ally-badge chosen">TCO</div><div class="skill-key">6</div><div class="ally-cd-overlay" id="ally-chosen-status"></div></div>
 		</div>
 		<div class="hud-quick-buttons">
 		  <button id="btn-open-shop" class="hud-btn" aria-label="Open upgrades (B)" title="Open upgrades (B)"><span class="hud-btn-icon" aria-hidden="true">🛒</span><span class="hud-btn-label">Upgrades (B)</span></button>
@@ -337,6 +318,6 @@
 	  </div>
 	</div>
   </div>
-  <script type="module" src="js/main.js?v=9.0"></script>
+  <script type="module" src="js/main.js?v=9.2"></script>
 </body>
 </html>

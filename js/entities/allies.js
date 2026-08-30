@@ -1,8 +1,8 @@
-import { StickFigureRenderer } from './stickman.js?v=9.0';
-import { particles } from '../engine/particles.js?v=9.0';
-import { audio } from '../engine/audio.js?v=9.0';
-import { projectiles } from './projectiles.js?v=9.0';
-import { speech } from '../engine/speech.js?v=9.0';
+import { StickFigureRenderer } from './stickman.js?v=9.2';
+import { particles } from '../engine/particles.js?v=9.2';
+import { audio } from '../engine/audio.js?v=9.2';
+import { projectiles } from './projectiles.js?v=9.2';
+import { speech } from '../engine/speech.js?v=9.2';
 const ALLY_ARENA_BOUND = 1030;
 const ALLY_READY_TIME = 0.55;
 const ALLY_EFFECT_RADIUS = Object.freeze({
@@ -10,12 +10,14 @@ const ALLY_EFFECT_RADIUS = Object.freeze({
   blue: 520,
   yellow: 600,
   green: 480
+ ,chosen: 620
 });
 const ALLY_COLORS = Object.freeze({
   red: '#ff3344',
   blue: '#2299ff',
   yellow: '#ffcc00',
   green: '#33dd66'
+  ,chosen: '#e8e8e8'
 });
 export class AllyManager {
   constructor() {
@@ -25,6 +27,7 @@ export class AllyManager {
 	  yellow: true,
 	  green: true,
 	  cursor: true
+	  ,chosen: true
 	};
 	this.cooldowns = {
 	  red: 0,
@@ -32,6 +35,7 @@ export class AllyManager {
 	  yellow: 0,
 	  green: 0,
 	  cursor: 0
+	  ,chosen: 0
 	};
 	this.maxCooldowns = {
 	  red: 10,
@@ -39,6 +43,7 @@ export class AllyManager {
 	  yellow: 14,
 	  green: 12,
 	  cursor: 14
+	  ,chosen: 16
 	};
 	this.recoveryStates = {
 	  red: false,
@@ -46,6 +51,7 @@ export class AllyManager {
 	  yellow: false,
 	  green: false,
 	  cursor: false
+	  ,chosen: false
 	};
 	this.activeAllies = [];
 	this.turrets = [];
@@ -57,6 +63,7 @@ export class AllyManager {
 	  blue: new StickFigureRenderer('#2299ff', 5, 1.0, false),
 	  yellow: new StickFigureRenderer('#ffcc00', 5, 1.0, false),
 	  green: new StickFigureRenderer('#33dd66', 5, 1.0, false)
+	  ,chosen: new StickFigureRenderer('#111111', 6, 1.08, false)
 	};
   }
   reset(resetUpgrades = false, preserveRecovery = false) {
@@ -82,6 +89,7 @@ export class AllyManager {
 		yellow: 14,
 		green: 12,
 		cursor: 14
+		,chosen: 16
 	  });
 	}
   }
@@ -261,6 +269,17 @@ export class AllyManager {
 		} else if (ally.timer > 1.4) {
 		  this.beginReturn(ally);
 		  ally.y -= 900 * dt;
+		}
+	  } else if (ally.type === 'chosen') {
+		if (!ally.hasActed&&ally.y<groundY) ally.y=Math.min(groundY,ally.y+1100*dt);
+		if (!ally.hasActed && ally.y >= groundY) {
+		  ally.y=groundY;ally.readyTimer+=dt;ally.pose='idle';
+		  if (ally.readyTimer >= ALLY_READY_TIME) {
+			ally.hasActed=true;ally.pose='attack_cross';camera.addShake(.85);camera.addZoomPunch?.(.075);audio.playAwakening();
+			particles.addShockwave(ally.x+ally.facing*260,groundY-35,ALLY_EFFECT_RADIUS.chosen,'#ff7a22',18);
+			for(const z of zombies)if(!z.isDead&&(z.x-ally.x)*ally.facing>=-45&&Math.abs(z.x-ally.x)<=ALLY_EFFECT_RADIUS.chosen)z.takeDamage(z.isBoss?120:210,ally.facing,950,true);
+			speech.shout(ally.x,ally.y,'allies','chosen',1.35,{anchor:ally,priority:2});
+		  }
 		}
 	  }
 	  if (ally.life <= 0) {
@@ -469,7 +488,7 @@ export class AllyManager {
 		  animTimer: ally.timer,
 		  isGrounded: true,
 		  isHurt: ally.isHurt === true,
-		  isAwakened: false,
+		  isAwakened:ally.type==='chosen',
 		  scale: 1.0,
 		  alpha: 1.0
 		});
@@ -582,8 +601,8 @@ export class AllyManager {
 	  });
 	  return true;
 	}
-	const spawnY = type === 'red' ? targetY - 450 : targetY - 300;
-	const desiredSpawnX = targetX + (type === 'red' ? 60 : 45) * facing;
+	const spawnY = type === 'red' ? targetY - 450 : targetY - (type === 'chosen' ? 380 : 300);
+	const desiredSpawnX = targetX + (type === 'red' ? 60 : (type === 'chosen' ? 80 : 45)) * facing;
 	const spawnX = Math.max(-ALLY_ARENA_BOUND, Math.min(ALLY_ARENA_BOUND, desiredSpawnX));
 	const ally = {
 	  type,

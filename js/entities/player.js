@@ -1,11 +1,11 @@
-import { StickFigureRenderer } from './stickman.js?v=9.0';
-import { particles } from '../engine/particles.js?v=9.0';
-import { audio } from '../engine/audio.js?v=9.0';
-import { projectiles } from './projectiles.js?v=9.0';
-import { weapons } from './weapons.js?v=9.0';
-import { allies } from './allies.js?v=9.0';
-import { combat } from '../systems/combat.js?v=9.0';
-import { speech } from '../engine/speech.js?v=9.0';
+import { StickFigureRenderer } from './stickman.js?v=9.2';
+import { particles } from '../engine/particles.js?v=9.2';
+import { audio } from '../engine/audio.js?v=9.2';
+import { projectiles } from './projectiles.js?v=9.2';
+import { weapons } from './weapons.js?v=9.2';
+import { allies } from './allies.js?v=9.2';
+import { combat } from '../systems/combat.js?v=9.2';
+import { speech } from '../engine/speech.js?v=9.2';
 const defineMove = (move) => Object.freeze(move);
 export const MOVE_DEFINITIONS = Object.freeze({
   combo: Object.freeze([
@@ -899,6 +899,7 @@ export class Player {
 	if (input.actions.ally3) allies.summonAlly('yellow', this.x, groundY, this.facing, zombies);
 	if (input.actions.ally4) allies.summonAlly('green', this.x, groundY, this.facing, zombies);
 	if (input.actions.ally5) allies.summonAlly('cursor', this.x, groundY, this.facing, zombies);
+	if (input.actions.ally6) allies.summonAlly('chosen', this.x, groundY, this.facing, zombies);
   }
   activateAwakening(camera) {
 	this.isAwakened = true;

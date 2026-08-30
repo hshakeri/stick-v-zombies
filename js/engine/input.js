@@ -60,6 +60,7 @@ class InputManager {
 	  ally3: false,
 	  ally4: false,
 	  ally5: false,
+	  ally6: false,
 	  shop: false,
 	  pause: false
 	};
@@ -194,6 +195,7 @@ class InputManager {
 	this.actions.ally3 = !!this.keysPressed['Digit3'];
 	this.actions.ally4 = !!this.keysPressed['Digit4'];
 	this.actions.ally5 = !!this.keysPressed['Digit5'];
+	this.actions.ally6=!!(this.keysPressed.Digit6||this.keysPressed.Numpad6);
 	this.actions.shop = !!this.keysPressed['KeyB'];
 	this.actions.pause = !!(this.keysPressed['Escape'] || this.keysPressed['KeyP']);
 	this.pollGamepad();
@@ -263,6 +265,7 @@ class InputManager {
 	this.actions.ally3 = false;
 	this.actions.ally4 = false;
 	this.actions.ally5 = false;
+	this.actions.ally6 = false;
 	this.actions.shop = false;
 	this.actions.pause = false;
   }

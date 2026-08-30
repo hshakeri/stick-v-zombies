@@ -500,94 +500,23 @@ body, html {
 	opacity: 0;
 }
 .hud-allies {
-	display: flex;
-	gap: 10px;
-	background: rgba(15, 16, 22, 0.85);
-	padding: 8px 14px;
-	border-radius: 12px;
-	border: 2px solid #36394c;
-	flex: 0 0 auto;
+	display:flex;gap:10px;background:rgba(15,16,22,.85);padding:8px 14px;border-radius:12px;border:2px solid #36394c;flex:0 0 auto
 }
 .ally-slot {
-	position: relative;
-	width: 50px;
-	height: 50px;
-	border-radius: 10px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border: 2px solid #444;
-	background: #181a24;
-	cursor: pointer;
-	pointer-events: auto;
-	transition: transform 0.1s, border-color 0.2s;
+	position:relative;width:50px;height:50px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:2px solid #444;background:#181a24;cursor:pointer;pointer-events:auto;transition:transform .1s,border-color .2s
 }
-.ally-slot:hover {
-	transform: translateY(-2px);
-}
-.ally-slot.red { border-color: #ff3344; }
-.ally-slot.blue { border-color: #2299ff; }
-.ally-slot.yellow { border-color: #ffcc00; }
-.ally-slot.green { border-color: #33dd66; }
-.ally-slot.recovering {
-	border-color: #ff6b6b;
-	box-shadow: 0 0 10px rgba(255, 65, 85, 0.48);
-}
-.ally-cd-overlay {
-	position: absolute;
-	inset: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border-radius: 8px;
-	background: rgba(5, 7, 12, 0.72);
-	color: #ffffff;
-	font: 900 12px 'Trebuchet MS', 'Segoe UI', sans-serif;
-	text-shadow: 0 1px 3px #000;
-	opacity: 0;
-	pointer-events: none;
-}
-.ally-slot.recovering .ally-cd-overlay {
-	color: #ff8c98;
-}
-.ally-slot.locked {
-	opacity: 0.35;
-	filter: grayscale(1);
-	cursor: not-allowed;
-}
-.ally-badge {
-	width: 26px;
-	height: 26px;
-	border-radius: 50%;
-	border: 2px solid #fff;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 12px;
-	font-weight: 900;
-}
-.ally-badge.red { background: #ff3344; }
-.ally-badge.blue { background: #2299ff; }
-.ally-badge.yellow { background: #ffcc00; color: #000; }
-.ally-badge.green { background: #33dd66; }
-.hud-quick-buttons {
-	display: flex;
-	gap: 10px;
-	pointer-events: auto;
-}
+.ally-slot:hover{transform:translateY(-2px)}
+.ally-slot.red{border-color:#ff3344}.ally-slot.blue{border-color:#2299ff}.ally-slot.yellow{border-color:#ffcc00}.ally-slot.green{border-color:#33dd66}.ally-slot.chosen{border-color:#f07828}
+.ally-slot.recovering{border-color:#ff6b6b;box-shadow:0 0 10px rgba(255,65,85,.48)}
+.ally-cd-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(5,7,12,.72);color:#fff;font:900 12px 'Trebuchet MS','Segoe UI',sans-serif;text-shadow:0 1px 3px #000;opacity:0;pointer-events:none}
+.ally-slot.recovering .ally-cd-overlay{color:#ff8c98}
+.ally-slot.locked{opacity:.35;filter:grayscale(1);cursor:not-allowed}
+.ally-badge{width:26px;height:26px;border-radius:50%;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900}
+.ally-badge.red{background:#ff3344}.ally-badge.blue{background:#2299ff}.ally-badge.yellow{background:#ffcc00;color:#000}.ally-badge.green{background:#33dd66}
+.ally-badge.chosen{background:#111;color:#ff9a42;border-color:#ff9a42;font-size:9px}
+.hud-quick-buttons{display:flex;gap:10px;pointer-events:auto}
 .hud-btn {
-	background: #252838;
-	border: 2px solid #585d7c;
-	color: #fff;
-	font-family: var(--font-pop-art);
-	font-size: 13px;
-	padding: 8px 16px;
-	border-radius: 10px;
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	transition: background 0.15s, transform 0.1s, border-color 0.2s;
+	background:#252838;border:2px solid #585d7c;color:#fff;font-family:var(--font-pop-art);font-size:13px;padding:8px 16px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s,transform .1s,border-color .2s
 }
 .hud-btn:hover {
 	background: #34384e;

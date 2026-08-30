@@ -47,6 +47,7 @@ python3 -m http.server 8088
 | **⚡ AWAKENING GOD MODE** | `R` (when meter is 100%) | Enter Awakening, then hold `W` or `Q` for the beam |
 | **Summon Stick Allies** | `1`, `2`, `3`, `4` | Red (Meteor), Blue (Heal/Freeze), Yellow (Turret), Green (Stun) |
 | **Summon Animator Cursor** | `5` | The cursor deletes a regular zombie or heavily damages a boss |
+| **Summon The Chosen One** | `6` | The black stick figure sweeps the battlefield with fire energy |
 | **Open Upgrades Shop** | `B` | Spend collected Ink to upgrade stats and unlock allies |
 | **Pause Game** | `Esc` or `P` | Pause menu |
 

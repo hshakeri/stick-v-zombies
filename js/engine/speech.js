@@ -1,4 +1,4 @@
-import { audio } from './audio.js?v=9.0';
+import { audio } from './audio.js?v=9.2';
 export const MAX_SPEECH_CHARS = 24;
 export const MAX_SPEECH_LINES = 2;
 export const MAX_SPEECH_BUBBLES = 3;
@@ -68,13 +68,17 @@ export const SPEECH_CORPUS = {
 	  "YOU'RE SELECTED.",
 	  'MOVE TO TRASH.',
 	  'RIGHT-CLICK REGRET.'
+	],
+	chosen: [
+	  'CHOSEN.','BACK.','DONE.'
 	]
   },
   allyHurt: {
 	red: ['TACTICAL NAP!', 'RED NEEDS A REBOOT!'],
 	blue: ['POTION DOWN!', 'BREW BREAK!'],
 	yellow: ['REBOOTING LOGIC!', 'CIRCUIT BREAK!'],
-	green: ['ENCORE LATER!', 'BASS BREAK!']
+	green: ['ENCORE LATER!', 'BASS BREAK!'],
+	chosen: ['NOT DONE.','RETURN.']
   },
   titan: {
 	default: ['BIG PROCESS. NO EXIT.', 'CRASH. EVERYTHING.'],
