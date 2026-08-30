@@ -1,9 +1,9 @@
-import { particles } from '../engine/particles.js?v=9.3';
-import { audio } from '../engine/audio.js?v=9.3';
-import { projectiles } from '../entities/projectiles.js?v=9.3';
-import { speech } from '../engine/speech.js?v=9.3';
-import { combat } from './combat.js?v=9.3';
-import { save } from './save.js?v=9.3';
+import { particles } from '../engine/particles.js?v=9.4';
+import { audio } from '../engine/audio.js?v=9.4';
+import { projectiles } from '../entities/projectiles.js?v=9.4';
+import { speech } from '../engine/speech.js?v=9.4';
+import { combat } from './combat.js?v=9.4';
+import { save } from './save.js?v=9.4';
 const freezeBeat = (beat) => Object.freeze({
 	...beat,
 	...(beat.allyReaction ? { allyReaction: Object.freeze({ ...beat.allyReaction }) } : {})
@@ -1110,7 +1110,7 @@ export class StageManager {
 			ctx.font = "14px monospace";
 			ctx.fillText("root@desktop:~$ ./firewall_purge --force", minX + 60, minY + 80);
 		} else {
-			paintBackdrop('#0759b6');
+			paintBackdrop('#052b5f');
 			ctx.fillStyle='rgba(190,235,255,.28)';
 			for(let i=4;i--;)ctx.fillRect(320+(i&1)*166,-330+(i>>1)*126,148,110);
 		}

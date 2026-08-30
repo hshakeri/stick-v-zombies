@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=9.3';
-import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.3';
+import { Camera } from '../js/engine/camera.js?v=9.4';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.4';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,21 +14,21 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=9.3';
-import { AllyManager, allies } from '../js/entities/allies.js?v=9.3';
-import { DarkLord } from '../js/entities/dark_lord.js?v=9.3';
-import { H4C3R } from '../js/entities/h4c3r.js?v=9.3';
-import { KingOrange } from '../js/entities/king_orange.js?v=9.3';
-import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.3';
-import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.3';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.3';
-import { Zombie } from '../js/entities/zombies.js?v=9.3';
-import { weapons } from '../js/entities/weapons.js?v=9.3';
-import { combat } from '../js/systems/combat.js?v=9.3';
-import { SaveSystem } from '../js/systems/save.js?v=9.3';
-import { shop } from '../js/systems/shop.js?v=9.3';
-import { Game } from '../js/main.js?v=9.3';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.3';
+} from '../js/engine/speech.js?v=9.4';
+import { AllyManager, allies } from '../js/entities/allies.js?v=9.4';
+import { DarkLord } from '../js/entities/dark_lord.js?v=9.4';
+import { H4C3R } from '../js/entities/h4c3r.js?v=9.4';
+import { KingOrange } from '../js/entities/king_orange.js?v=9.4';
+import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.4';
+import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.4';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.4';
+import { Zombie } from '../js/entities/zombies.js?v=9.4';
+import { weapons } from '../js/entities/weapons.js?v=9.4';
+import { combat } from '../js/systems/combat.js?v=9.4';
+import { SaveSystem } from '../js/systems/save.js?v=9.4';
+import { shop } from '../js/systems/shop.js?v=9.4';
+import { Game } from '../js/main.js?v=9.4';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.4';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -39,9 +39,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=9.3';
+} from '../js/systems/waves.js?v=9.4';
 
-const RELEASE_MODULE_VERSION = '9.3';
+const RELEASE_MODULE_VERSION = '9.4';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -2096,7 +2096,7 @@ test('the main PC uses Alan-era blue desktop cues', () => {
   manager.drawDesktopBackground(context, 0);
   manager.drawTaskbar(context, 0);
 
-  assert.ok(fills.some((entry) => entry.color === '#0759b6'), 'desktop needs the royal-blue wallpaper');
+  assert.ok(fills.some((entry) => entry.color === '#052b5f'), 'desktop needs the dark-navy wallpaper');
   assert.equal(fills.filter((entry) => entry.color === 'rgba(190,235,255,.28)').length, 4,
     'wallpaper needs four translucent Windows-style panes');
   assert.ok(fills.some((entry) => entry.color === '#0b4989'), 'PC chrome needs the translucent-blue Aero palette');

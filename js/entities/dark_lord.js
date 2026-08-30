@@ -1,9 +1,9 @@
-import { StickFigureRenderer } from './stickman.js?v=9.3';
-import { particles } from '../engine/particles.js?v=9.3';
-import { audio } from '../engine/audio.js?v=9.3';
-import { projectiles } from './projectiles.js?v=9.3';
-import { combat } from '../systems/combat.js?v=9.3';
-import { speech } from '../engine/speech.js?v=9.3';
+import { StickFigureRenderer } from './stickman.js?v=9.4';
+import { particles } from '../engine/particles.js?v=9.4';
+import { audio } from '../engine/audio.js?v=9.4';
+import { projectiles } from './projectiles.js?v=9.4';
+import { combat } from '../systems/combat.js?v=9.4';
+import { speech } from '../engine/speech.js?v=9.4';
 export class DarkLord {
   constructor(x, y) {
 	this.x = x;
