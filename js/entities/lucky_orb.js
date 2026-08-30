@@ -1,7 +1,7 @@
-import { particles } from '../engine/particles.js?v=9.2';
-import { audio } from '../engine/audio.js?v=9.2';
-import { speech } from '../engine/speech.js?v=9.2';
-import { combat } from '../systems/combat.js?v=9.2';
+import { particles } from '../engine/particles.js?v=9.3';
+import { audio } from '../engine/audio.js?v=9.3';
+import { speech } from '../engine/speech.js?v=9.3';
+import { combat } from '../systems/combat.js?v=9.3';
 const LEFT = -980;
 const RIGHT = 980;
 const GOLD = '#ffd43b';
@@ -408,7 +408,7 @@ export class LuckyOrb {
 		ctx.save();
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
-		ctx.font = "900 16px 'Bungee', 'Arial Black', Impact, sans-serif";
+		ctx.font = "900 16px 'Bungee',Impact,sans-serif";
 		if (this.state === 'roll_windup') {
 			const span = this.rollTargetX - this.x;
 			ctx.strokeStyle = ORANGE;

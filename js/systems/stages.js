@@ -1,9 +1,9 @@
-import { particles } from '../engine/particles.js?v=9.2';
-import { audio } from '../engine/audio.js?v=9.2';
-import { projectiles } from '../entities/projectiles.js?v=9.2';
-import { speech } from '../engine/speech.js?v=9.2';
-import { combat } from './combat.js?v=9.2';
-import { save } from './save.js?v=9.2';
+import { particles } from '../engine/particles.js?v=9.3';
+import { audio } from '../engine/audio.js?v=9.3';
+import { projectiles } from '../entities/projectiles.js?v=9.3';
+import { speech } from '../engine/speech.js?v=9.3';
+import { combat } from './combat.js?v=9.3';
+import { save } from './save.js?v=9.3';
 const freezeBeat = (beat) => Object.freeze({
 	...beat,
 	...(beat.allyReaction ? { allyReaction: Object.freeze({ ...beat.allyReaction }) } : {})
@@ -1110,10 +1110,9 @@ export class StageManager {
 			ctx.font = "14px monospace";
 			ctx.fillText("root@desktop:~$ ./firewall_purge --force", minX + 60, minY + 80);
 		} else {
-			paintBackdrop('#262c3e');
-			ctx.strokeStyle = 'rgba(55, 62, 85, 0.6)';
-			ctx.lineWidth = 1;
-			strokeGridPath(ctx, minX, maxX, minY, maxY, 60);
+			paintBackdrop('#0759b6');
+			ctx.fillStyle='rgba(190,235,255,.28)';
+			for(let i=4;i--;)ctx.fillRect(320+(i&1)*166,-330+(i>>1)*126,148,110);
 		}
 		ctx.globalAlpha = 1;
 		ctx.shadowBlur = 0;
@@ -1237,7 +1236,7 @@ export class StageManager {
 		ctx.fillRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
 		ctx.strokeRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
 		ctx.fillStyle = '#38bdf8';
-		ctx.font = "900 11px 'Bungee', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
+		ctx.font = "900 11px 'Bungee',Impact,sans-serif";
 		ctx.textAlign = 'center';
 		ctx.fillText("START", this.entranceDoor.x, groundY - this.entranceDoor.height - 8);
 		ctx.restore();
@@ -1263,12 +1262,12 @@ export class StageManager {
 			}
 			const bounce = Math.sin(this.stageTime * 8) * 8;
 			ctx.fillStyle = '#ffea00';
-			ctx.font = "900 13px 'Bungee', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
+			ctx.font = "900 13px 'Bungee',Impact,sans-serif";
 			ctx.textAlign = 'center';
 			ctx.fillText("⬇ ENTER EXIT ⬇", this.exitDoor.x, groundY - this.exitDoor.height - 16 + bounce);
 		} else {
 			ctx.fillStyle = '#ef4444';
-			ctx.font = "900 11px 'Bungee', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif";
+			ctx.font = "900 11px 'Bungee',Impact,sans-serif";
 			ctx.textAlign = 'center';
 			ctx.fillText("🔒 LOCKED", this.exitDoor.x, groundY - this.exitDoor.height - 8);
 		}
@@ -1341,14 +1340,14 @@ export class StageManager {
 		const minX = this.bounds.minX - 500;
 		const maxX = this.bounds.maxX + 500;
 		ctx.save();
-		ctx.fillStyle = '#0b0d13';
+		ctx.fillStyle = '#04162d';
 		ctx.fillRect(minX, groundY, maxX - minX, 1000);
-		ctx.fillStyle = '#11131c';
-		ctx.strokeStyle = '#2d3147';
+		ctx.fillStyle = '#0b4989';
+		ctx.strokeStyle = '#86d3ff';
 		ctx.lineWidth = 2;
 		ctx.fillRect(this.bounds.minX, groundY, this.bounds.maxX - this.bounds.minX, 42);
 		ctx.strokeRect(this.bounds.minX, groundY, this.bounds.maxX - this.bounds.minX, 42);
-		ctx.fillStyle = '#0078d7';
+		ctx.fillStyle = '#1682c4';
 		ctx.fillRect(this.bounds.minX + 10, groundY + 6, 80, 30);
 		ctx.fillStyle = '#ffffff';
 		ctx.font = "bold 12px 'Trebuchet MS', sans-serif";
@@ -1357,7 +1356,7 @@ export class StageManager {
 		const tabs = ['Stick_vs_Zombies.exe', 'Animation_v2.fla', 'Zombies_Horde.cmd'];
 		tabs.forEach((tab, i) => {
 			const tx = this.bounds.minX + 100 + i * 160;
-			ctx.fillStyle = i === 0 ? '#262a3e' : '#181a26';
+			ctx.fillStyle = i === 0 ? '#277db9' : '#15558d';
 			ctx.fillRect(tx, groundY + 6, 150, 28);
 			ctx.fillStyle = '#a5accb';
 			ctx.font = "11px 'Trebuchet MS', sans-serif";

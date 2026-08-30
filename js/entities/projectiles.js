@@ -1,6 +1,6 @@
-import { particles } from '../engine/particles.js?v=9.2';
-import { audio } from '../engine/audio.js?v=9.2';
-import { combat } from '../systems/combat.js?v=9.2';
+import { particles } from '../engine/particles.js?v=9.3';
+import { audio } from '../engine/audio.js?v=9.3';
+import { combat } from '../systems/combat.js?v=9.3';
 const MAX_PROJECTILES = 64;
 const MAX_HOSTILE_PROJECTILES = 32;
 const MAX_ACID_POOLS = 12;

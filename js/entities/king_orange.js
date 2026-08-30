@@ -1,9 +1,9 @@
-import { StickFigureRenderer } from './stickman.js?v=9.2';
-import { particles } from '../engine/particles.js?v=9.2';
-import { audio } from '../engine/audio.js?v=9.2';
-import { projectiles } from './projectiles.js?v=9.2';
-import { combat } from '../systems/combat.js?v=9.2';
-import { speech } from '../engine/speech.js?v=9.2';
+import { StickFigureRenderer } from './stickman.js?v=9.3';
+import { particles } from '../engine/particles.js?v=9.3';
+import { audio } from '../engine/audio.js?v=9.3';
+import { projectiles } from './projectiles.js?v=9.3';
+import { combat } from '../systems/combat.js?v=9.3';
+import { speech } from '../engine/speech.js?v=9.3';
 const ARENA_LEFT = -980;
 const ARENA_RIGHT = 980;
 function clamp(value, min, max) {
