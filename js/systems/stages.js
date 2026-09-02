@@ -1,9 +1,9 @@
-import { particles } from '../engine/particles.js?v=9.5';
-import { audio } from '../engine/audio.js?v=9.5';
-import { projectiles } from '../entities/projectiles.js?v=9.5';
-import { speech } from '../engine/speech.js?v=9.5';
-import { combat } from './combat.js?v=9.5';
-import { save } from './save.js?v=9.5';
+import { particles } from '../engine/particles.js?v=9.6';
+import { audio } from '../engine/audio.js?v=9.6';
+import { projectiles } from '../entities/projectiles.js?v=9.6';
+import { speech } from '../engine/speech.js?v=9.6';
+import { combat } from './combat.js?v=9.6';
+import { save } from './save.js?v=9.6';
 const CAMPAIGN_ACTS = ['I - BUG ON THE LOOSE','II - DELETED TRAIL','III - REPLAY TRAP','IV - CREEPER CLAN CACHE','V - ROOT OF LUCK'];
 const CAMPAIGN_ROWS = [
 	[0,'STOP THE DESKTOP BUG','TRAIL FOUND!','RESTORE.KEY WAS SPLIT',null,'red','BUGS NEED BONKS!'],

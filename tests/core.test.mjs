@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=9.5';
-import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.5';
+import { Camera } from '../js/engine/camera.js?v=9.6';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.6';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,21 +14,21 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=9.5';
-import { AllyManager, allies } from '../js/entities/allies.js?v=9.5';
-import { DarkLord } from '../js/entities/dark_lord.js?v=9.5';
-import { H4C3R } from '../js/entities/h4c3r.js?v=9.5';
-import { KingOrange } from '../js/entities/king_orange.js?v=9.5';
-import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.5';
-import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.5';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.5';
-import { Zombie } from '../js/entities/zombies.js?v=9.5';
-import { weapons } from '../js/entities/weapons.js?v=9.5';
-import { combat } from '../js/systems/combat.js?v=9.5';
-import { SaveSystem } from '../js/systems/save.js?v=9.5';
-import { shop } from '../js/systems/shop.js?v=9.5';
-import { Game } from '../js/main.js?v=9.5';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.5';
+} from '../js/engine/speech.js?v=9.6';
+import { AllyManager, allies } from '../js/entities/allies.js?v=9.6';
+import { DarkLord } from '../js/entities/dark_lord.js?v=9.6';
+import { H4C3R } from '../js/entities/h4c3r.js?v=9.6';
+import { KingOrange } from '../js/entities/king_orange.js?v=9.6';
+import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.6';
+import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.6';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.6';
+import { Zombie } from '../js/entities/zombies.js?v=9.6';
+import { weapons } from '../js/entities/weapons.js?v=9.6';
+import { combat } from '../js/systems/combat.js?v=9.6';
+import { SaveSystem } from '../js/systems/save.js?v=9.6';
+import { shop } from '../js/systems/shop.js?v=9.6';
+import { Game } from '../js/main.js?v=9.6';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.6';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -39,9 +39,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=9.5';
+} from '../js/systems/waves.js?v=9.6';
 
-const RELEASE_MODULE_VERSION = '9.5';
+const RELEASE_MODULE_VERSION = '9.6';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -927,6 +927,36 @@ test('new boss renderers are pure and expose the wave-director contract', () => 
   }
 
 	assert.equal(particles.particles.length, 0);
+});
+
+test('Creeper Clan bosses retain their block-built video silhouettes', () => {
+  for (const type of ['creeper_lord', 'giant_cat']) {
+    const { calls, context } = createCanvasContextMock();
+    const rects = [];
+    const lines = [];
+    let cursor = [0, 0];
+    context.fillRect = (x, y, width, height) => rects.push({ x, y, width, height, color: context.fillStyle });
+    context.moveTo = (x, y) => { cursor = [x, y]; };
+    context.lineTo = (x, y) => { lines.push([...cursor, x, y, context.strokeStyle]); cursor = [x, y]; };
+
+    const boss = new Zombie(0, 0, type, type === 'creeper_lord' ? 15 : 16);
+    boss.draw(context);
+    assert.equal(calls.save, calls.restore, `${type} must balance canvas state`);
+    assert.ok(boss.speechOffsetY <= -205, `${type} speech must clear its silhouette`);
+    assert.ok(boss.bannerOffsetY <= (type === 'creeper_lord' ? -260 : -225), `${type} reveal must clear its silhouette`);
+
+    if (type === 'giant_cat') {
+      assert.ok(rects.some(({ width, height }) => width >= 130 && height >= 60), 'cat keeps its long cuboid body');
+      assert.ok(rects.some(({ width, height }) => width >= 95 && height >= 80), 'cat keeps its oversized cuboid head');
+      assert.ok(rects.filter(({ color }) => color === '#fff4df').length >= 2, 'cat keeps white block feet');
+      assert.ok(rects.some(({ color }) => color === '#4fba42'), 'cat keeps its visible green eye');
+    } else {
+      assert.ok(rects.some(({ width, height, color }) => width >= 75 && height >= 65 && color === '#a8d867'), 'lord keeps an olive cube head');
+      assert.equal(rects.filter(({ y, width, height, color }) => y > -40 && width >= 40 && height >= 25 && color === '#a8d867').length, 2, 'lord keeps two huge block feet');
+      assert.ok(lines.filter((line) => line[4] === '#edc85a').length >= 7, 'lord keeps the crown fan');
+      assert.ok(lines.some(([, y1, , y2, color]) => color === '#9a7438' && Math.abs(y2 - y1) >= 150), 'lord keeps the full-height staff');
+    }
+  }
 });
 
 test('Creeper Lord and Giant Cat telegraphs are fair at 30, 60, and 120Hz', () => {

@@ -1,16 +1,16 @@
-import { audio } from './engine/audio.js?v=9.5';
-import { input } from './engine/input.js?v=9.5';
-import { Camera } from './engine/camera.js?v=9.5';
-import { particles } from './engine/particles.js?v=9.5';
-import { Player } from './entities/player.js?v=9.5';
-import { waves } from './systems/waves.js?v=9.5';
-import { combat } from './systems/combat.js?v=9.5';
-import { shop } from './systems/shop.js?v=9.5';
-import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=9.5';
-import { projectiles } from './entities/projectiles.js?v=9.5';
-import { allies } from './entities/allies.js?v=9.5';
-import { speech } from './engine/speech.js?v=9.5';
-import { save } from './systems/save.js?v=9.5';
+import { audio } from './engine/audio.js?v=9.6';
+import { input } from './engine/input.js?v=9.6';
+import { Camera } from './engine/camera.js?v=9.6';
+import { particles } from './engine/particles.js?v=9.6';
+import { Player } from './entities/player.js?v=9.6';
+import { waves } from './systems/waves.js?v=9.6';
+import { combat } from './systems/combat.js?v=9.6';
+import { shop } from './systems/shop.js?v=9.6';
+import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=9.6';
+import { projectiles } from './entities/projectiles.js?v=9.6';
+import { allies } from './entities/allies.js?v=9.6';
+import { speech } from './engine/speech.js?v=9.6';
+import { save } from './systems/save.js?v=9.6';
 export class Game {
   constructor() {
 	this.canvas = document.getElementById('gameCanvas');

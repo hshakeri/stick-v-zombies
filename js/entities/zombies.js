@@ -1,9 +1,9 @@
-import { StickFigureRenderer } from './stickman.js?v=9.5';
-import { particles } from '../engine/particles.js?v=9.5';
-import { audio } from '../engine/audio.js?v=9.5';
-import { projectiles } from './projectiles.js?v=9.5';
-import { combat } from '../systems/combat.js?v=9.5';
-import { speech } from '../engine/speech.js?v=9.5';
+import { StickFigureRenderer } from './stickman.js?v=9.6';
+import { particles } from '../engine/particles.js?v=9.6';
+import { audio } from '../engine/audio.js?v=9.6';
+import { projectiles } from './projectiles.js?v=9.6';
+import { combat } from '../systems/combat.js?v=9.6';
+import { speech } from '../engine/speech.js?v=9.6';
 const HOOK_PULL_ARENA_BOUND = 1060;
 const ZOMBIE_ARENA_BOUND = 1060;
 const ZOMBIE_STATS = Object.freeze({
@@ -20,6 +20,7 @@ const ZOMBIE_STATS = Object.freeze({
 	creeper_lord: [440, 92, 30, 58, 152, '#91c94d', 10, 2.3, 150, 2600, 'anchor', '', 0, 1],
 	giant_cat: [480, 116, 32, 72, 128, '#e88932', 10, 2.4, 180, 3000, 'anchor', '', 0, 1]
 });
+const box=(c,x,y,w,h)=>{c.fillRect(x,y,w,h);c.strokeRect(x,y,w,h);};
 export class Zombie {
   constructor(x, y, type = 'walker', wave = 1) {
 	this.x = x;
@@ -83,8 +84,8 @@ export class Zombie {
 	if (this.isBoss) this.bossPhase = 1;
 	if (type === 'creeper_lord' || type === 'giant_cat') {
 	  this.attackCooldown = 1.1;
-	  this.speechOffsetY = -this.height - 25;
-	  this.bannerOffsetY = -this.height - 55;
+	  this.speechOffsetY = type === 'creeper_lord' ? -235 : -205;
+	  this.bannerOffsetY = type === 'creeper_lord' ? -260 : -225;
 	}
 	if (type === 'spitter') this.preferredDist = 280;
 	if (!this.isBoss) {
@@ -1001,88 +1002,75 @@ export class Zombie {
 	}
   }
   drawClanBoss(ctx, isFrozen = false) {
+	const c=ctx;
 	const cat = this.type === 'giant_cat';
-	const bob = this.isGrounded ? Math.sin(this.animTimer * (cat ? 4 : 2.4)) * 2 : -5;
+	const bob=this.isGrounded?Math.sin(this.animTimer*(cat?4:2.4))*2:-5;
 	const action = this.getActionRenderPhase() || 0;
-	ctx.save();
-	ctx.translate(this.x, this.y + bob);
-	ctx.scale(this.facing * this.squashX, this.squashY);
-	ctx.globalAlpha = this.isHurt ? .76 : 1;
-	ctx.lineJoin = 'round';
-	ctx.lineCap = 'round';
-	ctx.fillStyle = 'rgba(0,0,0,.28)';
-	ctx.beginPath();
-	ctx.ellipse(0, 2, cat ? 78 : 55, 12, 0, 0, Math.PI * 2);
-	ctx.fill();
+	c.save();
+	c.translate(this.x,this.y+bob);
+	c.scale(this.facing * this.squashX, this.squashY);
+	c.globalAlpha = this.isHurt ? .76 : 1;
+	c.lineJoin = 'miter';
+	c.lineCap = 'square';
+	c.fillStyle = 'rgba(0,0,0,.28)';
+	c.beginPath();
+	c.ellipse(0, 2, cat ? 78 : 55, 12, 0, 0, Math.PI * 2);
+	c.fill();
 	if (cat) {
-	  const lean = (this.actionKind === 'cat_pounce' ? action * 15 : 0);
-	  ctx.translate(lean, 0);
-	  ctx.strokeStyle = '#74351d';
-	  ctx.lineWidth = 13;
-	  ctx.beginPath();
-	  ctx.moveTo(-45, -55); ctx.quadraticCurveTo(-104, -91, -83, -128); ctx.stroke();
-	  ctx.fillStyle = isFrozen ? '#a8edff' : '#c96a29';
-	  ctx.strokeStyle = '#572817';
-	  ctx.lineWidth = 5;
-	  ctx.fillRect(-67, -72, 134, 66); ctx.strokeRect(-67, -72, 134, 66);
-	  ctx.beginPath();
-	  ctx.moveTo(-62, -119); ctx.lineTo(-47, -161); ctx.lineTo(-20, -126);
-	  ctx.lineTo(20, -126); ctx.lineTo(48, -161); ctx.lineTo(63, -117);
-	  ctx.closePath(); ctx.fill(); ctx.stroke();
-	  ctx.fillStyle = isFrozen ? '#c9f5ff' : '#e88932';
-	  ctx.fillRect(-64, -133, 128, 92); ctx.strokeRect(-64, -133, 128, 92);
-	  ctx.fillStyle = '#4fba42';
-	  ctx.fillRect(-40, -108, 24, 22); ctx.fillRect(16, -108, 24, 22);
-	  ctx.fillStyle = '#142113';
-	  ctx.fillRect(-33, -102, 10, 13); ctx.fillRect(23, -102, 10, 13);
-	  ctx.fillStyle = '#f29ab4';
-	  ctx.fillRect(-14, -82, 28, 15);
-	  ctx.strokeStyle = '#6a301d'; ctx.lineWidth = 4;
-	  ctx.beginPath(); ctx.moveTo(-3, -66); ctx.lineTo(-20, -57);
-	  ctx.moveTo(3, -66); ctx.lineTo(20, -57); ctx.stroke();
-	  ctx.strokeStyle = '#7b351e'; ctx.lineWidth = 8;
-	  ctx.beginPath(); ctx.moveTo(-45, -125); ctx.lineTo(-28, -112);
-	  ctx.moveTo(0, -133); ctx.lineTo(0, -116); ctx.moveTo(45, -125); ctx.lineTo(28, -112); ctx.stroke();
-	  ctx.strokeStyle = '#7b1520'; ctx.lineWidth = 7;
-	  ctx.beginPath(); ctx.moveTo(-57, -47); ctx.lineTo(57, -47); ctx.stroke();
-	  ctx.fillStyle = '#fff4df';
-	  const paw = this.actionKind === 'cat_swipe' ? 24 + action * 55 : 24;
-	  ctx.fillRect(paw, -45, 50, 30); ctx.strokeRect(paw, -45, 50, 30);
-	  ctx.fillRect(-62, -30, 42, 27); ctx.strokeRect(-62, -30, 42, 27);
+	  const lean=this.actionKind==='cat_pounce'?action*15:0;
+	  c.translate(lean,0);
+	  c.strokeStyle = '#74351d';
+	  c.lineWidth = 15;
+	  c.beginPath(); c.moveTo(-54, -62); c.lineTo(-96, -76); c.lineTo(-96, -119); c.lineTo(-76, -132); c.stroke();
+	  const fur=isFrozen?'#a8edff':'#c96a29';
+	  const face=isFrozen?'#c9f5ff':'#e88932';
+	  c.fillStyle = fur;
+	  c.strokeStyle = '#572817';
+	  c.lineWidth = 5;
+	  box(c,-72,-78,136,67);
+	  box(c,-55,-47,37,46);
+	  c.fillStyle = face;
+	  c.beginPath(); c.moveTo(-42,-139); c.lineTo(-34,-171); c.lineTo(-8,-145); c.lineTo(38,-145); c.lineTo(58,-169); c.lineTo(65,-134); c.closePath(); c.fill(); c.stroke();
+	  c.fillStyle = '#a94f24'; c.fillRect(-48,-139,17,77);
+	  c.fillStyle=face; box(c,-32,-148,100,85);
+	  c.fillStyle = '#7b351e';
+	  c.fillRect(-16,-148,14,18); c.fillRect(16,-148,14,20); c.fillRect(-51,-74,22,19); c.fillRect(-2,-78,18,15);
+	  c.fillStyle = '#4fba42';
+	  c.fillRect(35, -127, 24, 21);
+	  c.fillStyle = '#142113';
+	  c.fillRect(47, -122, 9, 13);
+	  c.fillStyle='#fff0d7'; box(c,57,-107,31,31);
+	  c.fillStyle = '#ef8fa5'; c.fillRect(79,-98,13,14);
+	  c.strokeStyle = '#7b1520'; c.lineWidth = 7;
+	  c.beginPath(); c.moveTo(-55, -62); c.lineTo(61, -62); c.stroke();
+	  const paw=this.actionKind==='cat_swipe'?38+action*58:38;
+	  c.fillStyle=fur; box(c,paw,-48,52,32);
+	  c.fillStyle='#fff4df'; box(c,-55,-21,37,22); box(c,paw+27,-39,25,23);
 	} else {
-	  const lean = this.actionKind === 'creeper_leap' ? action * 8 : 0;
-	  ctx.translate(lean, 0);
-	  ctx.fillStyle = '#6d4724';
-	  ctx.strokeStyle = '#d3a64b';
-	  ctx.lineWidth = 5;
-	  ctx.beginPath();
-	  ctx.moveTo(-29, -18); ctx.lineTo(-38, -119); ctx.lineTo(38, -119); ctx.lineTo(30, -18);
-	  ctx.closePath(); ctx.fill(); ctx.stroke();
-	  ctx.fillStyle = '#c9983f';
-	  for (let y = -104; y < -30; y += 25) {
-		ctx.fillRect(-24 + ((y / 25) & 1) * 15, y, 12, 12);
-		ctx.fillRect(13 - ((y / 25) & 1) * 15, y + 8, 10, 10);
-	  }
-	  ctx.fillStyle = isFrozen ? '#b9efff' : '#a8d867';
-	  ctx.strokeStyle = '#213b1e';
-	  ctx.lineWidth = 5;
-	  ctx.fillRect(-42, -166, 84, 68); ctx.strokeRect(-42, -166, 84, 68);
-	  ctx.fillStyle = '#172016';
-	  ctx.fillRect(-27, -146, 17, 23); ctx.fillRect(10, -146, 17, 23);
-	  ctx.fillRect(-9, -123, 18, 12); ctx.fillRect(8, -113, 17, 12);
-	  ctx.fillStyle = '#a6291f'; ctx.fillRect(-40, -171, 80, 11);
-	  ctx.strokeStyle = '#edc85a'; ctx.lineWidth = 7; ctx.beginPath();
-	  for (let i = -3; i <= 3; i++) {
-		ctx.moveTo(i * 10, -164); ctx.lineTo(i * 19, -204 + Math.abs(i) * 5);
-	  }
-	  ctx.stroke();
-	  ctx.strokeStyle = '#735227'; ctx.lineWidth = 8;
-	  ctx.beginPath(); ctx.moveTo(42, -98); ctx.lineTo(57, -8); ctx.stroke();
-	  ctx.fillStyle = '#dcb44d'; ctx.strokeStyle = '#fff08b'; ctx.lineWidth = 3;
-	  ctx.fillRect(35, -123, 34, 39); ctx.strokeRect(35, -123, 34, 39);
-	  ctx.fillStyle = '#73b853'; ctx.fillRect(45, -114, 14, 20);
+	  const lean=this.actionKind==='creeper_leap'?action*8:0;
+	  c.translate(lean,0);
+	  c.strokeStyle = '#9a7438'; c.lineWidth = 9; c.beginPath(); c.moveTo(48,-2); c.lineTo(92,-164); c.lineTo(78,-184); c.moveTo(92,-164); c.lineTo(112,-157); c.stroke();
+	  c.strokeStyle = '#493117'; c.lineWidth = 4; c.beginPath(); c.moveTo(60,-51); c.lineTo(57,-64); c.moveTo(58,-110); c.lineTo(57,-125); c.stroke();
+	  c.fillStyle = '#6d4724'; c.strokeStyle = '#3e2919'; c.lineWidth = 5;
+	  box(c,-39,-116,78,103);
+	  c.fillStyle = '#c9983f';
+	  for (let y=-104;y<-30;y+=25) { c.fillRect(-27+((y/25)&1)*17,y,12,12); c.fillRect(13-((y/25)&1)*13,y+8,10,10); }
+	  c.strokeStyle = '#d3a64b'; c.lineWidth = 8; c.beginPath(); c.moveTo(-35,-104); c.lineTo(-59,-76); c.lineTo(-54,-42); c.moveTo(35,-104); c.lineTo(56,-83); c.lineTo(57,-59); c.stroke();
+	  const moss=isFrozen?'#b9efff':'#a8d867';
+	  c.fillStyle = moss; c.strokeStyle = '#213b1e'; c.lineWidth = 5;
+	  box(c,-49,-28,43,29); box(c,12,-28,43,29);
+	  c.fillStyle = '#668a45'; c.fillRect(-48,-171,18,68);
+	  c.fillStyle=moss; box(c,-31,-177,79,70);
+	  c.fillStyle = '#7ba755'; c.fillRect(-21,-168,13,9); c.fillRect(31,-124,13,10);
+	  c.fillStyle = '#172016'; c.fillRect(-20,-150,17,22); c.fillRect(18,-150,17,22); c.fillRect(0,-129,18,13); c.fillRect(17,-117,18,10);
+	  c.fillStyle=moss; box(c,30,-137,31,29);
+	  c.fillStyle = '#211819'; c.fillRect(-34,-182,88,14);
+	  c.fillStyle = '#a6291f'; c.fillRect(-27,-178,16,7); c.fillRect(12,-178,16,7);
+	  c.strokeStyle = '#edc85a'; c.lineWidth = 7; c.beginPath();
+	  for (let i=0;i<7;i++) { c.moveTo(-28+i*13,-181); c.lineTo(-72+i*19,-218+Math.abs(i-2)*5); }
+	  c.stroke();
 	}
-	ctx.restore();
+	c.restore();
   }
   getActionRenderPhase() {
 	if (this.actionPhase === 'windup' && this.actionDuration > 0) {
