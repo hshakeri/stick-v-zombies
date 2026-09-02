@@ -109,7 +109,7 @@ export class SaveSystem {
   recordVictory() {
 	this.data.unlocks.endless = true;
 	this.data.unlocks.bossRush = true;
-	this.data.highestStageCleared = Math.max(this.data.highestStageCleared, 16);
+	this.data.highestStageCleared = Math.max(this.data.highestStageCleared, 18);
 	this.data.checkpoint = null;
 	this.write();
   }

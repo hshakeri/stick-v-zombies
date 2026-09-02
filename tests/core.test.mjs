@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=9.4';
-import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.4';
+import { Camera } from '../js/engine/camera.js?v=9.5';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.5';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,21 +14,21 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=9.4';
-import { AllyManager, allies } from '../js/entities/allies.js?v=9.4';
-import { DarkLord } from '../js/entities/dark_lord.js?v=9.4';
-import { H4C3R } from '../js/entities/h4c3r.js?v=9.4';
-import { KingOrange } from '../js/entities/king_orange.js?v=9.4';
-import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.4';
-import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.4';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.4';
-import { Zombie } from '../js/entities/zombies.js?v=9.4';
-import { weapons } from '../js/entities/weapons.js?v=9.4';
-import { combat } from '../js/systems/combat.js?v=9.4';
-import { SaveSystem } from '../js/systems/save.js?v=9.4';
-import { shop } from '../js/systems/shop.js?v=9.4';
-import { Game } from '../js/main.js?v=9.4';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.4';
+} from '../js/engine/speech.js?v=9.5';
+import { AllyManager, allies } from '../js/entities/allies.js?v=9.5';
+import { DarkLord } from '../js/entities/dark_lord.js?v=9.5';
+import { H4C3R } from '../js/entities/h4c3r.js?v=9.5';
+import { KingOrange } from '../js/entities/king_orange.js?v=9.5';
+import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.5';
+import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.5';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.5';
+import { Zombie } from '../js/entities/zombies.js?v=9.5';
+import { weapons } from '../js/entities/weapons.js?v=9.5';
+import { combat } from '../js/systems/combat.js?v=9.5';
+import { SaveSystem } from '../js/systems/save.js?v=9.5';
+import { shop } from '../js/systems/shop.js?v=9.5';
+import { Game } from '../js/main.js?v=9.5';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.5';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -39,9 +39,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=9.4';
+} from '../js/systems/waves.js?v=9.5';
 
-const RELEASE_MODULE_VERSION = '9.4';
+const RELEASE_MODULE_VERSION = '9.5';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -95,7 +95,7 @@ test('display typography is self-contained: embedded subset plus safe fallbacks'
   // The pop-art face is an embedded OFL subset (a data URI — zero remote
   // downloads) with Impact leading the fallback chain for platforms that
   // block data fonts.
-  assert.match(css, /--font-pop-art:\s*'Bungee', Impact,/);
+  assert.match(css, /--font-pop-art:\s*'Bungee',\s*Impact,/);
   const fontFace = css.match(/@font-face\s*{[^}]+}/);
   assert.ok(fontFace, 'the display font must ship as an @font-face block');
   assert.match(fontFace[0], /src:\s*url\(data:font\/woff2;base64,/, 'the font must embed as a data URI');
@@ -104,6 +104,12 @@ test('display typography is self-contained: embedded subset plus safe fallbacks'
   assert.ok(base64Payload.length > 0 && base64Payload.length < 40_000, 'the embedded subset stays small');
   assert.doesNotMatch(`${css}\n${html}\n${canvasSources}`, /Permanent Marker|cursive/i);
   assert.doesNotMatch(css, /url\(\s*["']?https?:\/\//i, 'fonts must never be fetched remotely');
+});
+
+test('mobile safe-area calc operators keep required CSS whitespace', () => {
+  const css = readFileSync(fileURLToPath(new URL('../css/style.css', import.meta.url)), 'utf8');
+  assert.doesNotMatch(css, /calc\([^)]*\dpx[+-]env\(/);
+  assert.equal(css.match(/\d+px \+ env\(/g)?.length, 7);
 });
 
 function createCanvasContextMock() {
@@ -694,15 +700,15 @@ test('new-run resets restore upgrades and clear transient systems', () => {
 
 test('post-Dark-Lord stages do not wrap back to the desktop', () => {
   const manager = new StageManager();
-  manager.loadStage(16);
+  manager.loadStage(18);
 
-  assert.equal(manager.currentStage, 16);
-  assert.equal(manager.maxStage, 16);
+  assert.equal(manager.currentStage, 18);
+  assert.equal(manager.maxStage, 18);
   assert.notEqual(manager.stageName, 'Main Desktop');
   assert.notEqual(manager.theme, 'desktop');
 });
 
-test('stage 14 advances through Lucky Orb to H4C3R before campaign completion', () => {
+test('stage 14 advances through both clan replays, Lucky Orb, and H4C3R', () => {
   const manager = new StageManager();
   manager.currentStage = 14;
   let completions = 0;
@@ -714,33 +720,41 @@ test('stage 14 advances through Lucky Orb to H4C3R before campaign completion', 
     stage => advancedStages.push(stage)
   );
   manager.currentStage = 15;
-  const orbResult = manager.resolveStageExit(
+  const creeperResult = manager.resolveStageExit(
     16,
     () => { completions += 1; },
     stage => advancedStages.push(stage)
   );
   manager.currentStage = 16;
-  const completionResult = manager.resolveStageExit(
+  const catResult = manager.resolveStageExit(
     17,
     () => { completions += 1; },
     stage => advancedStages.push(stage)
   );
+  manager.currentStage = 17;
+  const orbResult = manager.resolveStageExit(18, () => { completions += 1; }, stage => advancedStages.push(stage));
+  manager.currentStage = 18;
+  const completionResult = manager.resolveStageExit(19, () => { completions += 1; }, stage => advancedStages.push(stage));
 
   assert.equal(advanceResult, 'advance');
+  assert.equal(creeperResult, 'advance');
+  assert.equal(catResult, 'advance');
   assert.equal(orbResult, 'advance');
   assert.equal(completionResult, 'complete');
   assert.equal(completions, 1);
-  assert.deepEqual(advancedStages, [15, 16]);
+  assert.deepEqual(advancedStages, [15, 16, 17, 18]);
 });
 
 test('late campaign waves are handcrafted, capped, and route both new bosses', () => {
-  for (const stage of [11, 12, 13, 14, 15, 16]) {
+  for (const stage of [11, 12, 13, 14, 15, 16, 17, 18]) {
     const director = new WaveDirector();
     director.generateWaveQueue(stage);
     assert.ok(director.spawnQueue.length <= 30, `stage ${stage} queued too many enemies`);
     if (stage === 11) assert.ok(director.spawnQueue.some(entry => entry.type === 'king_orange'));
-    if (stage === 15) assert.ok(director.spawnQueue.some(entry => entry.type === 'lucky_orb'));
-    if (stage === 16) assert.ok(director.spawnQueue.some(entry => entry.type === 'h4c3r'));
+    if (stage === 15) assert.ok(director.spawnQueue.some(entry => entry.type === 'creeper_lord'));
+    if (stage === 16) assert.ok(director.spawnQueue.some(entry => entry.type === 'giant_cat'));
+    if (stage === 17) assert.ok(director.spawnQueue.some(entry => entry.type === 'lucky_orb'));
+    if (stage === 18) assert.ok(director.spawnQueue.some(entry => entry.type === 'h4c3r'));
   }
 });
 
@@ -851,7 +865,7 @@ test('stage clear fires the written ally reaction and campaign clue', () => {
 test('the final exit waits for H4C3R defeat framing to finish', () => {
   projectiles.reset();
   const manager = new StageManager();
-  manager.loadStage(16);
+  manager.loadStage(18);
   const calls = [];
   const camera = {
     focusOn(...args) { calls.push(['focus', ...args]); },
@@ -877,22 +891,29 @@ test('boss-stage exit pans wait for the death explosion focus', () => {
     focusOn(...args) { calls.push(['focus', ...args]); },
     addZoomPunch(amount) { calls.push(['zoom', amount]); }
   };
-  const player = { x: -800, y: 0, isDead: false };
+  const player = { x: manager.exitDoor.x, y: 0, isDead: false };
   const clearedWave = { isWaveActive: true, spawnQueue: [], zombies: [] };
+	let exits = 0;
 
-  manager.update(0.016, player, clearedWave, () => {}, camera);
+	manager.update(0.016, player, clearedWave, () => { exits += 1; }, camera);
   assert.equal(manager.exitDoor.isOpen, true);
   assert.deepEqual(calls, []);
-  for (let i = 0; i < 50; i += 1) manager.update(0.016, player, clearedWave, () => {}, camera);
-  assert.deepEqual(calls, [], 'the full 0.8s death focus must remain unobstructed');
-  for (let i = 0; i < 4; i += 1) manager.update(0.016, player, clearedWave, () => {}, camera);
-  assert.equal(calls[0][0], 'focus');
-  assert.equal(calls[1][0], 'zoom');
+	for (let i = 0; i < 50; i += 1) manager.update(0.016, player, clearedWave, () => { exits += 1; }, camera);
+	assert.deepEqual(calls, [], 'the full 0.8s death focus must remain unobstructed');
+	assert.equal(exits, 0, 'standing at the door cannot cut the explosion short');
+	for (let i = 0; i < 4; i += 1) manager.update(0.016, player, clearedWave, () => { exits += 1; }, camera);
+	assert.equal(calls[0][0], 'focus');
+	assert.equal(calls[1][0], 'zoom');
+	for (let i = 0; i < 25; i += 1) manager.update(0.016, player, clearedWave, () => { exits += 1; }, camera);
+	assert.equal(exits, 1, 'door entry resumes after the framing and hold complete');
 });
 
 test('new boss renderers are pure and expose the wave-director contract', () => {
   particles.reset();
-  const bosses = [new KingOrange(10, 0), new LuckyOrb(0, 0), new H4C3R(-10, 0)];
+  const bosses = [
+    new KingOrange(10, 0), new Zombie(0, 0, 'creeper_lord', 15),
+    new Zombie(0, 0, 'giant_cat', 16), new LuckyOrb(0, 0), new H4C3R(-10, 0)
+  ];
   const { context } = createCanvasContextMock();
 
   for (const boss of bosses) {
@@ -906,6 +927,111 @@ test('new boss renderers are pure and expose the wave-director contract', () => 
   }
 
 	assert.equal(particles.particles.length, 0);
+});
+
+test('Creeper Lord and Giant Cat telegraphs are fair at 30, 60, and 120Hz', () => {
+  const camera = { addShake() {}, focusOn() {} };
+  for (const rate of [30, 60, 120]) {
+    const dt = 1 / rate;
+    for (const [type, move, warning] of [
+      ['creeper_lord', 'creeper_blast', 0.78],
+      ['giant_cat', 'cat_swipe', 0.58]
+    ]) {
+      let hits = 0;
+      const target = { x: 60, y: 0, isDead: false, takeDamage() { hits += 1; } };
+      const boss = new Zombie(0, 0, type, type === 'creeper_lord' ? 15 : 16);
+      assert.equal(boss.hookClass, 'anchor');
+      assert.equal(boss.beginHeavyAction(move, target.x), true);
+      assert.ok(boss.actionDuration >= warning);
+      boss.takeDamage(1, 1, 100);
+      assert.equal(boss.actionPhase, 'windup', 'a light hit cannot erase a warned boss move');
+      while (boss.actionTimer > dt) {
+        boss.updateHeavyAction(dt, [target], camera);
+        assert.equal(hits, 0, `${type} damaged before contact at ${rate}Hz`);
+      }
+      boss.updateHeavyAction(dt, [target], camera);
+      assert.equal(hits, 1, `${type} should apply one contact at ${rate}Hz`);
+      for (let i = 0; i < rate; i += 1) boss.updateHeavyAction(dt, [target], camera);
+      assert.equal(hits, 1, `${type} repeated the same hit at ${rate}Hz`);
+    }
+  }
+  particles.reset();
+  speech.reset();
+});
+
+test('Giant Cat pounce uses swept contact and clan bosses route through the wave director', () => {
+  let hits = 0;
+  const target = { x: 260, y: 0, radius: 18, isDead: false, takeDamage() { hits += 1; } };
+  const cat = new Zombie(0, 0, 'giant_cat', 16);
+  cat.beginHeavyAction('cat_pounce', 500);
+  cat.updateHeavyAction(0.69, [target], { addShake() {} });
+  assert.equal(hits, 0, 'pounce warning cannot damage');
+  cat.updateHeavyAction(0.3, [target], { addShake() {} });
+  assert.equal(hits, 1, 'a low-frame pounce cannot tunnel through Orange');
+  cat.updateHeavyAction(0.03, [target], { addShake() {} });
+  assert.equal(hits, 1, 'pounce damages each target once');
+
+  const director = new WaveDirector();
+  director.currentWave = 15;
+  director.spawnZombie('creeper_lord', { x: 0 }, 0, { addShake() {}, focusOn() {}, addZoomPunch() {} });
+  assert.equal(director.bossZombie?.type, 'creeper_lord');
+  assert.equal(director.bossZombie?.isBoss, true);
+  particles.reset();
+  speech.reset();
+});
+
+test('Giant Cat full update keeps its pounce inside the warned lane at 10Hz', () => {
+  let hits = 0;
+  let outsideHits = 0;
+  const player = { x: 100, y: 0, radius: 18, isDead: false, takeDamage() { hits += 1; } };
+  const outside = {
+    x: 220, y: 0, radius: 18, isDead: false, isAlly: true, isTargetable: true,
+    takeDamage() { outsideHits += 1; }
+  };
+  const camera = { addShake() {} };
+  const cat = new Zombie(0, 0, 'giant_cat', 16);
+  assert.ok(cat.attackCooldown >= 1, 'the opening move waits until the reveal is readable');
+  cat.isGrounded = true;
+  cat.beginHeavyAction('cat_pounce', player.x);
+  cat.update(.67, 0, player, [], camera, [], [], [outside]);
+  assert.equal(cat.x, 0);
+  cat.update(.02, 0, player, [], camera, [], [], [outside]);
+  assert.equal(cat.actionPhase, 'dash');
+  assert.equal(cat.x, 0, 'the windup-to-dash frame cannot move without a sweep');
+  cat.update(.1, 0, player, [], camera, [], [], [outside]);
+  cat.update(.1, 0, player, [], camera, [], [], [outside]);
+  assert.ok(Math.abs(cat.x - cat.leapTargetX) < .001, 'pounce stops at its marked endpoint');
+  assert.equal(hits, 1);
+  assert.equal(outsideHits, 0, 'targets beyond the warned lane are safe');
+	const airborne = { x: cat.x, y: cat.y - 40, radius: 18, isGrounded: false, isDead: false,
+	  takeDamage() { throw new Error('the ground lane hit an airborne target'); } };
+	cat.actionPhase = 'idle';
+	cat.beginHeavyAction('cat_pounce', airborne.x);
+	cat.update(.69, 0, airborne, [], camera);
+	cat.update(.1, 0, airborne, [], camera);
+  particles.reset();
+  speech.reset();
+});
+
+test('holding jump evades medium and maximum-range Giant Cat pounces', () => {
+  const dt = 1 / 60;
+  const camera = { addShake() {} };
+  for (const distance of [200, 326]) {
+    const player = new Player(distance, 0);
+    player.isGrounded = true;
+    const cat = new Zombie(0, 0, 'giant_cat', 16);
+    cat.isGrounded = true;
+    cat.beginHeavyAction('cat_pounce', player.x);
+    const input = { actions: { jump: true, jumpPressed: true } };
+    for (let frame = 0; frame < 90; frame += 1) {
+      player.update(dt, input, 0, [], [cat], camera, []);
+      input.actions.jumpPressed = false;
+      cat.update(dt, 0, player, [], camera);
+    }
+    assert.equal(player.hp, player.maxHp, `held jump failed at ${distance} units`);
+  }
+  particles.reset();
+  speech.reset();
 });
 
 test('Lucky Orb art is deterministic, balanced, and state-readable', () => {
@@ -1236,7 +1362,10 @@ test('self-detonating Boom-Bugs award their kill and bosses report applied damag
   assert.equal(combat.inkDrops[0].value, boomBug.inkReward, 'the drop carries the full ink reward');
   assert.ok(combat.score >= boomBug.scoreReward, 'the burst awards score');
 
-  for (const boss of [new DarkLord(0, 0), new KingOrange(0, 0), new H4C3R(0, 0), new LuckyOrb(0, 0)]) {
+  for (const boss of [
+    new DarkLord(0, 0), new KingOrange(0, 0), new Zombie(0, 0, 'creeper_lord', 15),
+    new Zombie(0, 0, 'giant_cat', 16), new H4C3R(0, 0), new LuckyOrb(0, 0)
+  ]) {
     const name = boss.constructor.name;
     assert.equal(boss.takeDamage(25, 1, 300, false), 25, `${name} reports applied damage`);
     boss.hp = 10;
@@ -1263,6 +1392,8 @@ test('Titan and every story boss explode exactly once when defeated', () => {
       new Zombie(0, 0, 'titan_boss', 5),
       new DarkLord(0, 0),
       new KingOrange(0, 0),
+      new Zombie(0, 0, 'creeper_lord', 15),
+      new Zombie(0, 0, 'giant_cat', 16),
       new LuckyOrb(0, 0),
       new H4C3R(0, 0)
     ];
@@ -1276,7 +1407,7 @@ test('Titan and every story boss explode exactly once when defeated', () => {
     }
 
     assert.equal(explosions.length, bosses.length);
-    assert.deepEqual(explosions.map((entry) => entry.stickFigure), [true, true, true, false, true]);
+    assert.deepEqual(explosions.map((entry) => entry.stickFigure), [true, true, true, false, false, false, true]);
     assert.ok(explosions.every((entry) => entry.radius >= 250));
     assert.ok(particles.comicPopups.some((entry) => entry.text === 'KABOOM!'));
     assert.ok(particles.particles.length <= particles.maxParticles);
@@ -1492,9 +1623,9 @@ function collectStringLeaves(value, output = []) {
   return output;
 }
 
-test('all 16 Restore Key missions are immutable and put Lucky Orb before H4C3R', () => {
-  assert.deepEqual(Object.keys(CAMPAIGN_BEATS).map(Number), Array.from({ length: 16 }, (_, index) => index + 1));
-  for (let stage = 1; stage <= 16; stage += 1) {
+test('all 18 Restore Key missions are immutable and order the replay bosses correctly', () => {
+  assert.deepEqual(Object.keys(CAMPAIGN_BEATS).map(Number), Array.from({ length: 18 }, (_, index) => index + 1));
+  for (let stage = 1; stage <= 18; stage += 1) {
     const beat = CAMPAIGN_BEATS[stage];
     assert.ok(Object.isFrozen(beat), `stage ${stage} metadata must be immutable`);
     for (const key of ['act', 'mission', 'clearText', 'clue']) {
@@ -1507,8 +1638,10 @@ test('all 16 Restore Key missions are immutable and put Lucky Orb before H4C3R',
   assert.match(CAMPAIGN_BEATS[14].clue, /H4C3R/);
   assert.equal(CAMPAIGN_BEATS[10].bossLabel, 'DARK LORD // BACKUP');
   assert.equal(CAMPAIGN_BEATS[11].bossLabel, 'KING ORANGE // REPLAY');
-  assert.equal(CAMPAIGN_BEATS[15].bossLabel, 'THE LUCKY ORB');
-  assert.equal(CAMPAIGN_BEATS[16].bossLabel, 'H4C3R');
+  assert.equal(CAMPAIGN_BEATS[15].bossLabel, 'CREEPER LORD // REPLAY');
+  assert.equal(CAMPAIGN_BEATS[16].bossLabel, 'GIANT CAT // REPLAY');
+  assert.equal(CAMPAIGN_BEATS[17].bossLabel, 'THE LUCKY ORB');
+  assert.equal(CAMPAIGN_BEATS[18].bossLabel, 'H4C3R');
 });
 
 test('authored wave recipes match every campaign total and pack budget', () => {
@@ -1516,7 +1649,7 @@ test('authored wave recipes match every campaign total and pack budget', () => {
   assert.equal(NORMAL_ACTIVE_ENEMY_CAP, 8);
   assert.equal(MAX_BOSS_HELPERS, 4);
 
-  for (let stage = 1; stage <= 16; stage += 1) {
+  for (let stage = 1; stage <= 18; stage += 1) {
     const recipe = WAVE_RECIPES[stage];
     assert.ok(Object.isFrozen(recipe), `stage ${stage} recipe must be immutable`);
     assert.equal(recipe.total, WAVE_RECIPE_TOTALS[stage]);
@@ -1535,10 +1668,12 @@ test('authored wave recipes match every campaign total and pack budget', () => {
   assert.deepEqual(WAVE_RECIPES[5].packs[0].enemies, ['titan_boss', 'runner', 'spitter', 'runner']);
   assert.deepEqual(WAVE_RECIPES[10].packs[0].enemies, ['dark_lord', 'runner', 'spitter', 'runner', 'brute']);
   assert.deepEqual(WAVE_RECIPES[11].packs[0].enemies, ['king_orange']);
-  assert.deepEqual(WAVE_RECIPES[15].packs[0].enemies, ['lucky_orb']);
-  assert.deepEqual(WAVE_RECIPES[16].packs[0].enemies, ['h4c3r']);
+  assert.deepEqual(WAVE_RECIPES[15].packs[0].enemies, ['creeper_lord']);
+  assert.deepEqual(WAVE_RECIPES[16].packs[0].enemies, ['giant_cat']);
+  assert.deepEqual(WAVE_RECIPES[17].packs[0].enemies, ['lucky_orb']);
+  assert.deepEqual(WAVE_RECIPES[18].packs[0].enemies, ['h4c3r']);
 
-  const firstStageWith = (type) => Array.from({ length: 16 }, (_, index) => index + 1).find(
+  const firstStageWith = (type) => Array.from({ length: 18 }, (_, index) => index + 1).find(
     (stage) => WAVE_RECIPES[stage].packs.some((pack) => pack.enemies.includes(type))
   );
   assert.equal(firstStageWith('crawler'), 2);
@@ -1546,7 +1681,7 @@ test('authored wave recipes match every campaign total and pack budget', () => {
   assert.equal(firstStageWith('boom_bug'), 6);
   assert.equal(WAVE_RECIPE_TOTALS[1], 6);
   assert.equal(WAVE_RECIPE_TOTALS[14], 20);
-  assert.equal(Object.values(WAVE_RECIPE_TOTALS).reduce((sum, total) => sum + total, 0), 168);
+  assert.equal(Object.values(WAVE_RECIPE_TOTALS).reduce((sum, total) => sum + total, 0), 170);
 });
 
 test('boss and ally copy stays inside the terse readable speech contract', () => {
@@ -2278,6 +2413,7 @@ test('save system round-trips, survives corruption, and degrades without storage
   second.flush();
   const third = new SaveSystem(storage);
   assert.equal(third.data.unlocks.endless, true);
+  assert.equal(third.data.highestStageCleared, 18);
   assert.equal(third.data.checkpoint, null, 'victory clears the campaign checkpoint');
 
   storage.map.set('svz.save.v1', '{corrupt json!!');

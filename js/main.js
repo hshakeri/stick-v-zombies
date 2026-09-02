@@ -1,16 +1,16 @@
-import { audio } from './engine/audio.js?v=9.4';
-import { input } from './engine/input.js?v=9.4';
-import { Camera } from './engine/camera.js?v=9.4';
-import { particles } from './engine/particles.js?v=9.4';
-import { Player } from './entities/player.js?v=9.4';
-import { waves } from './systems/waves.js?v=9.4';
-import { combat } from './systems/combat.js?v=9.4';
-import { shop } from './systems/shop.js?v=9.4';
-import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=9.4';
-import { projectiles } from './entities/projectiles.js?v=9.4';
-import { allies } from './entities/allies.js?v=9.4';
-import { speech } from './engine/speech.js?v=9.4';
-import { save } from './systems/save.js?v=9.4';
+import { audio } from './engine/audio.js?v=9.5';
+import { input } from './engine/input.js?v=9.5';
+import { Camera } from './engine/camera.js?v=9.5';
+import { particles } from './engine/particles.js?v=9.5';
+import { Player } from './entities/player.js?v=9.5';
+import { waves } from './systems/waves.js?v=9.5';
+import { combat } from './systems/combat.js?v=9.5';
+import { shop } from './systems/shop.js?v=9.5';
+import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=9.5';
+import { projectiles } from './entities/projectiles.js?v=9.5';
+import { allies } from './entities/allies.js?v=9.5';
+import { speech } from './engine/speech.js?v=9.5';
+import { save } from './systems/save.js?v=9.5';
 export class Game {
   constructor() {
 	this.canvas = document.getElementById('gameCanvas');
@@ -262,7 +262,7 @@ export class Game {
   }
   startGame(options = {}) {
 	const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
-	const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 16 ? checkpoint.stage : 1;
+	const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 18 ? checkpoint.stage : 1;
 	this.hideAllModals();
 	this.state = 'PLAYING';
 	audio.setBGMDucked?.(false);
@@ -411,8 +411,10 @@ export class Game {
 	  10: 'FULL METER? PRESS R',
 	  12: 'STALKERS BLINK · TURN FAST',
 	  13: 'WARDENS: FLANK OR GO HEAVY',
-	  15: 'READ GOLD MARKERS · MOVE LATE',
-	  16: 'FINAL PATCH · USE R'
+	  15: 'GREEN RING = BLAST · ROLL',
+	  16: 'PAW LANE = HOLD JUMP',
+	  17: 'READ GOLD MARKERS · MOVE LATE',
+	  18: 'FINAL PATCH · USE R'
 	}[stage] || 'CHAIN MOVES · WATCH RINGS';
   }
   showMissionStrip(stage, prefix = '') {
@@ -431,7 +433,7 @@ export class Game {
 	}
 	if (lesson) lesson.textContent = this.getStageLesson(stage);
 	strip.classList.add('active');
-	this.missionStripTimer = stage === 1 || [5, 10, 11, 15, 16].includes(stage) ? 4.0 : 3.5;
+	this.missionStripTimer = stage === 1 || [5, 10, 11, 15, 16, 17, 18].includes(stage) ? 4.0 : 3.5;
 	this.missionStripGrace = 0.75;
   }
   updateMissionStrip(dt) {
@@ -477,7 +479,7 @@ export class Game {
 	this.player.temporaryWeaponTimer = 0;
 	this.player.weaponType = 'pencil';
 	this.player.stageDamageTaken = 0;
-	const isBossCheckpoint = [5, 10, 11, 15, 16].includes(nextStage);
+	const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 18].includes(nextStage);
 	const baselineHeal = this.player.maxHp * 0.18;
 	const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
 	this.player.heal(isBossCheckpoint ? Math.max(baselineHeal, bossSafetyHeal) : baselineHeal);
@@ -714,29 +716,16 @@ export class Game {
 	  if (waves.bossZombie && !waves.bossZombie.isDead) {
 		bossBox.style.display = 'flex';
 		const bossType = waves.bossZombie.type;
-		const bossClasses = ['dark-lord-boss', 'king-orange-boss', 'lucky-orb-boss', 'h4c3r-boss'];
-		bossBox.classList.remove(...bossClasses);
-		const bossClass = {
-		  dark_lord: 'dark-lord-boss',
-		  king_orange: 'king-orange-boss',
-		  lucky_orb: 'lucky-orb-boss',
-		  h4c3r: 'h4c3r-boss'
-		}[bossType];
-		if (bossClass) bossBox.classList.add(bossClass);
+		bossBox.className = `boss-health-container ${bossType.replaceAll('_', '-')}-boss`;
 		if (bossLabel) {
-		  const fallbackName = {
-			dark_lord: 'DARK LORD // BACKUP',
-			king_orange: 'KING ORANGE // REPLAY',
-			lucky_orb: 'THE LUCKY ORB',
-			h4c3r: 'H4C3R'
-		  }[bossType] || 'TITAN UNDEAD';
-		  bossLabel.innerText = this.stageManager.campaignBeat?.bossLabel || waves.bossZombie.name || fallbackName;
+		  bossLabel.innerText = this.stageManager.campaignBeat?.bossLabel || waves.bossZombie.name
+			|| bossType.replaceAll('_', ' ').toUpperCase();
 		}
 		const bossPct = (waves.bossZombie.hp / waves.bossZombie.maxHp) * 100;
 		bossFill.style.width = `${Math.max(0, bossPct)}%`;
 	  } else {
 		bossBox.style.display = 'none';
-		bossBox.classList.remove('dark-lord-boss', 'king-orange-boss', 'lucky-orb-boss', 'h4c3r-boss');
+		bossBox.className = 'boss-health-container';
 	  }
 	}
 	const hudScore = this.getHudElement('hud-score');

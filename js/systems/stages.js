@@ -1,150 +1,41 @@
-import { particles } from '../engine/particles.js?v=9.4';
-import { audio } from '../engine/audio.js?v=9.4';
-import { projectiles } from '../entities/projectiles.js?v=9.4';
-import { speech } from '../engine/speech.js?v=9.4';
-import { combat } from './combat.js?v=9.4';
-import { save } from './save.js?v=9.4';
-const freezeBeat = (beat) => Object.freeze({
-	...beat,
-	...(beat.allyReaction ? { allyReaction: Object.freeze({ ...beat.allyReaction }) } : {})
-});
-export const CAMPAIGN_BEATS = Object.freeze({
-	1: freezeBeat({
-		act: 'I - BUG ON THE LOOSE',
-		mission: 'STOP THE DESKTOP BUG',
-		clearText: 'TRAIL FOUND!',
-		clue: 'RESTORE.KEY WAS SPLIT',
-		bossLabel: null,
-		allyReaction: { ally: 'red', line: 'BUGS NEED BONKS!' }
-	}),
-	2: freezeBeat({
-		act: 'I - BUG ON THE LOOSE',
-		mission: 'FOLLOW THE BAD FRAMES',
-		clearText: 'FRAMES REPAIRED!',
-		clue: 'THE BUG SKIPPED AHEAD',
-		bossLabel: null,
-		allyReaction: { ally: 'green', line: 'FOUND THE BAD BEAT!' }
-	}),
-	3: freezeBeat({
-		act: 'I - BUG ON THE LOOSE',
-		mission: 'CHECK THE FAKE DOWNLOAD',
-		clearText: 'DOWNLOAD TRACED!',
-		clue: 'USER: H4C3R?',
-		bossLabel: null,
-		allyReaction: { ally: 'blue', line: 'POTION THIEF!' }
-	}),
-	4: freezeBeat({
-		act: 'I - BUG ON THE LOOSE',
-		mission: 'OPEN THE FIREWALL',
-		clearText: 'FIREWALL OPEN!',
-		clue: 'KEY SIGNAL IN CRASH DUMP',
-		bossLabel: null,
-		allyReaction: { ally: 'red', line: 'KNOCK KNOCK!' }
-	}),
-	5: freezeBeat({
-		act: 'I - BUG ON THE LOOSE',
-		mission: 'DEFEAT THE TITAN',
-		clearText: 'RESTORE KEY 1/3!',
-		clue: 'NEXT TRACE: RECYCLE BIN',
-		bossLabel: 'TITAN UNDEAD',
-		allyReaction: { ally: 'yellow', line: 'ONE KEY, TWO TO GO!' }
-	}),
-	6: freezeBeat({
-		act: 'II - DELETED TRAIL',
-		mission: 'UNDELETE THE TRAIL',
-		clearText: 'TRACE RESTORED!',
-		clue: 'OLD BATTLES WERE COPIED',
-		bossLabel: null,
-		allyReaction: { ally: 'cursor', line: 'UNDELETE COMPLETE.' }
-	}),
-	7: freezeBeat({
-		act: 'II - DELETED TRAIL',
-		mission: 'CROSS THE BLOCK BACKUP',
-		clearText: 'BACKUP CLEAN!',
-		clue: 'REMOTE CODE BELOW',
-		bossLabel: null,
-		allyReaction: { ally: 'yellow', line: 'BLOCKS? MY THING.' }
-	}),
-	8: freezeBeat({
-		act: 'II - DELETED TRAIL',
-		mission: 'RUN THE CLEANUP',
-		clearText: 'REMOTE USER FOUND!',
-		clue: 'H4C3R IS CONNECTED',
-		bossLabel: null,
-		allyReaction: { ally: 'cursor', line: 'USER TRACE LOCKED.' }
-	}),
-	9: freezeBeat({
-		act: 'II - DELETED TRAIL',
-		mission: 'SHUT THE VIRABOT NEXUS',
-		clearText: 'NEXUS OFFLINE!',
-		clue: 'DARK BACKUP ACTIVE',
-		bossLabel: null,
-		allyReaction: { ally: 'blue', line: 'THAT CODE LOOKS SICK.' }
-	}),
-	10: freezeBeat({
-		act: 'II - DELETED TRAIL',
-		mission: 'CLEAR THE DARK BACKUP',
-		clearText: 'RESTORE KEY 2/3!',
-		clue: 'A REPLAY HOLDS PIECE 3',
-		bossLabel: 'DARK LORD // BACKUP',
-		allyReaction: { ally: 'red', line: 'BACKUP: BONKED.' }
-	}),
-	11: freezeBeat({
-		act: 'III - REPLAY TRAP',
-		mission: "FREE THE KING'S REPLAY",
-		clearText: 'RESTORE KEY 3/3!',
-		clue: 'TRACE: ROOT://H4C3R',
-		bossLabel: 'KING ORANGE // REPLAY',
-		allyReaction: { ally: 'yellow', line: 'THAT WAS A COPY!' }
-	}),
-	12: freezeBeat({
-		act: 'III - REPLAY TRAP',
-		mission: 'CHASE THE FAKE TABS',
-		clearText: 'RIGHT TAB FOUND!',
-		clue: 'TRACE MOVED TO CLOUD',
-		bossLabel: null,
-		allyReaction: { ally: 'cursor', line: 'WRONG TAB. AGAIN.' }
-	}),
-	13: freezeBeat({
-		act: 'III - REPLAY TRAP',
-		mission: 'SYNC THE ROOT TRACE',
-		clearText: 'TRACE LOCKED!',
-		clue: 'ROOT GATE LOCATED',
-		bossLabel: null,
-		allyReaction: { ally: 'green', line: 'CLOUDS HAVE BAD WIFI.' }
-	}),
-	14: freezeBeat({
-		act: 'III - REPLAY TRAP',
-		mission: 'BREAK THE ROOT GATE',
-		clearText: 'LUCK GATE FOUND!',
-		clue: 'H4C3R RIGGED THE ROLL',
-		bossLabel: null,
-		allyReaction: { ally: 'red', line: 'FINAL DOOR. BIG BONK.' }
-	}),
-	15: freezeBeat({
-		act: 'IV - ROOT OF LUCK',
-		mission: 'OUTLUCK THE LUCKY ORB',
-		clearText: 'ORB SENT HOME!',
-		clue: 'ROOT PORTAL EXPOSED',
-		bossLabel: 'THE LUCKY ORB',
-		allyReaction: { ally: 'yellow', line: 'LUCK RAN OUT!' }
-	}),
-	16: freezeBeat({
-		act: 'IV - ROOT OF LUCK',
-		mission: 'LOG OUT H4C3R',
-		clearText: 'SYSTEM RESTORED!',
-		clue: 'RESTORE KEY COMPLETE',
-		bossLabel: 'H4C3R',
-		allyReaction: { ally: 'green', line: 'FINAL BOSS MUSIC!' }
-	})
-});
+import { particles } from '../engine/particles.js?v=9.5';
+import { audio } from '../engine/audio.js?v=9.5';
+import { projectiles } from '../entities/projectiles.js?v=9.5';
+import { speech } from '../engine/speech.js?v=9.5';
+import { combat } from './combat.js?v=9.5';
+import { save } from './save.js?v=9.5';
+const CAMPAIGN_ACTS = ['I - BUG ON THE LOOSE','II - DELETED TRAIL','III - REPLAY TRAP','IV - CREEPER CLAN CACHE','V - ROOT OF LUCK'];
+const CAMPAIGN_ROWS = [
+	[0,'STOP THE DESKTOP BUG','TRAIL FOUND!','RESTORE.KEY WAS SPLIT',null,'red','BUGS NEED BONKS!'],
+	[0,'FOLLOW THE BAD FRAMES','FRAMES REPAIRED!','THE BUG SKIPPED AHEAD',null,'green','FOUND THE BAD BEAT!'],
+	[0,'CHECK THE FAKE DOWNLOAD','DOWNLOAD TRACED!','USER: H4C3R?',null,'blue','POTION THIEF!'],
+	[0,'OPEN THE FIREWALL','FIREWALL OPEN!','KEY SIGNAL IN CRASH DUMP',null,'red','KNOCK KNOCK!'],
+	[0,'DEFEAT THE TITAN','RESTORE KEY 1/3!','NEXT TRACE: RECYCLE BIN','TITAN UNDEAD','yellow','ONE KEY, TWO TO GO!'],
+	[1,'UNDELETE THE TRAIL','TRACE RESTORED!','OLD BATTLES WERE COPIED',null,'cursor','UNDELETE COMPLETE.'],
+	[1,'CROSS THE BLOCK BACKUP','BACKUP CLEAN!','REMOTE CODE BELOW',null,'yellow','BLOCKS? MY THING.'],
+	[1,'RUN THE CLEANUP','REMOTE USER FOUND!','H4C3R IS CONNECTED',null,'cursor','USER TRACE LOCKED.'],
+	[1,'SHUT THE VIRABOT NEXUS','NEXUS OFFLINE!','DARK BACKUP ACTIVE',null,'blue','THAT CODE LOOKS SICK.'],
+	[1,'CLEAR THE DARK BACKUP','RESTORE KEY 2/3!','A REPLAY HOLDS PIECE 3','DARK LORD // BACKUP','red','BACKUP: BONKED.'],
+	[2,"FREE THE KING'S REPLAY",'RESTORE KEY 3/3!','TRACE: ROOT://H4C3R','KING ORANGE // REPLAY','yellow','THAT WAS A COPY!'],
+	[2,'CHASE THE FAKE TABS','RIGHT TAB FOUND!','TRACE MOVED TO CLOUD',null,'cursor','WRONG TAB. AGAIN.'],
+	[2,'SYNC THE ROOT TRACE','TRACE LOCKED!','ROOT GATE LOCATED',null,'green','CLOUDS HAVE BAD WIFI.'],
+	[2,'BREAK THE ROOT GATE','CLAN CACHE FOUND!','H4C3R LOADED THE CLAN',null,'red','NEW REPLAY. BIG BONK.'],
+	[3,'DISARM CREEPER REPLAY','CROWN REPLAY CLEARED!','GIANT SIGNAL AHEAD','CREEPER LORD // REPLAY','yellow','NICE CROWN. BOINK!'],
+	[3,'CALM THE GIANT REPLAY','CAT REPLAY CALMED!','LUCK GATE EXPOSED','GIANT CAT // REPLAY','blue','WHO NEEDS THAT NAP?'],
+	[4,'OUTLUCK THE LUCKY ORB','ORB SENT HOME!','ROOT PORTAL EXPOSED','THE LUCKY ORB','yellow','LUCK RAN OUT!'],
+	[4,'LOG OUT H4C3R','SYSTEM RESTORED!','RESTORE KEY COMPLETE','H4C3R','green','FINAL BOSS MUSIC!']
+];
+export const CAMPAIGN_BEATS = Object.freeze(Object.fromEntries(CAMPAIGN_ROWS.map((row, i) => [i + 1,
+	Object.freeze({ act: CAMPAIGN_ACTS[row[0]], mission: row[1], clearText: row[2], clue: row[3], bossLabel: row[4],
+		allyReaction: Object.freeze({ ally: row[5], line: row[6] }) })
+])));
 export const MAX_ENVIRONMENT_DECORATIONS = 24;
 const ENVIRONMENT_COLORS = Object.freeze({
 	desktop: '#7d8caf', animate: '#9299bd', downloads: '#62c4ff', firewall: '#ff4f64',
 	bsod: '#d5ecff', recycle: '#75d6da', minecraft: '#ff682c', terminal: '#45ff82',
 	virabot: '#ff397b', dark_core: '#ff234d', command_realm: '#ffb340',
 	browser_glitch: '#5ce1ff', cloud_cache: '#a6e3ff', root_gateway: '#42ff8a',
-	lucky_orb: '#ffd84d', zero_day: '#74edff'
+	creeper_clan: '#b7e45d', lucky_orb: '#ffd84d', zero_day: '#74edff'
 });
 function createEnvironmentDecorations(stage, theme) {
 	const color = ENVIRONMENT_COLORS[theme] || ENVIRONMENT_COLORS.desktop;
@@ -175,7 +66,7 @@ function strokeGridPath(ctx, minX, maxX, minY, maxY, stepX, stepY = stepX) {
 export class StageManager {
 	constructor() {
 		this.currentStage = 1;
-		this.maxStage = 16;
+		this.maxStage = 18;
 		this.stageName = 'Main Desktop';
 		this.theme = 'desktop';
 		this.bounds = {
@@ -202,7 +93,7 @@ export class StageManager {
 		this.loadStage(1);
 	}
 	loadStage(stageNum) {
-		this.maxStage = 16;
+		this.maxStage = 18;
 		const numericStage = Number.isFinite(stageNum) ? Math.trunc(stageNum) : 1;
 		const stage = Math.max(1, Math.min(this.maxStage, numericStage));
 		this.currentStage = stage;
@@ -265,10 +156,16 @@ export class StageManager {
 				this.buildStage14RootGateway();
 				break;
 			case 15:
-				this.buildStage15LuckyDimension();
+				this.buildCreeperClanReplay(false);
 				break;
 			case 16:
-				this.buildStage16ZeroDayMainframe();
+				this.buildCreeperClanReplay(true);
+				break;
+			case 17:
+				this.buildStage17LuckyDimension();
+				break;
+			case 18:
+				this.buildStage18ZeroDayMainframe();
 				break;
 		}
 		this.environmentDecorations = createEnvironmentDecorations(stage, this.theme);
@@ -288,8 +185,6 @@ export class StageManager {
 	buildStage1Desktop() {
 		this.stageName = 'Main Desktop';
 		this.theme = 'desktop';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -650, y: -160, width: 220, height: 20, title: 'Notepad.exe - Notes.txt', appType: 'notepad' },
 			{ x: -350, y: -280, width: 200, height: 20, title: 'Calculator.exe', appType: 'calc' },
@@ -323,8 +218,6 @@ export class StageManager {
 	buildStage2Animate() {
 		this.stageName = 'Adobe Animate Timeline';
 		this.theme = 'animate';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -700, y: -180, width: 200, height: 20, title: 'Toolbox - Brush & Pencil', appType: 'tools' },
 			{ x: -250, y: -160, width: 240, height: 20, title: 'Layer 1: Stick Animation', appType: 'layer' },
@@ -376,8 +269,6 @@ export class StageManager {
 	buildStage3Downloads() {
 		this.stageName = 'Downloads & Malware Zone';
 		this.theme = 'downloads';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -680, y: -180, width: 220, height: 20, title: 'Download_1: Cheats.zip (98%)', appType: 'download' },
 			{ x: -280, y: -240, width: 190, height: 20, title: 'Corrupted_Script.js', appType: 'glitch' },
@@ -422,8 +313,6 @@ export class StageManager {
 	buildStage4Firewall() {
 		this.stageName = 'Firewall Security Grid';
 		this.theme = 'firewall';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -700, y: -200, width: 220, height: 20, title: 'Firewall_Node_A', appType: 'security' },
 			{ x: -300, y: -300, width: 200, height: 20, title: 'Port 8080 Bridge', appType: 'security' },
@@ -467,8 +356,6 @@ export class StageManager {
 	buildStage5BSOD() {
 		this.stageName = 'Blue Screen of Death (BSOD)';
 		this.theme = 'bsod';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -550, y: -180, width: 240, height: 22, title: '*** STOP: 0x0000007B (MEMORY DUMP)', appType: 'bsod' },
 			{ x: 550, y: -180, width: 240, height: 22, title: '*** CRASH_DUMP: SYSTEM_OVERHEAT', appType: 'bsod' },
@@ -504,8 +391,6 @@ export class StageManager {
 	buildStage6Recycle() {
 		this.stageName = 'Corrupted Recycle Bin';
 		this.theme = 'recycle';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -500, y: -160, width: 220, height: 22, title: 'Corrupted_Script.js', appType: 'explorer' },
 			{ x: 500, y: -160, width: 220, height: 22, title: 'Deleted_Save.dat', appType: 'explorer' },
@@ -523,8 +408,6 @@ export class StageManager {
 	buildStage7Minecraft() {
 		this.stageName = 'Minecraft Nether Core';
 		this.theme = 'minecraft';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -600, y: -140, width: 220, height: 24, title: 'Obsidian Platform West', appType: 'paint' },
 			{ x: 600, y: -140, width: 220, height: 24, title: 'Obsidian Platform East', appType: 'paint' },
@@ -539,8 +422,6 @@ export class StageManager {
 	buildStage8Terminal() {
 		this.stageName = 'Terminal Cyber Matrix';
 		this.theme = 'terminal';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -550, y: -180, width: 240, height: 20, title: 'root@matrix:~# ./killall', appType: 'terminal' },
 			{ x: 550, y: -180, width: 240, height: 20, title: 'root@matrix:~# sudo firewall', appType: 'terminal' },
@@ -556,8 +437,6 @@ export class StageManager {
 	buildStage9VirabotNexus() {
 		this.stageName = 'ViraBot Infestation Nexus';
 		this.theme = 'virabot';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -500, y: -160, width: 240, height: 22, title: 'VIRUS_INCUBATOR_ALPHA', appType: 'bsod' },
 			{ x: 500, y: -160, width: 240, height: 22, title: 'VIRUS_INCUBATOR_BETA', appType: 'bsod' },
@@ -575,8 +454,6 @@ export class StageManager {
 	buildStage10DarkCore() {
 		this.stageName = "The Dark Core (TDL's Domain)";
 		this.theme = 'dark_core';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_ALPHA [CRITICAL]', appType: 'dark_core' },
 			{ x: 560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_OMEGA [CRITICAL]', appType: 'dark_core' },
@@ -594,8 +471,6 @@ export class StageManager {
 	buildStage11CommandThrone() {
 		this.stageName = 'King Orange: Corrupted Replay';
 		this.theme = 'command_realm';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -560, y: -170, width: 260, height: 24, title: 'GOLD_BLOCK_RAMPART', appType: 'command' },
 			{ x: 0, y: -310, width: 340, height: 26, title: 'COMMAND_BLOCK_THRONE', appType: 'command' },
@@ -609,8 +484,6 @@ export class StageManager {
 	buildStage12GlitchBrowser() {
 		this.stageName = 'Glitch Browser Run';
 		this.theme = 'browser_glitch';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -620, y: -165, width: 250, height: 22, title: 'Tab: definitely_safe.exe', appType: 'browser' },
 			{ x: 0, y: -270, width: 300, height: 22, title: '404_REALITY_NOT_FOUND', appType: 'browser' },
@@ -630,8 +503,6 @@ export class StageManager {
 	buildStage13CloudCache() {
 		this.stageName = 'Corrupted Cloud Cache';
 		this.theme = 'cloud_cache';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -650, y: -150, width: 220, height: 22, title: 'CACHE_SHARD_A', appType: 'cloud' },
 			{ x: -220, y: -280, width: 190, height: 22, title: 'SYNC_CONFLICT_01', appType: 'cloud' },
@@ -650,8 +521,6 @@ export class StageManager {
 	buildStage14RootGateway() {
 		this.stageName = 'Root Access Gateway';
 		this.theme = 'root_gateway';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -590, y: -185, width: 250, height: 22, title: 'AUTH_GATE_LEFT', appType: 'terminal' },
 			{ x: 0, y: -310, width: 320, height: 24, title: 'sudo ./open_root --please', appType: 'terminal' },
@@ -666,11 +535,26 @@ export class StageManager {
 			cycleDuration: 3.2, activeDuration: 1.15, damage: 20
 		});
 	}
-	buildStage15LuckyDimension() {
+	buildCreeperClanReplay(cat) {
+		this.stageName = cat ? 'Giant Cat: Corrupted Replay' : 'Creeper Lord: Corrupted Replay';
+		this.theme = 'creeper_clan';
+		this.platforms = cat ? [
+			{ x: -610, y: -165, width: 250, height: 24, title: 'PAW_PRINT_LEFT', appType: 'paint' },
+			{ x: 0, y: -300, width: 340, height: 26, title: 'GIANT_CAT_REPLAY.dat', appType: 'paint' },
+			{ x: 610, y: -165, width: 250, height: 24, title: 'PAW_PRINT_RIGHT', appType: 'paint' }
+		] : [
+			{ x: -610, y: -175, width: 250, height: 24, title: 'CLAN_TOTEM_LEFT', appType: 'command' },
+			{ x: 0, y: -315, width: 340, height: 26, title: 'CREEPER_CROWN_CACHE', appType: 'command' },
+			{ x: 610, y: -175, width: 250, height: 24, title: 'CLAN_TOTEM_RIGHT', appType: 'command' }
+		];
+		this.desktopIcons = [
+			{ x: -850, y: -110, label: cat ? 'catnap.save' : 'clan.totem', icon: cat ? '🐾' : '♛' },
+			{ x: 850, y: -110, label: 'replay.lock', icon: '▣' }
+		];
+	}
+	buildStage17LuckyDimension() {
 		this.stageName = 'Lucky Dimension Cache';
 		this.theme = 'lucky_orb';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -590, y: -175, width: 250, height: 24, title: 'LUCKY_BLOCK_LEFT', appType: 'command' },
 			{ x: 0, y: -315, width: 330, height: 26, title: 'CHANCE_ENGINE_???', appType: 'command' },
@@ -681,11 +565,9 @@ export class StageManager {
 			{ x: 850, y: -110, label: 'orb.portal', icon: '✦' }
 		];
 	}
-	buildStage16ZeroDayMainframe() {
+	buildStage18ZeroDayMainframe() {
 		this.stageName = 'Zero-Day Mainframe';
 		this.theme = 'zero_day';
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
 		this.platforms = [
 			{ x: -570, y: -180, width: 260, height: 24, title: 'FREE_TRANSFORM_LEFT', appType: 'zero_day' },
 			{ x: 0, y: -325, width: 360, height: 26, title: 'ROOT://H4C3R/CONTROL', appType: 'zero_day' },
@@ -809,7 +691,7 @@ export class StageManager {
 				camera?.addZoomPunch?.(0.03);
 			}
 		}
-		if (this.exitDoor.isOpen && player && !player.isDead) {
+		if (this.exitDoor.isOpen && player && !player.isDead && this.exitFocusTimer <= 0) {
 			const distToExit = Math.hypot(player.x - this.exitDoor.x, player.y - this.exitDoor.y);
 			if (distToExit < 60) {
 				this.doorTransitionTimer += safeDt;
@@ -889,251 +771,266 @@ export class StageManager {
 		}
 		ctx.restore();
 	}
-	drawDesktopBackground(ctx, groundY) {
-		const minX = this.bounds.minX;
-		const maxX = this.bounds.maxX;
-		const minY = this.bounds.minY;
-		const maxY = groundY;
-		const backdropMinX = minX - 1600;
-		const backdropMaxX = maxX + 1600;
-		const backdropMinY = minY - 1000;
-		ctx.save();
-		const paintBackdrop = (color) => {
-			ctx.fillStyle = color;
-			ctx.fillRect(
-				backdropMinX,
-				backdropMinY,
-				backdropMaxX - backdropMinX,
-				maxY - backdropMinY
-			);
-		};
-		if (this.theme === 'animate') {
-			paintBackdrop('#2d2f3a');
-			ctx.strokeStyle = 'rgba(70, 75, 95, 0.4)';
-			ctx.lineWidth = 1;
-			strokeGridPath(ctx, minX, maxX, minY, maxY, 50);
-			ctx.fillStyle = '#1e2029';
-			ctx.fillRect(minX, minY, maxX - minX, 24);
-			ctx.fillStyle = '#888ea6';
-			ctx.font = "10px monospace";
-			for (let x = minX; x <= maxX; x += 100) {
-				ctx.fillText(`${x}`, x + 5, minY + 16);
-			}
-		} else if (this.theme === 'bsod') {
-			paintBackdrop('#0047b3');
-			ctx.fillStyle = '#ffffff';
-			ctx.font = "14px monospace";
-			ctx.fillText(":( A problem has been detected and the OS has been shut down.", minX + 60, minY + 80);
-			ctx.fillText("TECHNICAL INFORMATION:", minX + 60, minY + 120);
-			ctx.fillText("*** STOP: 0x000000D1 (0x0000000C, 0x00000002, 0x00000000, 0xF86B5A89)", minX + 60, minY + 145);
-			ctx.fillText("*** ALAN_BECKER_STICKMAN_SYS - ADDRESS F86B5A89 BASE AT F86B4000", minX + 60, minY + 170);
-			ctx.fillText(">>> DEFEAT THE TITAN UNDEAD TO REBOOT SYSTEM <<<", minX + 60, minY + 210);
-		} else if (this.theme === 'firewall') {
-			paintBackdrop('#111827');
-			ctx.strokeStyle = '#ff3344';
-			ctx.lineWidth = 1;
-			ctx.globalAlpha = 0.2;
-			strokeGridPath(ctx, minX, maxX, minY, maxY, 60);
-			ctx.globalAlpha = 1.0;
-		} else if (this.theme === 'downloads') {
-			paintBackdrop('#17243a');
-			for (let y = minY + 70; y < maxY - 40; y += 95) {
-				ctx.fillStyle = 'rgba(72, 137, 205, 0.12)';
-				ctx.fillRect(minX + 55, y, maxX - minX - 110, 28);
-				ctx.fillStyle = 'rgba(46, 204, 113, 0.22)';
-				const progress = 0.3 + ((y - minY) % 260) / 400;
-				ctx.fillRect(minX + 62, y + 7, (maxX - minX - 124) * progress, 14);
-			}
-		} else if (this.theme === 'recycle') {
-			paintBackdrop('#172b35');
-			ctx.strokeStyle = 'rgba(117, 214, 218, 0.18)';
-			ctx.lineWidth = 2;
-			for (let x = minX; x <= maxX; x += 100) {
-				ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x + 180, maxY); ctx.stroke();
-			}
-			ctx.fillStyle = 'rgba(139, 233, 236, 0.22)';
-			ctx.font = '18px monospace';
-			for (let i = 0; i < 18; i++) {
-				ctx.fillText(i % 2 ? '01' : '{}', minX + 80 + i * 118, minY + 70 + (i % 4) * 110);
-			}
-		} else if (this.theme === 'minecraft') {
-			paintBackdrop('#29151d');
-			const tile = 80;
-			for (let y = minY; y < maxY; y += tile) {
-				for (let x = minX; x < maxX; x += tile) {
-					const alternate = ((x / tile + y / tile) & 1) === 0;
-					ctx.fillStyle = alternate ? 'rgba(128, 47, 54, 0.18)' : 'rgba(49, 25, 58, 0.2)';
-					ctx.fillRect(x + 2, y + 2, tile - 4, tile - 4);
-				}
-			}
-			ctx.fillStyle = 'rgba(255, 88, 20, 0.34)';
-			ctx.fillRect(minX, minY + 95, maxX - minX, 12);
-		} else if (this.theme === 'virabot') {
-			paintBackdrop('#180a24');
-			const pulse = 0.35 + Math.sin(this.stageTime * 3) * 0.08;
-			ctx.strokeStyle = `rgba(255, 35, 104, ${pulse})`;
-			ctx.fillStyle = 'rgba(255, 35, 104, 0.2)';
-			ctx.lineWidth = 2;
-			ctx.beginPath();
-			for (let i = 0; i < 16; i++) {
-				const x = minX + 80 + i * 135;
-				const y = minY + 90 + (i % 5) * 105;
-				ctx.moveTo(x, y); ctx.lineTo(x + 115, y + ((i % 3) - 1) * 80);
-				ctx.moveTo(x + 6, y); ctx.arc(x, y, 7, 0, Math.PI * 2);
-			}
-			ctx.stroke();
-			ctx.fill();
-		} else if (this.theme === 'dark_core') {
-			paintBackdrop('#140005');
-			ctx.strokeStyle = 'rgba(255, 0, 50, 0.25)';
-			ctx.lineWidth = 1;
-			strokeGridPath(ctx, minX, maxX, minY, maxY, 50);
-			ctx.fillStyle = '#ff1133';
-			ctx.font = "bold 14px monospace";
-			ctx.shadowColor = '#ff0033';
-			ctx.shadowBlur = this.crowdedRender ? 0 : 12;
-			ctx.fillText(">>> CRITICAL THREAT: THE_DARK_LORD.EXE HAS CORRUPTED THE CORE <<<", minX + 60, minY + 80);
-			ctx.fillText(">>> SYSTEM INTEGRITY: 0% | VIRABOT POWER LEVEL: MAXIMUM <<<", minX + 60, minY + 110);
-			ctx.fillText(">>> DEFEAT THE DARK LORD TO OPEN THE OUTERNET PATH <<<", minX + 60, minY + 140);
-		} else if (this.theme === 'command_realm') {
-			paintBackdrop('#241306');
-			ctx.strokeStyle = 'rgba(255, 157, 35, 0.26)';
-			ctx.lineWidth = 2;
-			strokeGridPath(ctx, minX, maxX, minY, maxY, 80);
-			ctx.fillStyle = 'rgba(255, 192, 66, 0.18)';
-			for (let i = 0; i < 12; i++) {
-				const x = minX + 90 + i * 180;
-				const y = minY + 110 + (i % 3) * 145;
-				ctx.fillRect(x, y, 38, 38);
-				ctx.strokeRect(x + 7, y + 7, 24, 24);
-			}
-			ctx.fillStyle = '#ffb13b';
-			ctx.font = 'bold 14px monospace';
-			ctx.fillText('ARCHIVE://KING_ORANGE — CORRUPTED REPLAY', minX + 60, minY + 70);
-			ctx.fillText('REPLAY // NOT THE REAL KING', minX + 60, minY + 100);
-		} else if (this.theme === 'browser_glitch') {
-			paintBackdrop('#10192d');
-			ctx.fillStyle = '#202c47';
-			ctx.fillRect(minX, minY + 34, maxX - minX, 58);
-			for (let i = 0; i < 8; i++) {
-				const x = minX + 25 + i * 280;
-				ctx.fillStyle = i % 2 ? '#2d3a58' : '#334767';
-				ctx.fillRect(x, minY + 48, 245, 34);
-				ctx.fillStyle = i % 3 === 0 ? '#ff5f56' : '#6ee7ff';
-				ctx.fillRect(x + 12, minY + 62, 8, 8);
-			}
-			ctx.strokeStyle = 'rgba(83, 212, 255, 0.2)';
-			ctx.lineWidth = 4;
-			for (let i = 0; i < 10; i++) {
-				const y = minY + 130 + i * 55;
-				const skew = (i % 2 ? 1 : -1) * 80;
-				ctx.beginPath();
-				ctx.moveTo(minX + 40, y);
-				ctx.lineTo(maxX - 40, y + skew);
-				ctx.stroke();
-			}
-		} else if (this.theme === 'cloud_cache') {
-			paintBackdrop('#102942');
-			ctx.fillStyle = 'rgba(150, 220, 255, 0.1)';
-			ctx.strokeStyle = 'rgba(133, 216, 255, 0.22)';
-			ctx.lineWidth = 2;
-			for (let i = 0; i < 12; i++) {
-				const x = minX + 70 + i * 190;
-				const y = minY + 90 + (i % 4) * 130;
-				ctx.beginPath();
-				ctx.ellipse(x, y, 68, 25, 0, 0, Math.PI * 2);
-				ctx.fill();
-				ctx.stroke();
-			}
-			ctx.setLineDash([10, 14]);
-			for (let y = minY + 145; y < maxY; y += 130) {
-				ctx.beginPath(); ctx.moveTo(minX + 40, y); ctx.lineTo(maxX - 40, y); ctx.stroke();
-			}
-			ctx.setLineDash([]);
-			ctx.fillStyle = '#b9e9ff';
-			ctx.font = 'bold 14px monospace';
-			ctx.fillText('CLOUD_SYNC: CONFLICTS DETECTED', minX + 60, minY + 55);
-		} else if (this.theme === 'root_gateway') {
-			paintBackdrop('#020d08');
-			ctx.strokeStyle = 'rgba(55, 255, 128, 0.19)';
-			ctx.lineWidth = 1;
-			strokeGridPath(ctx, minX, maxX, minY, maxY, 64);
-			ctx.fillStyle = 'rgba(52, 255, 123, 0.32)';
-			ctx.font = '13px monospace';
-			const commands = ['sudo unlock --root', 'AUTH FAILED', 'retrying…', 'port 31337 open'];
-			for (let i = 0; i < 12; i++) {
-				ctx.fillText(commands[i % commands.length], minX + 55 + (i % 3) * 720, minY + 65 + Math.floor(i / 3) * 120);
-			}
-		} else if (this.theme === 'lucky_orb') {
-			paintBackdrop('#21112d');
-		ctx.strokeStyle = 'rgba(190, 153, 73, 0.14)';
-		ctx.fillStyle = 'rgba(190, 153, 73, 0.04)';
-			for (let i = 0; i < 9; i++) {
-				const x = minX + 90 + (i % 5) * 470;
-				const y = minY + 85 + Math.floor(i / 5) * 290;
-				ctx.fillRect(x, y, 82, 82); ctx.strokeRect(x, y, 82, 82);
-			ctx.font = 'bold 38px monospace'; ctx.fillStyle = 'rgba(220,190,128,0.2)'; ctx.fillText('?', x + 29, y + 55);
-			ctx.fillStyle = 'rgba(190, 153, 73, 0.04)';
-			}
-			ctx.font = 'bold 14px monospace'; ctx.fillStyle = '#fff0a6';
-			ctx.fillText('CHANCE_ENGINE: H4C3R OVERRIDE', minX + 60, minY + 58);
-		} else if (this.theme === 'zero_day') {
-			paintBackdrop('#070a12');
-			ctx.fillStyle = 'rgba(102, 232, 255, 0.08)';
-			for (let y = minY; y < maxY; y += 34) {
-				ctx.fillRect(minX, y, maxX - minX, 2);
-			}
-			ctx.strokeStyle = 'rgba(103, 232, 249, 0.38)';
-			ctx.lineWidth = 2;
-			ctx.setLineDash([7, 7]);
-			for (let i = 0; i < 6; i++) {
-				const width = 170 + (i % 3) * 70;
-				const height = 95 + (i % 2) * 45;
-				const x = minX + 90 + i * 350;
-				const y = minY + 90 + (i % 3) * 150;
-				ctx.strokeRect(x, y, width, height);
-				ctx.fillStyle = '#d8fbff';
-				ctx.fillRect(x - 4, y - 4, 8, 8);
-				ctx.fillRect(x + width - 4, y + height - 4, 8, 8);
-			}
-			ctx.setLineDash([]);
-			ctx.fillStyle = '#67e8f9';
-			ctx.font = 'bold 14px monospace';
-			ctx.fillText('ROOT ACCESS GRANTED TO: H4C3R', minX + 60, minY + 58);
-			ctx.fillText('FREE_TRANSFORM.sys ACTIVE', minX + 60, minY + 84);
-		} else if (this.theme === 'terminal') {
-			paintBackdrop('#051108');
-			ctx.strokeStyle = 'rgba(50, 255, 100, 0.2)';
-			ctx.lineWidth = 1;
-			strokeGridPath(ctx, minX, maxX, minY, maxY, 50);
-			ctx.fillStyle = '#33ff77';
-			ctx.font = "14px monospace";
-			ctx.fillText("root@desktop:~$ ./firewall_purge --force", minX + 60, minY + 80);
-		} else {
-			paintBackdrop('#052b5f');
-			ctx.fillStyle='rgba(190,235,255,.28)';
-			for(let i=4;i--;)ctx.fillRect(320+(i&1)*166,-330+(i>>1)*126,148,110);
-		}
-		ctx.globalAlpha = 1;
-		ctx.shadowBlur = 0;
-		ctx.setLineDash([]);
-		this.drawEnvironmentMotifs(ctx, 0);
-		this.drawCampaignSignal(ctx, minX, minY);
-		this.drawEnvironmentMotifs(ctx, 1);
-		ctx.strokeStyle = '#ffffff';
-		ctx.lineWidth = 6;
-		ctx.beginPath();
-		ctx.moveTo(minX, groundY);
-		ctx.lineTo(maxX, groundY);
-		ctx.stroke();
-		ctx.strokeStyle = '#ff3344';
-		ctx.lineWidth = 4;
-		ctx.beginPath();
-		ctx.moveTo(minX, minY); ctx.lineTo(minX, groundY);
-		ctx.moveTo(maxX, minY); ctx.lineTo(maxX, groundY);
-		ctx.stroke();
-		ctx.restore();
-	}
+drawDesktopBackground(ctx, groundY) {
+const minX = this.bounds.minX;
+const maxX = this.bounds.maxX;
+const minY = this.bounds.minY;
+const maxY = groundY;
+const backdropMinX = minX - 1600;
+const backdropMaxX = maxX + 1600;
+const backdropMinY = minY - 1000;
+ctx.save();
+const paintBackdrop = (color) => {
+ctx.fillStyle = color;
+ctx.fillRect(
+backdropMinX,
+backdropMinY,
+backdropMaxX - backdropMinX,
+maxY - backdropMinY
+);
+};
+if (this.theme === 'animate') {
+paintBackdrop('#2d2f3a');
+ctx.strokeStyle = 'rgba(70, 75, 95, 0.4)';
+ctx.lineWidth = 1;
+strokeGridPath(ctx, minX, maxX, minY, maxY, 50);
+ctx.fillStyle = '#1e2029';
+ctx.fillRect(minX, minY, maxX - minX, 24);
+ctx.fillStyle = '#888ea6';
+ctx.font = "10px monospace";
+for (let x = minX; x <= maxX; x += 100) {
+ctx.fillText(`${x}`, x + 5, minY + 16);
+}
+} else if (this.theme === 'bsod') {
+paintBackdrop('#0047b3');
+ctx.fillStyle = '#ffffff';
+ctx.font = "14px monospace";
+ctx.fillText(":( A problem has been detected and the OS has been shut down.", minX + 60, minY + 80);
+ctx.fillText("TECHNICAL INFORMATION:", minX + 60, minY + 120);
+ctx.fillText("*** STOP: 0x000000D1 (0x0000000C, 0x00000002, 0x00000000, 0xF86B5A89)", minX + 60, minY + 145);
+ctx.fillText("*** ALAN_BECKER_STICKMAN_SYS - ADDRESS F86B5A89 BASE AT F86B4000", minX + 60, minY + 170);
+ctx.fillText(">>> DEFEAT THE TITAN UNDEAD TO REBOOT SYSTEM <<<", minX + 60, minY + 210);
+} else if (this.theme === 'firewall') {
+paintBackdrop('#111827');
+ctx.strokeStyle = '#ff3344';
+ctx.lineWidth = 1;
+ctx.globalAlpha = 0.2;
+strokeGridPath(ctx, minX, maxX, minY, maxY, 60);
+ctx.globalAlpha = 1.0;
+} else if (this.theme === 'downloads') {
+paintBackdrop('#17243a');
+for (let y = minY + 70; y < maxY - 40; y += 95) {
+ctx.fillStyle = 'rgba(72, 137, 205, 0.12)';
+ctx.fillRect(minX + 55, y, maxX - minX - 110, 28);
+ctx.fillStyle = 'rgba(46, 204, 113, 0.22)';
+const progress = 0.3 + ((y - minY) % 260) / 400;
+ctx.fillRect(minX + 62, y + 7, (maxX - minX - 124) * progress, 14);
+}
+} else if (this.theme === 'recycle') {
+paintBackdrop('#172b35');
+ctx.strokeStyle = 'rgba(117, 214, 218, 0.18)';
+ctx.lineWidth = 2;
+for (let x = minX; x <= maxX; x += 100) {
+ctx.beginPath(); ctx.moveTo(x, minY); ctx.lineTo(x + 180, maxY); ctx.stroke();
+}
+ctx.fillStyle = 'rgba(139, 233, 236, 0.22)';
+ctx.font = '18px monospace';
+for (let i = 0; i < 18; i++) {
+ctx.fillText(i % 2 ? '01' : '{}', minX + 80 + i * 118, minY + 70 + (i % 4) * 110);
+}
+} else if (this.theme === 'minecraft') {
+paintBackdrop('#29151d');
+const tile = 80;
+for (let y = minY; y < maxY; y += tile) {
+for (let x = minX; x < maxX; x += tile) {
+const alternate = ((x / tile + y / tile) & 1) === 0;
+ctx.fillStyle = alternate ? 'rgba(128, 47, 54, 0.18)' : 'rgba(49, 25, 58, 0.2)';
+ctx.fillRect(x + 2, y + 2, tile - 4, tile - 4);
+}
+}
+ctx.fillStyle = 'rgba(255, 88, 20, 0.34)';
+ctx.fillRect(minX, minY + 95, maxX - minX, 12);
+} else if (this.theme === 'virabot') {
+paintBackdrop('#180a24');
+const pulse = 0.35 + Math.sin(this.stageTime * 3) * 0.08;
+ctx.strokeStyle = `rgba(255, 35, 104, ${pulse})`;
+ctx.fillStyle = 'rgba(255, 35, 104, 0.2)';
+ctx.lineWidth = 2;
+ctx.beginPath();
+for (let i = 0; i < 16; i++) {
+const x = minX + 80 + i * 135;
+const y = minY + 90 + (i % 5) * 105;
+ctx.moveTo(x, y); ctx.lineTo(x + 115, y + ((i % 3) - 1) * 80);
+ctx.moveTo(x + 6, y); ctx.arc(x, y, 7, 0, Math.PI * 2);
+}
+ctx.stroke();
+ctx.fill();
+} else if (this.theme === 'dark_core') {
+paintBackdrop('#140005');
+ctx.strokeStyle = 'rgba(255, 0, 50, 0.25)';
+ctx.lineWidth = 1;
+strokeGridPath(ctx, minX, maxX, minY, maxY, 50);
+ctx.fillStyle = '#ff1133';
+ctx.font = "bold 14px monospace";
+ctx.shadowColor = '#ff0033';
+ctx.shadowBlur = this.crowdedRender ? 0 : 12;
+ctx.fillText(">>> CRITICAL THREAT: THE_DARK_LORD.EXE HAS CORRUPTED THE CORE <<<", minX + 60, minY + 80);
+ctx.fillText(">>> SYSTEM INTEGRITY: 0% | VIRABOT POWER LEVEL: MAXIMUM <<<", minX + 60, minY + 110);
+ctx.fillText(">>> DEFEAT THE DARK LORD TO OPEN THE OUTERNET PATH <<<", minX + 60, minY + 140);
+} else if (this.theme === 'command_realm') {
+paintBackdrop('#241306');
+ctx.strokeStyle = 'rgba(255, 157, 35, 0.26)';
+ctx.lineWidth = 2;
+strokeGridPath(ctx, minX, maxX, minY, maxY, 80);
+ctx.fillStyle = 'rgba(255, 192, 66, 0.18)';
+for (let i = 0; i < 12; i++) {
+const x = minX + 90 + i * 180;
+const y = minY + 110 + (i % 3) * 145;
+ctx.fillRect(x, y, 38, 38);
+ctx.strokeRect(x + 7, y + 7, 24, 24);
+}
+ctx.fillStyle = '#ffb13b';
+ctx.font = 'bold 14px monospace';
+ctx.fillText('ARCHIVE://KING_ORANGE — CORRUPTED REPLAY', minX + 60, minY + 70);
+ctx.fillText('REPLAY // NOT THE REAL KING', minX + 60, minY + 100);
+} else if (this.theme === 'browser_glitch') {
+paintBackdrop('#10192d');
+ctx.fillStyle = '#202c47';
+ctx.fillRect(minX, minY + 34, maxX - minX, 58);
+for (let i = 0; i < 8; i++) {
+const x = minX + 25 + i * 280;
+ctx.fillStyle = i % 2 ? '#2d3a58' : '#334767';
+ctx.fillRect(x, minY + 48, 245, 34);
+ctx.fillStyle = i % 3 === 0 ? '#ff5f56' : '#6ee7ff';
+ctx.fillRect(x + 12, minY + 62, 8, 8);
+}
+ctx.strokeStyle = 'rgba(83, 212, 255, 0.2)';
+ctx.lineWidth = 4;
+for (let i = 0; i < 10; i++) {
+const y = minY + 130 + i * 55;
+const skew = (i % 2 ? 1 : -1) * 80;
+ctx.beginPath();
+ctx.moveTo(minX + 40, y);
+ctx.lineTo(maxX - 40, y + skew);
+ctx.stroke();
+}
+} else if (this.theme === 'cloud_cache') {
+paintBackdrop('#102942');
+ctx.fillStyle = 'rgba(150, 220, 255, 0.1)';
+ctx.strokeStyle = 'rgba(133, 216, 255, 0.22)';
+ctx.lineWidth = 2;
+for (let i = 0; i < 12; i++) {
+const x = minX + 70 + i * 190;
+const y = minY + 90 + (i % 4) * 130;
+ctx.beginPath();
+ctx.ellipse(x, y, 68, 25, 0, 0, Math.PI * 2);
+ctx.fill();
+ctx.stroke();
+}
+ctx.setLineDash([10, 14]);
+for (let y = minY + 145; y < maxY; y += 130) {
+ctx.beginPath(); ctx.moveTo(minX + 40, y); ctx.lineTo(maxX - 40, y); ctx.stroke();
+}
+ctx.setLineDash([]);
+ctx.fillStyle = '#b9e9ff';
+ctx.font = 'bold 14px monospace';
+ctx.fillText('CLOUD_SYNC: CONFLICTS DETECTED', minX + 60, minY + 55);
+} else if (this.theme === 'root_gateway') {
+paintBackdrop('#020d08');
+ctx.strokeStyle = 'rgba(55, 255, 128, 0.19)';
+ctx.lineWidth = 1;
+strokeGridPath(ctx, minX, maxX, minY, maxY, 64);
+ctx.fillStyle = 'rgba(52, 255, 123, 0.32)';
+ctx.font = '13px monospace';
+const commands = ['sudo unlock --root', 'AUTH FAILED', 'retrying…', 'port 31337 open'];
+for (let i = 0; i < 12; i++) {
+ctx.fillText(commands[i % commands.length], minX + 55 + (i % 3) * 720, minY + 65 + Math.floor(i / 3) * 120);
+}
+} else if (this.theme === 'creeper_clan') {
+paintBackdrop(this.currentStage === 16 ? '#25170f' : '#101d18');
+ctx.strokeStyle = this.currentStage === 16 ? 'rgba(255,155,61,.2)' : 'rgba(183,228,93,.2)';
+ctx.lineWidth = 2;
+strokeGridPath(ctx, minX, maxX, minY, maxY, 88);
+ctx.fillStyle = this.currentStage === 16 ? '#ffb15f' : '#d5f477';
+ctx.font = 'bold 14px monospace';
+ctx.fillText(this.currentStage === 16 ? 'ARCHIVE://GIANT_CAT — CORRUPTED REPLAY'
+: 'ARCHIVE://CREEPER_CLAN — CORRUPTED REPLAY', minX + 60, minY + 58);
+ctx.globalAlpha = .15;
+for (let i = 0; i < 12; i++) {
+const x = minX + 70 + i * 185, y = minY + 110 + (i % 4) * 125;
+ctx.fillRect(x, y, 44, 44);
+}
+ctx.globalAlpha = 1;
+} else if (this.theme === 'lucky_orb') {
+paintBackdrop('#21112d');
+ctx.strokeStyle = 'rgba(190, 153, 73, 0.14)';
+ctx.fillStyle = 'rgba(190, 153, 73, 0.04)';
+for (let i = 0; i < 9; i++) {
+const x = minX + 90 + (i % 5) * 470;
+const y = minY + 85 + Math.floor(i / 5) * 290;
+ctx.fillRect(x, y, 82, 82); ctx.strokeRect(x, y, 82, 82);
+ctx.font = 'bold 38px monospace'; ctx.fillStyle = 'rgba(220,190,128,0.2)'; ctx.fillText('?', x + 29, y + 55);
+ctx.fillStyle = 'rgba(190, 153, 73, 0.04)';
+}
+ctx.font = 'bold 14px monospace'; ctx.fillStyle = '#fff0a6';
+ctx.fillText('CHANCE_ENGINE: H4C3R OVERRIDE', minX + 60, minY + 58);
+} else if (this.theme === 'zero_day') {
+paintBackdrop('#070a12');
+ctx.fillStyle = 'rgba(102, 232, 255, 0.08)';
+for (let y = minY; y < maxY; y += 34) {
+ctx.fillRect(minX, y, maxX - minX, 2);
+}
+ctx.strokeStyle = 'rgba(103, 232, 249, 0.38)';
+ctx.lineWidth = 2;
+ctx.setLineDash([7, 7]);
+for (let i = 0; i < 6; i++) {
+const width = 170 + (i % 3) * 70;
+const height = 95 + (i % 2) * 45;
+const x = minX + 90 + i * 350;
+const y = minY + 90 + (i % 3) * 150;
+ctx.strokeRect(x, y, width, height);
+ctx.fillStyle = '#d8fbff';
+ctx.fillRect(x - 4, y - 4, 8, 8);
+ctx.fillRect(x + width - 4, y + height - 4, 8, 8);
+}
+ctx.setLineDash([]);
+ctx.fillStyle = '#67e8f9';
+ctx.font = 'bold 14px monospace';
+ctx.fillText('ROOT ACCESS GRANTED TO: H4C3R', minX + 60, minY + 58);
+ctx.fillText('FREE_TRANSFORM.sys ACTIVE', minX + 60, minY + 84);
+} else if (this.theme === 'terminal') {
+paintBackdrop('#051108');
+ctx.strokeStyle = 'rgba(50, 255, 100, 0.2)';
+ctx.lineWidth = 1;
+strokeGridPath(ctx, minX, maxX, minY, maxY, 50);
+ctx.fillStyle = '#33ff77';
+ctx.font = "14px monospace";
+ctx.fillText("root@desktop:~$ ./firewall_purge --force", minX + 60, minY + 80);
+} else {
+paintBackdrop('#052b5f');
+ctx.fillStyle='rgba(190,235,255,.28)';
+for(let i=4;i--;)ctx.fillRect(320+(i&1)*166,-330+(i>>1)*126,148,110);
+}
+ctx.globalAlpha = 1;
+ctx.shadowBlur = 0;
+ctx.setLineDash([]);
+this.drawEnvironmentMotifs(ctx, 0);
+this.drawCampaignSignal(ctx, minX, minY);
+this.drawEnvironmentMotifs(ctx, 1);
+ctx.strokeStyle = '#ffffff';
+ctx.lineWidth = 6;
+ctx.beginPath();
+ctx.moveTo(minX, groundY);
+ctx.lineTo(maxX, groundY);
+ctx.stroke();
+ctx.strokeStyle = '#ff3344';
+ctx.lineWidth = 4;
+ctx.beginPath();
+ctx.moveTo(minX, minY); ctx.lineTo(minX, groundY);
+ctx.moveTo(maxX, minY); ctx.lineTo(maxX, groundY);
+ctx.stroke();
+ctx.restore();
+}
 	drawEnvironmentMotifs(ctx, layer) {
 		const decorations = this.environmentDecorations || [];
 		const driftRange = this.bounds.maxX - this.bounds.minX + 120;

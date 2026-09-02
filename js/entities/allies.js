@@ -1,8 +1,8 @@
-import { StickFigureRenderer } from './stickman.js?v=9.4';
-import { particles } from '../engine/particles.js?v=9.4';
-import { audio } from '../engine/audio.js?v=9.4';
-import { projectiles } from './projectiles.js?v=9.4';
-import { speech } from '../engine/speech.js?v=9.4';
+import { StickFigureRenderer } from './stickman.js?v=9.5';
+import { particles } from '../engine/particles.js?v=9.5';
+import { audio } from '../engine/audio.js?v=9.5';
+import { projectiles } from './projectiles.js?v=9.5';
+import { speech } from '../engine/speech.js?v=9.5';
 const ALLY_ARENA_BOUND = 1030;
 const ALLY_READY_TIME = 0.55;
 const ALLY_EFFECT_RADIUS = Object.freeze({

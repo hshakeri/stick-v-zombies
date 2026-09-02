@@ -1,11 +1,25 @@
-import { StickFigureRenderer } from './stickman.js?v=9.4';
-import { particles } from '../engine/particles.js?v=9.4';
-import { audio } from '../engine/audio.js?v=9.4';
-import { projectiles } from './projectiles.js?v=9.4';
-import { combat } from '../systems/combat.js?v=9.4';
-import { speech } from '../engine/speech.js?v=9.4';
+import { StickFigureRenderer } from './stickman.js?v=9.5';
+import { particles } from '../engine/particles.js?v=9.5';
+import { audio } from '../engine/audio.js?v=9.5';
+import { projectiles } from './projectiles.js?v=9.5';
+import { combat } from '../systems/combat.js?v=9.5';
+import { speech } from '../engine/speech.js?v=9.5';
 const HOOK_PULL_ARENA_BOUND = 1060;
 const ZOMBIE_ARENA_BOUND = 1060;
+const ZOMBIE_STATS = Object.freeze({
+	walker: [45, 110, 12, 18, 58, '#2e7d32', 5, 1, 10, 100, 'pullable'],
+	runner: [32, 210, 10, 16, 40, '#388e3c', 4, .85, 8, 75, 'immune'],
+	spitter: [45, 95, 15, 18, 55, '#00796b', 5, 1, 12, 100, 'pullable'],
+	crawler: [24, 185, 8, 14, 31, '#5f8f2f', 4, .62, 6, 60, 'pullable'],
+	shieldbearer: [110, 76, 15, 25, 68, '#315f3a', 7, 1.16, 20, 220, 'pullable', '', 1],
+	stalker: [60, 235, 16, 16, 42, '#b620e0', 4, .9, 16, 180, 'immune', 'runner'],
+	warden: [260, 70, 24, 30, 84, '#3d6b52', 8, 1.5, 40, 420, 'anchor', 'brute', 1],
+	boom_bug: [52, 105, 18, 22, 45, '#75661f', 6, .88, 14, 140, 'pullable'],
+	brute: [160, 80, 24, 32, 80, '#1b5e20', 8, 1.45, 30, 300, 'anchor'],
+	titan_boss: [750, 90, 32, 50, 120, '#0a2e0e', 12, 2.2, 120, 2000, 'anchor', '', 0, 1],
+	creeper_lord: [440, 92, 30, 58, 152, '#91c94d', 10, 2.3, 150, 2600, 'anchor', '', 0, 1],
+	giant_cat: [480, 116, 32, 72, 128, '#e88932', 10, 2.4, 180, 3000, 'anchor', '', 0, 1]
+});
 export class Zombie {
   constructor(x, y, type = 'walker', wave = 1) {
 	this.x = x;
@@ -29,6 +43,8 @@ export class Zombie {
 	this.actionTimer = 0;
 	this.actionDuration = 0;
 	this.actionHitApplied = false;
+	this.bossMoveIndex = 0;
+	this.actionHitTargets = null;
 	this.freezeTimer = 0;
 	this.stunTimer = 0;
 	this.isGrounded = false;
@@ -56,158 +72,21 @@ export class Zombie {
 	const waveScale = 1 + (wave - 1) * 0.12;
 	const damageScale = Math.min(1.6, 1 + (wave - 1) * 0.045);
 	const speedScale = Math.min(1.18, 1 + (wave - 1) * 0.015);
-	this.behavior = type;
-	this.hasShield = false;
-	switch (type) {
-	  case 'runner':
-		this.maxHp = Math.round(32 * waveScale);
-		this.hp = this.maxHp;
-		this.speed = 210;
-		this.damage = 10;
-		this.radius = 16;
-		this.height = 40;
-		this.color = '#388e3c';
-		this.strokeWidth = 4;
-		this.scale = 0.85;
-		this.inkReward = 8;
-		this.scoreReward = 75;
-		this.hookClass = 'immune';
-		break;
-	  case 'spitter':
-		this.maxHp = Math.round(45 * waveScale);
-		this.hp = this.maxHp;
-		this.speed = 95;
-		this.damage = 15;
-		this.radius = 18;
-		this.height = 55;
-		this.color = '#00796b';
-		this.strokeWidth = 5;
-		this.scale = 1.0;
-		this.inkReward = 12;
-		this.scoreReward = 100;
-		this.preferredDist = 280;
-		this.hookClass = 'pullable';
-		break;
-	  case 'crawler':
-		this.maxHp = Math.round(24 * waveScale);
-		this.hp = this.maxHp;
-		this.speed = 185;
-		this.damage = 8;
-		this.radius = 14;
-		this.height = 31;
-		this.color = '#5f8f2f';
-		this.strokeWidth = 4;
-		this.scale = 0.62;
-		this.inkReward = 6;
-		this.scoreReward = 60;
-		this.hookClass = 'pullable';
-		break;
-	  case 'shieldbearer':
-		this.maxHp = Math.round(110 * waveScale);
-		this.hp = this.maxHp;
-		this.speed = 76;
-		this.damage = 15;
-		this.radius = 25;
-		this.height = 68;
-		this.color = '#315f3a';
-		this.strokeWidth = 7;
-		this.scale = 1.16;
-		this.inkReward = 20;
-		this.scoreReward = 220;
-		this.hookClass = 'pullable';
-		this.hasShield = true;
-		break;
-	  case 'stalker':
-		this.maxHp = Math.round(60 * waveScale);
-		this.hp = this.maxHp;
-		this.speed = 235;
-		this.damage = 16;
-		this.radius = 16;
-		this.height = 42;
-		this.color = '#b620e0';
-		this.strokeWidth = 4;
-		this.scale = 0.9;
-		this.inkReward = 16;
-		this.scoreReward = 180;
-		this.hookClass = 'immune';
-		this.behavior = 'runner';
-		break;
-	  case 'warden':
-		this.maxHp = Math.round(260 * waveScale);
-		this.hp = this.maxHp;
-		this.speed = 70;
-		this.damage = 24;
-		this.radius = 30;
-		this.height = 84;
-		this.color = '#3d6b52';
-		this.strokeWidth = 8;
-		this.scale = 1.5;
-		this.inkReward = 40;
-		this.scoreReward = 420;
-		this.hookClass = 'anchor';
-		this.behavior = 'brute';
-		this.hasShield = true;
-		break;
-	  case 'boom_bug':
-		this.maxHp = Math.round(52 * waveScale);
-		this.hp = this.maxHp;
-		this.speed = 105;
-		this.damage = 18;
-		this.radius = 22;
-		this.height = 45;
-		this.color = '#75661f';
-		this.strokeWidth = 6;
-		this.scale = 0.88;
-		this.inkReward = 14;
-		this.scoreReward = 140;
-		this.hookClass = 'pullable';
-		break;
-	  case 'brute':
-		this.maxHp = Math.round(160 * waveScale);
-		this.hp = this.maxHp;
-		this.speed = 80;
-		this.damage = 24;
-		this.radius = 32;
-		this.height = 80;
-		this.color = '#1b5e20';
-		this.strokeWidth = 8;
-		this.scale = 1.45;
-		this.inkReward = 30;
-		this.scoreReward = 300;
-		this.hookClass = 'anchor';
-		break;
-	  case 'titan_boss':
-		this.maxHp = Math.round(750 * waveScale);
-		this.hp = this.maxHp;
-		this.speed = 90;
-		this.damage = 32;
-		this.radius = 50;
-		this.height = 120;
-		this.color = '#0a2e0e';
-		this.strokeWidth = 12;
-		this.scale = 2.2;
-		this.inkReward = 120;
-		this.scoreReward = 2000;
-		this.isBoss = true;
-		this.bossPhase = 1;
-		this.hookClass = 'anchor';
-		break;
-	  case 'walker':
-	  default:
-		this.maxHp = Math.round(45 * waveScale);
-		this.hp = this.maxHp;
-		this.speed = 110;
-		this.damage = 12;
-		this.radius = 18;
-		this.height = 58;
-		this.color = '#2e7d32';
-		this.strokeWidth = 5;
-		this.scale = 1.0;
-		this.inkReward = 10;
-		this.scoreReward = 100;
-		this.hookClass = 'pullable';
-		break;
+	const stats = ZOMBIE_STATS[type] || ZOMBIE_STATS.walker;
+	[this.maxHp, this.speed, this.damage, this.radius, this.height, this.color,
+	  this.strokeWidth, this.scale, this.inkReward, this.scoreReward, this.hookClass] = stats;
+	this.maxHp = Math.round(this.maxHp * waveScale);
+	this.hp = this.maxHp;
+	this.behavior = stats[11] || type;
+	this.hasShield = stats[12] === 1;
+	this.isBoss = stats[13] === 1;
+	if (this.isBoss) this.bossPhase = 1;
+	if (type === 'creeper_lord' || type === 'giant_cat') {
+	  this.attackCooldown = 1.1;
+	  this.speechOffsetY = -this.height - 25;
+	  this.bannerOffsetY = -this.height - 55;
 	}
+	if (type === 'spitter') this.preferredDist = 280;
 	if (!this.isBoss) {
 	  this.damage = Math.round(this.damage * damageScale);
 	  this.speed = Math.round(this.speed * speedScale);
@@ -235,11 +114,13 @@ export class Zombie {
 	}
 	if (this.hurtTimer > 0) {
 	  this.hurtTimer -= dt;
-	  this.pose = 'idle';
-	  this.vx *= 0.88;
 	  if (this.hurtTimer <= 0) this.isHurt = false;
-	  this.applyPhysics(dt, groundY, sketchBlocks);
-	  return;
+	  if (!this.isBoss) {
+		this.pose = 'idle';
+		this.vx *= 0.88;
+		this.applyPhysics(dt, groundY, sketchBlocks);
+		return;
+	  }
 	}
 	if (this.stunTimer > 0) {
 	  this.stunTimer -= dt;
@@ -250,7 +131,7 @@ export class Zombie {
 	}
 	const currentSpeed = this.speed * this.gaitScale * (this.freezeTimer > 0 ? 0.45 : 1.0);
 	const combatTargets = this.getCombatTargets(player, friendlyTargets);
-	const target = this.type === 'titan_boss'
+	const target = this.isBoss
 	  ? (this.isValidCombatTarget(player) ? player : null)
 	  : this.selectCombatTarget(player, friendlyTargets);
 	if (this.actionPhase !== 'idle') {
@@ -442,6 +323,8 @@ export class Zombie {
 		}
 	  } else if (this.behavior === 'titan_boss') {
 		this.updateBossAI(dt, dist, target, camera, combatTargets);
+	  } else if (this.behavior === 'creeper_lord' || this.behavior === 'giant_cat') {
+		this.updateClanBossAI(dist, target, camera, combatTargets);
 	  }
 	  if (zombies && Array.isArray(zombies)) {
 		for (const other of zombies) {
@@ -489,18 +372,62 @@ export class Zombie {
 	  }
 	}
   }
+  updateClanBossAI(dist, target, camera, combatTargets = [target]) {
+	const cat = this.type === 'giant_cat';
+	const speechKey = cat ? 'giantCat' : 'creeperLord';
+	if (this.hp < this.maxHp * .5 && this.bossPhase === 1) {
+	  this.bossPhase = 2;
+	  this.speed *= 1.18;
+	  this.attackCooldown = Math.min(this.attackCooldown, .3);
+	  audio.playBossRoar();
+	  particles.addTextBanner(this.x, this.y + this.bannerOffsetY,
+		cat ? 'CHONK MODE: ON!' : 'CLAN POWER: DOUBLE!', cat ? '#ff9b3d' : '#d7ff5f');
+	  camera?.focusOn?.(this.x, this.y - this.height * .55, .48, 1.04);
+	  camera?.addShake?.(.38);
+	  speech.shoutBoss(this.x, this.y, speechKey, 'phase', 1.45, {
+		anchor: this, speakerKey: speechKey, repeatKey: `${speechKey}:phase`, cooldownMs: 0
+	  });
+	}
+	if (!target) return;
+	if (this.attackCooldown <= 0) {
+	  const alternate = this.bossMoveIndex++ % 2 === 0;
+	  const move = cat
+		? (dist > 150 || alternate ? 'cat_pounce' : 'cat_swipe')
+		: (dist > 250 || alternate ? 'creeper_leap' : 'creeper_blast');
+	  this.beginHeavyAction(move, target.x);
+	  return;
+	}
+	const stopDistance = cat ? 115 : 165;
+	if (dist > stopDistance) {
+	  this.vx = this.facing * this.speed * (this.freezeTimer > 0 ? .45 : 1);
+	  this.pose = cat ? 'run' : 'zombie_walk';
+	} else {
+	  this.vx = 0;
+	  this.pose = 'zombie_idle';
+	}
+  }
   beginHeavyAction(kind, targetX = null) {
 	if (this.actionPhase !== 'idle') return false;
 	const isTitan = kind === 'titan_smash';
-	const isLeap = kind === 'titan_leap';
+	const isLeap = kind === 'titan_leap' || kind === 'creeper_leap';
 	const isBoomBug = kind === 'boom_burst';
-	this.actionKind = isTitan ? 'titan_smash' : (isLeap ? 'titan_leap' : (isBoomBug ? 'boom_burst' : 'brute_slam'));
+	const clanMove = kind === 'creeper_blast' || kind === 'creeper_leap'
+	  || kind === 'cat_swipe' || kind === 'cat_pounce';
+	this.actionKind = clanMove ? kind : (isTitan ? 'titan_smash' : (isLeap ? 'titan_leap' : (isBoomBug ? 'boom_burst' : 'brute_slam')));
 	this.actionPhase = 'windup';
-	this.actionDuration = isTitan ? 0.75 : (isLeap ? 0.6 : (isBoomBug ? 0.7 : 0.55));
+	this.actionDuration = isTitan ? .75 : (kind === 'creeper_blast' ? .78
+	  : (kind === 'creeper_leap' || kind === 'cat_pounce' ? .68
+	  : (kind === 'cat_swipe' ? .58 : (isLeap ? .6 : (isBoomBug ? .7 : .55)))));
 	this.actionTimer = this.actionDuration;
 	this.actionHitApplied = false;
-	if (isLeap) {
-	  this.leapTargetX = Math.max(-ZOMBIE_ARENA_BOUND, Math.min(ZOMBIE_ARENA_BOUND, Number.isFinite(targetX) ? targetX : this.x));
+	this.actionHitTargets = clanMove ? new WeakSet() : null;
+	if (isLeap || kind === 'cat_pounce') {
+	  let endX = Number.isFinite(targetX) ? targetX : this.x;
+	  if (kind === 'cat_pounce') {
+		const dx = endX - this.x;
+		endX = this.x + Math.sign(dx || this.facing) * Math.min(Math.abs(dx), (this.bossPhase === 2 ? 1120 : 960) * .34);
+	  }
+	  this.leapTargetX = Math.max(-ZOMBIE_ARENA_BOUND, Math.min(ZOMBIE_ARENA_BOUND, endX));
 	}
 	this.vx = 0;
 	this.pose = 'attack_cross';
@@ -512,23 +439,36 @@ export class Zombie {
   updateHeavyAction(dt, combatTargets, camera) {
 	if (this.actionPhase === 'idle') return false;
 	const actionDt = dt * (this.freezeTimer > 0 ? 0.45 : 1);
-	if (this.actionPhase !== 'leap') this.vx = 0;
+	if (this.actionPhase !== 'leap' && this.actionPhase !== 'dash') this.vx = 0;
 	if (this.actionPhase === 'windup') {
 	  this.pose = 'attack_cross';
 	  this.actionTimer = Math.max(0, this.actionTimer - actionDt);
 	  if (this.actionTimer <= 0) {
-		if (this.actionKind === 'titan_leap') {
+		if (this.actionKind === 'titan_leap' || this.actionKind === 'creeper_leap') {
 		  this.actionPhase = 'leap';
 		  this.actionDuration = 2.0;
 		  this.actionTimer = this.actionDuration;
 		  const gravity = 950;
-		  const launchVy = -620;
+		  const launchVy = this.actionKind === 'creeper_leap' ? -560 : -620;
 		  const airTime = (2 * Math.abs(launchVy)) / gravity;
 		  this.vy = launchVy;
 		  this.vx = (this.leapTargetX - this.x) / Math.max(0.35, airTime);
 		  this.isGrounded = false;
 		  this.pose = 'jump_rise';
 		  audio.playBossRoar();
+		  return true;
+		}
+		if (this.actionKind === 'cat_pounce') {
+		  this.actionPhase = 'dash';
+		  this.facing = this.leapTargetX >= this.x ? 1 : -1;
+		  this.actionDuration = Math.max(.08, Math.abs(this.leapTargetX - this.x) / (this.bossPhase === 2 ? 1120 : 960));
+		  this.actionTimer = this.actionDuration;
+		  this.vx = 0;
+		  this.pose = 'run';
+		  audio.playWhoosh();
+		  speech.shoutBoss(this.x, this.y, 'giantCat', 'pounce', 1.1, {
+			anchor: this, speakerKey: 'giantCat', repeatKey: 'giantCat:pounce'
+		  });
 		  return true;
 		}
 		this.actionPhase = 'active';
@@ -538,6 +478,8 @@ export class Zombie {
 		  this.actionHitApplied = true;
 		  if (this.actionKind === 'titan_smash') this.titanSmash(combatTargets, camera);
 		  else if (this.actionKind === 'boom_burst') this.boomBurst(combatTargets, camera);
+		  else if (this.actionKind === 'creeper_blast') this.creeperBlast(combatTargets, camera, 225);
+		  else if (this.actionKind === 'cat_swipe') this.catSwipe(combatTargets, camera);
 		  else this.bruteSlam(combatTargets, camera);
 		}
 	  }
@@ -550,11 +492,44 @@ export class Zombie {
 	  if (shouldLand) {
 		if (!this.actionHitApplied) {
 		  this.actionHitApplied = true;
-		  this.titanLand(combatTargets, camera);
+		  if (this.actionKind === 'creeper_leap') this.creeperBlast(combatTargets, camera, 175);
+		  else this.titanLand(combatTargets, camera);
 		}
 		this.vx = 0;
 		this.actionPhase = 'recovery';
 		this.actionDuration = 0.5;
+		this.actionTimer = this.actionDuration;
+	  }
+	  return true;
+	}
+	if (this.actionPhase === 'dash') {
+	  this.pose = 'run';
+	  const speed = (this.bossPhase === 2 ? 1120 : 960) * (this.freezeTimer > 0 ? .45 : 1);
+	  const fromX = this.x;
+	  const remaining = Math.max(0, (this.leapTargetX - fromX) * this.facing);
+	  const travel = Math.min(remaining, speed * dt);
+	  const toX = fromX + this.facing * travel;
+	  this.vx = (toX - fromX) / Math.max(dt, .0001);
+	  for (const target of combatTargets || []) {
+		if (!this.isValidCombatTarget(target) || this.actionHitTargets?.has(target)) continue;
+		if (target.isGrounded === false) {
+		  this.actionHitTargets?.add(target);
+		  continue;
+		}
+		const sweptX = Math.max(Math.min(fromX, toX), Math.min(Math.max(fromX, toX), target.x));
+		if (Math.abs(target.x - sweptX) <= this.radius + (target.radius || 18)
+			&& Math.abs(target.y - this.y) < 105) {
+		  this.actionHitTargets?.add(target);
+		  target.takeDamage(this.damage, this.facing, 680);
+		  particles.emitImpact?.('heavy', target.x, target.y - 42, {
+			color: '#ff9b3d', direction: this.facing, seed: ((target.x * 31) ^ 0xca7) | 0
+		  });
+		}
+	  }
+	  this.actionTimer = Math.max(0, this.actionTimer - actionDt);
+	  if (this.actionTimer <= 0 || travel >= remaining) {
+		this.actionPhase = 'recovery';
+		this.actionDuration = .42;
 		this.actionTimer = this.actionDuration;
 	  }
 	  return true;
@@ -574,11 +549,13 @@ export class Zombie {
 	this.actionTimer = Math.max(0, this.actionTimer - actionDt);
 	if (this.actionTimer <= 0) {
 	  const recoveryCooldown = this.actionKind === 'titan_smash' ? 1.1
-		: (this.actionKind === 'titan_leap' ? 1.5 : (this.actionKind === 'boom_burst' ? 1.8 : 1.4));
+		: (this.actionKind === 'titan_leap' ? 1.5 : (this.actionKind === 'boom_burst' ? 1.8
+		: (this.isBoss ? (this.bossPhase === 2 ? .82 : 1.12) : 1.4)));
 	  this.actionPhase = 'idle';
 	  this.actionKind = null;
 	  this.actionDuration = 0;
 	  this.actionHitApplied = false;
+	  this.actionHitTargets = null;
 	  this.attackCooldown = Math.max(this.attackCooldown, recoveryCooldown);
 	}
 	return true;
@@ -601,6 +578,7 @@ export class Zombie {
 	this.actionTimer = 0;
 	this.actionDuration = 0;
 	this.actionHitApplied = false;
+	this.actionHitTargets = null;
 	this.attackCooldown = Math.max(this.attackCooldown, cooldown);
 	return true;
   }
@@ -797,6 +775,38 @@ export class Zombie {
 	  if (dist < 220) target.takeDamage(this.damage, target.x >= this.x ? 1 : -1, 700);
 	}
   }
+  creeperBlast(targets, camera, radius) {
+	audio.playBruteStomp();
+	camera?.addShake?.(.55);
+	particles.addShockwave(this.x, this.y - 8, radius, '#b8ff54', 13);
+	particles.emitImpact?.('heavy', this.x, this.y - 55, {
+	  color: '#dfff70', direction: this.facing, seed: ((this.x * 41) ^ 0xc133) | 0
+	});
+	for (const target of targets || []) {
+	  if (!this.isValidCombatTarget(target)) continue;
+	  if (Math.hypot(target.x - this.x, target.y - this.y) < radius) {
+		target.takeDamage(this.damage, target.x >= this.x ? 1 : -1, 620);
+	  }
+	}
+	speech.shoutBoss(this.x, this.y, 'creeperLord', 'blast', 1.15, {
+	  anchor: this, speakerKey: 'creeperLord', repeatKey: 'creeperLord:blast'
+	});
+  }
+  catSwipe(targets, camera) {
+	audio.playWhoosh();
+	camera?.addShake?.(.25);
+	particles.addSlashArc(this.x + this.facing * 72, this.y - 52, 105, 0, this.facing, '#ffd2a1', 9);
+	for (const target of targets || []) {
+	  if (!this.isValidCombatTarget(target)) continue;
+	  const dx = (target.x - this.x) * this.facing;
+	  if (dx > -25 && dx < 185 && Math.abs(target.y - this.y) < 120) {
+		target.takeDamage(this.damage, this.facing, 560);
+	  }
+	}
+	speech.shoutBoss(this.x, this.y, 'giantCat', 'pounce', 1.1, {
+	  anchor: this, speakerKey: 'giantCat', repeatKey: 'giantCat:swipe'
+	});
+  }
   boomBurst(targets, camera) {
 	audio.playWindowsError();
 	audio.playBruteStomp();
@@ -842,15 +852,18 @@ export class Zombie {
 		});
 	  }
 	}
+	amount = Math.min(this.hp, Math.max(0, amount));
 	this.hp -= amount;
 	this.isHurt = true;
-	this.hurtTimer = 0.32;
-	this.windupTimer = 0;
-	this.windupTarget = null;
-	this.cancelHeavyAction(0.65);
-	this.leapActive = false;
-	this.crawlerDashTimer = 0;
-	this.attackCooldown = Math.max(this.attackCooldown, 0.5);
+	this.hurtTimer = this.isBoss ? .1 : .32;
+	if (!this.isBoss) {
+	  this.windupTimer = 0;
+	  this.windupTarget = null;
+	  this.cancelHeavyAction(.65);
+	  this.leapActive = false;
+	  this.crawlerDashTimer = 0;
+	  this.attackCooldown = Math.max(this.attackCooldown, .5);
+	}
 	if (this.type === 'stalker' && this.hp > 0 && this.stunTimer <= 0 && this.freezeTimer <= 0
 		&& (Math.abs((this.animTimer * 997) | 0) % 10) < 4) {
 	  const blinkX = this.x - knockbackDir * 200;
@@ -862,6 +875,8 @@ export class Zombie {
 	  this.hurtTimer = 0.12;
 	  particles.createHitSparks(this.x, this.y - 20, 8, '#e07bff');
 	  particles.createDust(this.x, this.y, 4, this.facing);
+	} else if (this.isBoss) {
+	  this.vx += knockbackDir * Math.min(55, knockbackPower * .08);
 	} else {
 	  this.vx = knockbackDir * knockbackPower;
 	  this.vy = -Math.min(knockbackPower * 0.35, 220);
@@ -898,12 +913,14 @@ export class Zombie {
 	this.isDead = true;
 	this.hp = 0;
 	combat.registerKill(this);
-	if (this.type === 'titan_boss') {
-	  speech.shoutBoss(this.x, this.y, 'titan', 'defeat', 1.8, {
-		anchor: this, speakerKey: 'titan', repeatKey: 'titan:defeat', cooldownMs: 0
+	const bossKey = this.type === 'titan_boss' ? 'titan'
+	  : (this.type === 'creeper_lord' ? 'creeperLord' : (this.type === 'giant_cat' ? 'giantCat' : null));
+	if (bossKey) {
+	  speech.shoutBoss(this.x, this.y, bossKey, 'defeat', 1.8, {
+		anchor: this, speakerKey: bossKey, repeatKey: `${bossKey}:defeat`, cooldownMs: 0
 	  });
 	}
-	if (this.type === 'titan_boss') audio.playFinisherImpact();
+	if (this.isBoss) audio.playFinisherImpact();
 	else audio.playZombieDeath();
 	particles.createZombieSplatter(this.x, this.y - this.height * 0.5, 24, this.color);
 	particles.emitSplatter(this.x, this.y - this.height * 0.45, {
@@ -912,19 +929,23 @@ export class Zombie {
 	  direction: this.vx,
 	  seed: ((this.x * 47) ^ (this.animTimer * 1000) ^ 0xdead) | 0
 	});
-	if (this.type === 'titan_boss') {
+	if (this.isBoss) {
 	  this.camera?.addShake?.(0.78);
 	  this.camera?.addZoomPunch?.(0.075);
+	  const clanLord = this.type === 'creeper_lord';
+	  const cat = this.type === 'giant_cat';
 	  particles.emitBossExplosion({
 		x: this.x, y: this.y - 54, bodyY: this.y, groundY: this.getSplatterGroundY(),
-		color: '#39ff62', accent: '#fff3a0', radius: 270,
-		stickFigure: true, seed: ((this.x * 47) ^ 0x717a) | 0
+		color: cat ? '#e88932' : (clanLord ? '#a9e45d' : '#39ff62'),
+		accent: cat ? '#fff2d5' : '#fff3a0', radius: cat ? 300 : 270,
+		stickFigure: !cat && !clanLord,
+		seed: ((this.x * 47) ^ (cat ? 0xca7 : (clanLord ? 0xc133 : 0x717a))) | 0
 	  });
 	} else {
 	  particles.addShockwave(this.x, this.y - 20, 60, this.color, 4);
 	  particles.createStickLimbExplosion(this.x, this.y, 0, this.color);
 	}
-	if (Math.random() < 0.38) {
+	if (!this.isBoss && Math.random() < 0.38) {
 	  speech.shout(this.x, this.y - 10, 'zombieGroan', null, 1.35, {
 		anchor: this,
 		anchorOffsetY: -54
@@ -937,7 +958,9 @@ export class Zombie {
 	const isStunned = this.stunTimer > 0;
 	this.drawHeavyTelegraph(ctx);
 	const suppressOrdinaryGlow = crowded === true && !this.isBoss && this.actionPhase === 'idle';
-	this.renderer.draw(ctx, {
+	if (this.type === 'creeper_lord' || this.type === 'giant_cat') {
+	  this.drawClanBoss(ctx, isFrozen);
+	} else this.renderer.draw(ctx, {
 	  x: this.x,
 	  y: this.y,
 	  facing: this.facing,
@@ -954,7 +977,9 @@ export class Zombie {
 	  combatActionPhase: this.actionPhase,
 	  suppressGlow: suppressOrdinaryGlow
 	});
-	this.drawTypeSilhouette(ctx, suppressOrdinaryGlow);
+	if (this.type !== 'creeper_lord' && this.type !== 'giant_cat') {
+	  this.drawTypeSilhouette(ctx, suppressOrdinaryGlow);
+	}
 	if (isStunned) {
 	  ctx.fillStyle = '#ffea00';
 	  const angle = this.animTimer * 6;
@@ -962,7 +987,7 @@ export class Zombie {
 	  ctx.arc(this.x + Math.cos(angle) * 16, this.y - this.height - 12 + Math.sin(angle) * 6, 4, 0, Math.PI * 2);
 	  ctx.fill();
 	}
-	if (this.type !== 'titan_boss' && this.hp < this.maxHp && this.hp > 0) {
+	if (!this.isBoss && this.hp < this.maxHp && this.hp > 0) {
 	  const barWidth = Math.max(44, 40 * this.scale);
 	  const barHeight = 5;
 	  const barY = this.y - this.height - 14;
@@ -974,6 +999,90 @@ export class Zombie {
 	  const fillW = Math.max(0, barWidth * (this.hp / this.maxHp));
 	  ctx.fillRect(this.x - barWidth / 2, barY, fillW, barHeight);
 	}
+  }
+  drawClanBoss(ctx, isFrozen = false) {
+	const cat = this.type === 'giant_cat';
+	const bob = this.isGrounded ? Math.sin(this.animTimer * (cat ? 4 : 2.4)) * 2 : -5;
+	const action = this.getActionRenderPhase() || 0;
+	ctx.save();
+	ctx.translate(this.x, this.y + bob);
+	ctx.scale(this.facing * this.squashX, this.squashY);
+	ctx.globalAlpha = this.isHurt ? .76 : 1;
+	ctx.lineJoin = 'round';
+	ctx.lineCap = 'round';
+	ctx.fillStyle = 'rgba(0,0,0,.28)';
+	ctx.beginPath();
+	ctx.ellipse(0, 2, cat ? 78 : 55, 12, 0, 0, Math.PI * 2);
+	ctx.fill();
+	if (cat) {
+	  const lean = (this.actionKind === 'cat_pounce' ? action * 15 : 0);
+	  ctx.translate(lean, 0);
+	  ctx.strokeStyle = '#74351d';
+	  ctx.lineWidth = 13;
+	  ctx.beginPath();
+	  ctx.moveTo(-45, -55); ctx.quadraticCurveTo(-104, -91, -83, -128); ctx.stroke();
+	  ctx.fillStyle = isFrozen ? '#a8edff' : '#c96a29';
+	  ctx.strokeStyle = '#572817';
+	  ctx.lineWidth = 5;
+	  ctx.fillRect(-67, -72, 134, 66); ctx.strokeRect(-67, -72, 134, 66);
+	  ctx.beginPath();
+	  ctx.moveTo(-62, -119); ctx.lineTo(-47, -161); ctx.lineTo(-20, -126);
+	  ctx.lineTo(20, -126); ctx.lineTo(48, -161); ctx.lineTo(63, -117);
+	  ctx.closePath(); ctx.fill(); ctx.stroke();
+	  ctx.fillStyle = isFrozen ? '#c9f5ff' : '#e88932';
+	  ctx.fillRect(-64, -133, 128, 92); ctx.strokeRect(-64, -133, 128, 92);
+	  ctx.fillStyle = '#4fba42';
+	  ctx.fillRect(-40, -108, 24, 22); ctx.fillRect(16, -108, 24, 22);
+	  ctx.fillStyle = '#142113';
+	  ctx.fillRect(-33, -102, 10, 13); ctx.fillRect(23, -102, 10, 13);
+	  ctx.fillStyle = '#f29ab4';
+	  ctx.fillRect(-14, -82, 28, 15);
+	  ctx.strokeStyle = '#6a301d'; ctx.lineWidth = 4;
+	  ctx.beginPath(); ctx.moveTo(-3, -66); ctx.lineTo(-20, -57);
+	  ctx.moveTo(3, -66); ctx.lineTo(20, -57); ctx.stroke();
+	  ctx.strokeStyle = '#7b351e'; ctx.lineWidth = 8;
+	  ctx.beginPath(); ctx.moveTo(-45, -125); ctx.lineTo(-28, -112);
+	  ctx.moveTo(0, -133); ctx.lineTo(0, -116); ctx.moveTo(45, -125); ctx.lineTo(28, -112); ctx.stroke();
+	  ctx.strokeStyle = '#7b1520'; ctx.lineWidth = 7;
+	  ctx.beginPath(); ctx.moveTo(-57, -47); ctx.lineTo(57, -47); ctx.stroke();
+	  ctx.fillStyle = '#fff4df';
+	  const paw = this.actionKind === 'cat_swipe' ? 24 + action * 55 : 24;
+	  ctx.fillRect(paw, -45, 50, 30); ctx.strokeRect(paw, -45, 50, 30);
+	  ctx.fillRect(-62, -30, 42, 27); ctx.strokeRect(-62, -30, 42, 27);
+	} else {
+	  const lean = this.actionKind === 'creeper_leap' ? action * 8 : 0;
+	  ctx.translate(lean, 0);
+	  ctx.fillStyle = '#6d4724';
+	  ctx.strokeStyle = '#d3a64b';
+	  ctx.lineWidth = 5;
+	  ctx.beginPath();
+	  ctx.moveTo(-29, -18); ctx.lineTo(-38, -119); ctx.lineTo(38, -119); ctx.lineTo(30, -18);
+	  ctx.closePath(); ctx.fill(); ctx.stroke();
+	  ctx.fillStyle = '#c9983f';
+	  for (let y = -104; y < -30; y += 25) {
+		ctx.fillRect(-24 + ((y / 25) & 1) * 15, y, 12, 12);
+		ctx.fillRect(13 - ((y / 25) & 1) * 15, y + 8, 10, 10);
+	  }
+	  ctx.fillStyle = isFrozen ? '#b9efff' : '#a8d867';
+	  ctx.strokeStyle = '#213b1e';
+	  ctx.lineWidth = 5;
+	  ctx.fillRect(-42, -166, 84, 68); ctx.strokeRect(-42, -166, 84, 68);
+	  ctx.fillStyle = '#172016';
+	  ctx.fillRect(-27, -146, 17, 23); ctx.fillRect(10, -146, 17, 23);
+	  ctx.fillRect(-9, -123, 18, 12); ctx.fillRect(8, -113, 17, 12);
+	  ctx.fillStyle = '#a6291f'; ctx.fillRect(-40, -171, 80, 11);
+	  ctx.strokeStyle = '#edc85a'; ctx.lineWidth = 7; ctx.beginPath();
+	  for (let i = -3; i <= 3; i++) {
+		ctx.moveTo(i * 10, -164); ctx.lineTo(i * 19, -204 + Math.abs(i) * 5);
+	  }
+	  ctx.stroke();
+	  ctx.strokeStyle = '#735227'; ctx.lineWidth = 8;
+	  ctx.beginPath(); ctx.moveTo(42, -98); ctx.lineTo(57, -8); ctx.stroke();
+	  ctx.fillStyle = '#dcb44d'; ctx.strokeStyle = '#fff08b'; ctx.lineWidth = 3;
+	  ctx.fillRect(35, -123, 34, 39); ctx.strokeRect(35, -123, 34, 39);
+	  ctx.fillStyle = '#73b853'; ctx.fillRect(45, -114, 14, 20);
+	}
+	ctx.restore();
   }
   getActionRenderPhase() {
 	if (this.actionPhase === 'windup' && this.actionDuration > 0) {
@@ -988,14 +1097,32 @@ export class Zombie {
   drawHeavyTelegraph(ctx) {
 	if (this.actionPhase !== 'windup' || this.actionDuration <= 0) return;
 	const isTitan = this.actionKind === 'titan_smash';
-	const isLeap = this.actionKind === 'titan_leap';
+	const isLeap = this.actionKind === 'titan_leap' || this.actionKind === 'creeper_leap';
 	const isBoomBug = this.actionKind === 'boom_burst';
-	const radius = isTitan ? 220 : (isLeap ? 180 : (isBoomBug ? 125 : 150));
-	const color = isTitan ? '#ff2244' : (isLeap ? '#ff8830' : (isBoomBug ? '#ff9f1c' : '#70ff66'));
-	const anchorX = isLeap ? this.leapTargetX : this.x;
+	const isCreeper = this.actionKind === 'creeper_blast' || this.actionKind === 'creeper_leap';
+	const isCatSwipe = this.actionKind === 'cat_swipe';
+	const isCatPounce = this.actionKind === 'cat_pounce';
+	const radius = isTitan ? 220 : (this.actionKind === 'creeper_blast' ? 225
+	  : (isLeap ? (isCreeper ? 175 : 180) : (isBoomBug ? 125 : (isCatSwipe ? 185 : 150))));
+	const color = isTitan ? '#ff2244' : (isCreeper ? '#c9ff55'
+	  : (isCatSwipe || isCatPounce ? '#ff9b3d' : (isLeap ? '#ff8830' : (isBoomBug ? '#ff9f1c' : '#70ff66'))));
+	const anchorX = isLeap ? this.leapTargetX : (isCatSwipe ? this.x + this.facing * 90 : this.x);
 	const progress = Math.max(0, Math.min(1, 1 - this.actionTimer / this.actionDuration));
 	const pulse = 0.75 + Math.sin(this.animTimer * 15) * 0.15;
 	ctx.save();
+	if (isCatPounce) {
+	  const pad = this.radius + 18;
+	  const left = Math.min(this.x, this.leapTargetX) - pad;
+	  const width = Math.max(28, Math.abs(this.leapTargetX - this.x)) + pad * 2;
+	  ctx.fillStyle = color; ctx.globalAlpha = .08 + progress * .12;
+	  ctx.fillRect(left, this.y - 33, width, 38);
+	  ctx.globalAlpha = Math.min(1, (.5 + progress * .45) * pulse);
+	  ctx.strokeStyle = color; ctx.lineWidth = 5; ctx.setLineDash([15, 9]);
+	  ctx.strokeRect(left, this.y - 33, width, 38); ctx.setLineDash([]);
+	  ctx.beginPath(); ctx.arc(this.leapTargetX, this.y - 14, 18 + progress * 18, 0, Math.PI * 2); ctx.stroke();
+	  ctx.restore();
+	  return;
+	}
 	ctx.fillStyle = color;
 	ctx.globalAlpha = 0.07 + progress * 0.11;
 	ctx.beginPath();
