@@ -1,10 +1,10 @@
-import { StickFigureRenderer } from './stickman.js?v=9.6';
-import { particles } from '../engine/particles.js?v=9.6';
-import { audio } from '../engine/audio.js?v=9.6';
-import { projectiles } from './projectiles.js?v=9.6';
-import { combat } from '../systems/combat.js?v=9.6';
-import { speech } from '../engine/speech.js?v=9.6';
-import { stages } from '../systems/stages.js?v=9.6';
+import { StickFigureRenderer } from './stickman.js?v=9.7';
+import { particles } from '../engine/particles.js?v=9.7';
+import { audio } from '../engine/audio.js?v=9.7';
+import { projectiles } from './projectiles.js?v=9.7';
+import { combat } from '../systems/combat.js?v=9.7';
+import { speech } from '../engine/speech.js?v=9.7';
+import { stages } from '../systems/stages.js?v=9.7';
 const ARENA_MIN_X = -980;
 const ARENA_MAX_X = 980;
 const CYAN = '#00f5ff';

@@ -1,16 +1,16 @@
-import { audio } from './engine/audio.js?v=9.6';
-import { input } from './engine/input.js?v=9.6';
-import { Camera } from './engine/camera.js?v=9.6';
-import { particles } from './engine/particles.js?v=9.6';
-import { Player } from './entities/player.js?v=9.6';
-import { waves } from './systems/waves.js?v=9.6';
-import { combat } from './systems/combat.js?v=9.6';
-import { shop } from './systems/shop.js?v=9.6';
-import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=9.6';
-import { projectiles } from './entities/projectiles.js?v=9.6';
-import { allies } from './entities/allies.js?v=9.6';
-import { speech } from './engine/speech.js?v=9.6';
-import { save } from './systems/save.js?v=9.6';
+import { audio } from './engine/audio.js?v=9.7';
+import { input } from './engine/input.js?v=9.7';
+import { Camera } from './engine/camera.js?v=9.7';
+import { particles } from './engine/particles.js?v=9.7';
+import { Player } from './entities/player.js?v=9.7';
+import { waves } from './systems/waves.js?v=9.7';
+import { combat } from './systems/combat.js?v=9.7';
+import { shop } from './systems/shop.js?v=9.7';
+import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=9.7';
+import { projectiles } from './entities/projectiles.js?v=9.7';
+import { allies } from './entities/allies.js?v=9.7';
+import { speech } from './engine/speech.js?v=9.7';
+import { save } from './systems/save.js?v=9.7';
 export class Game {
   constructor() {
 	this.canvas = document.getElementById('gameCanvas');
@@ -269,7 +269,7 @@ export class Game {
 	this.reportedLayerErrors.clear();
 	input.resetHeldInputs();
 	projectiles.reset();
-	allies.reset(true);
+	allies.reset(true,false,stage>11);
 	particles.reset();
 	speech.reset();
 	shop.reset();
@@ -310,7 +310,7 @@ export class Game {
 	audio.setBGMDucked?.(false);
 	input.resetHeldInputs();
 	projectiles.reset();
-	allies.reset(false, false);
+	allies.reset(false,false,stage>11);
 	particles.reset();
 	speech.reset();
 	combat.clearArena();
@@ -454,7 +454,7 @@ export class Game {
 	save.recordStageCleared(nextStage - 1);
 	this.stageManager.loadStage(nextStage);
 	projectiles.reset();
-	allies.reset(false, true);
+	allies.reset(false,true,nextStage>11);
 	particles.reset();
 	speech.reset();
 	combat.clearArena();

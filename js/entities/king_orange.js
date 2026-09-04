@@ -1,9 +1,10 @@
-import { StickFigureRenderer } from './stickman.js?v=9.6';
-import { particles } from '../engine/particles.js?v=9.6';
-import { audio } from '../engine/audio.js?v=9.6';
-import { projectiles } from './projectiles.js?v=9.6';
-import { combat } from '../systems/combat.js?v=9.6';
-import { speech } from '../engine/speech.js?v=9.6';
+import { StickFigureRenderer } from './stickman.js?v=9.7';
+import { particles } from '../engine/particles.js?v=9.7';
+import { audio } from '../engine/audio.js?v=9.7';
+import { projectiles } from './projectiles.js?v=9.7';
+import { combat } from '../systems/combat.js?v=9.7';
+import { speech } from '../engine/speech.js?v=9.7';
+import { allies } from './allies.js?v=9.7';
 const ARENA_LEFT = -980;
 const ARENA_RIGHT = 980;
 function clamp(value, min, max) {
@@ -439,6 +440,8 @@ export class KingOrange {
 	  color: '#ff9a32', accent: '#d94cff', radius: 260,
 	  stickFigure: true, seed: 0x4b1a60
 	});
+	allies.unlocked.king=true;
+	allies.summonAlly('king',this.x,this.groundY,this.facing);
   }
   draw(ctx) {
 	if (this.isDead) return;

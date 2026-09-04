@@ -1,4 +1,4 @@
-import { audio } from './audio.js?v=9.6';
+import { audio } from './audio.js?v=9.7';
 export const MAX_SPEECH_CHARS = 24;
 export const MAX_SPEECH_LINES = 2;
 export const MAX_SPEECH_BUBBLES = 3;
@@ -73,7 +73,8 @@ export const SPEECH_CORPUS = {
 	],
 	chosen: [
 	  'CHOSEN.','BACK.','DONE.'
-	]
+	],
+	king:['MY TURN.','CROWN SUPPORT!','ROYAL PATCH!']
   },
   allyHurt: {
 	red: ['TACTICAL NAP!', 'RED NEEDS A REBOOT!'],
@@ -101,7 +102,7 @@ export const SPEECH_CORPUS = {
 	intro: ['REPLAY LOADED.', 'THIS IS ONLY A COPY.'],
 	command: ['BLOCKS: EXECUTE!', 'COMMAND STACK: GO!'],
 	phase: ['LOOP SPEED: DOUBLE.', 'REWIND. TRY AGAIN.'],
-	defeat: ['REPLAY RELEASED.', 'BREAK... THE LOOP.']
+	defeat: ['MY TURN TO HELP.', 'LOOP BROKEN. TEAM?']
   },
   creeperLord: {
 	default: ['TOTEM ONLINE.', 'CLAN CACHE: LOCKED.'],

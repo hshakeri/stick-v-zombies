@@ -70,7 +70,7 @@ Eighteen computer-desktop stages with obstacles, platforms, a clear **Start Door
 - **Stage 8: Terminal Cyber Matrix**: Hacker command-line terminal grids and cyber laser traps.
 - **Stage 9: ViraBot Infestation Nexus**: Virus incubators and malware conduits crawling with minion spiders.
 - **Stage 10: The Dark Core**: A multi-phase showdown with **DARK LORD // BACKUP**, an explicitly corrupted battle copy guarding Restore Key piece 2.
-- **Stage 11: Command Block Throne**: Survive a corrupted replay of **King Orange**, his command staff, falling voxel volleys, and a reality-bending block sweep without undoing his redeemed story arc.
+- **Stage 11: Command Block Throne**: Break the corruption controlling **King Orange's replay**. Once freed, King immediately joins Orange as an automatic staff-wielding ally for the rest of the campaign; if malware knocks him out, he recompiles after a recovery delay.
 - **Stage 12: Glitch Browser Run**: Fight through broken tabs and moving browser-card platforms, with an 18-second stunning eraser pickup.
 - **Stage 13: Corrupted Cloud Cache**: Cross drifting sync nodes while a compact malware wave closes in.
 - **Stage 14: Root Access Gateway**: Break through the last security grid guarding the zero-day mainframe.

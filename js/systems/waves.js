@@ -1,11 +1,11 @@
-import { Zombie } from '../entities/zombies.js?v=9.6';
-import { DarkLord } from '../entities/dark_lord.js?v=9.6';
-import { KingOrange } from '../entities/king_orange.js?v=9.6';
-import { H4C3R } from '../entities/h4c3r.js?v=9.6';
-import { LuckyOrb } from '../entities/lucky_orb.js?v=9.6';
-import { audio } from '../engine/audio.js?v=9.6';
-import { particles } from '../engine/particles.js?v=9.6';
-import { speech } from '../engine/speech.js?v=9.6';
+import { Zombie } from '../entities/zombies.js?v=9.7';
+import { DarkLord } from '../entities/dark_lord.js?v=9.7';
+import { KingOrange } from '../entities/king_orange.js?v=9.7';
+import { H4C3R } from '../entities/h4c3r.js?v=9.7';
+import { LuckyOrb } from '../entities/lucky_orb.js?v=9.7';
+import { audio } from '../engine/audio.js?v=9.7';
+import { particles } from '../engine/particles.js?v=9.7';
+import { speech } from '../engine/speech.js?v=9.7';
 const BOSS_WAVES = new Set([5, 10, 11, 15, 16, 17, 18]);
 const BOSS_SPAWNS = Object.freeze({
 	titan_boss: [null, '#ff2244', '💀 TITAN UNDEAD 💀', 'titan', 105],

@@ -1,9 +1,9 @@
-import { StickFigureRenderer } from './stickman.js?v=9.6';
-import { particles } from '../engine/particles.js?v=9.6';
-import { audio } from '../engine/audio.js?v=9.6';
-import { projectiles } from './projectiles.js?v=9.6';
-import { combat } from '../systems/combat.js?v=9.6';
-import { speech } from '../engine/speech.js?v=9.6';
+import { StickFigureRenderer } from './stickman.js?v=9.7';
+import { particles } from '../engine/particles.js?v=9.7';
+import { audio } from '../engine/audio.js?v=9.7';
+import { projectiles } from './projectiles.js?v=9.7';
+import { combat } from '../systems/combat.js?v=9.7';
+import { speech } from '../engine/speech.js?v=9.7';
 const HOOK_PULL_ARENA_BOUND = 1060;
 const ZOMBIE_ARENA_BOUND = 1060;
 const ZOMBIE_STATS = Object.freeze({

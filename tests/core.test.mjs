@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=9.6';
-import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.6';
+import { Camera } from '../js/engine/camera.js?v=9.7';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.7';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,21 +14,21 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=9.6';
-import { AllyManager, allies } from '../js/entities/allies.js?v=9.6';
-import { DarkLord } from '../js/entities/dark_lord.js?v=9.6';
-import { H4C3R } from '../js/entities/h4c3r.js?v=9.6';
-import { KingOrange } from '../js/entities/king_orange.js?v=9.6';
-import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.6';
-import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.6';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.6';
-import { Zombie } from '../js/entities/zombies.js?v=9.6';
-import { weapons } from '../js/entities/weapons.js?v=9.6';
-import { combat } from '../js/systems/combat.js?v=9.6';
-import { SaveSystem } from '../js/systems/save.js?v=9.6';
-import { shop } from '../js/systems/shop.js?v=9.6';
-import { Game } from '../js/main.js?v=9.6';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.6';
+} from '../js/engine/speech.js?v=9.7';
+import { AllyManager, allies } from '../js/entities/allies.js?v=9.7';
+import { DarkLord } from '../js/entities/dark_lord.js?v=9.7';
+import { H4C3R } from '../js/entities/h4c3r.js?v=9.7';
+import { KingOrange } from '../js/entities/king_orange.js?v=9.7';
+import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.7';
+import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.7';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.7';
+import { Zombie } from '../js/entities/zombies.js?v=9.7';
+import { weapons } from '../js/entities/weapons.js?v=9.7';
+import { combat } from '../js/systems/combat.js?v=9.7';
+import { SaveSystem } from '../js/systems/save.js?v=9.7';
+import { shop } from '../js/systems/shop.js?v=9.7';
+import { Game } from '../js/main.js?v=9.7';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.7';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -39,9 +39,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=9.6';
+} from '../js/systems/waves.js?v=9.7';
 
-const RELEASE_MODULE_VERSION = '9.6';
+const RELEASE_MODULE_VERSION = '9.7';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -335,6 +335,15 @@ test('ally calls and Yellow turrets stay inside the arena at an outward wall', (
   const cursorManager = new AllyManager();
   assert.equal(cursorManager.summonAlly('cursor', 1075, 0, 1, []), true);
   assert.ok(Math.abs(cursorManager.activeCursors[0].startX) <= 1030);
+
+  for (const side of [-1, 1]) {
+    const kingManager = new AllyManager();
+    kingManager.reset(false, false, true);
+    kingManager.summonAlly('king', 0, 0, 1);
+    Object.assign(kingManager.activeAllies[0], { x: 0, y: 0, hasActed: true, timer: 1 });
+    kingManager.update(1, 0, [], { x: side * 1075, facing: -side }, camera);
+    assert.ok(Math.abs(kingManager.activeAllies[0].x) <= 1030, `King escaped at side ${side}`);
+  }
   particles.reset();
 });
 
@@ -363,6 +372,83 @@ test('one zombie hit interrupts an ally and starts one extended recovery', () =>
   assert.equal(manager.cooldowns.blue, recovery, 'stage cleanup should preserve injury recovery');
   manager.reset(false);
   assert.equal(manager.cooldowns.blue, 0, 'a full reset should clear recovery');
+  particles.reset();
+  speech.reset();
+});
+
+test('defeating King Orange frees exactly one permanent friendly King', () => {
+  allies.reset(true);
+  combat.resetRun();
+  particles.reset();
+  speech.reset();
+  try {
+    const boss = new KingOrange(240, 0);
+    boss.facing = -1;
+    boss.hp = 1;
+    assert.equal(boss.takeDamage(99, 1, 300, false), 1);
+    assert.equal(boss.isDead, true);
+    assert.equal(allies.unlocked.king, true);
+    assert.equal(allies.activeAllies.filter((ally) => ally.type === 'king').length, 1);
+    const friendly = allies.activeAllies[0];
+    assert.notEqual(friendly, boss, 'the hostile replay must not be reused as friendly AI');
+    assert.equal(friendly.isAlly, true);
+    assert.equal(friendly.facing, -1);
+    boss.die();
+    assert.equal(allies.activeAllies.filter((ally) => ally.type === 'king').length, 1);
+  } finally {
+    allies.reset(true);
+    combat.resetRun();
+    particles.reset();
+    speech.reset();
+  }
+});
+
+test('friendly King attacks malware, recovers from injury, and follows late-stage lifecycle', () => {
+  particles.reset();
+  speech.reset();
+  const manager = new AllyManager();
+  const camera = { addShake() {}, addZoomPunch() {} };
+  let hostileHits = 0;
+  let orangeHits = 0;
+  const hostile = {
+    x: 220, y: 0, isDead: false, isBoss: false,
+    takeDamage() { hostileHits += 1; }
+  };
+  const player = {
+    x: 0, y: 0, facing: 1, isDead: false,
+    heal() {}, takeDamage() { orangeHits += 1; }
+  };
+
+  manager.reset(false, false, true);
+  manager.update(0.3, 0, [hostile], player, camera);
+  let telegraphRadius = 0;
+  const { context } = createCanvasContextMock();
+  context.ellipse = (_x, _y, radius) => { telegraphRadius = Math.max(telegraphRadius, radius); };
+  manager.draw(context);
+  assert.equal(telegraphRadius, 620, 'the cast ring must disclose the full staff sweep');
+  for (let frame = 0; frame < 90 && hostileHits === 0; frame += 1) {
+    manager.update(1 / 60, 0, [hostile], player, camera);
+  }
+  assert.equal(hostileHits, 1);
+  assert.equal(orangeHits, 0);
+  assert.equal(manager.activeAllies.filter((ally) => ally.type === 'king').length, 1);
+
+  const king = manager.activeAllies[0];
+  assert.equal(king.takeDamage(20, 1), true);
+  assert.equal(manager.recoveryStates.king, true);
+  assert.equal(manager.cooldowns.king, manager.maxCooldowns.king + 4);
+  for (let second = 0; second < manager.maxCooldowns.king + 4; second += 1) {
+    manager.update(1, 0, [], player, camera);
+  }
+  assert.equal(manager.activeAllies.filter((ally) => ally.type === 'king').length, 1);
+  assert.equal(manager.activeAllies[0].retreating, false);
+
+  manager.reset(false, false, false);
+  manager.update(1 / 60, 0, [], player, camera);
+  assert.equal(manager.activeAllies.length, 0, 'stage 11 retry restores the boss, not the ally');
+  manager.reset(false, false, true);
+  manager.update(1 / 60, 0, [], player, camera);
+  assert.equal(manager.activeAllies[0]?.type, 'king', 'stage 12+ retry or Continue restores the ally');
   particles.reset();
   speech.reset();
 });
@@ -1260,6 +1346,7 @@ test('boss-owned cleanup cannot strand the projectile that dealt the final hit',
 
   assert.equal(boss.isDead, true);
   assert.deepEqual(projectiles.projectiles, []);
+  allies.reset(true);
   projectiles.reset();
 });
 
@@ -1402,6 +1489,7 @@ test('self-detonating Boom-Bugs award their kill and bosses report applied damag
     assert.equal(boss.takeDamage(999, 1, 300, false), 10, `${name} clamps overkill to remaining hp`);
     assert.equal(boss.takeDamage(50, 1, 300, false), 0, `${name} reports zero once defeated`);
   }
+  allies.reset(true);
   combat.resetRun();
   particles.reset();
 });
@@ -1445,6 +1533,7 @@ test('Titan and every story boss explode exactly once when defeated', () => {
     assert.ok(particles.limbDebris.length <= particles.maxLimbDebris);
   } finally {
     particles.emitBossExplosion = originalExplosion;
+    allies.reset(true);
     combat.resetRun();
     particles.reset();
     speech.reset();
@@ -1468,6 +1557,7 @@ test('wave removal briefly frames a defeated boss before the exit pan', () => {
   assert.equal(focusCalls[0][0], boss.x);
   assert.equal(focusCalls[0][3], 1.06);
   combat.resetRun();
+  allies.reset(true);
   particles.reset();
   speech.reset();
 });
@@ -1592,7 +1682,7 @@ test('vector hook draw stays balanced and a miss uses the short cooldown', () =>
 });
 
 test('speech corpus gives every ally terse, character-specific banter', () => {
-  const allyNames = ['red', 'blue', 'yellow', 'green', 'cursor'];
+  const allyNames = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen', 'king'];
   for (const allyName of allyNames) {
     const lines = SPEECH_CORPUS.allies[allyName];
     assert.ok(Array.isArray(lines) && lines.length >= 3, `${allyName} needs its own quips`);

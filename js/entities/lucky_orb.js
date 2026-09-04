@@ -1,7 +1,7 @@
-import { particles } from '../engine/particles.js?v=9.6';
-import { audio } from '../engine/audio.js?v=9.6';
-import { speech } from '../engine/speech.js?v=9.6';
-import { combat } from '../systems/combat.js?v=9.6';
+import { particles } from '../engine/particles.js?v=9.7';
+import { audio } from '../engine/audio.js?v=9.7';
+import { speech } from '../engine/speech.js?v=9.7';
+import { combat } from '../systems/combat.js?v=9.7';
 const LEFT = -980;
 const RIGHT = 980;
 const GOLD = '#ffd43b';

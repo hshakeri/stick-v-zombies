@@ -1,72 +1,34 @@
-import { StickFigureRenderer } from './stickman.js?v=9.6';
-import { particles } from '../engine/particles.js?v=9.6';
-import { audio } from '../engine/audio.js?v=9.6';
-import { projectiles } from './projectiles.js?v=9.6';
-import { speech } from '../engine/speech.js?v=9.6';
+import { StickFigureRenderer } from './stickman.js?v=9.7';
+import { particles } from '../engine/particles.js?v=9.7';
+import { audio } from '../engine/audio.js?v=9.7';
+import { projectiles } from './projectiles.js?v=9.7';
+import { speech } from '../engine/speech.js?v=9.7';
 const ALLY_ARENA_BOUND = 1030;
 const ALLY_READY_TIME = 0.55;
-const ALLY_EFFECT_RADIUS = Object.freeze({
-  red: 220,
-  blue: 520,
-  yellow: 600,
-  green: 480
- ,chosen: 620
-});
-const ALLY_COLORS = Object.freeze({
-  red: '#ff3344',
-  blue: '#2299ff',
-  yellow: '#ffcc00',
-  green: '#33dd66'
-  ,chosen: '#e8e8e8'
-});
+const clampAllyX=x=>Math.max(-ALLY_ARENA_BOUND,Math.min(ALLY_ARENA_BOUND,x));
+const ALLY_EFFECT_RADIUS=Object.freeze({red:220,blue:520,yellow:600,green:480,chosen:620,king:620});
+const ALLY_COLORS=Object.freeze({red:'#ff3344',blue:'#2299ff',yellow:'#ffcc00',green:'#33dd66',chosen:'#e8e8e8',king:'#ff8a22'});
 export class AllyManager {
   constructor() {
-	this.unlocked = {
-	  red: true,
-	  blue: true,
-	  yellow: true,
-	  green: true,
-	  cursor: true
-	  ,chosen: true
-	};
-	this.cooldowns = {
-	  red: 0,
-	  blue: 0,
-	  yellow: 0,
-	  green: 0,
-	  cursor: 0
-	  ,chosen: 0
-	};
-	this.maxCooldowns = {
-	  red: 10,
-	  blue: 12,
-	  yellow: 14,
-	  green: 12,
-	  cursor: 14
-	  ,chosen: 16
-	};
-	this.recoveryStates = {
-	  red: false,
-	  blue: false,
-	  yellow: false,
-	  green: false,
-	  cursor: false
-	  ,chosen: false
-	};
+	this.unlocked={red:true,blue:true,yellow:true,green:true,cursor:true,chosen:true};
+	this.cooldowns={red:0,blue:0,yellow:0,green:0,cursor:0,chosen:0,king:0};
+	this.maxCooldowns={red:10,blue:12,yellow:14,green:12,cursor:14,chosen:16,king:14};
+	this.recoveryStates={red:false,blue:false,yellow:false,green:false,cursor:false,chosen:false};
 	this.activeAllies = [];
 	this.turrets = [];
 	this.activeCursors = [];
 	this.combatTargets = [];
 	this.summonTargets = [];
 	this.renderers = {
-	  red: new StickFigureRenderer('#ff3344', 5, 1.0, false),
-	  blue: new StickFigureRenderer('#2299ff', 5, 1.0, false),
-	  yellow: new StickFigureRenderer('#ffcc00', 5, 1.0, false),
-	  green: new StickFigureRenderer('#33dd66', 5, 1.0, false)
-	  ,chosen: new StickFigureRenderer('#111111', 6, 1.08, false)
+	  red:new StickFigureRenderer('#ff3344',5,1,false),
+	  blue:new StickFigureRenderer('#2299ff',5,1,false),
+	  yellow:new StickFigureRenderer('#ffcc00',5,1,false),
+	  green:new StickFigureRenderer('#33dd66',5,1,false),
+	  chosen:new StickFigureRenderer('#111111',6,1.08,false),
+	  king:new StickFigureRenderer('#cc6600',6,1.15,false)
 	};
   }
-  reset(resetUpgrades = false, preserveRecovery = false) {
+  reset(resetUpgrades = false, preserveRecovery = false, kingUnlocked = false) {
 	const savedRecovery = {};
 	if (preserveRecovery) {
 	  for (const key of Object.keys(this.cooldowns)) {
@@ -82,15 +44,9 @@ export class AllyManager {
 	  this.cooldowns[key] = savedRecovery[key] || 0;
 	  this.recoveryStates[key] = this.cooldowns[key] > 0;
 	}
+	this.unlocked.king=kingUnlocked;
 	if (resetUpgrades) {
-	  Object.assign(this.maxCooldowns, {
-		red: 10,
-		blue: 12,
-		yellow: 14,
-		green: 12,
-		cursor: 14
-		,chosen: 16
-	  });
+	  Object.assign(this.maxCooldowns,{red:10,blue:12,yellow:14,green:12,cursor:14,chosen:16,king:14});
 	}
   }
   update(dt, groundY, zombies, player, camera) {
@@ -100,6 +56,7 @@ export class AllyManager {
 		if (this.cooldowns[key] === 0) this.recoveryStates[key] = false;
 	  }
 	}
+	if(player&&this.unlocked.king&&!this.cooldowns.king&&!this.activeAllies.some(a=>a.type==='king'))this.summonAlly('king',player.x,groundY,player.facing);
 	for (let i = this.activeAllies.length - 1; i >= 0; i--) {
 	  const ally = this.activeAllies[i];
 	  ally.timer += dt;
@@ -270,15 +227,17 @@ export class AllyManager {
 		  this.beginReturn(ally);
 		  ally.y -= 900 * dt;
 		}
-	  } else if (ally.type === 'chosen') {
+	  } else if (ally.type === 'chosen'||ally.type === 'king') {
+		const k=ally.type==='king';
+		if(k&&ally.hasActed){ally.facing=player.facing;ally.x=clampAllyX(ally.x+(player.x-player.facing*85-ally.x)*Math.min(1,dt*3));if(ally.timer>3.6){ally.timer=ally.readyTimer=0;ally.hasActed=false;}}
 		if (!ally.hasActed&&ally.y<groundY) ally.y=Math.min(groundY,ally.y+1100*dt);
 		if (!ally.hasActed && ally.y >= groundY) {
 		  ally.y=groundY;ally.readyTimer+=dt;ally.pose='idle';
 		  if (ally.readyTimer >= ALLY_READY_TIME) {
 			ally.hasActed=true;ally.pose='attack_cross';camera.addShake(.85);camera.addZoomPunch?.(.075);audio.playAwakening();
-			particles.addShockwave(ally.x+ally.facing*260,groundY-35,ALLY_EFFECT_RADIUS.chosen,'#ff7a22',18);
-			for(const z of zombies)if(!z.isDead&&(z.x-ally.x)*ally.facing>=-45&&Math.abs(z.x-ally.x)<=ALLY_EFFECT_RADIUS.chosen)z.takeDamage(z.isBoss?120:210,ally.facing,950,true);
-			speech.shout(ally.x,ally.y,'allies','chosen',1.35,{anchor:ally,priority:2});
+			particles.addShockwave(ally.x+ally.facing*260,groundY-35,620,'#ff7a22',18);
+			for(const z of zombies)if(!z.isDead&&(z.x-ally.x)*ally.facing>=-45&&Math.abs(z.x-ally.x)<=620)z.takeDamage(z.isBoss?120:210,ally.facing,950,true);
+			speech.shout(ally.x,ally.y,'allies',ally.type,1.35,{anchor:ally,priority:2});
 		  }
 		}
 	  }
@@ -480,18 +439,8 @@ export class AllyManager {
 	  }
 	  const renderer = this.renderers[ally.type];
 	  if (renderer) {
-		renderer.draw(ctx, {
-		  x: ally.x,
-		  y: ally.y,
-		  facing: ally.facing,
-		  pose: ally.pose || 'idle',
-		  animTimer: ally.timer,
-		  isGrounded: true,
-		  isHurt: ally.isHurt === true,
-		  isAwakened:ally.type==='chosen',
-		  scale: 1.0,
-		  alpha: 1.0
-		});
+		renderer.draw(ctx,{x:ally.x,y:ally.y,facing:ally.facing,pose:ally.pose||'idle',animTimer:ally.timer,isGrounded:true,isHurt:ally.isHurt===true,isAwakened:ally.type==='chosen',weaponType:ally.type==='king'?'staff':null});
+		if(ally.type==='king'){ctx.fillStyle='#ffd54a';ctx.fillRect(ally.x-15,ally.y-98,30,7);ctx.fillRect(ally.x-13,ally.y-108,6,10);ctx.fillRect(ally.x-3,ally.y-113,6,15);ctx.fillRect(ally.x+7,ally.y-108,6,10);}
 	  }
 	}
 	for (const c of this.activeCursors) {
@@ -583,7 +532,7 @@ export class AllyManager {
 		}
 	  }
 	  const desiredCursorX = targetZombie ? targetZombie.x + 180 : targetX + 200;
-	  const spawnX = Math.max(-ALLY_ARENA_BOUND, Math.min(ALLY_ARENA_BOUND, desiredCursorX));
+	  const spawnX=clampAllyX(desiredCursorX);
 	  const spawnY = targetZombie ? targetZombie.y - 250 : targetY - 250;
 	  this.activeCursors.push({
 		startX: spawnX,
@@ -603,26 +552,8 @@ export class AllyManager {
 	}
 	const spawnY = type === 'red' ? targetY - 450 : targetY - (type === 'chosen' ? 380 : 300);
 	const desiredSpawnX = targetX + (type === 'red' ? 60 : (type === 'chosen' ? 80 : 45)) * facing;
-	const spawnX = Math.max(-ALLY_ARENA_BOUND, Math.min(ALLY_ARENA_BOUND, desiredSpawnX));
-	const ally = {
-	  type,
-	  x: spawnX,
-	  y: spawnY,
-	  facing,
-	  pose: type === 'red' ? 'dive_kick' : 'jump_rise',
-	  timer: 0,
-	  readyTimer: 0,
-	  life: 2.5,
-	  hasActed: false,
-	  isAlly: true,
-	  isDead: false,
-	  isTargetable: false,
-	  retreating: false,
-	  isHurt: false,
-	  hurtTimer: 0,
-	  radius: 18,
-	  height: 62
-	};
+	const spawnX=clampAllyX(desiredSpawnX);
+	const ally={type,x:spawnX,y:spawnY,facing,pose:type==='red'?'dive_kick':'jump_rise',timer:0,readyTimer:0,life:type==='king'?1e9:2.5,hasActed:false,isAlly:true,isDead:false,isTargetable:false,retreating:false,isHurt:false,hurtTimer:0,radius:18,height:62};
 	ally.takeDamage = (amount, knockbackDir = 0) => this.injureAlly(ally, amount, knockbackDir);
 	this.activeAllies.push(ally);
 	return true;

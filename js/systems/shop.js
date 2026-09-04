@@ -1,8 +1,8 @@
-import { combat } from './combat.js?v=9.6';
-import { audio } from '../engine/audio.js?v=9.6';
-import { allies } from '../entities/allies.js?v=9.6';
-import { weapons } from '../entities/weapons.js?v=9.6';
-import { particles } from '../engine/particles.js?v=9.6';
+import { combat } from './combat.js?v=9.7';
+import { audio } from '../engine/audio.js?v=9.7';
+import { allies } from '../entities/allies.js?v=9.7';
+import { weapons } from '../entities/weapons.js?v=9.7';
+import { particles } from '../engine/particles.js?v=9.7';
 export class ShopSystem {
   constructor() {
 	this.upgrades = [
