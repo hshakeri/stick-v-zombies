@@ -6,6 +6,8 @@ A lightweight 2D action arena game inspired by Alan Becker's *Animator vs. Anima
 
 H4C3R has split and stolen `RESTORE.KEY`, then weaponized corrupted battle replays to hide its three pieces. Orange and the whole stick squad follow the trace through the desktop, deleted files, browser tabs, cloud cache, a hacked Creeper Clan archive, a rigged Lucky Orb encounter, and the root system.
 
+Defeat H4C3R to unlock a playable Trophy Room epilogue, reunite with King Orange, inspect every boss plaque, and enter the Results door when you are ready to finish the run.
+
 > **Unofficial fan project:** This game is a non-commercial tribute made for fun and learning. It is not affiliated with or endorsed by Alan Becker, Mojang, or Microsoft. All referenced characters and properties belong to their respective owners.
 
 ---

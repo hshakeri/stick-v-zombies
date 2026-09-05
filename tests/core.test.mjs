@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { Camera } from '../js/engine/camera.js?v=9.7';
-import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.7';
+import { Camera } from '../js/engine/camera.js?v=9.8';
+import { IMPACT_PROFILES, SPLATTER_LIMITS, ParticleSystem, particles } from '../js/engine/particles.js?v=9.8';
 import {
   BOSS_SPEECH_EVENTS,
   MAX_SPEECH_BUBBLES,
@@ -14,21 +14,21 @@ import {
   SPEECH_CORPUS,
   SpeechBubbleManager,
   speech
-} from '../js/engine/speech.js?v=9.7';
-import { AllyManager, allies } from '../js/entities/allies.js?v=9.7';
-import { DarkLord } from '../js/entities/dark_lord.js?v=9.7';
-import { H4C3R } from '../js/entities/h4c3r.js?v=9.7';
-import { KingOrange } from '../js/entities/king_orange.js?v=9.7';
-import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.7';
-import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.7';
-import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.7';
-import { Zombie } from '../js/entities/zombies.js?v=9.7';
-import { weapons } from '../js/entities/weapons.js?v=9.7';
-import { combat } from '../js/systems/combat.js?v=9.7';
-import { SaveSystem } from '../js/systems/save.js?v=9.7';
-import { shop } from '../js/systems/shop.js?v=9.7';
-import { Game } from '../js/main.js?v=9.7';
-import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.7';
+} from '../js/engine/speech.js?v=9.8';
+import { AllyManager, allies } from '../js/entities/allies.js?v=9.8';
+import { DarkLord } from '../js/entities/dark_lord.js?v=9.8';
+import { H4C3R } from '../js/entities/h4c3r.js?v=9.8';
+import { KingOrange } from '../js/entities/king_orange.js?v=9.8';
+import { LuckyOrb } from '../js/entities/lucky_orb.js?v=9.8';
+import { ATTACK_BUFFER_SECONDS, JAVELIN_METER_COST, MOVE_DEFINITIONS, Player } from '../js/entities/player.js?v=9.8';
+import { ProjectileManager, projectiles } from '../js/entities/projectiles.js?v=9.8';
+import { Zombie } from '../js/entities/zombies.js?v=9.8';
+import { weapons } from '../js/entities/weapons.js?v=9.8';
+import { combat } from '../js/systems/combat.js?v=9.8';
+import { SaveSystem, save } from '../js/systems/save.js?v=9.8';
+import { shop } from '../js/systems/shop.js?v=9.8';
+import { Game } from '../js/main.js?v=9.8';
+import { CAMPAIGN_BEATS, MAX_ENVIRONMENT_DECORATIONS, StageManager } from '../js/systems/stages.js?v=9.8';
 import {
   ABSOLUTE_ACTIVE_ENEMY_CAP,
   MAX_BOSS_HELPERS,
@@ -39,9 +39,9 @@ import {
   WAVE_RECIPE_TOTALS,
   WaveDirector,
   waves
-} from '../js/systems/waves.js?v=9.7';
+} from '../js/systems/waves.js?v=9.8';
 
-const RELEASE_MODULE_VERSION = '9.7';
+const RELEASE_MODULE_VERSION = '9.8';
 
 function listJavaScriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -948,25 +948,92 @@ test('stage clear fires the written ally reaction and campaign clue', () => {
   speech.reset();
 });
 
-test('the final exit waits for H4C3R defeat framing to finish', () => {
+test('H4C3R defeat enters the trophy room after its full framing beat', () => {
   projectiles.reset();
   const manager = new StageManager();
   manager.loadStage(18);
   const calls = [];
+  const exits = [];
   const camera = {
     focusOn(...args) { calls.push(['focus', ...args]); },
     addZoomPunch(amount) { calls.push(['zoom', amount]); }
   };
   const player = { x: -800, y: 0, isDead: false };
   const clearedWave = { isWaveActive: true, spawnQueue: [], zombies: [] };
+  const enterRoom = (nextStage) => {
+    exits.push(nextStage);
+    manager.enterTrophyRoom();
+  };
 
-  manager.update(0.016, player, clearedWave, () => {}, camera);
+  manager.update(0.016, player, clearedWave, enterRoom, camera);
   assert.equal(manager.exitDoor.isOpen, true);
   assert.deepEqual(calls, [], 'the exit pan must not overwrite the boss defeat focus');
 
-  for (let i = 0; i < 60; i += 1) manager.update(0.016, player, clearedWave, () => {}, camera);
-  assert.equal(calls[0][0], 'focus');
-  assert.equal(calls[1][0], 'zoom');
+  for (let i = 0; i < 112; i += 1) manager.update(0.016, player, clearedWave, enterRoom, camera);
+  assert.deepEqual(exits, [], 'the full 1.8s defeat line and boss explosion must remain visible');
+  for (let i = 0; i < 2; i += 1) manager.update(0.016, player, clearedWave, enterRoom, camera);
+  assert.deepEqual(exits, [19]);
+  assert.equal(manager.isTrophyRoom, true);
+  assert.deepEqual(calls, [], 'the room transition replaces the obsolete final-door pan');
+
+  const doomed = new StageManager();
+  doomed.loadStage(18);
+  const deadExits = [];
+  const deadPlayer = { x: -800, y: 0, isDead: true };
+  const previousRank = save.data.best.stageRanks[18];
+  delete save.data.best.stageRanks[18];
+  try {
+    doomed.update(0.016, deadPlayer, clearedWave, (stage) => deadExits.push(stage), camera);
+    for (let i = 0; i < 120; i += 1) doomed.update(0.016, deadPlayer, clearedWave, (stage) => deadExits.push(stage), camera);
+    assert.deepEqual(deadExits, [], 'a simultaneous knockout must resolve as game over, not victory');
+    assert.equal(doomed.isObjectiveComplete, false);
+    assert.equal(doomed.exitDoor.isOpen, false);
+    assert.equal(save.data.best.stageRanks[18], undefined, 'a failed double-KO cannot save a final-stage rank');
+  } finally {
+    if (previousRank === undefined) delete save.data.best.stageRanks[18];
+    else save.data.best.stageRanks[18] = previousRank;
+  }
+});
+
+test('the trophy room is deterministic, peaceful, and labels King Orange as freed', () => {
+  const first = new StageManager();
+  first.loadStage(18);
+  first.laserHazards.push({ stale: true });
+  first.errorPopups.push({ stale: true });
+  first.enterTrophyRoom();
+  const second = new StageManager();
+  second.enterTrophyRoom();
+
+  assert.equal(first.currentStage, 18, 'the epilogue must not invent a nineteenth campaign stage');
+  assert.equal(first.maxStage, 18);
+  assert.equal(first.stageName, 'Trophy Room');
+  assert.equal(first.theme, 'trophy');
+  assert.equal(first.isObjectiveComplete, true);
+  assert.equal(first.exitDoor.isOpen, true);
+  assert.deepEqual(first.laserHazards, []);
+  assert.deepEqual(first.errorPopups, []);
+  assert.deepEqual(first.environmentDecorations, second.environmentDecorations);
+  const labels = first.desktopIcons.map((icon) => icon.label);
+  assert.deepEqual(labels, ['TITAN', 'DARK LORD', 'KING FREED', 'CREEPER LORD', 'GIANT CAT', 'LUCKY ORB', 'H4C3R']);
+  assert.ok(first.platforms.some((platform) => platform.title.includes('RESTORE.KEY // 3/3')));
+
+  const { context, calls } = createCanvasContextMock();
+  first.draw(context, 0);
+  assert.equal(calls.save, calls.restore, 'the trophy-room renderer must balance canvas state');
+  first.loadStage(18);
+  assert.equal(first.isTrophyRoom, false, 'loading a combat stage clears epilogue state');
+});
+
+test('the trophy-room Results door completes once without starting another wave', () => {
+  const manager = new StageManager();
+  manager.enterTrophyRoom();
+  const player = { x: manager.exitDoor.x, y: manager.exitDoor.y, isDead: false };
+  const stoppedWave = { isWaveActive: false, spawnQueue: [], zombies: [] };
+  const exits = [];
+
+  for (let i = 0; i < 30; i += 1) manager.update(0.016, player, stoppedWave, (stage) => exits.push(stage));
+  assert.deepEqual(exits, [19]);
+  assert.equal(manager.exitDoor.isOpen, false);
 });
 
 test('boss-stage exit pans wait for the death explosion focus', () => {
@@ -2430,6 +2497,76 @@ test('retry preserves progression and upgrades while clearing transient combat s
   } finally {
     waves.startWave = originalStartWave;
     shop.upgrades[0].level = originalUpgradeLevel;
+    projectiles.reset();
+    allies.reset();
+    speech.reset();
+    particles.reset();
+    combat.resetRun(50);
+  }
+});
+
+test('entering the trophy room stops combat, saves victory, and keeps play active', () => {
+  const game = Object.create(Game.prototype);
+  const savedData = JSON.parse(JSON.stringify(save.data));
+  let mission = null;
+  try {
+    game.stageManager = new StageManager();
+    game.stageManager.loadStage(18);
+    game.player = new Player(400, -20);
+    game.player.hp = 3;
+    game.player.superMeter = 100;
+    game.player.activeMove = { stale: true };
+    let peacefulShakes = 0;
+    game.camera = {
+      snapTo(target) { this.target = target; }, clearTransient() {},
+      addShake() { peacefulShakes += 1; }, addZoomPunch() { peacefulShakes += 1; }
+    };
+    game.groundY = 0;
+    game.state = 'PLAYING';
+    game.weaponPickup = { type: 'stale' };
+    game.stageCheckpoint = { stage: 18 };
+    game.reportedLayerErrors = new Set(['old']);
+    game.hideAllModals = () => {};
+    game.syncContinueButton = () => {};
+    game.showMissionStrip = (stage, prefix) => { mission = [stage, prefix]; };
+    game.showModal = () => { throw new Error('victory modal must wait for the Results door'); };
+    waves.zombies.push({ stale: true });
+    waves.spawnQueue.push({ type: 'stale' });
+    waves.isWaveActive = true;
+    waves.isWaveClearing = true;
+    waves.bossZombie = waves.zombies[0];
+    projectiles.projectiles.push({ type: 'stale', life: 1 });
+    combat.score = 9001;
+    combat.maxCombo = 23;
+    combat.totalKills = 77;
+    save.data.checkpoint = { stage: 18 };
+
+    game.enterTrophyRoom();
+	game.captureStageCheckpoint();
+	for (let frame = 0; frame < 360; frame += 1) allies.update(1 / 60, 0, [], game.player, game.camera);
+
+    assert.equal(game.state, 'PLAYING');
+    assert.equal(game.stageManager.isTrophyRoom, true);
+    assert.equal(waves.isWaveActive, false);
+    assert.equal(waves.isWaveClearing, false);
+    assert.equal(waves.zombies.length, 0);
+    assert.equal(waves.spawnQueue.length, 0);
+    assert.equal(waves.bossZombie, null);
+    assert.equal(projectiles.projectiles.length, 0);
+    assert.equal(game.player.hp, game.player.maxHp);
+    assert.equal(game.player.superMeter, 0);
+    assert.equal(game.player.activeMove, null);
+    assert.equal(game.weaponPickup, null);
+	assert.equal(game.stageCheckpoint, null, 'epilogue upgrades cannot recreate the H4C3R checkpoint');
+    assert.equal(allies.activeAllies.filter((ally) => ally.type === 'king').length, 1, 'King joins the gallery');
+    assert.equal(peacefulShakes, 0, 'King stays peaceful when there is no malware to fight');
+    assert.deepEqual(mission, [18, 'EPILOGUE']);
+    assert.equal(save.data.unlocks.endless, true);
+    assert.equal(save.data.highestStageCleared, 18);
+    assert.equal(save.data.checkpoint, null, 'the victory survives leaving during the epilogue');
+  } finally {
+    save.data = savedData;
+    waves.stopWave();
     projectiles.reset();
     allies.reset();
     speech.reset();

@@ -1,8 +1,8 @@
-import { StickFigureRenderer } from './stickman.js?v=9.7';
-import { particles } from '../engine/particles.js?v=9.7';
-import { audio } from '../engine/audio.js?v=9.7';
-import { projectiles } from './projectiles.js?v=9.7';
-import { speech } from '../engine/speech.js?v=9.7';
+import { StickFigureRenderer } from './stickman.js?v=9.8';
+import { particles } from '../engine/particles.js?v=9.8';
+import { audio } from '../engine/audio.js?v=9.8';
+import { projectiles } from './projectiles.js?v=9.8';
+import { speech } from '../engine/speech.js?v=9.8';
 const ALLY_ARENA_BOUND = 1030;
 const ALLY_READY_TIME = 0.55;
 const clampAllyX=x=>Math.max(-ALLY_ARENA_BOUND,Math.min(ALLY_ARENA_BOUND,x));
@@ -229,12 +229,15 @@ export class AllyManager {
 		}
 	  } else if (ally.type === 'chosen'||ally.type === 'king') {
 		const k=ally.type==='king';
-		if(k&&ally.hasActed){ally.facing=player.facing;ally.x=clampAllyX(ally.x+(player.x-player.facing*85-ally.x)*Math.min(1,dt*3));if(ally.timer>3.6){ally.timer=ally.readyTimer=0;ally.hasActed=false;}}
+		const target=k&&zombies.find(z=>!z.isDead&&Math.abs(z.x-ally.x)<=ALLY_EFFECT_RADIUS.king);
+		if(k&&!target){ally.hasActed=false;ally.readyTimer=0;ally.pose='idle';ally.y=Math.min(groundY,ally.y+1100*dt);ally.facing=player.facing;ally.x=clampAllyX(ally.x+(player.x-player.facing*85-ally.x)*Math.min(1,dt*3));continue;}
+		if(target)ally.facing=target.x>=ally.x?1:-1;
+		if(k&&ally.hasActed){ally.pose=ally.timer<.22?'attack_cross':'idle';ally.x=clampAllyX(ally.x+(player.x-player.facing*85-ally.x)*Math.min(1,dt*3));if(ally.timer>3.6){ally.timer=ally.readyTimer=0;ally.hasActed=false;}}
 		if (!ally.hasActed&&ally.y<groundY) ally.y=Math.min(groundY,ally.y+1100*dt);
 		if (!ally.hasActed && ally.y >= groundY) {
 		  ally.y=groundY;ally.readyTimer+=dt;ally.pose='idle';
 		  if (ally.readyTimer >= ALLY_READY_TIME) {
-			ally.hasActed=true;ally.pose='attack_cross';camera.addShake(.85);camera.addZoomPunch?.(.075);audio.playAwakening();
+			ally.hasActed=true;ally.timer=0;ally.pose='attack_cross';camera.addShake(.85);camera.addZoomPunch?.(.075);audio.playAwakening();
 			particles.addShockwave(ally.x+ally.facing*260,groundY-35,620,'#ff7a22',18);
 			for(const z of zombies)if(!z.isDead&&(z.x-ally.x)*ally.facing>=-45&&Math.abs(z.x-ally.x)<=620)z.takeDamage(z.isBoss?120:210,ally.facing,950,true);
 			speech.shout(ally.x,ally.y,'allies',ally.type,1.35,{anchor:ally,priority:2});

@@ -1,776 +1,821 @@
-import { particles } from '../engine/particles.js?v=9.7';
-import { audio } from '../engine/audio.js?v=9.7';
-import { projectiles } from '../entities/projectiles.js?v=9.7';
-import { speech } from '../engine/speech.js?v=9.7';
-import { combat } from './combat.js?v=9.7';
-import { save } from './save.js?v=9.7';
+import { particles } from '../engine/particles.js?v=9.8';
+import { audio } from '../engine/audio.js?v=9.8';
+import { projectiles } from '../entities/projectiles.js?v=9.8';
+import { speech } from '../engine/speech.js?v=9.8';
+import { combat } from './combat.js?v=9.8';
+import { save } from './save.js?v=9.8';
 const CAMPAIGN_ACTS = ['I - BUG ON THE LOOSE','II - DELETED TRAIL','III - REPLAY TRAP','IV - CREEPER CLAN CACHE','V - ROOT OF LUCK'];
 const CAMPAIGN_ROWS = [
-	[0,'STOP THE DESKTOP BUG','TRAIL FOUND!','RESTORE.KEY WAS SPLIT',null,'red','BUGS NEED BONKS!'],
-	[0,'FOLLOW THE BAD FRAMES','FRAMES REPAIRED!','THE BUG SKIPPED AHEAD',null,'green','FOUND THE BAD BEAT!'],
-	[0,'CHECK THE FAKE DOWNLOAD','DOWNLOAD TRACED!','USER: H4C3R?',null,'blue','POTION THIEF!'],
-	[0,'OPEN THE FIREWALL','FIREWALL OPEN!','KEY SIGNAL IN CRASH DUMP',null,'red','KNOCK KNOCK!'],
-	[0,'DEFEAT THE TITAN','RESTORE KEY 1/3!','NEXT TRACE: RECYCLE BIN','TITAN UNDEAD','yellow','ONE KEY, TWO TO GO!'],
-	[1,'UNDELETE THE TRAIL','TRACE RESTORED!','OLD BATTLES WERE COPIED',null,'cursor','UNDELETE COMPLETE.'],
-	[1,'CROSS THE BLOCK BACKUP','BACKUP CLEAN!','REMOTE CODE BELOW',null,'yellow','BLOCKS? MY THING.'],
-	[1,'RUN THE CLEANUP','REMOTE USER FOUND!','H4C3R IS CONNECTED',null,'cursor','USER TRACE LOCKED.'],
-	[1,'SHUT THE VIRABOT NEXUS','NEXUS OFFLINE!','DARK BACKUP ACTIVE',null,'blue','THAT CODE LOOKS SICK.'],
-	[1,'CLEAR THE DARK BACKUP','RESTORE KEY 2/3!','A REPLAY HOLDS PIECE 3','DARK LORD // BACKUP','red','BACKUP: BONKED.'],
-	[2,"FREE THE KING'S REPLAY",'RESTORE KEY 3/3!','TRACE: ROOT://H4C3R','KING ORANGE // REPLAY','yellow','THAT WAS A COPY!'],
-	[2,'CHASE THE FAKE TABS','RIGHT TAB FOUND!','TRACE MOVED TO CLOUD',null,'cursor','WRONG TAB. AGAIN.'],
-	[2,'SYNC THE ROOT TRACE','TRACE LOCKED!','ROOT GATE LOCATED',null,'green','CLOUDS HAVE BAD WIFI.'],
-	[2,'BREAK THE ROOT GATE','CLAN CACHE FOUND!','H4C3R LOADED THE CLAN',null,'red','NEW REPLAY. BIG BONK.'],
-	[3,'DISARM CREEPER REPLAY','CROWN REPLAY CLEARED!','GIANT SIGNAL AHEAD','CREEPER LORD // REPLAY','yellow','NICE CROWN. BOINK!'],
-	[3,'CALM THE GIANT REPLAY','CAT REPLAY CALMED!','LUCK GATE EXPOSED','GIANT CAT // REPLAY','blue','WHO NEEDS THAT NAP?'],
-	[4,'OUTLUCK THE LUCKY ORB','ORB SENT HOME!','ROOT PORTAL EXPOSED','THE LUCKY ORB','yellow','LUCK RAN OUT!'],
-	[4,'LOG OUT H4C3R','SYSTEM RESTORED!','RESTORE KEY COMPLETE','H4C3R','green','FINAL BOSS MUSIC!']
+[0,'STOP THE DESKTOP BUG','TRAIL FOUND!','RESTORE.KEY WAS SPLIT',null,'red','BUGS NEED BONKS!'],
+[0,'FOLLOW THE BAD FRAMES','FRAMES REPAIRED!','THE BUG SKIPPED AHEAD',null,'green','FOUND THE BAD BEAT!'],
+[0,'CHECK THE FAKE DOWNLOAD','DOWNLOAD TRACED!','USER: H4C3R?',null,'blue','POTION THIEF!'],
+[0,'OPEN THE FIREWALL','FIREWALL OPEN!','KEY SIGNAL IN CRASH DUMP',null,'red','KNOCK KNOCK!'],
+[0,'DEFEAT THE TITAN','RESTORE KEY 1/3!','NEXT TRACE: RECYCLE BIN','TITAN UNDEAD','yellow','ONE KEY, TWO TO GO!'],
+[1,'UNDELETE THE TRAIL','TRACE RESTORED!','OLD BATTLES WERE COPIED',null,'cursor','UNDELETE COMPLETE.'],
+[1,'CROSS THE BLOCK BACKUP','BACKUP CLEAN!','REMOTE CODE BELOW',null,'yellow','BLOCKS? MY THING.'],
+[1,'RUN THE CLEANUP','REMOTE USER FOUND!','H4C3R IS CONNECTED',null,'cursor','USER TRACE LOCKED.'],
+[1,'SHUT THE VIRABOT NEXUS','NEXUS OFFLINE!','DARK BACKUP ACTIVE',null,'blue','THAT CODE LOOKS SICK.'],
+[1,'CLEAR THE DARK BACKUP','RESTORE KEY 2/3!','A REPLAY HOLDS PIECE 3','DARK LORD // BACKUP','red','BACKUP: BONKED.'],
+[2,"FREE THE KING'S REPLAY",'RESTORE KEY 3/3!','TRACE: ROOT://H4C3R','KING ORANGE // REPLAY','yellow','THAT WAS A COPY!'],
+[2,'CHASE THE FAKE TABS','RIGHT TAB FOUND!','TRACE MOVED TO CLOUD',null,'cursor','WRONG TAB. AGAIN.'],
+[2,'SYNC THE ROOT TRACE','TRACE LOCKED!','ROOT GATE LOCATED',null,'green','CLOUDS HAVE BAD WIFI.'],
+[2,'BREAK THE ROOT GATE','CLAN CACHE FOUND!','H4C3R LOADED THE CLAN',null,'red','NEW REPLAY. BIG BONK.'],
+[3,'DISARM CREEPER REPLAY','CROWN REPLAY CLEARED!','GIANT SIGNAL AHEAD','CREEPER LORD // REPLAY','yellow','NICE CROWN. BOINK!'],
+[3,'CALM THE GIANT REPLAY','CAT REPLAY CALMED!','LUCK GATE EXPOSED','GIANT CAT // REPLAY','blue','WHO NEEDS THAT NAP?'],
+[4,'OUTLUCK THE LUCKY ORB','ORB SENT HOME!','ROOT PORTAL EXPOSED','THE LUCKY ORB','yellow','LUCK RAN OUT!'],
+[4,'LOG OUT H4C3R','SYSTEM RESTORED!','RESTORE KEY COMPLETE','H4C3R','green','FINAL BOSS MUSIC!']
 ];
 export const CAMPAIGN_BEATS = Object.freeze(Object.fromEntries(CAMPAIGN_ROWS.map((row, i) => [i + 1,
-	Object.freeze({ act: CAMPAIGN_ACTS[row[0]], mission: row[1], clearText: row[2], clue: row[3], bossLabel: row[4],
-		allyReaction: Object.freeze({ ally: row[5], line: row[6] }) })
+Object.freeze({ act: CAMPAIGN_ACTS[row[0]], mission: row[1], clearText: row[2], clue: row[3], bossLabel: row[4],
+	allyReaction: Object.freeze({ ally: row[5], line: row[6] }) })
 ])));
+const TROPHY_ROOM_BEAT = Object.freeze({
+act: 'EPILOGUE // TROPHY ROOM', mission: 'TOUR THE RESTORED DESKTOP', clearText: 'SYSTEM RESTORED!',
+clue: 'RESTORE.KEY COMPLETE', bossLabel: null
+});
 export const MAX_ENVIRONMENT_DECORATIONS = 24;
 const ENVIRONMENT_COLORS = Object.freeze({
-	desktop: '#7d8caf', animate: '#9299bd', downloads: '#62c4ff', firewall: '#ff4f64',
-	bsod: '#d5ecff', recycle: '#75d6da', minecraft: '#ff682c', terminal: '#45ff82',
-	virabot: '#ff397b', dark_core: '#ff234d', command_realm: '#ffb340',
-	browser_glitch: '#5ce1ff', cloud_cache: '#a6e3ff', root_gateway: '#42ff8a',
-	creeper_clan: '#b7e45d', lucky_orb: '#ffd84d', zero_day: '#74edff'
+desktop: '#7d8caf', animate: '#9299bd', downloads: '#62c4ff', firewall: '#ff4f64',
+bsod: '#d5ecff', recycle: '#75d6da', minecraft: '#ff682c', terminal: '#45ff82',
+virabot: '#ff397b', dark_core: '#ff234d', command_realm: '#ffb340',
+browser_glitch: '#5ce1ff', cloud_cache: '#a6e3ff', root_gateway: '#42ff8a',
+creeper_clan: '#b7e45d', lucky_orb: '#ffd84d', zero_day: '#74edff', trophy: '#ffd54a'
 });
 function createEnvironmentDecorations(stage, theme) {
-	const color = ENVIRONMENT_COLORS[theme] || ENVIRONMENT_COLORS.desktop;
-	const decorations = Array.from({ length: MAX_ENVIRONMENT_DECORATIONS }, (_, index) => Object.freeze({
-		layer: index % 2,
-		x: -1020 + ((index * 347 + stage * 89) % 2040),
-		y: -625 + ((index * 173 + stage * 61) % 470),
-		size: 2 + ((index * 5 + stage) % 7),
-		speed: 0.12 + ((index + stage) % 5) * 0.025,
-		phase: ((index * 37 + stage * 13) % 360) * Math.PI / 180,
-		shape: (index + stage) % 3,
-		color
-	}));
-	return Object.freeze(decorations);
+const color = ENVIRONMENT_COLORS[theme] || ENVIRONMENT_COLORS.desktop;
+const decorations = Array.from({ length: MAX_ENVIRONMENT_DECORATIONS }, (_, index) => Object.freeze({
+	layer: index % 2,
+	x: -1020 + ((index * 347 + stage * 89) % 2040),
+	y: -625 + ((index * 173 + stage * 61) % 470),
+	size: 2 + ((index * 5 + stage) % 7),
+	speed: 0.12 + ((index + stage) % 5) * 0.025,
+	phase: ((index * 37 + stage * 13) % 360) * Math.PI / 180,
+	shape: (index + stage) % 3,
+	color
+}));
+return Object.freeze(decorations);
 }
 function strokeGridPath(ctx, minX, maxX, minY, maxY, stepX, stepY = stepX) {
-	ctx.beginPath();
-	for (let x = minX; x <= maxX; x += stepX) {
-		ctx.moveTo(x, minY);
-		ctx.lineTo(x, maxY);
-	}
-	for (let y = minY; y <= maxY; y += stepY) {
-		ctx.moveTo(minX, y);
-		ctx.lineTo(maxX, y);
-	}
-	ctx.stroke();
+ctx.beginPath();
+for (let x = minX; x <= maxX; x += stepX) {
+	ctx.moveTo(x, minY);
+	ctx.lineTo(x, maxY);
+}
+for (let y = minY; y <= maxY; y += stepY) {
+	ctx.moveTo(minX, y);
+	ctx.lineTo(maxX, y);
+}
+ctx.stroke();
 }
 export class StageManager {
-	constructor() {
-		this.currentStage = 1;
-		this.maxStage = 18;
-		this.stageName = 'Main Desktop';
-		this.theme = 'desktop';
-		this.bounds = {
-			minX: -1100,
-			maxX: 1100,
-			minY: -700,
-			maxY: 100,
-			groundY: 0
-		};
-		this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
-		this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
-		this.platforms = [];
-		this.movingPlatforms = [];
-		this.desktopIcons = [];
-		this.laserHazards = [];
-		this.errorPopups = [];
-		this.isObjectiveComplete = false;
-		this.doorTransitionTimer = 0;
-		this.exitFocusTimer = -1;
-		this.stageTime = 0;
-		this.campaignBeat = CAMPAIGN_BEATS[1];
-		this.environmentDecorations = Object.freeze([]);
-		this.solidPlatformsScratch = [];
-		this.loadStage(1);
+constructor() {
+	this.currentStage = 1;
+	this.maxStage = 18;
+	this.stageName = 'Main Desktop';
+	this.theme = 'desktop';
+	this.bounds = {
+		minX: -1100,
+		maxX: 1100,
+		minY: -700,
+		maxY: 100,
+		groundY: 0
+	};
+	this.entranceDoor = { x: -950, y: 0, width: 60, height: 90 };
+	this.exitDoor = { x: 950, y: 0, width: 60, height: 90, isOpen: false };
+	this.platforms = [];
+	this.movingPlatforms = [];
+	this.desktopIcons = [];
+	this.laserHazards = [];
+	this.errorPopups = [];
+	this.isTrophyRoom = false;
+	this.isObjectiveComplete = false;
+	this.doorTransitionTimer = 0;
+	this.exitFocusTimer = -1;
+	this.stageTime = 0;
+	this.campaignBeat = CAMPAIGN_BEATS[1];
+	this.environmentDecorations = Object.freeze([]);
+	this.solidPlatformsScratch = [];
+	this.loadStage(1);
+}
+loadStage(stageNum) {
+	this.maxStage = 18;
+	const numericStage = Number.isFinite(stageNum) ? Math.trunc(stageNum) : 1;
+	const stage = Math.max(1, Math.min(this.maxStage, numericStage));
+	this.currentStage = stage;
+	this.isTrophyRoom = false;
+	this.isObjectiveComplete = false;
+	this.exitDoor.isOpen = false;
+	this.doorTransitionTimer = 0;
+	this.exitFocusTimer = -1;
+	this.stageTime = 0;
+	this.campaignBeat = CAMPAIGN_BEATS[stage];
+	this.whiteVoidTarget = 0;
+	this.whiteVoidProgress = 0;
+	this.whiteVoidGlitch = 0;
+	audio.setWhiteVoid?.(false);
+	this.platforms = [];
+	this.movingPlatforms = [];
+	this.desktopIcons = [];
+	this.laserHazards = [];
+	this.errorPopups = [];
+	switch (stage) {
+		case 1:
+			this.buildStage1Desktop();
+			break;
+		case 2:
+			this.buildStage2Animate();
+			break;
+		case 3:
+			this.buildStage3Downloads();
+			break;
+		case 4:
+			this.buildStage4Firewall();
+			break;
+		case 5:
+			this.buildStage5BSOD();
+			break;
+		case 6:
+			this.buildStage6Recycle();
+			break;
+		case 7:
+			this.buildStage7Minecraft();
+			break;
+		case 8:
+			this.buildStage8Terminal();
+			break;
+		case 9:
+			this.buildStage9VirabotNexus();
+			break;
+		case 10:
+			this.buildStage10DarkCore();
+			break;
+		case 11:
+			this.buildStage11CommandThrone();
+			break;
+		case 12:
+			this.buildStage12GlitchBrowser();
+			break;
+		case 13:
+			this.buildStage13CloudCache();
+			break;
+		case 14:
+			this.buildStage14RootGateway();
+			break;
+		case 15:
+			this.buildCreeperClanReplay(false);
+			break;
+		case 16:
+			this.buildCreeperClanReplay(true);
+			break;
+		case 17:
+			this.buildStage17LuckyDimension();
+			break;
+		case 18:
+			this.buildStage18ZeroDayMainframe();
+			break;
 	}
-	loadStage(stageNum) {
-		this.maxStage = 18;
-		const numericStage = Number.isFinite(stageNum) ? Math.trunc(stageNum) : 1;
-		const stage = Math.max(1, Math.min(this.maxStage, numericStage));
-		this.currentStage = stage;
-		this.isObjectiveComplete = false;
-		this.exitDoor.isOpen = false;
-		this.doorTransitionTimer = 0;
-		this.exitFocusTimer = -1;
-		this.stageTime = 0;
-		this.campaignBeat = CAMPAIGN_BEATS[stage];
-		this.whiteVoidTarget = 0;
-		this.whiteVoidProgress = 0;
-		this.whiteVoidGlitch = 0;
-		audio.setWhiteVoid?.(false);
-		this.platforms = [];
-		this.movingPlatforms = [];
-		this.desktopIcons = [];
-		this.laserHazards = [];
-		this.errorPopups = [];
-		switch (stage) {
-			case 1:
-				this.buildStage1Desktop();
-				break;
-			case 2:
-				this.buildStage2Animate();
-				break;
-			case 3:
-				this.buildStage3Downloads();
-				break;
-			case 4:
-				this.buildStage4Firewall();
-				break;
-			case 5:
-				this.buildStage5BSOD();
-				break;
-			case 6:
-				this.buildStage6Recycle();
-				break;
-			case 7:
-				this.buildStage7Minecraft();
-				break;
-			case 8:
-				this.buildStage8Terminal();
-				break;
-			case 9:
-				this.buildStage9VirabotNexus();
-				break;
-			case 10:
-				this.buildStage10DarkCore();
-				break;
-			case 11:
-				this.buildStage11CommandThrone();
-				break;
-			case 12:
-				this.buildStage12GlitchBrowser();
-				break;
-			case 13:
-				this.buildStage13CloudCache();
-				break;
-			case 14:
-				this.buildStage14RootGateway();
-				break;
-			case 15:
-				this.buildCreeperClanReplay(false);
-				break;
-			case 16:
-				this.buildCreeperClanReplay(true);
-				break;
-			case 17:
-				this.buildStage17LuckyDimension();
-				break;
-			case 18:
-				this.buildStage18ZeroDayMainframe();
-				break;
+	this.environmentDecorations = createEnvironmentDecorations(stage, this.theme);
+}
+enterTrophyRoom() {
+	this.isTrophyRoom = true;
+	this.currentStage = this.maxStage;
+	this.stageName = 'Trophy Room';
+	this.theme = 'trophy';
+	this.isObjectiveComplete = true;
+	this.exitDoor.isOpen = true;
+	this.doorTransitionTimer = 0;
+	this.exitFocusTimer = -1;
+	this.stageTime = 0;
+	this.whiteVoidTarget = this.whiteVoidProgress = this.whiteVoidGlitch = 0;
+	audio.setWhiteVoid?.(false);
+	this.movingPlatforms = [];
+	this.laserHazards = [];
+	this.errorPopups = [];
+	this.campaignBeat = TROPHY_ROOM_BEAT;
+	this.platforms = [
+		{ x: -560, y: -185, width: 280, height: 22, title: 'BOSS ARCHIVE // I', appType: 'trophy' },
+		{ x: 0, y: -305, width: 380, height: 24, title: 'RESTORE.KEY // 3/3', appType: 'trophy' },
+		{ x: 560, y: -185, width: 280, height: 22, title: 'BOSS ARCHIVE // II', appType: 'trophy' }
+	];
+	this.desktopIcons = [
+		{ x: -780, y: -105, label: 'TITAN', icon: 'T', color: '#8cff66' },
+		{ x: -520, y: -105, label: 'DARK LORD', icon: 'DL', color: '#ff3344' },
+		{ x: -260, y: -105, label: 'KING FREED', icon: 'KO', color: '#ff8a22' },
+		{ x: 0, y: -105, label: 'CREEPER LORD', icon: 'CL', color: '#9be34b' },
+		{ x: 260, y: -105, label: 'GIANT CAT', icon: 'CAT', color: '#ffb15f' },
+		{ x: 520, y: -105, label: 'LUCKY ORB', icon: '●', color: '#ffe06b' },
+		{ x: 780, y: -105, label: 'H4C3R', icon: 'H4', color: '#67e8f9' }
+	];
+	this.environmentDecorations = createEnvironmentDecorations(19, this.theme);
+}
+getCampaignBeat(stageNum = this.currentStage) {
+	const stage = Math.max(1, Math.min(this.maxStage, Math.trunc(Number(stageNum)) || 1));
+	return CAMPAIGN_BEATS[stage];
+}
+resolveStageExit(nextStage, onComplete, onAdvance) {
+	if (this.currentStage >= this.maxStage) {
+		if (onComplete) onComplete();
+		return 'complete';
+	}
+	if (onAdvance) onAdvance(nextStage);
+	return 'advance';
+}
+buildStage1Desktop() {
+	this.stageName = 'Main Desktop';
+	this.theme = 'desktop';
+	this.platforms = [
+		{ x: -650, y: -160, width: 220, height: 20, title: 'Notepad.exe - Notes.txt', appType: 'notepad' },
+		{ x: -350, y: -280, width: 200, height: 20, title: 'Calculator.exe', appType: 'calc' },
+		{ x: 0, y: -180, width: 260, height: 22, title: 'File Explorer - C:/Users/Alan', appType: 'folder' },
+		{ x: 380, y: -280, width: 220, height: 20, title: 'Paint.exe - Drawing', appType: 'paint' },
+		{ x: 680, y: -160, width: 200, height: 20, title: 'Command_Prompt.cmd', appType: 'cmd' }
+	];
+	this.desktopIcons = [
+		{ x: -850, y: -80, label: 'Recycle Bin', icon: '🗑️' },
+		{ x: -850, y: -200, label: 'My Computer', icon: '💻' },
+		{ x: -850, y: -320, label: 'Chrome.exe', icon: '🌐' },
+		{ x: -500, y: -420, label: 'Minecraft.exe', icon: '⛏️' },
+		{ x: 200, y: -420, label: 'Stickman_v2.fla', icon: '🎬' },
+		{ x: 850, y: -80, label: 'Exit_Portal.exe', icon: '🚪' },
+		{ x: 850, y: -200, label: 'Secret_Folder', icon: '📁' }
+	];
+	this.movingPlatforms.push({
+		x: -100,
+		y: -360,
+		width: 180,
+		height: 18,
+		title: 'Media_Player.exe',
+		appType: 'media',
+		minX: -260,
+		maxX: 260,
+		speed: 120,
+		dir: 1,
+		axis: 'x'
+	});
+}
+buildStage2Animate() {
+	this.stageName = 'Adobe Animate Timeline';
+	this.theme = 'animate';
+	this.platforms = [
+		{ x: -700, y: -180, width: 200, height: 20, title: 'Toolbox - Brush & Pencil', appType: 'tools' },
+		{ x: -250, y: -160, width: 240, height: 20, title: 'Layer 1: Stick Animation', appType: 'layer' },
+		{ x: 250, y: -160, width: 240, height: 20, title: 'Layer 2: Zombie Horde', appType: 'layer' },
+		{ x: 700, y: -200, width: 200, height: 20, title: 'Color Swatches Palette', appType: 'palette' }
+	];
+	this.movingPlatforms.push({
+		x: 0,
+		y: -320,
+		width: 220,
+		height: 20,
+		title: 'Timeline Frame [ 48 ]',
+		appType: 'timeline',
+		minX: -220,
+		maxX: 220,
+		speed: 160,
+		dir: 1,
+		axis: 'x'
+	});
+	this.movingPlatforms.push({
+		x: -480,
+		y: -240,
+		width: 150,
+		height: 18,
+		title: 'Audio Track 1',
+		appType: 'timeline',
+		minY: -380,
+		maxY: -140,
+		speed: 100,
+		dir: 1,
+		axis: 'y'
+	});
+	this.laserHazards.push({
+		x: -120,
+		y: -240,
+		width: 240,
+		height: 8,
+		timer: 0,
+		cycleDuration: 3.5,
+		activeDuration: 1.6,
+		damage: 15
+	});
+	this.desktopIcons = [
+		{ x: -850, y: -120, label: 'Keyframes.fla', icon: '🎞️' },
+		{ x: 850, y: -120, label: 'Export_Movie.exe', icon: '🎬' },
+		{ x: 0, y: -480, label: 'V-Cam Tool', icon: '📹' }
+	];
+}
+buildStage3Downloads() {
+	this.stageName = 'Downloads & Malware Zone';
+	this.theme = 'downloads';
+	this.platforms = [
+		{ x: -680, y: -180, width: 220, height: 20, title: 'Download_1: Cheats.zip (98%)', appType: 'download' },
+		{ x: -280, y: -240, width: 190, height: 20, title: 'Corrupted_Script.js', appType: 'glitch' },
+		{ x: 280, y: -240, width: 190, height: 20, title: 'Free_RAM_Installer.exe', appType: 'malware' },
+		{ x: 680, y: -180, width: 220, height: 20, title: 'Download_2: Patch.iso (100%)', appType: 'download' }
+	];
+	this.movingPlatforms.push({
+		x: 0,
+		y: -200,
+		width: 200,
+		height: 20,
+		title: 'Cloud_Sync_Elevator',
+		appType: 'cloud',
+		minY: -420,
+		maxY: -120,
+		speed: 130,
+		dir: 1,
+		axis: 'y'
+	});
+	this.errorPopups.push({
+		x: -460,
+		y: -140,
+		width: 140,
+		height: 70,
+		title: '⚠️ WARNING',
+		msg: 'Malware Detected!'
+	});
+	this.errorPopups.push({
+		x: 460,
+		y: -140,
+		width: 140,
+		height: 70,
+		title: '❌ ERROR 404',
+		msg: 'Zombie File Found!'
+	});
+	this.desktopIcons = [
+		{ x: -850, y: -100, label: 'Trojan.bat', icon: '☣️' },
+		{ x: -850, y: -220, label: 'Antivirus.exe', icon: '🛡️' },
+		{ x: 850, y: -100, label: 'Quarantine', icon: '🔒' }
+	];
+}
+buildStage4Firewall() {
+	this.stageName = 'Firewall Security Grid';
+	this.theme = 'firewall';
+	this.platforms = [
+		{ x: -700, y: -200, width: 220, height: 20, title: 'Firewall_Node_A', appType: 'security' },
+		{ x: -300, y: -300, width: 200, height: 20, title: 'Port 8080 Bridge', appType: 'security' },
+		{ x: 300, y: -300, width: 200, height: 20, title: 'SSL Certificate Vault', appType: 'security' },
+		{ x: 700, y: -200, width: 220, height: 20, title: 'Firewall_Node_B', appType: 'security' }
+	];
+	this.movingPlatforms.push({
+		x: 0,
+		y: -220,
+		width: 180,
+		height: 20,
+		title: 'Packet Scanner',
+		appType: 'scanner',
+		minX: -260,
+		maxX: 260,
+		speed: 180,
+		dir: 1,
+		axis: 'x'
+	});
+	this.laserHazards.push({
+		x: -500,
+		y: -100,
+		width: 200,
+		height: 10,
+		timer: 0,
+		cycleDuration: 3.0,
+		activeDuration: 1.5,
+		damage: 20
+	});
+	this.laserHazards.push({
+		x: 300,
+		y: -100,
+		width: 200,
+		height: 10,
+		timer: 1.5,
+		cycleDuration: 3.0,
+		activeDuration: 1.5,
+		damage: 20
+	});
+}
+buildStage5BSOD() {
+	this.stageName = 'Blue Screen of Death (BSOD)';
+	this.theme = 'bsod';
+	this.platforms = [
+		{ x: -550, y: -180, width: 240, height: 22, title: '*** STOP: 0x0000007B (MEMORY DUMP)', appType: 'bsod' },
+		{ x: 550, y: -180, width: 240, height: 22, title: '*** CRASH_DUMP: SYSTEM_OVERHEAT', appType: 'bsod' },
+		{ x: 0, y: -300, width: 300, height: 22, title: 'FATAL EXCEPTION: TITAN_UNDEAD.EXE', appType: 'bsod' }
+	];
+	this.movingPlatforms.push({
+		x: -250,
+		y: -160,
+		width: 160,
+		height: 18,
+		title: 'Memory Stack A',
+		appType: 'bsod',
+		minY: -320,
+		maxY: -120,
+		speed: 120,
+		dir: 1,
+		axis: 'y'
+	});
+	this.movingPlatforms.push({
+		x: 250,
+		y: -160,
+		width: 160,
+		height: 18,
+		title: 'Memory Stack B',
+		appType: 'bsod',
+		minY: -320,
+		maxY: -120,
+		speed: 120,
+		dir: -1,
+		axis: 'y'
+	});
+}
+buildStage6Recycle() {
+	this.stageName = 'Corrupted Recycle Bin';
+	this.theme = 'recycle';
+	this.platforms = [
+		{ x: -500, y: -160, width: 220, height: 22, title: 'Corrupted_Script.js', appType: 'explorer' },
+		{ x: 500, y: -160, width: 220, height: 22, title: 'Deleted_Save.dat', appType: 'explorer' },
+		{ x: 0, y: -280, width: 280, height: 24, title: 'Recycle_Bin_Master_Dump', appType: 'explorer' }
+	];
+	this.movingPlatforms.push({
+		x: -220, y: -180, width: 140, height: 18, title: 'Shredder Bar L', appType: 'scanner',
+		minY: -300, maxY: -100, speed: 130, dir: 1, axis: 'y'
+	});
+	this.movingPlatforms.push({
+		x: 220, y: -180, width: 140, height: 18, title: 'Shredder Bar R', appType: 'scanner',
+		minY: -300, maxY: -100, speed: 130, dir: -1, axis: 'y'
+	});
+}
+buildStage7Minecraft() {
+	this.stageName = 'Minecraft Nether Core';
+	this.theme = 'minecraft';
+	this.platforms = [
+		{ x: -600, y: -140, width: 220, height: 24, title: 'Obsidian Platform West', appType: 'paint' },
+		{ x: 600, y: -140, width: 220, height: 24, title: 'Obsidian Platform East', appType: 'paint' },
+		{ x: -200, y: -260, width: 180, height: 24, title: 'Nether Fortress Pillar', appType: 'paint' },
+		{ x: 200, y: -260, width: 180, height: 24, title: 'Nether Fortress Pillar', appType: 'paint' }
+	];
+	this.movingPlatforms.push({
+		x: 0, y: -340, width: 200, height: 20, title: 'Floating Netherrack', appType: 'paint',
+		minX: -250, maxX: 250, speed: 140, dir: 1, axis: 'x'
+	});
+}
+buildStage8Terminal() {
+	this.stageName = 'Terminal Cyber Matrix';
+	this.theme = 'terminal';
+	this.platforms = [
+		{ x: -550, y: -180, width: 240, height: 20, title: 'root@matrix:~# ./killall', appType: 'terminal' },
+		{ x: 550, y: -180, width: 240, height: 20, title: 'root@matrix:~# sudo firewall', appType: 'terminal' },
+		{ x: 0, y: -290, width: 320, height: 22, title: 'BUFFER_OVERFLOW_SHIELD.SYS', appType: 'terminal' }
+	];
+	this.laserHazards.push({
+		x: -400, y: -100, width: 180, height: 10, timer: 0, cycleDuration: 2.6, activeDuration: 1.3, damage: 22
+	});
+	this.laserHazards.push({
+		x: 220, y: -100, width: 180, height: 10, timer: 1.3, cycleDuration: 2.6, activeDuration: 1.3, damage: 22
+	});
+}
+buildStage9VirabotNexus() {
+	this.stageName = 'ViraBot Infestation Nexus';
+	this.theme = 'virabot';
+	this.platforms = [
+		{ x: -500, y: -160, width: 240, height: 22, title: 'VIRUS_INCUBATOR_ALPHA', appType: 'bsod' },
+		{ x: 500, y: -160, width: 240, height: 22, title: 'VIRUS_INCUBATOR_BETA', appType: 'bsod' },
+		{ x: 0, y: -300, width: 320, height: 22, title: 'MALWARE_CONDUIT_CENTRAL', appType: 'bsod' }
+	];
+	this.movingPlatforms.push({
+		x: -240, y: -200, width: 150, height: 18, title: 'Infected Node L', appType: 'scanner',
+		minY: -340, maxY: -120, speed: 150, dir: 1, axis: 'y'
+	});
+	this.movingPlatforms.push({
+		x: 240, y: -200, width: 150, height: 18, title: 'Infected Node R', appType: 'scanner',
+		minY: -340, maxY: -120, speed: 150, dir: -1, axis: 'y'
+	});
+}
+buildStage10DarkCore() {
+	this.stageName = "The Dark Core (TDL's Domain)";
+	this.theme = 'dark_core';
+	this.platforms = [
+		{ x: -560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_ALPHA [CRITICAL]', appType: 'dark_core' },
+		{ x: 560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_OMEGA [CRITICAL]', appType: 'dark_core' },
+		{ x: 0, y: -310, width: 360, height: 26, title: 'DARK_SINGULARITY_CORE (TDL)', appType: 'dark_core' }
+	];
+	this.movingPlatforms.push({
+		x: -260, y: -180, width: 160, height: 20, title: 'Crimson Surge L', appType: 'dark_core',
+		minY: -340, maxY: -100, speed: 160, dir: 1, axis: 'y'
+	});
+	this.movingPlatforms.push({
+		x: 260, y: -180, width: 160, height: 20, title: 'Crimson Surge R', appType: 'dark_core',
+		minY: -340, maxY: -100, speed: 160, dir: -1, axis: 'y'
+	});
+}
+buildStage11CommandThrone() {
+	this.stageName = 'King Orange: Corrupted Replay';
+	this.theme = 'command_realm';
+	this.platforms = [
+		{ x: -560, y: -170, width: 260, height: 24, title: 'GOLD_BLOCK_RAMPART', appType: 'command' },
+		{ x: 0, y: -310, width: 340, height: 26, title: 'COMMAND_BLOCK_THRONE', appType: 'command' },
+		{ x: 560, y: -170, width: 260, height: 24, title: 'NETHERITE_RAMPART', appType: 'command' }
+	];
+	this.desktopIcons = [
+		{ x: -850, y: -115, label: 'gold_block.dat', icon: '🟨' },
+		{ x: 850, y: -115, label: 'command_block.exe', icon: '🟧' }
+	];
+}
+buildStage12GlitchBrowser() {
+	this.stageName = 'Glitch Browser Run';
+	this.theme = 'browser_glitch';
+	this.platforms = [
+		{ x: -620, y: -165, width: 250, height: 22, title: 'Tab: definitely_safe.exe', appType: 'browser' },
+		{ x: 0, y: -270, width: 300, height: 22, title: '404_REALITY_NOT_FOUND', appType: 'browser' },
+		{ x: 620, y: -165, width: 250, height: 22, title: 'Tab: close_me_now.js', appType: 'browser' }
+	];
+	this.movingPlatforms.push({
+		x: 0, y: -390, width: 190, height: 20, title: 'Loading… 99%', appType: 'browser',
+		minX: -300, maxX: 300, speed: 150, dir: 1, axis: 'x'
+	});
+	this.errorPopups.push({
+		x: -360, y: -120, width: 150, height: 72, title: '⚠ POP-UP', msg: 'You won a zombie!'
+	});
+	this.errorPopups.push({
+		x: 380, y: -120, width: 150, height: 72, title: 'COOKIE ERROR', msg: 'Brains accepted.'
+	});
+}
+buildStage13CloudCache() {
+	this.stageName = 'Corrupted Cloud Cache';
+	this.theme = 'cloud_cache';
+	this.platforms = [
+		{ x: -650, y: -150, width: 220, height: 22, title: 'CACHE_SHARD_A', appType: 'cloud' },
+		{ x: -220, y: -280, width: 190, height: 22, title: 'SYNC_CONFLICT_01', appType: 'cloud' },
+		{ x: 220, y: -280, width: 190, height: 22, title: 'SYNC_CONFLICT_02', appType: 'cloud' },
+		{ x: 650, y: -150, width: 220, height: 22, title: 'CACHE_SHARD_B', appType: 'cloud' }
+	];
+	this.movingPlatforms.push({
+		x: 0, y: -165, width: 180, height: 20, title: 'Cloud Sync', appType: 'cloud',
+		minY: -370, maxY: -120, speed: 115, dir: -1, axis: 'y'
+	});
+	this.desktopIcons = [
+		{ x: -850, y: -105, label: 'backup_old.zip', icon: '☁️' },
+		{ x: 850, y: -105, label: 'sync_failed.log', icon: '⚡' }
+	];
+}
+buildStage14RootGateway() {
+	this.stageName = 'Root Access Gateway';
+	this.theme = 'root_gateway';
+	this.platforms = [
+		{ x: -590, y: -185, width: 250, height: 22, title: 'AUTH_GATE_LEFT', appType: 'terminal' },
+		{ x: 0, y: -310, width: 320, height: 24, title: 'sudo ./open_root --please', appType: 'terminal' },
+		{ x: 590, y: -185, width: 250, height: 22, title: 'AUTH_GATE_RIGHT', appType: 'terminal' }
+	];
+	this.laserHazards.push({
+		x: -470, y: -95, width: 260, height: 9, timer: 0,
+		cycleDuration: 3.2, activeDuration: 1.15, damage: 20
+	});
+	this.laserHazards.push({
+		x: 210, y: -95, width: 260, height: 9, timer: 1.6,
+		cycleDuration: 3.2, activeDuration: 1.15, damage: 20
+	});
+}
+buildCreeperClanReplay(cat) {
+	this.stageName = cat ? 'Giant Cat: Corrupted Replay' : 'Creeper Lord: Corrupted Replay';
+	this.theme = 'creeper_clan';
+	this.platforms = cat ? [
+		{ x: -610, y: -165, width: 250, height: 24, title: 'PAW_PRINT_LEFT', appType: 'paint' },
+		{ x: 0, y: -300, width: 340, height: 26, title: 'GIANT_CAT_REPLAY.dat', appType: 'paint' },
+		{ x: 610, y: -165, width: 250, height: 24, title: 'PAW_PRINT_RIGHT', appType: 'paint' }
+	] : [
+		{ x: -610, y: -175, width: 250, height: 24, title: 'CLAN_TOTEM_LEFT', appType: 'command' },
+		{ x: 0, y: -315, width: 340, height: 26, title: 'CREEPER_CROWN_CACHE', appType: 'command' },
+		{ x: 610, y: -175, width: 250, height: 24, title: 'CLAN_TOTEM_RIGHT', appType: 'command' }
+	];
+	this.desktopIcons = [
+		{ x: -850, y: -110, label: cat ? 'catnap.save' : 'clan.totem', icon: cat ? '🐾' : '♛' },
+		{ x: 850, y: -110, label: 'replay.lock', icon: '▣' }
+	];
+}
+buildStage17LuckyDimension() {
+	this.stageName = 'Lucky Dimension Cache';
+	this.theme = 'lucky_orb';
+	this.platforms = [
+		{ x: -590, y: -175, width: 250, height: 24, title: 'LUCKY_BLOCK_LEFT', appType: 'command' },
+		{ x: 0, y: -315, width: 330, height: 26, title: 'CHANCE_ENGINE_???', appType: 'command' },
+		{ x: 590, y: -175, width: 250, height: 24, title: 'LUCKY_BLOCK_RIGHT', appType: 'command' }
+	];
+	this.desktopIcons = [
+		{ x: -850, y: -110, label: 'roll_again.dat', icon: '?' },
+		{ x: 850, y: -110, label: 'orb.portal', icon: '✦' }
+	];
+}
+buildStage18ZeroDayMainframe() {
+	this.stageName = 'Zero-Day Mainframe';
+	this.theme = 'zero_day';
+	this.platforms = [
+		{ x: -570, y: -180, width: 260, height: 24, title: 'FREE_TRANSFORM_LEFT', appType: 'zero_day' },
+		{ x: 0, y: -325, width: 360, height: 26, title: 'ROOT://H4C3R/CONTROL', appType: 'zero_day' },
+		{ x: 570, y: -180, width: 260, height: 24, title: 'FREE_TRANSFORM_RIGHT', appType: 'zero_day' }
+	];
+	this.desktopIcons = [
+		{ x: -850, y: -110, label: 'memory.scan', icon: '◫' },
+		{ x: 850, y: -110, label: 'root.key', icon: '⌘' }
+	];
+}
+beginWhiteVoid() {
+	this.whiteVoidTarget = 1;
+	this.whiteVoidGlitch = 0.8;
+}
+endWhiteVoid() {
+	this.whiteVoidTarget = 0;
+}
+update(dt, player, wavesDirector, onStageExit, camera = null) {
+	const safeDt = Math.max(0, Math.min(Number(dt) || 0, 0.1));
+	this.stageTime += safeDt;
+	const voidTarget = this.whiteVoidTarget || 0;
+	if (this.whiteVoidProgress !== voidTarget) {
+		const rate = voidTarget > this.whiteVoidProgress ? 1.4 : 2.0;
+		const step = rate * safeDt;
+		this.whiteVoidProgress = voidTarget > this.whiteVoidProgress
+			? Math.min(voidTarget, this.whiteVoidProgress + step)
+			: Math.max(voidTarget, this.whiteVoidProgress - step);
+	}
+	if (this.whiteVoidGlitch > 0) this.whiteVoidGlitch = Math.max(0, this.whiteVoidGlitch - safeDt);
+	if (this.exitFocusTimer > 0) {
+		this.exitFocusTimer -= safeDt;
+		if (this.exitFocusTimer <= 0) {
+			this.exitFocusTimer = -1;
+			if (this.currentStage === this.maxStage && !this.isTrophyRoom && !player?.isDead) {
+				this.doorTransitionTimer = -999;
+				this.exitDoor.isOpen = false;
+				audio.playDoorEnter();
+				onStageExit?.(this.currentStage + 1);
+				return;
+			}
+			camera?.focusOn?.(this.exitDoor.x, this.exitDoor.y - 45, 0.45, 0.96);
+			camera?.addZoomPunch?.(0.03);
 		}
-		this.environmentDecorations = createEnvironmentDecorations(stage, this.theme);
 	}
-	getCampaignBeat(stageNum = this.currentStage) {
-		const stage = Math.max(1, Math.min(this.maxStage, Math.trunc(Number(stageNum)) || 1));
-		return CAMPAIGN_BEATS[stage];
-	}
-	resolveStageExit(nextStage, onComplete, onAdvance) {
-		if (this.currentStage >= this.maxStage) {
-			if (onComplete) onComplete();
-			return 'complete';
+	for (const p of this.movingPlatforms) {
+		if (p.axis === 'x') {
+			p.x += p.speed * p.dir * safeDt;
+			if (p.x >= p.maxX) { p.x = p.maxX; p.dir = -1; }
+			else if (p.x <= p.minX) { p.x = p.minX; p.dir = 1; }
+		} else if (p.axis === 'y') {
+			p.y += p.speed * p.dir * safeDt;
+			if (p.y >= p.maxY) { p.y = p.maxY; p.dir = -1; }
+			else if (p.y <= p.minY) { p.y = p.minY; p.dir = 1; }
 		}
-		if (onAdvance) onAdvance(nextStage);
-		return 'advance';
 	}
-	buildStage1Desktop() {
-		this.stageName = 'Main Desktop';
-		this.theme = 'desktop';
-		this.platforms = [
-			{ x: -650, y: -160, width: 220, height: 20, title: 'Notepad.exe - Notes.txt', appType: 'notepad' },
-			{ x: -350, y: -280, width: 200, height: 20, title: 'Calculator.exe', appType: 'calc' },
-			{ x: 0, y: -180, width: 260, height: 22, title: 'File Explorer - C:/Users/Alan', appType: 'folder' },
-			{ x: 380, y: -280, width: 220, height: 20, title: 'Paint.exe - Drawing', appType: 'paint' },
-			{ x: 680, y: -160, width: 200, height: 20, title: 'Command_Prompt.cmd', appType: 'cmd' }
-		];
-		this.desktopIcons = [
-			{ x: -850, y: -80, label: 'Recycle Bin', icon: '🗑️' },
-			{ x: -850, y: -200, label: 'My Computer', icon: '💻' },
-			{ x: -850, y: -320, label: 'Chrome.exe', icon: '🌐' },
-			{ x: -500, y: -420, label: 'Minecraft.exe', icon: '⛏️' },
-			{ x: 200, y: -420, label: 'Stickman_v2.fla', icon: '🎬' },
-			{ x: 850, y: -80, label: 'Exit_Portal.exe', icon: '🚪' },
-			{ x: 850, y: -200, label: 'Secret_Folder', icon: '📁' }
-		];
-		this.movingPlatforms.push({
-			x: -100,
-			y: -360,
-			width: 180,
-			height: 18,
-			title: 'Media_Player.exe',
-			appType: 'media',
-			minX: -260,
-			maxX: 260,
-			speed: 120,
-			dir: 1,
-			axis: 'x'
-		});
-	}
-	buildStage2Animate() {
-		this.stageName = 'Adobe Animate Timeline';
-		this.theme = 'animate';
-		this.platforms = [
-			{ x: -700, y: -180, width: 200, height: 20, title: 'Toolbox - Brush & Pencil', appType: 'tools' },
-			{ x: -250, y: -160, width: 240, height: 20, title: 'Layer 1: Stick Animation', appType: 'layer' },
-			{ x: 250, y: -160, width: 240, height: 20, title: 'Layer 2: Zombie Horde', appType: 'layer' },
-			{ x: 700, y: -200, width: 200, height: 20, title: 'Color Swatches Palette', appType: 'palette' }
-		];
-		this.movingPlatforms.push({
-			x: 0,
-			y: -320,
-			width: 220,
-			height: 20,
-			title: 'Timeline Frame [ 48 ]',
-			appType: 'timeline',
-			minX: -220,
-			maxX: 220,
-			speed: 160,
-			dir: 1,
-			axis: 'x'
-		});
-		this.movingPlatforms.push({
-			x: -480,
-			y: -240,
-			width: 150,
-			height: 18,
-			title: 'Audio Track 1',
-			appType: 'timeline',
-			minY: -380,
-			maxY: -140,
-			speed: 100,
-			dir: 1,
-			axis: 'y'
-		});
-		this.laserHazards.push({
-			x: -120,
-			y: -240,
-			width: 240,
-			height: 8,
-			timer: 0,
-			cycleDuration: 3.5,
-			activeDuration: 1.6,
-			damage: 15
-		});
-		this.desktopIcons = [
-			{ x: -850, y: -120, label: 'Keyframes.fla', icon: '🎞️' },
-			{ x: 850, y: -120, label: 'Export_Movie.exe', icon: '🎬' },
-			{ x: 0, y: -480, label: 'V-Cam Tool', icon: '📹' }
-		];
-	}
-	buildStage3Downloads() {
-		this.stageName = 'Downloads & Malware Zone';
-		this.theme = 'downloads';
-		this.platforms = [
-			{ x: -680, y: -180, width: 220, height: 20, title: 'Download_1: Cheats.zip (98%)', appType: 'download' },
-			{ x: -280, y: -240, width: 190, height: 20, title: 'Corrupted_Script.js', appType: 'glitch' },
-			{ x: 280, y: -240, width: 190, height: 20, title: 'Free_RAM_Installer.exe', appType: 'malware' },
-			{ x: 680, y: -180, width: 220, height: 20, title: 'Download_2: Patch.iso (100%)', appType: 'download' }
-		];
-		this.movingPlatforms.push({
-			x: 0,
-			y: -200,
-			width: 200,
-			height: 20,
-			title: 'Cloud_Sync_Elevator',
-			appType: 'cloud',
-			minY: -420,
-			maxY: -120,
-			speed: 130,
-			dir: 1,
-			axis: 'y'
-		});
-		this.errorPopups.push({
-			x: -460,
-			y: -140,
-			width: 140,
-			height: 70,
-			title: '⚠️ WARNING',
-			msg: 'Malware Detected!'
-		});
-		this.errorPopups.push({
-			x: 460,
-			y: -140,
-			width: 140,
-			height: 70,
-			title: '❌ ERROR 404',
-			msg: 'Zombie File Found!'
-		});
-		this.desktopIcons = [
-			{ x: -850, y: -100, label: 'Trojan.bat', icon: '☣️' },
-			{ x: -850, y: -220, label: 'Antivirus.exe', icon: '🛡️' },
-			{ x: 850, y: -100, label: 'Quarantine', icon: '🔒' }
-		];
-	}
-	buildStage4Firewall() {
-		this.stageName = 'Firewall Security Grid';
-		this.theme = 'firewall';
-		this.platforms = [
-			{ x: -700, y: -200, width: 220, height: 20, title: 'Firewall_Node_A', appType: 'security' },
-			{ x: -300, y: -300, width: 200, height: 20, title: 'Port 8080 Bridge', appType: 'security' },
-			{ x: 300, y: -300, width: 200, height: 20, title: 'SSL Certificate Vault', appType: 'security' },
-			{ x: 700, y: -200, width: 220, height: 20, title: 'Firewall_Node_B', appType: 'security' }
-		];
-		this.movingPlatforms.push({
-			x: 0,
-			y: -220,
-			width: 180,
-			height: 20,
-			title: 'Packet Scanner',
-			appType: 'scanner',
-			minX: -260,
-			maxX: 260,
-			speed: 180,
-			dir: 1,
-			axis: 'x'
-		});
-		this.laserHazards.push({
-			x: -500,
-			y: -100,
-			width: 200,
-			height: 10,
-			timer: 0,
-			cycleDuration: 3.0,
-			activeDuration: 1.5,
-			damage: 20
-		});
-		this.laserHazards.push({
-			x: 300,
-			y: -100,
-			width: 200,
-			height: 10,
-			timer: 1.5,
-			cycleDuration: 3.0,
-			activeDuration: 1.5,
-			damage: 20
-		});
-	}
-	buildStage5BSOD() {
-		this.stageName = 'Blue Screen of Death (BSOD)';
-		this.theme = 'bsod';
-		this.platforms = [
-			{ x: -550, y: -180, width: 240, height: 22, title: '*** STOP: 0x0000007B (MEMORY DUMP)', appType: 'bsod' },
-			{ x: 550, y: -180, width: 240, height: 22, title: '*** CRASH_DUMP: SYSTEM_OVERHEAT', appType: 'bsod' },
-			{ x: 0, y: -300, width: 300, height: 22, title: 'FATAL EXCEPTION: TITAN_UNDEAD.EXE', appType: 'bsod' }
-		];
-		this.movingPlatforms.push({
-			x: -250,
-			y: -160,
-			width: 160,
-			height: 18,
-			title: 'Memory Stack A',
-			appType: 'bsod',
-			minY: -320,
-			maxY: -120,
-			speed: 120,
-			dir: 1,
-			axis: 'y'
-		});
-		this.movingPlatforms.push({
-			x: 250,
-			y: -160,
-			width: 160,
-			height: 18,
-			title: 'Memory Stack B',
-			appType: 'bsod',
-			minY: -320,
-			maxY: -120,
-			speed: 120,
-			dir: -1,
-			axis: 'y'
-		});
-	}
-	buildStage6Recycle() {
-		this.stageName = 'Corrupted Recycle Bin';
-		this.theme = 'recycle';
-		this.platforms = [
-			{ x: -500, y: -160, width: 220, height: 22, title: 'Corrupted_Script.js', appType: 'explorer' },
-			{ x: 500, y: -160, width: 220, height: 22, title: 'Deleted_Save.dat', appType: 'explorer' },
-			{ x: 0, y: -280, width: 280, height: 24, title: 'Recycle_Bin_Master_Dump', appType: 'explorer' }
-		];
-		this.movingPlatforms.push({
-			x: -220, y: -180, width: 140, height: 18, title: 'Shredder Bar L', appType: 'scanner',
-			minY: -300, maxY: -100, speed: 130, dir: 1, axis: 'y'
-		});
-		this.movingPlatforms.push({
-			x: 220, y: -180, width: 140, height: 18, title: 'Shredder Bar R', appType: 'scanner',
-			minY: -300, maxY: -100, speed: 130, dir: -1, axis: 'y'
-		});
-	}
-	buildStage7Minecraft() {
-		this.stageName = 'Minecraft Nether Core';
-		this.theme = 'minecraft';
-		this.platforms = [
-			{ x: -600, y: -140, width: 220, height: 24, title: 'Obsidian Platform West', appType: 'paint' },
-			{ x: 600, y: -140, width: 220, height: 24, title: 'Obsidian Platform East', appType: 'paint' },
-			{ x: -200, y: -260, width: 180, height: 24, title: 'Nether Fortress Pillar', appType: 'paint' },
-			{ x: 200, y: -260, width: 180, height: 24, title: 'Nether Fortress Pillar', appType: 'paint' }
-		];
-		this.movingPlatforms.push({
-			x: 0, y: -340, width: 200, height: 20, title: 'Floating Netherrack', appType: 'paint',
-			minX: -250, maxX: 250, speed: 140, dir: 1, axis: 'x'
-		});
-	}
-	buildStage8Terminal() {
-		this.stageName = 'Terminal Cyber Matrix';
-		this.theme = 'terminal';
-		this.platforms = [
-			{ x: -550, y: -180, width: 240, height: 20, title: 'root@matrix:~# ./killall', appType: 'terminal' },
-			{ x: 550, y: -180, width: 240, height: 20, title: 'root@matrix:~# sudo firewall', appType: 'terminal' },
-			{ x: 0, y: -290, width: 320, height: 22, title: 'BUFFER_OVERFLOW_SHIELD.SYS', appType: 'terminal' }
-		];
-		this.laserHazards.push({
-			x: -400, y: -100, width: 180, height: 10, timer: 0, cycleDuration: 2.6, activeDuration: 1.3, damage: 22
-		});
-		this.laserHazards.push({
-			x: 220, y: -100, width: 180, height: 10, timer: 1.3, cycleDuration: 2.6, activeDuration: 1.3, damage: 22
-		});
-	}
-	buildStage9VirabotNexus() {
-		this.stageName = 'ViraBot Infestation Nexus';
-		this.theme = 'virabot';
-		this.platforms = [
-			{ x: -500, y: -160, width: 240, height: 22, title: 'VIRUS_INCUBATOR_ALPHA', appType: 'bsod' },
-			{ x: 500, y: -160, width: 240, height: 22, title: 'VIRUS_INCUBATOR_BETA', appType: 'bsod' },
-			{ x: 0, y: -300, width: 320, height: 22, title: 'MALWARE_CONDUIT_CENTRAL', appType: 'bsod' }
-		];
-		this.movingPlatforms.push({
-			x: -240, y: -200, width: 150, height: 18, title: 'Infected Node L', appType: 'scanner',
-			minY: -340, maxY: -120, speed: 150, dir: 1, axis: 'y'
-		});
-		this.movingPlatforms.push({
-			x: 240, y: -200, width: 150, height: 18, title: 'Infected Node R', appType: 'scanner',
-			minY: -340, maxY: -120, speed: 150, dir: -1, axis: 'y'
-		});
-	}
-	buildStage10DarkCore() {
-		this.stageName = "The Dark Core (TDL's Domain)";
-		this.theme = 'dark_core';
-		this.platforms = [
-			{ x: -560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_ALPHA [CRITICAL]', appType: 'dark_core' },
-			{ x: 560, y: -170, width: 250, height: 24, title: 'VIRABOT_NEXUS_OMEGA [CRITICAL]', appType: 'dark_core' },
-			{ x: 0, y: -310, width: 360, height: 26, title: 'DARK_SINGULARITY_CORE (TDL)', appType: 'dark_core' }
-		];
-		this.movingPlatforms.push({
-			x: -260, y: -180, width: 160, height: 20, title: 'Crimson Surge L', appType: 'dark_core',
-			minY: -340, maxY: -100, speed: 160, dir: 1, axis: 'y'
-		});
-		this.movingPlatforms.push({
-			x: 260, y: -180, width: 160, height: 20, title: 'Crimson Surge R', appType: 'dark_core',
-			minY: -340, maxY: -100, speed: 160, dir: -1, axis: 'y'
-		});
-	}
-	buildStage11CommandThrone() {
-		this.stageName = 'King Orange: Corrupted Replay';
-		this.theme = 'command_realm';
-		this.platforms = [
-			{ x: -560, y: -170, width: 260, height: 24, title: 'GOLD_BLOCK_RAMPART', appType: 'command' },
-			{ x: 0, y: -310, width: 340, height: 26, title: 'COMMAND_BLOCK_THRONE', appType: 'command' },
-			{ x: 560, y: -170, width: 260, height: 24, title: 'NETHERITE_RAMPART', appType: 'command' }
-		];
-		this.desktopIcons = [
-			{ x: -850, y: -115, label: 'gold_block.dat', icon: '🟨' },
-			{ x: 850, y: -115, label: 'command_block.exe', icon: '🟧' }
-		];
-	}
-	buildStage12GlitchBrowser() {
-		this.stageName = 'Glitch Browser Run';
-		this.theme = 'browser_glitch';
-		this.platforms = [
-			{ x: -620, y: -165, width: 250, height: 22, title: 'Tab: definitely_safe.exe', appType: 'browser' },
-			{ x: 0, y: -270, width: 300, height: 22, title: '404_REALITY_NOT_FOUND', appType: 'browser' },
-			{ x: 620, y: -165, width: 250, height: 22, title: 'Tab: close_me_now.js', appType: 'browser' }
-		];
-		this.movingPlatforms.push({
-			x: 0, y: -390, width: 190, height: 20, title: 'Loading… 99%', appType: 'browser',
-			minX: -300, maxX: 300, speed: 150, dir: 1, axis: 'x'
-		});
-		this.errorPopups.push({
-			x: -360, y: -120, width: 150, height: 72, title: '⚠ POP-UP', msg: 'You won a zombie!'
-		});
-		this.errorPopups.push({
-			x: 380, y: -120, width: 150, height: 72, title: 'COOKIE ERROR', msg: 'Brains accepted.'
-		});
-	}
-	buildStage13CloudCache() {
-		this.stageName = 'Corrupted Cloud Cache';
-		this.theme = 'cloud_cache';
-		this.platforms = [
-			{ x: -650, y: -150, width: 220, height: 22, title: 'CACHE_SHARD_A', appType: 'cloud' },
-			{ x: -220, y: -280, width: 190, height: 22, title: 'SYNC_CONFLICT_01', appType: 'cloud' },
-			{ x: 220, y: -280, width: 190, height: 22, title: 'SYNC_CONFLICT_02', appType: 'cloud' },
-			{ x: 650, y: -150, width: 220, height: 22, title: 'CACHE_SHARD_B', appType: 'cloud' }
-		];
-		this.movingPlatforms.push({
-			x: 0, y: -165, width: 180, height: 20, title: 'Cloud Sync', appType: 'cloud',
-			minY: -370, maxY: -120, speed: 115, dir: -1, axis: 'y'
-		});
-		this.desktopIcons = [
-			{ x: -850, y: -105, label: 'backup_old.zip', icon: '☁️' },
-			{ x: 850, y: -105, label: 'sync_failed.log', icon: '⚡' }
-		];
-	}
-	buildStage14RootGateway() {
-		this.stageName = 'Root Access Gateway';
-		this.theme = 'root_gateway';
-		this.platforms = [
-			{ x: -590, y: -185, width: 250, height: 22, title: 'AUTH_GATE_LEFT', appType: 'terminal' },
-			{ x: 0, y: -310, width: 320, height: 24, title: 'sudo ./open_root --please', appType: 'terminal' },
-			{ x: 590, y: -185, width: 250, height: 22, title: 'AUTH_GATE_RIGHT', appType: 'terminal' }
-		];
-		this.laserHazards.push({
-			x: -470, y: -95, width: 260, height: 9, timer: 0,
-			cycleDuration: 3.2, activeDuration: 1.15, damage: 20
-		});
-		this.laserHazards.push({
-			x: 210, y: -95, width: 260, height: 9, timer: 1.6,
-			cycleDuration: 3.2, activeDuration: 1.15, damage: 20
-		});
-	}
-	buildCreeperClanReplay(cat) {
-		this.stageName = cat ? 'Giant Cat: Corrupted Replay' : 'Creeper Lord: Corrupted Replay';
-		this.theme = 'creeper_clan';
-		this.platforms = cat ? [
-			{ x: -610, y: -165, width: 250, height: 24, title: 'PAW_PRINT_LEFT', appType: 'paint' },
-			{ x: 0, y: -300, width: 340, height: 26, title: 'GIANT_CAT_REPLAY.dat', appType: 'paint' },
-			{ x: 610, y: -165, width: 250, height: 24, title: 'PAW_PRINT_RIGHT', appType: 'paint' }
-		] : [
-			{ x: -610, y: -175, width: 250, height: 24, title: 'CLAN_TOTEM_LEFT', appType: 'command' },
-			{ x: 0, y: -315, width: 340, height: 26, title: 'CREEPER_CROWN_CACHE', appType: 'command' },
-			{ x: 610, y: -175, width: 250, height: 24, title: 'CLAN_TOTEM_RIGHT', appType: 'command' }
-		];
-		this.desktopIcons = [
-			{ x: -850, y: -110, label: cat ? 'catnap.save' : 'clan.totem', icon: cat ? '🐾' : '♛' },
-			{ x: 850, y: -110, label: 'replay.lock', icon: '▣' }
-		];
-	}
-	buildStage17LuckyDimension() {
-		this.stageName = 'Lucky Dimension Cache';
-		this.theme = 'lucky_orb';
-		this.platforms = [
-			{ x: -590, y: -175, width: 250, height: 24, title: 'LUCKY_BLOCK_LEFT', appType: 'command' },
-			{ x: 0, y: -315, width: 330, height: 26, title: 'CHANCE_ENGINE_???', appType: 'command' },
-			{ x: 590, y: -175, width: 250, height: 24, title: 'LUCKY_BLOCK_RIGHT', appType: 'command' }
-		];
-		this.desktopIcons = [
-			{ x: -850, y: -110, label: 'roll_again.dat', icon: '?' },
-			{ x: 850, y: -110, label: 'orb.portal', icon: '✦' }
-		];
-	}
-	buildStage18ZeroDayMainframe() {
-		this.stageName = 'Zero-Day Mainframe';
-		this.theme = 'zero_day';
-		this.platforms = [
-			{ x: -570, y: -180, width: 260, height: 24, title: 'FREE_TRANSFORM_LEFT', appType: 'zero_day' },
-			{ x: 0, y: -325, width: 360, height: 26, title: 'ROOT://H4C3R/CONTROL', appType: 'zero_day' },
-			{ x: 570, y: -180, width: 260, height: 24, title: 'FREE_TRANSFORM_RIGHT', appType: 'zero_day' }
-		];
-		this.desktopIcons = [
-			{ x: -850, y: -110, label: 'memory.scan', icon: '◫' },
-			{ x: 850, y: -110, label: 'root.key', icon: '⌘' }
-		];
-	}
-	beginWhiteVoid() {
-		this.whiteVoidTarget = 1;
-		this.whiteVoidGlitch = 0.8;
-	}
-	endWhiteVoid() {
-		this.whiteVoidTarget = 0;
-	}
-	update(dt, player, wavesDirector, onStageExit, camera = null) {
-		const safeDt = Math.max(0, Math.min(Number(dt) || 0, 0.1));
-		this.stageTime += safeDt;
-		const voidTarget = this.whiteVoidTarget || 0;
-		if (this.whiteVoidProgress !== voidTarget) {
-			const rate = voidTarget > this.whiteVoidProgress ? 1.4 : 2.0;
-			const step = rate * safeDt;
-			this.whiteVoidProgress = voidTarget > this.whiteVoidProgress
-				? Math.min(voidTarget, this.whiteVoidProgress + step)
-				: Math.max(voidTarget, this.whiteVoidProgress - step);
+	for (const laser of this.laserHazards) {
+		laser.timer = (laser.timer + safeDt) % laser.cycleDuration;
+		const isActive = laser.timer < laser.activeDuration;
+		if (isActive && !laser.wasActive) {
+			laser.hookedHitTargets = new WeakSet();
+		} else if (!isActive) {
+			laser.hookedHitTargets = null;
 		}
-		if (this.whiteVoidGlitch > 0) this.whiteVoidGlitch = Math.max(0, this.whiteVoidGlitch - safeDt);
-		if (this.exitFocusTimer > 0) {
-			this.exitFocusTimer -= safeDt;
-			if (this.exitFocusTimer <= 0) {
-				this.exitFocusTimer = -1;
-				camera?.focusOn?.(this.exitDoor.x, this.exitDoor.y - 45, 0.45, 0.96);
-				camera?.addZoomPunch?.(0.03);
+		laser.wasActive = isActive;
+		if (!this.isObjectiveComplete && isActive && player && (player.iFrames || 0) <= 0 && !player.isRolling && !player.isAwakened) {
+			if (player.x >= laser.x - 20 && player.x <= laser.x + laser.width + 20 &&
+					Math.abs(player.y - 30 - laser.y) < 25) {
+				audio.playLaserZap();
+				player.takeDamage(laser.damage, player.x < laser.x + laser.width / 2 ? -1 : 1, 350);
+				particles.createHitSparks(player.x, laser.y, 8, '#ff2244');
 			}
 		}
-		for (const p of this.movingPlatforms) {
-			if (p.axis === 'x') {
-				p.x += p.speed * p.dir * safeDt;
-				if (p.x >= p.maxX) { p.x = p.maxX; p.dir = -1; }
-				else if (p.x <= p.minX) { p.x = p.minX; p.dir = 1; }
-			} else if (p.axis === 'y') {
-				p.y += p.speed * p.dir * safeDt;
-				if (p.y >= p.maxY) { p.y = p.maxY; p.dir = -1; }
-				else if (p.y <= p.minY) { p.y = p.minY; p.dir = 1; }
+		if (!this.isObjectiveComplete && isActive && Array.isArray(player?.currentZombies)) {
+			let zappedHookTarget = false;
+			for (const zombie of player.currentZombies) {
+				if (!zombie || zombie.isDead || zombie.hookPullTimer <= 0 || typeof zombie.takeDamage !== 'function') continue;
+				if (laser.hookedHitTargets?.has(zombie)) continue;
+				const radius = Number(zombie.radius) || 18;
+				const height = Number(zombie.height) || 58;
+				const overlapsLane = zombie.x + radius >= laser.x && zombie.x - radius <= laser.x + laser.width;
+				const beamTop = laser.y - laser.height / 2;
+				const beamBottom = laser.y + laser.height / 2;
+				const hookSweepTop = zombie.y - height - 48;
+				const hookSweepBottom = zombie.y + 8;
+				if (!overlapsLane || beamBottom < hookSweepTop || beamTop > hookSweepBottom) continue;
+				laser.hookedHitTargets?.add(zombie);
+				const knockbackDirection = zombie.x < laser.x + laser.width / 2 ? -1 : 1;
+				zombie.takeDamage(laser.damage, knockbackDirection, 360, true);
+				particles.createHitSparks(zombie.x, laser.y, 8, '#ffea00');
+				zappedHookTarget = true;
 			}
+			if (zappedHookTarget) audio.playLaserZap();
 		}
-		for (const laser of this.laserHazards) {
-			laser.timer = (laser.timer + safeDt) % laser.cycleDuration;
-			const isActive = laser.timer < laser.activeDuration;
-			if (isActive && !laser.wasActive) {
-				laser.hookedHitTargets = new WeakSet();
-			} else if (!isActive) {
-				laser.hookedHitTargets = null;
-			}
-			laser.wasActive = isActive;
-			if (!this.isObjectiveComplete && isActive && player && (player.iFrames || 0) <= 0 && !player.isRolling && !player.isAwakened) {
-				if (player.x >= laser.x - 20 && player.x <= laser.x + laser.width + 20 &&
-						Math.abs(player.y - 30 - laser.y) < 25) {
-					audio.playLaserZap();
-					player.takeDamage(laser.damage, player.x < laser.x + laser.width / 2 ? -1 : 1, 350);
-					particles.createHitSparks(player.x, laser.y, 8, '#ff2244');
+	}
+	const allEnemiesDefeated = wavesDirector && wavesDirector.isWaveActive &&
+														 wavesDirector.spawnQueue.length === 0 &&
+														 wavesDirector.zombies.length === 0 && !player?.isDead;
+	if (allEnemiesDefeated && !this.isObjectiveComplete) {
+		this.isObjectiveComplete = true;
+		this.exitDoor.isOpen = true;
+		projectiles.clearHostileEffects?.();
+		audio.playDoorUnlock();
+		const clearText = this.campaignBeat?.clearText || 'STAGE CLEAR!';
+		const clearX = Number.isFinite(player?.x) ? player.x : 0;
+		const clearY = Number.isFinite(player?.y) ? player.y - 86 : -86;
+		particles.addTextBanner(clearX, clearY, `★ ${clearText} ★`, '#ffee00');
+		if (this.campaignBeat?.clue) {
+			particles.addTextBanner(clearX, clearY, `TRACE // ${this.campaignBeat.clue}`, '#67e8f9');
+		}
+		const reaction = this.campaignBeat?.allyReaction;
+		if (reaction?.line) {
+			speech.spawnBubble(clearX + 60, clearY + 30, reaction.line, `ally-${reaction.ally}`, 1.9, {
+				speakerKey: `ally-${reaction.ally}:campaign`,
+				priority: 5,
+				cooldownMs: 0
+			});
+		}
+		const stageRank = this.computeStageRank(combat.stageMaxCombo, player?.stageDamageTaken ?? 0);
+		particles.addTextBanner(clearX, clearY, `RANK ${stageRank}`,
+			stageRank === 'S' ? '#ffd700' : (stageRank === 'A' ? '#67e8f9' : '#c3c8e0'));
+		save.recordStageRank(this.currentStage, stageRank);
+		particles.addTextBanner(this.exitDoor.x, this.exitDoor.y - 120, '★ EXIT DOOR OPEN! ★', '#33ff88');
+		particles.addShockwave(this.exitDoor.x, this.exitDoor.y - 45, 120, '#33ff88', 8);
+		if (this.currentStage === this.maxStage || this.campaignBeat?.bossLabel) {
+			this.exitFocusTimer = this.currentStage === this.maxStage ? 1.8 : 0.85;
+		} else {
+			camera?.focusOn?.(this.exitDoor.x, this.exitDoor.y - 45, 0.45, 0.96);
+			camera?.addZoomPunch?.(0.03);
+		}
+	}
+	if (this.exitDoor.isOpen && player && !player.isDead && this.exitFocusTimer <= 0) {
+		const distToExit = Math.hypot(player.x - this.exitDoor.x, player.y - this.exitDoor.y);
+		if (distToExit < 60) {
+			this.doorTransitionTimer += safeDt;
+			particles.createAwakeningAura(this.exitDoor.x, this.exitDoor.y - 45, 2);
+			if (this.doorTransitionTimer > 0.4) {
+				this.doorTransitionTimer = -999;
+				this.exitDoor.isOpen = false;
+				audio.playDoorEnter();
+				if (onStageExit) {
+					onStageExit(this.currentStage + 1);
 				}
 			}
-			if (!this.isObjectiveComplete && isActive && Array.isArray(player?.currentZombies)) {
-				let zappedHookTarget = false;
-				for (const zombie of player.currentZombies) {
-					if (!zombie || zombie.isDead || zombie.hookPullTimer <= 0 || typeof zombie.takeDamage !== 'function') continue;
-					if (laser.hookedHitTargets?.has(zombie)) continue;
-					const radius = Number(zombie.radius) || 18;
-					const height = Number(zombie.height) || 58;
-					const overlapsLane = zombie.x + radius >= laser.x && zombie.x - radius <= laser.x + laser.width;
-					const beamTop = laser.y - laser.height / 2;
-					const beamBottom = laser.y + laser.height / 2;
-					const hookSweepTop = zombie.y - height - 48;
-					const hookSweepBottom = zombie.y + 8;
-					if (!overlapsLane || beamBottom < hookSweepTop || beamTop > hookSweepBottom) continue;
-					laser.hookedHitTargets?.add(zombie);
-					const knockbackDirection = zombie.x < laser.x + laser.width / 2 ? -1 : 1;
-					zombie.takeDamage(laser.damage, knockbackDirection, 360, true);
-					particles.createHitSparks(zombie.x, laser.y, 8, '#ffea00');
-					zappedHookTarget = true;
-				}
-				if (zappedHookTarget) audio.playLaserZap();
-			}
-		}
-		const allEnemiesDefeated = wavesDirector && wavesDirector.isWaveActive &&
-															 wavesDirector.spawnQueue.length === 0 &&
-															 wavesDirector.zombies.length === 0;
-		if (allEnemiesDefeated && !this.isObjectiveComplete) {
-			this.isObjectiveComplete = true;
-			this.exitDoor.isOpen = true;
-			projectiles.clearHostileEffects?.();
-			audio.playDoorUnlock();
-			const clearText = this.campaignBeat?.clearText || 'STAGE CLEAR!';
-			const clearX = Number.isFinite(player?.x) ? player.x : 0;
-			const clearY = Number.isFinite(player?.y) ? player.y - 86 : -86;
-			particles.addTextBanner(clearX, clearY, `★ ${clearText} ★`, '#ffee00');
-			if (this.campaignBeat?.clue) {
-				particles.addTextBanner(clearX, clearY, `TRACE // ${this.campaignBeat.clue}`, '#67e8f9');
-			}
-			const reaction = this.campaignBeat?.allyReaction;
-			if (reaction?.line) {
-				speech.spawnBubble(clearX + 60, clearY + 30, reaction.line, `ally-${reaction.ally}`, 1.9, {
-					speakerKey: `ally-${reaction.ally}:campaign`,
-					priority: 5,
-					cooldownMs: 0
-				});
-			}
-			const stageRank = this.computeStageRank(combat.stageMaxCombo, player?.stageDamageTaken ?? 0);
-			particles.addTextBanner(clearX, clearY, `RANK ${stageRank}`,
-				stageRank === 'S' ? '#ffd700' : (stageRank === 'A' ? '#67e8f9' : '#c3c8e0'));
-			save.recordStageRank(this.currentStage, stageRank);
-			particles.addTextBanner(this.exitDoor.x, this.exitDoor.y - 120, '★ EXIT DOOR OPEN! ★', '#33ff88');
-			particles.addShockwave(this.exitDoor.x, this.exitDoor.y - 45, 120, '#33ff88', 8);
-			if (this.currentStage === this.maxStage || this.campaignBeat?.bossLabel) {
-				this.exitFocusTimer = this.currentStage === this.maxStage ? 0.9 : 0.85;
-			} else {
-				camera?.focusOn?.(this.exitDoor.x, this.exitDoor.y - 45, 0.45, 0.96);
-				camera?.addZoomPunch?.(0.03);
-			}
-		}
-		if (this.exitDoor.isOpen && player && !player.isDead && this.exitFocusTimer <= 0) {
-			const distToExit = Math.hypot(player.x - this.exitDoor.x, player.y - this.exitDoor.y);
-			if (distToExit < 60) {
-				this.doorTransitionTimer += safeDt;
-				particles.createAwakeningAura(this.exitDoor.x, this.exitDoor.y - 45, 2);
-				if (this.doorTransitionTimer > 0.4) {
-					this.doorTransitionTimer = -999;
-					this.exitDoor.isOpen = false;
-					audio.playDoorEnter();
-					if (onStageExit) {
-						onStageExit(this.currentStage + 1);
-					}
-				}
-			} else {
-				if (this.doorTransitionTimer > 0) this.doorTransitionTimer = 0;
-			}
+		} else {
+			if (this.doorTransitionTimer > 0) this.doorTransitionTimer = 0;
 		}
 	}
-	computeStageRank(stageMaxCombo, damageTaken) {
-		if (stageMaxCombo >= 14 && damageTaken <= 25) return 'S';
-		if (stageMaxCombo >= 9 && damageTaken <= 70) return 'A';
-		if (stageMaxCombo >= 5 || damageTaken <= 100) return 'B';
-		return 'C';
+}
+computeStageRank(stageMaxCombo, damageTaken) {
+	if (stageMaxCombo >= 14 && damageTaken <= 25) return 'S';
+	if (stageMaxCombo >= 9 && damageTaken <= 70) return 'A';
+	if (stageMaxCombo >= 5 || damageTaken <= 100) return 'B';
+	return 'C';
+}
+getAllSolidPlatforms() {
+	const output = this.solidPlatformsScratch;
+	output.length = 0;
+	for (const platform of this.platforms) output.push(platform);
+	for (const platform of this.movingPlatforms) output.push(platform);
+	return output;
+}
+draw(ctx, groundY, crowded = false) {
+	this.crowdedRender = crowded;
+	const voidBlend = this.whiteVoidProgress || 0;
+	if (voidBlend < 0.999) {
+		this.drawDesktopBackground(ctx, groundY);
+		this.drawDesktopIcons(ctx);
+		this.drawErrorPopups(ctx);
 	}
-	getAllSolidPlatforms() {
-		const output = this.solidPlatformsScratch;
-		output.length = 0;
-		for (const platform of this.platforms) output.push(platform);
-		for (const platform of this.movingPlatforms) output.push(platform);
-		return output;
+	if (voidBlend > 0) this.drawWhiteVoid(ctx, groundY, voidBlend);
+	this.drawDoors(ctx, groundY);
+	this.drawPlatforms(ctx);
+	this.drawLaserHazards(ctx);
+	if (voidBlend < 0.6) this.drawTaskbar(ctx, groundY);
+}
+drawWhiteVoid(ctx, groundY, blend) {
+	const minX = this.bounds.minX - 1600;
+	const maxX = this.bounds.maxX + 1600;
+	const minY = this.bounds.minY - 1000;
+	ctx.save();
+	ctx.globalAlpha = blend;
+	ctx.fillStyle = '#f2efe8';
+	ctx.fillRect(minX, minY, maxX - minX, groundY - minY);
+	ctx.strokeStyle = '#1c1e24';
+	ctx.lineWidth = 3;
+	ctx.globalAlpha = blend * 0.9;
+	ctx.beginPath();
+	ctx.moveTo(minX, groundY + 2);
+	ctx.lineTo(maxX, groundY + 2);
+	ctx.stroke();
+	if (blend > 0.8) {
+		ctx.globalAlpha = (blend - 0.8) * 3;
+		ctx.fillStyle = '#9a958a';
+		ctx.font = '12px monospace';
+		ctx.textAlign = 'left';
+		ctx.fillText('untitled.fla — 100% — no layers', this.bounds.minX + 40, this.bounds.minY + 60);
 	}
-	draw(ctx, groundY, crowded = false) {
-		this.crowdedRender = crowded;
-		const voidBlend = this.whiteVoidProgress || 0;
-		if (voidBlend < 0.999) {
-			this.drawDesktopBackground(ctx, groundY);
-			this.drawDesktopIcons(ctx);
-			this.drawErrorPopups(ctx);
+	if (this.whiteVoidGlitch > 0) {
+		const bars = 7;
+		for (let i = 0; i < bars; i++) {
+			const seed = (Math.floor(this.stageTime * 18) * 31 + i * 97) | 0;
+			const jitter = ((Math.imul(seed, 0x9E3779B1) >>> 16) % 200) - 100;
+			const barY = this.bounds.minY + ((i + 0.5) / bars) * (groundY - this.bounds.minY);
+			ctx.globalAlpha = Math.min(0.7, this.whiteVoidGlitch);
+			ctx.fillStyle = i % 2 === 0 ? '#16181d' : '#67e8f9';
+			ctx.fillRect(this.bounds.minX + jitter, barY, this.bounds.maxX - this.bounds.minX, 5 + (i % 3) * 3);
 		}
-		if (voidBlend > 0) this.drawWhiteVoid(ctx, groundY, voidBlend);
-		this.drawDoors(ctx, groundY);
-		this.drawPlatforms(ctx);
-		this.drawLaserHazards(ctx);
-		if (voidBlend < 0.6) this.drawTaskbar(ctx, groundY);
 	}
-	drawWhiteVoid(ctx, groundY, blend) {
-		const minX = this.bounds.minX - 1600;
-		const maxX = this.bounds.maxX + 1600;
-		const minY = this.bounds.minY - 1000;
-		ctx.save();
-		ctx.globalAlpha = blend;
-		ctx.fillStyle = '#f2efe8';
-		ctx.fillRect(minX, minY, maxX - minX, groundY - minY);
-		ctx.strokeStyle = '#1c1e24';
-		ctx.lineWidth = 3;
-		ctx.globalAlpha = blend * 0.9;
-		ctx.beginPath();
-		ctx.moveTo(minX, groundY + 2);
-		ctx.lineTo(maxX, groundY + 2);
-		ctx.stroke();
-		if (blend > 0.8) {
-			ctx.globalAlpha = (blend - 0.8) * 3;
-			ctx.fillStyle = '#9a958a';
-			ctx.font = '12px monospace';
-			ctx.textAlign = 'left';
-			ctx.fillText('untitled.fla — 100% — no layers', this.bounds.minX + 40, this.bounds.minY + 60);
-		}
-		if (this.whiteVoidGlitch > 0) {
-			const bars = 7;
-			for (let i = 0; i < bars; i++) {
-				const seed = (Math.floor(this.stageTime * 18) * 31 + i * 97) | 0;
-				const jitter = ((Math.imul(seed, 0x9E3779B1) >>> 16) % 200) - 100;
-				const barY = this.bounds.minY + ((i + 0.5) / bars) * (groundY - this.bounds.minY);
-				ctx.globalAlpha = Math.min(0.7, this.whiteVoidGlitch);
-				ctx.fillStyle = i % 2 === 0 ? '#16181d' : '#67e8f9';
-				ctx.fillRect(this.bounds.minX + jitter, barY, this.bounds.maxX - this.bounds.minX, 5 + (i % 3) * 3);
-			}
-		}
-		ctx.restore();
-	}
+	ctx.restore();
+}
 drawDesktopBackground(ctx, groundY) {
 const minX = this.bounds.minX;
 const maxX = this.bounds.maxX;
@@ -974,6 +1019,19 @@ ctx.fillStyle = 'rgba(190, 153, 73, 0.04)';
 }
 ctx.font = 'bold 14px monospace'; ctx.fillStyle = '#fff0a6';
 ctx.fillText('CHANCE_ENGINE: H4C3R OVERRIDE', minX + 60, minY + 58);
+} else if (this.theme === 'trophy') {
+paintBackdrop('#031a3b');
+ctx.strokeStyle = 'rgba(255,213,74,.15)'; ctx.lineWidth = 1;
+strokeGridPath(ctx, minX, maxX, minY, maxY, 72);
+ctx.fillStyle = '#ffd54a'; ctx.font = "900 20px 'Bungee',Impact,sans-serif";
+ctx.fillText('VICTORY ARCHIVE // SYSTEM RESTORED', minX + 60, minY + 120);
+ctx.fillStyle = 'rgba(103,232,249,.55)'; ctx.font = 'bold 12px monospace';
+ctx.fillText('RESTORE.KEY VERIFIED • BAD REPLAYS REMOVED', minX + 60, minY + 144);
+ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 8; ctx.textAlign = 'center';
+ctx.beginPath(); ctx.arc(0, -380, 22, 0, Math.PI * 2); ctx.moveTo(22, -380); ctx.lineTo(88, -380);
+ctx.lineTo(88, -362); ctx.moveTo(67, -380); ctx.lineTo(67, -365); ctx.stroke();
+ctx.fillStyle = '#fff1a8'; ctx.font = "900 13px 'Bungee',Impact,sans-serif";
+ctx.fillText('RESTORE.KEY // 3/3', 0, -335);
 } else if (this.theme === 'zero_day') {
 paintBackdrop('#070a12');
 ctx.fillStyle = 'rgba(102, 232, 255, 0.08)';
@@ -1031,272 +1089,282 @@ ctx.moveTo(maxX, minY); ctx.lineTo(maxX, groundY);
 ctx.stroke();
 ctx.restore();
 }
-	drawEnvironmentMotifs(ctx, layer) {
-		const decorations = this.environmentDecorations || [];
-		const driftRange = this.bounds.maxX - this.bounds.minX + 120;
-		const driftStart = this.bounds.minX - 60;
-		ctx.save();
-		ctx.globalAlpha = layer === 0 ? 0.1 : 0.18;
-		ctx.fillStyle = decorations[0]?.color || ENVIRONMENT_COLORS.desktop;
-		ctx.strokeStyle = decorations[0]?.color || ENVIRONMENT_COLORS.desktop;
-		ctx.lineWidth = layer === 0 ? 1 : 1.5;
-		ctx.beginPath();
-		for (const motif of decorations) {
-			if (motif.layer !== layer) continue;
-			const drift = this.stageTime * motif.speed * (layer === 0 ? 16 : 28);
-			const wrappedX = driftStart + (((motif.x - driftStart + drift) % driftRange) + driftRange) % driftRange;
-			const y = motif.y + Math.sin(this.stageTime * motif.speed * 4 + motif.phase) * (layer === 0 ? 5 : 9);
-			if (motif.shape === 0) {
-				ctx.fillRect(wrappedX, y, motif.size, motif.size);
-			} else if (motif.shape === 1) {
-				ctx.moveTo(wrappedX - motif.size, y);
-				ctx.lineTo(wrappedX, y - motif.size);
-				ctx.lineTo(wrappedX + motif.size, y);
-			} else {
-				ctx.moveTo(wrappedX - motif.size, y);
-				ctx.lineTo(wrappedX + motif.size, y);
-			}
+drawEnvironmentMotifs(ctx, layer) {
+	const decorations = this.environmentDecorations || [];
+	const driftRange = this.bounds.maxX - this.bounds.minX + 120;
+	const driftStart = this.bounds.minX - 60;
+	ctx.save();
+	ctx.globalAlpha = layer === 0 ? 0.1 : 0.18;
+	ctx.fillStyle = decorations[0]?.color || ENVIRONMENT_COLORS.desktop;
+	ctx.strokeStyle = decorations[0]?.color || ENVIRONMENT_COLORS.desktop;
+	ctx.lineWidth = layer === 0 ? 1 : 1.5;
+	ctx.beginPath();
+	for (const motif of decorations) {
+		if (motif.layer !== layer) continue;
+		const drift = this.stageTime * motif.speed * (layer === 0 ? 16 : 28);
+		const wrappedX = driftStart + (((motif.x - driftStart + drift) % driftRange) + driftRange) % driftRange;
+		const y = motif.y + Math.sin(this.stageTime * motif.speed * 4 + motif.phase) * (layer === 0 ? 5 : 9);
+		if (motif.shape === 0) {
+			ctx.fillRect(wrappedX, y, motif.size, motif.size);
+		} else if (motif.shape === 1) {
+			ctx.moveTo(wrappedX - motif.size, y);
+			ctx.lineTo(wrappedX, y - motif.size);
+			ctx.lineTo(wrappedX + motif.size, y);
+		} else {
+			ctx.moveTo(wrappedX - motif.size, y);
+			ctx.lineTo(wrappedX + motif.size, y);
 		}
-		ctx.stroke();
-		ctx.restore();
 	}
-	drawCampaignSignal(ctx, minX, minY) {
-		const beat = this.campaignBeat;
-		if (!beat) return;
-		ctx.save();
-		ctx.textAlign = 'right';
-		ctx.textBaseline = 'alphabetic';
-		ctx.font = 'bold 12px monospace';
-		ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-		ctx.fillText(beat.act, this.bounds.maxX - 48, minY + 48);
-		ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
-		ctx.fillText(`MISSION // ${beat.mission}`, this.bounds.maxX - 48, minY + 69);
-		if (beat.bossLabel) {
-			ctx.fillStyle = this.theme === 'zero_day' ? '#67e8f9' : '#ffc857';
-			ctx.fillText(`TARGET // ${beat.bossLabel}`, this.bounds.maxX - 48, minY + 90);
-		}
-		if (beat.clue) {
-			ctx.fillStyle = '#67e8f9';
-			ctx.fillText(`TRACE // ${beat.clue}`, this.bounds.maxX - 48, minY + 111);
-		}
-		ctx.restore();
+	ctx.stroke();
+	ctx.restore();
+}
+drawCampaignSignal(ctx, minX, minY) {
+	const beat = this.campaignBeat;
+	if (!beat) return;
+	ctx.save();
+	ctx.textAlign = 'right';
+	ctx.textBaseline = 'alphabetic';
+	ctx.font = 'bold 12px monospace';
+	ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+	ctx.fillText(beat.act, this.bounds.maxX - 48, minY + 48);
+	ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+	ctx.fillText(`MISSION // ${beat.mission}`, this.bounds.maxX - 48, minY + 69);
+	if (beat.bossLabel) {
+		ctx.fillStyle = this.theme === 'zero_day' ? '#67e8f9' : '#ffc857';
+		ctx.fillText(`TARGET // ${beat.bossLabel}`, this.bounds.maxX - 48, minY + 90);
 	}
-	drawDesktopIcons(ctx) {
-		if (this.desktopIcons.length === 0) return;
+	if (beat.clue) {
+		ctx.fillStyle = '#67e8f9';
+		ctx.fillText(`TRACE // ${beat.clue}`, this.bounds.maxX - 48, minY + 111);
+	}
+	ctx.restore();
+}
+drawDesktopIcons(ctx) {
+	if (this.desktopIcons.length === 0) return;
+	ctx.save();
+	const trophy = this.isTrophyRoom;
+	ctx.fillStyle = trophy ? 'rgba(3,15,38,.9)' : 'rgba(255, 255, 255, 0.08)';
+	ctx.strokeStyle = trophy ? '#ffd54a' : 'rgba(255, 255, 255, 0.25)';
+	ctx.lineWidth = 1;
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	for (const icon of this.desktopIcons) {
+		const width = trophy ? 126 : 60;
+		const height = trophy ? 64 : 50;
+		const top = trophy ? 52 : 40;
+		ctx.fillRect(icon.x - width / 2, icon.y - top, width, height);
+		ctx.strokeRect(icon.x - width / 2, icon.y - top, width, height);
+	}
+	ctx.font = trophy ? "900 18px 'Bungee',Impact,sans-serif" : '24px sans-serif';
+	for (const icon of this.desktopIcons) {
+		ctx.fillStyle = icon.color || '#ffffff';
+		ctx.fillText(icon.icon, icon.x, icon.y + (trophy ? -23 : -15));
+	}
+	ctx.fillStyle = trophy ? '#fff1a8' : '#ffffff';
+	ctx.font = "bold 10px 'Trebuchet MS', sans-serif";
+	for (const icon of this.desktopIcons) {
+		ctx.fillText(icon.label, icon.x, icon.y + (trophy ? 28 : 20));
+	}
+	ctx.restore();
+}
+drawErrorPopups(ctx) {
+	for (const pop of this.errorPopups) {
 		ctx.save();
-		ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-		ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-		ctx.lineWidth = 1;
-		ctx.textAlign = 'center';
-		ctx.textBaseline = 'middle';
-		for (const icon of this.desktopIcons) {
-			ctx.fillRect(icon.x - 30, icon.y - 40, 60, 50);
-			ctx.strokeRect(icon.x - 30, icon.y - 40, 60, 50);
-		}
-		ctx.font = "24px sans-serif";
-		for (const icon of this.desktopIcons) {
-			ctx.fillText(icon.icon, icon.x, icon.y - 15);
-		}
+		ctx.fillStyle = '#ece9d8';
+		ctx.strokeStyle = '#0055ea';
+		ctx.lineWidth = 2;
+		ctx.fillRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, pop.height);
+		ctx.strokeRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, pop.height);
+		ctx.fillStyle = '#0055ea';
+		ctx.fillRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, 18);
 		ctx.fillStyle = '#ffffff';
-		ctx.font = "bold 10px 'Trebuchet MS', sans-serif";
-		for (const icon of this.desktopIcons) {
-			ctx.fillText(icon.label, icon.x, icon.y + 20);
-		}
+		ctx.font = "bold 10px sans-serif";
+		ctx.textAlign = 'left';
+		ctx.fillText(pop.title, pop.x - pop.width / 2 + 6, pop.y - pop.height / 2 + 13);
+		ctx.fillStyle = '#000000';
+		ctx.font = "bold 11px sans-serif";
+		ctx.textAlign = 'center';
+		ctx.fillText(pop.msg, pop.x, pop.y + 12);
 		ctx.restore();
 	}
-	drawErrorPopups(ctx) {
-		for (const pop of this.errorPopups) {
-			ctx.save();
-			ctx.fillStyle = '#ece9d8';
-			ctx.strokeStyle = '#0055ea';
-			ctx.lineWidth = 2;
-			ctx.fillRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, pop.height);
-			ctx.strokeRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, pop.height);
-			ctx.fillStyle = '#0055ea';
-			ctx.fillRect(pop.x - pop.width / 2, pop.y - pop.height / 2, pop.width, 18);
-			ctx.fillStyle = '#ffffff';
-			ctx.font = "bold 10px sans-serif";
-			ctx.textAlign = 'left';
-			ctx.fillText(pop.title, pop.x - pop.width / 2 + 6, pop.y - pop.height / 2 + 13);
-			ctx.fillStyle = '#000000';
-			ctx.font = "bold 11px sans-serif";
-			ctx.textAlign = 'center';
-			ctx.fillText(pop.msg, pop.x, pop.y + 12);
-			ctx.restore();
+}
+drawDoors(ctx, groundY) {
+	ctx.save();
+	ctx.fillStyle = '#0f172a';
+	ctx.strokeStyle = '#38bdf8';
+	ctx.lineWidth = 3;
+	ctx.fillRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
+	ctx.strokeRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
+	ctx.fillStyle = '#38bdf8';
+	ctx.font = "900 11px 'Bungee',Impact,sans-serif";
+	ctx.textAlign = 'center';
+	ctx.fillText(this.isTrophyRoom ? 'ENTRY' : 'START', this.entranceDoor.x, groundY - this.entranceDoor.height - 8);
+	ctx.restore();
+	ctx.save();
+	const isOpen = this.exitDoor.isOpen;
+	ctx.fillStyle = isOpen ? '#022c22' : '#3f1118';
+	ctx.strokeStyle = isOpen ? '#10b981' : '#ef4444';
+	ctx.lineWidth = 4;
+	ctx.fillRect(this.exitDoor.x - 32, groundY - this.exitDoor.height, 64, this.exitDoor.height);
+	ctx.strokeRect(this.exitDoor.x - 32, groundY - this.exitDoor.height, 64, this.exitDoor.height);
+	if (isOpen) {
+		ctx.shadowColor = '#10b981';
+		ctx.shadowBlur = 24;
+		ctx.fillStyle = '#10b981';
+		ctx.fillRect(this.exitDoor.x - 24, groundY - this.exitDoor.height + 8, 48, this.exitDoor.height - 16);
+		const time = this.stageTime * 6;
+		ctx.fillStyle = '#6ee7b7';
+		for (let i = 0; i < 4; i++) {
+			const vy = (groundY - this.exitDoor.height + 14) + ((time * 25 + i * 15) % (this.exitDoor.height - 28));
+			ctx.beginPath();
+			ctx.arc(this.exitDoor.x + Math.sin(time + i) * 12, vy, 3, 0, Math.PI * 2);
+			ctx.fill();
 		}
-	}
-	drawDoors(ctx, groundY) {
-		ctx.save();
-		ctx.fillStyle = '#0f172a';
-		ctx.strokeStyle = '#38bdf8';
-		ctx.lineWidth = 3;
-		ctx.fillRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
-		ctx.strokeRect(this.entranceDoor.x - 30, groundY - this.entranceDoor.height, 60, this.entranceDoor.height);
-		ctx.fillStyle = '#38bdf8';
+		const bounce = Math.sin(this.stageTime * 8) * 8;
+		ctx.fillStyle = '#ffea00';
+		ctx.font = "900 13px 'Bungee',Impact,sans-serif";
+		ctx.textAlign = 'center';
+		const label = this.isTrophyRoom ? '⬇ RESULTS ⬇' : (this.currentStage === this.maxStage ? '⬇ TROPHY ROOM ⬇' : '⬇ ENTER EXIT ⬇');
+		ctx.fillText(label, this.exitDoor.x, groundY - this.exitDoor.height - 16 + bounce);
+	} else {
+		ctx.fillStyle = '#ef4444';
 		ctx.font = "900 11px 'Bungee',Impact,sans-serif";
 		ctx.textAlign = 'center';
-		ctx.fillText("START", this.entranceDoor.x, groundY - this.entranceDoor.height - 8);
-		ctx.restore();
+		ctx.fillText("🔒 LOCKED", this.exitDoor.x, groundY - this.exitDoor.height - 8);
+	}
+	ctx.restore();
+}
+drawPlatforms(ctx) {
+	const allPlatforms = this.getAllSolidPlatforms();
+	for (const p of allPlatforms) {
 		ctx.save();
-		const isOpen = this.exitDoor.isOpen;
-		ctx.fillStyle = isOpen ? '#022c22' : '#3f1118';
-		ctx.strokeStyle = isOpen ? '#10b981' : '#ef4444';
-		ctx.lineWidth = 4;
-		ctx.fillRect(this.exitDoor.x - 32, groundY - this.exitDoor.height, 64, this.exitDoor.height);
-		ctx.strokeRect(this.exitDoor.x - 32, groundY - this.exitDoor.height, 64, this.exitDoor.height);
-		if (isOpen) {
-			ctx.shadowColor = '#10b981';
-			ctx.shadowBlur = 24;
-			ctx.fillStyle = '#10b981';
-			ctx.fillRect(this.exitDoor.x - 24, groundY - this.exitDoor.height + 8, 48, this.exitDoor.height - 16);
-			const time = this.stageTime * 6;
-			ctx.fillStyle = '#6ee7b7';
-			for (let i = 0; i < 4; i++) {
-				const vy = (groundY - this.exitDoor.height + 14) + ((time * 25 + i * 15) % (this.exitDoor.height - 28));
-				ctx.beginPath();
-				ctx.arc(this.exitDoor.x + Math.sin(time + i) * 12, vy, 3, 0, Math.PI * 2);
-				ctx.fill();
-			}
-			const bounce = Math.sin(this.stageTime * 8) * 8;
-			ctx.fillStyle = '#ffea00';
-			ctx.font = "900 13px 'Bungee',Impact,sans-serif";
-			ctx.textAlign = 'center';
-			ctx.fillText("⬇ ENTER EXIT ⬇", this.exitDoor.x, groundY - this.exitDoor.height - 16 + bounce);
+		const halfW = p.width / 2;
+		const topY = p.y - p.height;
+		if (p.appType === 'trophy') {
+			ctx.fillStyle = '#102852';
+			ctx.strokeStyle = '#ffd54a';
+		} else if (p.appType === 'dark_core') {
+			ctx.fillStyle = '#180006';
+			ctx.strokeStyle = '#ff0033';
+			ctx.shadowColor = '#ff0033';
+			ctx.shadowBlur = this.crowdedRender ? 0 : 12;
+		} else if (p.appType === 'bsod') {
+			ctx.fillStyle = '#002277';
+			ctx.strokeStyle = '#38bdf8';
 		} else {
-			ctx.fillStyle = '#ef4444';
-			ctx.font = "900 11px 'Bungee',Impact,sans-serif";
-			ctx.textAlign = 'center';
-			ctx.fillText("🔒 LOCKED", this.exitDoor.x, groundY - this.exitDoor.height - 8);
+			ctx.fillStyle = 'rgba(26, 29, 44, 0.94)';
+			ctx.strokeStyle = '#475569';
 		}
+		ctx.lineWidth = 2;
+		ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+		ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+		ctx.fillStyle = p.appType === 'trophy' ? '#7a5d08' : (p.appType === 'dark_core' ? '#3b000d' : (p.appType === 'bsod' ? '#003399' : '#334155'));
+		ctx.fillRect(p.x - halfW, topY, p.width, 9);
+		const ctrlY = topY + 4.5;
+		ctx.fillStyle = '#ff5f56';
+		ctx.beginPath(); ctx.arc(p.x + halfW - 20, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
+		ctx.fillStyle = '#ffbd2e';
+		ctx.beginPath(); ctx.arc(p.x + halfW - 13, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
+		ctx.fillStyle = '#27c93f';
+		ctx.beginPath(); ctx.arc(p.x + halfW - 6, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
+		ctx.fillStyle = p.appType === 'trophy' ? '#fff1a8' : (p.appType === 'dark_core' ? '#ff6688' : (p.appType === 'bsod' ? '#ffffff' : '#94a3b8'));
+		ctx.font = "bold 9px 'Trebuchet MS', sans-serif";
+		ctx.textAlign = 'left';
+		ctx.fillText(p.title, p.x - halfW + 8, topY + 7);
 		ctx.restore();
 	}
-	drawPlatforms(ctx) {
-		const allPlatforms = this.getAllSolidPlatforms();
-		for (const p of allPlatforms) {
-			ctx.save();
-			const halfW = p.width / 2;
-			const topY = p.y - p.height;
-			if (p.appType === 'dark_core') {
-				ctx.fillStyle = '#180006';
-				ctx.strokeStyle = '#ff0033';
-				ctx.shadowColor = '#ff0033';
-				ctx.shadowBlur = this.crowdedRender ? 0 : 12;
-			} else if (p.appType === 'bsod') {
-				ctx.fillStyle = '#002277';
-				ctx.strokeStyle = '#38bdf8';
-			} else {
-				ctx.fillStyle = 'rgba(26, 29, 44, 0.94)';
-				ctx.strokeStyle = '#475569';
-			}
+}
+drawLaserHazards(ctx) {
+	for (const laser of this.laserHazards) {
+		const isActive = laser.timer < laser.activeDuration;
+		ctx.save();
+		if (isActive) {
+			ctx.fillStyle = '#ff2244';
+			ctx.shadowColor = '#ff2244';
+			ctx.shadowBlur = 14;
+			ctx.fillRect(laser.x, laser.y - laser.height / 2, laser.width, laser.height);
+			ctx.fillStyle = '#ffffff';
+			ctx.fillRect(laser.x, laser.y - 2, laser.width, 4);
+		} else {
+			ctx.strokeStyle = 'rgba(255, 68, 68, 0.4)';
 			ctx.lineWidth = 2;
-			ctx.fillRect(p.x - halfW, topY, p.width, p.height);
-			ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
-			ctx.fillStyle = p.appType === 'dark_core' ? '#3b000d' : (p.appType === 'bsod' ? '#003399' : '#334155');
-			ctx.fillRect(p.x - halfW, topY, p.width, 9);
-			const ctrlY = topY + 4.5;
-			ctx.fillStyle = '#ff5f56';
-			ctx.beginPath(); ctx.arc(p.x + halfW - 20, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
-			ctx.fillStyle = '#ffbd2e';
-			ctx.beginPath(); ctx.arc(p.x + halfW - 13, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
-			ctx.fillStyle = '#27c93f';
-			ctx.beginPath(); ctx.arc(p.x + halfW - 6, ctrlY, 2.4, 0, Math.PI * 2); ctx.fill();
-			ctx.fillStyle = p.appType === 'dark_core' ? '#ff6688' : (p.appType === 'bsod' ? '#ffffff' : '#94a3b8');
-			ctx.font = "bold 9px 'Trebuchet MS', sans-serif";
-			ctx.textAlign = 'left';
-			ctx.fillText(p.title, p.x - halfW + 8, topY + 7);
-			ctx.restore();
-		}
-	}
-	drawLaserHazards(ctx) {
-		for (const laser of this.laserHazards) {
-			const isActive = laser.timer < laser.activeDuration;
-			ctx.save();
-			if (isActive) {
-				ctx.fillStyle = '#ff2244';
-				ctx.shadowColor = '#ff2244';
-				ctx.shadowBlur = 14;
-				ctx.fillRect(laser.x, laser.y - laser.height / 2, laser.width, laser.height);
-				ctx.fillStyle = '#ffffff';
-				ctx.fillRect(laser.x, laser.y - 2, laser.width, 4);
-			} else {
-				ctx.strokeStyle = 'rgba(255, 68, 68, 0.4)';
-				ctx.lineWidth = 2;
-				ctx.setLineDash([6, 6]);
-				ctx.beginPath();
-				ctx.moveTo(laser.x, laser.y);
-				ctx.lineTo(laser.x + laser.width, laser.y);
-				ctx.stroke();
-			}
-			ctx.fillStyle = '#444';
-			ctx.fillRect(laser.x - 8, laser.y - 8, 8, 16);
-			ctx.fillRect(laser.x + laser.width, laser.y - 8, 8, 16);
-			ctx.restore();
-		}
-	}
-	drawTaskbar(ctx, groundY) {
-		const minX = this.bounds.minX - 500;
-		const maxX = this.bounds.maxX + 500;
-		ctx.save();
-		ctx.fillStyle = '#04162d';
-		ctx.fillRect(minX, groundY, maxX - minX, 1000);
-		ctx.fillStyle = '#0b4989';
-		ctx.strokeStyle = '#86d3ff';
-		ctx.lineWidth = 2;
-		ctx.fillRect(this.bounds.minX, groundY, this.bounds.maxX - this.bounds.minX, 42);
-		ctx.strokeRect(this.bounds.minX, groundY, this.bounds.maxX - this.bounds.minX, 42);
-		ctx.fillStyle = '#1682c4';
-		ctx.fillRect(this.bounds.minX + 10, groundY + 6, 80, 30);
-		ctx.fillStyle = '#ffffff';
-		ctx.font = "bold 12px 'Trebuchet MS', sans-serif";
-		ctx.textAlign = 'center';
-		ctx.fillText("🪟 START", this.bounds.minX + 50, groundY + 25);
-		const tabs = ['Stick_vs_Zombies.exe', 'Animation_v2.fla', 'Zombies_Horde.cmd'];
-		tabs.forEach((tab, i) => {
-			const tx = this.bounds.minX + 100 + i * 160;
-			ctx.fillStyle = i === 0 ? '#277db9' : '#15558d';
-			ctx.fillRect(tx, groundY + 6, 150, 28);
-			ctx.fillStyle = '#a5accb';
-			ctx.font = "11px 'Trebuchet MS', sans-serif";
-			ctx.textAlign = 'center';
-			ctx.fillText(tab, tx + 75, groundY + 23);
-		});
-		ctx.fillStyle = '#ffffff';
-		ctx.font = "bold 12px monospace";
-		ctx.textAlign = 'right';
-		const elapsedSeconds = Math.floor(this.stageTime);
-		const runMinutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
-		const runSeconds = String(elapsedSeconds % 60).padStart(2, '0');
-		const clearedThrough = this.currentStage - (this.isObjectiveComplete ? 0 : 1);
-		const keyPieces = clearedThrough < 5 ? 0 : (clearedThrough < 10 ? 1 : (clearedThrough < 11 ? 2 : 3));
-		ctx.fillText(`KEY ${keyPieces}/3 | RUN ${runMinutes}:${runSeconds}`, this.bounds.maxX - 20, groundY + 25);
-		ctx.restore();
-	}
-	drawScreenGuide(ctx, camera, viewportWidth, viewportHeight) {
-		if (!this.exitDoor.isOpen || !camera) return;
-		const screen = camera.worldToScreen(this.exitDoor.x, this.exitDoor.y - 50);
-		if (screen.x >= 24 && screen.x <= viewportWidth - 24) return;
-		const isLeft = screen.x < 0;
-		const x = isLeft ? 54 : viewportWidth - 54;
-		const y = Math.max(120, Math.min(viewportHeight - 118, screen.y));
-		ctx.save();
-		ctx.fillStyle = 'rgba(2, 44, 34, 0.94)';
-		ctx.strokeStyle = '#34d399';
-		ctx.lineWidth = 2;
-		ctx.beginPath();
-		ctx.roundRect?.(x - 34, y - 16, 68, 32, 10);
-		if (ctx.roundRect) {
-			ctx.fill();
+			ctx.setLineDash([6, 6]);
+			ctx.beginPath();
+			ctx.moveTo(laser.x, laser.y);
+			ctx.lineTo(laser.x + laser.width, laser.y);
 			ctx.stroke();
-		} else {
-			ctx.fillRect(x - 34, y - 16, 68, 32);
-			ctx.strokeRect(x - 34, y - 16, 68, 32);
 		}
-		ctx.fillStyle = '#d1fae5';
-		ctx.font = "900 11px 'Trebuchet MS', sans-serif";
-		ctx.textAlign = 'center';
-		ctx.textBaseline = 'middle';
-		ctx.fillText(isLeft ? '◀ EXIT' : 'EXIT ▶', x, y);
+		ctx.fillStyle = '#444';
+		ctx.fillRect(laser.x - 8, laser.y - 8, 8, 16);
+		ctx.fillRect(laser.x + laser.width, laser.y - 8, 8, 16);
 		ctx.restore();
 	}
+}
+drawTaskbar(ctx, groundY) {
+	const minX = this.bounds.minX - 500;
+	const maxX = this.bounds.maxX + 500;
+	ctx.save();
+	ctx.fillStyle = '#04162d';
+	ctx.fillRect(minX, groundY, maxX - minX, 1000);
+	ctx.fillStyle = '#0b4989';
+	ctx.strokeStyle = '#86d3ff';
+	ctx.lineWidth = 2;
+	ctx.fillRect(this.bounds.minX, groundY, this.bounds.maxX - this.bounds.minX, 42);
+	ctx.strokeRect(this.bounds.minX, groundY, this.bounds.maxX - this.bounds.minX, 42);
+	ctx.fillStyle = '#1682c4';
+	ctx.fillRect(this.bounds.minX + 10, groundY + 6, 80, 30);
+	ctx.fillStyle = '#ffffff';
+	ctx.font = "bold 12px 'Trebuchet MS', sans-serif";
+	ctx.textAlign = 'center';
+	ctx.fillText("🪟 START", this.bounds.minX + 50, groundY + 25);
+	const tabs = ['Stick_vs_Zombies.exe', 'Animation_v2.fla', 'Zombies_Horde.cmd'];
+	tabs.forEach((tab, i) => {
+		const tx = this.bounds.minX + 100 + i * 160;
+		ctx.fillStyle = i === 0 ? '#277db9' : '#15558d';
+		ctx.fillRect(tx, groundY + 6, 150, 28);
+		ctx.fillStyle = '#a5accb';
+		ctx.font = "11px 'Trebuchet MS', sans-serif";
+		ctx.textAlign = 'center';
+		ctx.fillText(tab, tx + 75, groundY + 23);
+	});
+	ctx.fillStyle = '#ffffff';
+	ctx.font = "bold 12px monospace";
+	ctx.textAlign = 'right';
+	const elapsedSeconds = Math.floor(this.stageTime);
+	const runMinutes = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+	const runSeconds = String(elapsedSeconds % 60).padStart(2, '0');
+	const clearedThrough = this.currentStage - (this.isObjectiveComplete ? 0 : 1);
+	const keyPieces = clearedThrough < 5 ? 0 : (clearedThrough < 10 ? 1 : (clearedThrough < 11 ? 2 : 3));
+	ctx.fillText(`KEY ${keyPieces}/3 | RUN ${runMinutes}:${runSeconds}`, this.bounds.maxX - 20, groundY + 25);
+	ctx.restore();
+}
+drawScreenGuide(ctx, camera, viewportWidth, viewportHeight) {
+	if (!this.exitDoor.isOpen || !camera) return;
+	const screen = camera.worldToScreen(this.exitDoor.x, this.exitDoor.y - 50);
+	if (screen.x >= 24 && screen.x <= viewportWidth - 24) return;
+	const isLeft = screen.x < 0;
+	const x = isLeft ? 54 : viewportWidth - 54;
+	const y = Math.max(120, Math.min(viewportHeight - 118, screen.y));
+	ctx.save();
+	ctx.fillStyle = 'rgba(2, 44, 34, 0.94)';
+	ctx.strokeStyle = '#34d399';
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.roundRect?.(x - 34, y - 16, 68, 32, 10);
+	if (ctx.roundRect) {
+		ctx.fill();
+		ctx.stroke();
+	} else {
+		ctx.fillRect(x - 34, y - 16, 68, 32);
+		ctx.strokeRect(x - 34, y - 16, 68, 32);
+	}
+	ctx.fillStyle = '#d1fae5';
+	ctx.font = "900 11px 'Trebuchet MS', sans-serif";
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	const label = this.isTrophyRoom ? 'RESULTS' : 'EXIT';
+	ctx.fillText(isLeft ? `◀ ${label}` : `${label} ▶`, x, y);
+	ctx.restore();
+}
 }
 export const stages = new StageManager();

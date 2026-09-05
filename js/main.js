@@ -1,16 +1,16 @@
-import { audio } from './engine/audio.js?v=9.7';
-import { input } from './engine/input.js?v=9.7';
-import { Camera } from './engine/camera.js?v=9.7';
-import { particles } from './engine/particles.js?v=9.7';
-import { Player } from './entities/player.js?v=9.7';
-import { waves } from './systems/waves.js?v=9.7';
-import { combat } from './systems/combat.js?v=9.7';
-import { shop } from './systems/shop.js?v=9.7';
-import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=9.7';
-import { projectiles } from './entities/projectiles.js?v=9.7';
-import { allies } from './entities/allies.js?v=9.7';
-import { speech } from './engine/speech.js?v=9.7';
-import { save } from './systems/save.js?v=9.7';
+import { audio } from './engine/audio.js?v=9.8';
+import { input } from './engine/input.js?v=9.8';
+import { Camera } from './engine/camera.js?v=9.8';
+import { particles } from './engine/particles.js?v=9.8';
+import { Player } from './entities/player.js?v=9.8';
+import { waves } from './systems/waves.js?v=9.8';
+import { combat } from './systems/combat.js?v=9.8';
+import { shop } from './systems/shop.js?v=9.8';
+import { CAMPAIGN_BEATS, stages } from './systems/stages.js?v=9.8';
+import { projectiles } from './entities/projectiles.js?v=9.8';
+import { allies } from './entities/allies.js?v=9.8';
+import { speech } from './engine/speech.js?v=9.8';
+import { save } from './systems/save.js?v=9.8';
 export class Game {
   constructor() {
 	this.canvas = document.getElementById('gameCanvas');
@@ -337,6 +337,7 @@ export class Game {
 	waves.startWave(stage);
   }
   captureStageCheckpoint() {
+	if (this.stageManager.isTrophyRoom) return;
 	this.stageCheckpoint = Object.freeze({
 	  stage: this.stageManager.currentStage,
 	  ink: combat.ink,
@@ -428,10 +429,10 @@ export class Game {
 	if (mission) mission.textContent = beat.mission || this.stageManager.stageName;
 	const clue = document.getElementById('mission-clue');
 	if (clue) {
-	  const previousClue = stage > 1 ? CAMPAIGN_BEATS[stage - 1]?.clue : null;
+  const previousClue = this.stageManager.isTrophyRoom ? beat.clue : (stage > 1 ? CAMPAIGN_BEATS[stage - 1]?.clue : null);
 	  clue.textContent = previousClue ? `TRACE // ${previousClue}` : '';
 	}
-	if (lesson) lesson.textContent = this.getStageLesson(stage);
+if (lesson) lesson.textContent = this.stageManager.isTrophyRoom ? 'EXPLORE · ENTER THE RESULTS DOOR' : this.getStageLesson(stage);
 	strip.classList.add('active');
 	this.missionStripTimer = stage === 1 || [5, 10, 11, 15, 16, 17, 18].includes(stage) ? 4.0 : 3.5;
 	this.missionStripGrace = 0.75;
@@ -496,6 +497,38 @@ export class Game {
 	}
 	particles.addDamageText(this.player.x, this.player.y - 100, `PRESS [B] FOR UPGRADES`, false, '#38bdf8');
   }
+ enterTrophyRoom() {
+if (this.stageManager.isTrophyRoom) return;
+this.hideAllModals();
+this.state = 'PLAYING';
+input.resetHeldInputs();
+waves.stopWave();
+projectiles.reset();
+allies.reset(false, false, true);
+particles.reset();
+speech.reset();
+combat.clearArena();
+this.stageManager.enterTrophyRoom();
+this.player.resetStageCombat?.(true);
+this.player.x = this.stageManager.entranceDoor.x + 60;
+this.player.y = this.groundY;
+this.player.isGrounded = true;
+this.player.weaponType = 'pencil';
+this.player.temporaryWeaponTimer = 0;
+this.player.beginDrawIn?.();
+this.weaponPickup = null;
+this.camera.clearTransient?.();
+this.camera.snapTo(this.player);
+this.reportedLayerErrors.clear();
+save.recordRun(combat.score, combat.maxCombo, combat.totalKills);
+save.recordVictory();
+this.stageCheckpoint = null;
+this.syncContinueButton();
+audio.setIntensity(0.12);
+audio.setBGMDucked?.(false);
+this.showMissionStrip(18, 'EPILOGUE');
+particles.addTextBanner(this.player.x + 90, this.player.y - 90, '★ TROPHY ROOM UNLOCKED! ★', '#ffd54a');
+ }
   completeGame() {
 	this.state = 'VICTORY';
 	audio.setIntensity(0);
@@ -643,7 +676,7 @@ export class Game {
 	  this.stageManager.update(simDt, this.player, waves, (nextStage) => {
 		this.stageManager.resolveStageExit(
 		  nextStage,
-		  () => this.completeGame(),
+	  () => this.stageManager.isTrophyRoom ? this.completeGame() : this.enterTrophyRoom(),
 		  (stage) => this.advanceStage(stage)
 		);
 	  }, this.camera);
@@ -701,10 +734,10 @@ export class Game {
 	}
 	const waveNum = this.getHudElement('hud-wave-number');
 	const zombieCount = this.getHudElement('hud-zombies-count');
-	if (waveNum) waveNum.innerText = `${this.stageManager.currentStage} - ${this.stageManager.stageName}`;
+if (waveNum) waveNum.innerText = this.stageManager.isTrophyRoom ? 'EPILOGUE - TROPHY ROOM' : `${this.stageManager.currentStage} - ${this.stageManager.stageName}`;
 	if (zombieCount) {
 	  if (this.stageManager.exitDoor.isOpen) {
-		zombieCount.innerHTML = `<span style="color: #34d399;">★ DOOR OPEN ➔ ENTER EXIT</span>`;
+	zombieCount.innerHTML = `<span style="color: #34d399;">${this.stageManager.isTrophyRoom ? '★ EXPLORE ➔ RESULTS' : '★ DOOR OPEN ➔ ENTER EXIT'}</span>`;
 	  } else {
 		zombieCount.innerText = `Zombies: ${waves.getAliveCount()}`;
 	  }
