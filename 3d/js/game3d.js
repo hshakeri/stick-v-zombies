@@ -1493,7 +1493,7 @@ export class Game3D {
       blue: '#2299ff',
       yellow: '#ffcc00',
       green: '#33dd66',
-      chosen: '#1e293b',
+      chosen: '#0a0a0a',
       king: '#ff8a00'
     };
     for (const ally of allies.activeAllies) {
@@ -1501,7 +1501,8 @@ export class Game3D {
       if (!rig) {
         rig = new StickRig3D({
           color: allyColors[ally.type] || '#ff3344',
-          scale: ally.type === 'king' ? 1.18 : 1.02,
+          scale: ally.type === 'king' ? 1.18 : (ally.type === 'chosen' ? 1.08 : 1.02),
+          isHollowHead: ally.type === 'chosen',
           hasCrown: ally.type === 'king',
           weaponType: ally.type === 'king' ? 'staff' : null
         });
@@ -1514,7 +1515,7 @@ export class Game3D {
         pose: ally.pose || 'idle',
         animTimer: ally.timer || 0,
         isHurt: ally.isHurt,
-        isAwakened: ally.type === 'chosen',
+        isAwakened: false,
         dt
       });
     }

@@ -24,7 +24,7 @@ export class AllyManager {
 	  blue:new StickFigureRenderer('#2299ff',5,1,false),
 	  yellow:new StickFigureRenderer('#ffcc00',5,1,false),
 	  green:new StickFigureRenderer('#33dd66',5,1,false),
-	  chosen:new StickFigureRenderer('#111111',6,1.08,false),
+	  chosen:new StickFigureRenderer('#111111',6,1.08,true),
 	  king:new StickFigureRenderer('#cc6600',6,1.15,false)
 	};
   }
