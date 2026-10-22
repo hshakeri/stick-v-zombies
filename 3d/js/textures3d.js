@@ -1,0 +1,306 @@
+import * as THREE from '../lib/three.module.min.js';
+
+const TEXTURE_CACHE = new Map();
+
+function hash2D(x, y, seed = 1) {
+  let h = Math.imul(x * 374761393 + y * 668265263 + seed * 1442695041, 0x9E3779B1);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x85EBCA6B);
+  h ^= h >>> 13;
+  return (h >>> 0) / 4294967295;
+}
+
+function shadeHex(hex, factor) {
+  const num = typeof hex === 'string' ? parseInt(hex.replace('#', ''), 16) : hex;
+  const r = Math.max(0, Math.min(255, Math.round(((num >> 16) & 255) * factor)));
+  const g = Math.max(0, Math.min(255, Math.round(((num >> 8) & 255) * factor)));
+  const b = Math.max(0, Math.min(255, Math.round((num & 255) * factor)));
+  return `rgb(${r},${g},${b})`;
+}
+
+export function getVoxelTexture(kind, repeatX = 1, repeatY = 1) {
+  const key = `${kind}:${repeatX}:${repeatY}`;
+  if (TEXTURE_CACHE.has(key)) return TEXTURE_CACHE.get(key);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 16;
+  canvas.height = 16;
+  const ctx = canvas.getContext('2d');
+  drawPixelBlock(ctx, kind);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(repeatX, repeatY);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  TEXTURE_CACHE.set(key, tex);
+  return tex;
+}
+
+function fillNoisyPixels(ctx, baseHex, variance = 0.14, seed = 1) {
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const n = (hash2D(x, y, seed) - 0.5) * 2 * variance;
+      ctx.fillStyle = shadeHex(baseHex, 1 + n);
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
+
+function drawBevelBorder(ctx, lightHex, darkHex) {
+  ctx.fillStyle = lightHex;
+  ctx.fillRect(0, 0, 16, 1);
+  ctx.fillRect(0, 0, 1, 16);
+  ctx.fillStyle = darkHex;
+  ctx.fillRect(0, 15, 16, 1);
+  ctx.fillRect(15, 0, 1, 16);
+}
+
+function drawPixelBlock(ctx, kind) {
+  switch (kind) {
+    case 'desktop_floor': {
+      fillNoisyPixels(ctx, '#1e3a5f', 0.12, 10);
+      drawBevelBorder(ctx, '#2b548a', '#10223b');
+      ctx.fillStyle = 'rgba(103, 232, 249, 0.18)';
+      ctx.fillRect(2, 2, 12, 1);
+      break;
+    }
+    case 'animate_floor': {
+      fillNoisyPixels(ctx, '#2d3142', 0.1, 20);
+      drawBevelBorder(ctx, '#434963', '#1b1e29');
+      ctx.fillStyle = '#ff7700';
+      ctx.fillRect(7, 0, 2, 3);
+      ctx.fillRect(7, 13, 2, 3);
+      break;
+    }
+    case 'downloads_floor': {
+      fillNoisyPixels(ctx, '#1b354f', 0.14, 30);
+      drawBevelBorder(ctx, '#2b5780', '#0e1d2b');
+      ctx.fillStyle = '#2ecc71';
+      ctx.fillRect(3, 7, 10, 2);
+      break;
+    }
+    case 'firewall_floor': {
+      fillNoisyPixels(ctx, '#1f1924', 0.14, 40);
+      drawBevelBorder(ctx, '#ff3344', '#0f0b12');
+      ctx.fillStyle = '#ff3344';
+      ctx.fillRect(7, 7, 2, 2);
+      break;
+    }
+    case 'bsod_floor': {
+      fillNoisyPixels(ctx, '#0047b3', 0.09, 50);
+      drawBevelBorder(ctx, '#38bdf8', '#002666');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(4, 4, 2, 2);
+      ctx.fillRect(4, 9, 2, 2);
+      ctx.fillRect(9, 4, 2, 7);
+      break;
+    }
+    case 'recycle_floor': {
+      fillNoisyPixels(ctx, '#1d3640', 0.15, 60);
+      drawBevelBorder(ctx, '#4db6ac', '#0d1b21');
+      break;
+    }
+    case 'netherrack': {
+      fillNoisyPixels(ctx, '#6e262b', 0.25, 70);
+      for (let i = 0; i < 18; i++) {
+        const x = (i * 5) % 15;
+        const y = (i * 9) % 15;
+        ctx.fillStyle = i % 2 === 0 ? '#4a1519' : '#8f353b';
+        ctx.fillRect(x, y, 2, 1);
+      }
+      break;
+    }
+    case 'obsidian': {
+      fillNoisyPixels(ctx, '#171026', 0.2, 75);
+      ctx.fillStyle = '#3b235e';
+      ctx.fillRect(3, 4, 3, 2);
+      ctx.fillRect(10, 11, 3, 2);
+      drawBevelBorder(ctx, '#2f1d4f', '#090611');
+      break;
+    }
+    case 'lava': {
+      fillNoisyPixels(ctx, '#ff5500', 0.22, 78);
+      ctx.fillStyle = '#ffaa00';
+      ctx.fillRect(2, 3, 5, 3);
+      ctx.fillRect(9, 10, 4, 3);
+      ctx.fillStyle = '#ffee55';
+      ctx.fillRect(3, 4, 2, 1);
+      ctx.fillRect(10, 11, 2, 1);
+      break;
+    }
+    case 'terminal_floor': {
+      fillNoisyPixels(ctx, '#081c10', 0.12, 80);
+      drawBevelBorder(ctx, '#22c55e', '#030d07');
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(3, 3, 2, 5);
+      ctx.fillRect(8, 8, 4, 2);
+      break;
+    }
+    case 'virabot_floor': {
+      fillNoisyPixels(ctx, '#210d2b', 0.18, 90);
+      drawBevelBorder(ctx, '#f43f5e', '#110517');
+      ctx.fillStyle = '#ff1744';
+      ctx.fillRect(6, 6, 4, 4);
+      break;
+    }
+    case 'dark_core_floor': {
+      fillNoisyPixels(ctx, '#1f030b', 0.18, 100);
+      drawBevelBorder(ctx, '#ff0033', '#0a0003');
+      ctx.fillStyle = '#ff1744';
+      ctx.fillRect(0, 7, 16, 2);
+      ctx.fillRect(7, 0, 2, 16);
+      break;
+    }
+    case 'command_block': {
+      fillNoisyPixels(ctx, '#c77d48', 0.14, 110);
+      drawBevelBorder(ctx, '#e39d64', '#7a4520');
+      ctx.fillStyle = '#4a3525';
+      ctx.fillRect(3, 3, 10, 10);
+      ctx.fillStyle = '#ffaa33';
+      ctx.fillRect(5, 5, 2, 2);
+      ctx.fillStyle = '#5ce1e6';
+      ctx.fillRect(9, 5, 2, 2);
+      ctx.fillStyle = '#ff5757';
+      ctx.fillRect(5, 9, 2, 2);
+      ctx.fillStyle = '#7ed957';
+      ctx.fillRect(9, 9, 2, 2);
+      break;
+    }
+    case 'gold_block': {
+      fillNoisyPixels(ctx, '#f5b82e', 0.14, 115);
+      drawBevelBorder(ctx, '#fff078', '#b87d14');
+      ctx.fillStyle = '#ffe566';
+      ctx.fillRect(2, 2, 4, 2);
+      ctx.fillRect(3, 4, 2, 2);
+      break;
+    }
+    case 'browser_floor': {
+      fillNoisyPixels(ctx, '#172542', 0.14, 120);
+      drawBevelBorder(ctx, '#38bdf8', '#0d1526');
+      ctx.fillStyle = '#f43f5e';
+      ctx.fillRect(2, 2, 2, 2);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(5, 2, 2, 2);
+      ctx.fillStyle = '#34d399';
+      ctx.fillRect(8, 2, 2, 2);
+      break;
+    }
+    case 'cloud_floor': {
+      fillNoisyPixels(ctx, '#d8f3ff', 0.08, 130);
+      drawBevelBorder(ctx, '#ffffff', '#7dd3fc');
+      break;
+    }
+    case 'creeper_moss': {
+      fillNoisyPixels(ctx, '#5c8c38', 0.22, 150);
+      drawBevelBorder(ctx, '#8cd156', '#33521d');
+      ctx.fillStyle = '#3b5e21';
+      ctx.fillRect(3, 4, 3, 3);
+      ctx.fillRect(10, 4, 3, 3);
+      ctx.fillRect(6, 7, 4, 5);
+      ctx.fillRect(4, 10, 2, 4);
+      ctx.fillRect(10, 10, 2, 4);
+      break;
+    }
+    case 'cat_wool': {
+      fillNoisyPixels(ctx, '#d97724', 0.16, 160);
+      ctx.fillStyle = '#9c4a13';
+      ctx.fillRect(0, 3, 16, 2);
+      ctx.fillRect(0, 10, 16, 2);
+      drawBevelBorder(ctx, '#f59e0b', '#7c370b');
+      break;
+    }
+    case 'lucky_block': {
+      fillNoisyPixels(ctx, '#facc15', 0.14, 170);
+      drawBevelBorder(ctx, '#fef08a', '#b45309');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(5, 3, 6, 2);
+      ctx.fillRect(9, 5, 2, 3);
+      ctx.fillRect(7, 7, 2, 3);
+      ctx.fillRect(7, 11, 2, 2);
+      break;
+    }
+    case 'zero_day_floor': {
+      fillNoisyPixels(ctx, '#0b1324', 0.12, 180);
+      drawBevelBorder(ctx, '#00f5ff', '#04070e');
+      ctx.fillStyle = '#8cff00';
+      ctx.fillRect(2, 2, 3, 1);
+      ctx.fillRect(2, 2, 1, 3);
+      ctx.fillRect(11, 13, 3, 1);
+      ctx.fillRect(13, 11, 1, 3);
+      break;
+    }
+    case 'white_void_floor': {
+      fillNoisyPixels(ctx, '#f2efe8', 0.03, 185);
+      drawBevelBorder(ctx, '#ffffff', '#cbd5e1');
+      break;
+    }
+    case 'trophy_floor': {
+      fillNoisyPixels(ctx, '#122b54', 0.1, 190);
+      drawBevelBorder(ctx, '#ffd54a', '#09162e');
+      ctx.fillStyle = 'rgba(255, 213, 74, 0.35)';
+      ctx.fillRect(6, 6, 4, 4);
+      break;
+    }
+    case 'sketch_block': {
+      fillNoisyPixels(ctx, '#f8fafc', 0.08, 200);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 0, 16, 2);
+      ctx.fillRect(0, 14, 16, 2);
+      ctx.fillRect(0, 0, 2, 16);
+      ctx.fillRect(14, 0, 2, 16);
+      ctx.fillStyle = '#ff7700';
+      ctx.fillRect(4, 4, 8, 8);
+      break;
+    }
+    case 'anvil_iron': {
+      fillNoisyPixels(ctx, '#334155', 0.16, 210);
+      drawBevelBorder(ctx, '#64748b', '#0f172a');
+      break;
+    }
+    case 'tnt_block': {
+      fillNoisyPixels(ctx, '#dc2626', 0.14, 220);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 5, 16, 6);
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(2, 6, 3, 1);
+      ctx.fillRect(3, 7, 1, 3);
+      ctx.fillRect(7, 6, 3, 4);
+      ctx.fillRect(12, 6, 3, 1);
+      ctx.fillRect(13, 7, 1, 3);
+      break;
+    }
+    default: {
+      fillNoisyPixels(ctx, '#334155', 0.14, 999);
+      drawBevelBorder(ctx, '#64748b', '#1e293b');
+      break;
+    }
+  }
+}
+
+export function getThemeFloorTextureKey(theme, isWhiteVoid = false) {
+  if (isWhiteVoid) return 'white_void_floor';
+  switch (theme) {
+    case 'desktop': return 'desktop_floor';
+    case 'animate': return 'animate_floor';
+    case 'downloads': return 'downloads_floor';
+    case 'firewall': return 'firewall_floor';
+    case 'bsod': return 'bsod_floor';
+    case 'recycle': return 'recycle_floor';
+    case 'minecraft': return 'netherrack';
+    case 'terminal':
+    case 'root_gateway': return 'terminal_floor';
+    case 'virabot': return 'virabot_floor';
+    case 'dark_core': return 'dark_core_floor';
+    case 'command_realm': return 'command_block';
+    case 'browser_glitch': return 'browser_floor';
+    case 'cloud_cache': return 'cloud_floor';
+    case 'creeper_clan': return 'creeper_moss';
+    case 'lucky_orb': return 'lucky_block';
+    case 'zero_day': return 'zero_day_floor';
+    case 'trophy': return 'trophy_floor';
+    default: return 'desktop_floor';
+  }
+}

@@ -60,8 +60,8 @@ export class StickFigureRenderer {
 	  }
 	  ctx.stroke();
 	}
-	if (reveal >= 0.55) this.drawLimb(ctx, bones.shoulder, bones.elbowL, bones.handL);
-	if (reveal >= 0.68) this.drawLimb(ctx, bones.shoulder, bones.elbowR, bones.handR);
+	if (reveal >= 0.55) this.drawLimb(ctx, bones.neck, bones.elbowL, bones.handL);
+	if (reveal >= 0.68) this.drawLimb(ctx, bones.neck, bones.elbowR, bones.handR);
 	if (reveal >= 0.82) {
 	  ctx.beginPath();
 	  ctx.arc(bones.head.x, bones.head.y, bones.headRadius, 0, Math.PI * 2);
