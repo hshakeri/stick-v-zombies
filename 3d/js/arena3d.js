@@ -358,43 +358,33 @@ export class Arena3DBuilder {
   createLaserHazardMesh(laser) {
     const root = new THREE.Group();
     const x3d = to3DX(laser.x + laser.width / 2);
-    const isGroundLaser = laser.y >= -110;
-    const y3d = isGroundLaser ? 1.15 : to3DY(laser.y);
+    const y3d = 0.48; // Low shin/knee-height laser beam across the arena floor
     const w3d = laser.width * WORLD_TO_3D;
 
     const emitterMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.6, roughness: 0.3 });
-    const pylonH = isGroundLaser ? 2.1 : 0.6;
-    const pylonY = isGroundLaser ? 1.05 : y3d;
-    const emitterL = new THREE.Mesh(new THREE.BoxGeometry(0.6, pylonH, 0.6), emitterMat);
-    emitterL.position.set(x3d - w3d / 2, pylonY, 0);
+    const emitterL = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.75, 0.55), emitterMat);
+    emitterL.position.set(x3d - w3d / 2, 0.38, 0);
     const emitterR = emitterL.clone();
-    emitterR.position.set(x3d + w3d / 2, pylonY, 0);
+    emitterR.position.set(x3d + w3d / 2, 0.38, 0);
 
     const beamMat = new THREE.MeshBasicMaterial({
       color: 0xff1744,
       transparent: true,
-      opacity: 0.9
+      opacity: 0.92
     });
     const beam = new THREE.Group();
-    const coreCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, w3d, 10), beamMat);
+    const coreCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, w3d, 10), beamMat);
     coreCyl.rotation.z = Math.PI / 2;
     coreCyl.position.set(x3d, y3d, 0);
     beam.add(coreCyl);
-    if (isGroundLaser) {
-      const lowerCyl = coreCyl.clone();
-      lowerCyl.position.y = 0.55;
-      const upperCyl = coreCyl.clone();
-      upperCyl.position.y = 1.75;
-      beam.add(lowerCyl, upperCyl);
-    }
 
-    // Cross-depth hazard field so 3D arena movement sees the active laser zone clearly
+    // Low cross-depth hazard strip so 3D arena movement sees the active laser zone clearly
     const crossBeam = new THREE.Mesh(
-      new THREE.BoxGeometry(w3d, isGroundLaser ? 1.8 : 0.3, 14),
+      new THREE.BoxGeometry(w3d, 0.28, 12),
       new THREE.MeshBasicMaterial({
         color: 0xff1744,
         transparent: true,
-        opacity: 0.22,
+        opacity: 0.25,
         depthWrite: false
       })
     );

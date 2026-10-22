@@ -1078,22 +1078,19 @@ export class Game3D {
     const p = this.player;
     if (!p || p.isDead || (p.iFrames || 0) > 0 || p.isRolling || p.isAwakened) return;
 
-    // 1. Stage Laser Hazards (active red beams)
+    // 1. Stage Laser Hazards (active low red beams at ground level)
     for (const laser of this.stageManager.laserHazards || []) {
       const isActive = laser.timer < laser.activeDuration;
       if (!isActive) continue;
       const inX = p.x >= laser.x - 22 && p.x <= laser.x + laser.width + 22;
-      const inZ = Math.abs(p.z || 0) <= 250;
-      const isGroundLaser = laser.y >= -110;
-      const inY = isGroundLaser
-        ? (p.y >= laser.y - 20 && p.y <= 10)
-        : (Math.abs((p.y - 35) - laser.y) < 38);
+      const inZ = Math.abs(p.z || 0) <= 210;
+      const inY = p.y >= -62 && p.y <= 10;
       if (inX && inZ && inY) {
         audio.playLaserZap();
         const knockDir = p.x < laser.x + laser.width * 0.5 ? -1 : 1;
         p.takeDamage(laser.damage || 20, knockDir, 350);
-        particles.createHitSparks(p.x, p.y - 35, 10, '#ff2244');
-        this.spawnVoxelBurst(p.x, p.y - 35, p.z || 0, '#ff1744', 12);
+        particles.createHitSparks(p.x, p.y - 24, 10, '#ff2244');
+        this.spawnVoxelBurst(p.x, p.y - 24, p.z || 0, '#ff1744', 12);
         return;
       }
     }

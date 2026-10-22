@@ -290,7 +290,7 @@ buildStage2Animate() {
 	});
 	this.laserHazards.push({
 		x: -120,
-		y: -240,
+		y: -38,
 		width: 240,
 		height: 8,
 		timer: 0,
@@ -372,7 +372,7 @@ buildStage4Firewall() {
 	});
 	this.laserHazards.push({
 		x: -500,
-		y: -100,
+		y: -38,
 		width: 200,
 		height: 10,
 		timer: 0,
@@ -382,7 +382,7 @@ buildStage4Firewall() {
 	});
 	this.laserHazards.push({
 		x: 300,
-		y: -100,
+		y: -38,
 		width: 200,
 		height: 10,
 		timer: 1.5,
@@ -466,10 +466,10 @@ buildStage8Terminal() {
 		{ x: 0, y: -290, width: 320, height: 22, title: 'BUFFER_OVERFLOW_SHIELD.SYS', appType: 'terminal' }
 	];
 	this.laserHazards.push({
-		x: -400, y: -100, width: 180, height: 10, timer: 0, cycleDuration: 2.6, activeDuration: 1.3, damage: 22
+		x: -400, y: -38, width: 180, height: 10, timer: 0, cycleDuration: 2.6, activeDuration: 1.3, damage: 22
 	});
 	this.laserHazards.push({
-		x: 220, y: -100, width: 180, height: 10, timer: 1.3, cycleDuration: 2.6, activeDuration: 1.3, damage: 22
+		x: 220, y: -38, width: 180, height: 10, timer: 1.3, cycleDuration: 2.6, activeDuration: 1.3, damage: 22
 	});
 }
 buildStage9VirabotNexus() {
@@ -565,11 +565,11 @@ buildStage14RootGateway() {
 		{ x: 590, y: -185, width: 250, height: 22, title: 'AUTH_GATE_RIGHT', appType: 'terminal' }
 	];
 	this.laserHazards.push({
-		x: -470, y: -95, width: 260, height: 9, timer: 0,
+		x: -470, y: -38, width: 260, height: 9, timer: 0,
 		cycleDuration: 3.2, activeDuration: 1.15, damage: 20
 	});
 	this.laserHazards.push({
-		x: 210, y: -95, width: 260, height: 9, timer: 1.6,
+		x: 210, y: -38, width: 260, height: 9, timer: 1.6,
 		cycleDuration: 3.2, activeDuration: 1.15, damage: 20
 	});
 }
