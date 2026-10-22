@@ -671,8 +671,8 @@ update(dt, player, wavesDirector, onStageExit, camera = null) {
 		}
 		laser.wasActive = isActive;
 		if (!this.isObjectiveComplete && isActive && player && (player.iFrames || 0) <= 0 && !player.isRolling && !player.isAwakened) {
-			if (player.x >= laser.x - 20 && player.x <= laser.x + laser.width + 20 &&
-					Math.abs(player.y - 30 - laser.y) < 25) {
+			const hitsY = Math.abs(player.y - 30 - laser.y) < 25 || (laser.y >= -105 && player.y >= laser.y - 20 && player.y <= 5);
+			if (player.x >= laser.x - 20 && player.x <= laser.x + laser.width + 20 && hitsY) {
 				audio.playLaserZap();
 				player.takeDamage(laser.damage, player.x < laser.x + laser.width / 2 ? -1 : 1, 350);
 				particles.createHitSparks(player.x, laser.y, 8, '#ff2244');

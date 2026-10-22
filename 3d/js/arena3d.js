@@ -358,30 +358,46 @@ export class Arena3DBuilder {
   createLaserHazardMesh(laser) {
     const root = new THREE.Group();
     const x3d = to3DX(laser.x + laser.width / 2);
-    const y3d = to3DY(laser.y);
+    const isGroundLaser = laser.y >= -110;
+    const y3d = isGroundLaser ? 1.15 : to3DY(laser.y);
     const w3d = laser.width * WORLD_TO_3D;
 
     const emitterMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.6, roughness: 0.3 });
-    const emitterL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), emitterMat);
-    emitterL.position.set(x3d - w3d / 2, y3d, 0);
+    const pylonH = isGroundLaser ? 2.1 : 0.6;
+    const pylonY = isGroundLaser ? 1.05 : y3d;
+    const emitterL = new THREE.Mesh(new THREE.BoxGeometry(0.6, pylonH, 0.6), emitterMat);
+    emitterL.position.set(x3d - w3d / 2, pylonY, 0);
     const emitterR = emitterL.clone();
-    emitterR.position.set(x3d + w3d / 2, y3d, 0);
+    emitterR.position.set(x3d + w3d / 2, pylonY, 0);
 
     const beamMat = new THREE.MeshBasicMaterial({
       color: 0xff1744,
       transparent: true,
-      opacity: 0.85
+      opacity: 0.9
     });
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, w3d, 10), beamMat);
-    beam.rotation.z = Math.PI / 2;
-    beam.position.set(x3d, y3d, 0);
+    const beam = new THREE.Group();
+    const coreCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, w3d, 10), beamMat);
+    coreCyl.rotation.z = Math.PI / 2;
+    coreCyl.position.set(x3d, y3d, 0);
+    beam.add(coreCyl);
+    if (isGroundLaser) {
+      const lowerCyl = coreCyl.clone();
+      lowerCyl.position.y = 0.55;
+      const upperCyl = coreCyl.clone();
+      upperCyl.position.y = 1.75;
+      beam.add(lowerCyl, upperCyl);
+    }
 
-    // Cross-depth floor hazard beam at Z = -5..+5 so 3D arena movement sees it clearly
-    const crossBeam = new THREE.Mesh(new THREE.BoxGeometry(w3d, 0.22, 14), new THREE.MeshBasicMaterial({
-      color: 0xff1744,
-      transparent: true,
-      opacity: 0.25
-    }));
+    // Cross-depth hazard field so 3D arena movement sees the active laser zone clearly
+    const crossBeam = new THREE.Mesh(
+      new THREE.BoxGeometry(w3d, isGroundLaser ? 1.8 : 0.3, 14),
+      new THREE.MeshBasicMaterial({
+        color: 0xff1744,
+        transparent: true,
+        opacity: 0.22,
+        depthWrite: false
+      })
+    );
     crossBeam.position.set(x3d, y3d, 0);
 
     root.add(emitterL, emitterR, beam, crossBeam);

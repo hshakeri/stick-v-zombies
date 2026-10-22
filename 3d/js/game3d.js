@@ -1068,9 +1068,51 @@ export class Game3D {
     speech.update(simDt);
     this.updateWeaponPickup();
 
-    // Update 3D Arena & Voxel Particles
+    // Update 3D Arena, 3D Laser Contact Damage & Voxel Particles
     this.arena3D.update(simDt);
+    this.check3DLaserDamage();
     this.updateVoxelParticles(simDt);
+  }
+
+  check3DLaserDamage() {
+    const p = this.player;
+    if (!p || p.isDead || (p.iFrames || 0) > 0 || p.isRolling || p.isAwakened) return;
+
+    // 1. Stage Laser Hazards (active red beams)
+    for (const laser of this.stageManager.laserHazards || []) {
+      const isActive = laser.timer < laser.activeDuration;
+      if (!isActive) continue;
+      const inX = p.x >= laser.x - 22 && p.x <= laser.x + laser.width + 22;
+      const inZ = Math.abs(p.z || 0) <= 250;
+      const isGroundLaser = laser.y >= -110;
+      const inY = isGroundLaser
+        ? (p.y >= laser.y - 20 && p.y <= 10)
+        : (Math.abs((p.y - 35) - laser.y) < 38);
+      if (inX && inZ && inY) {
+        audio.playLaserZap();
+        const knockDir = p.x < laser.x + laser.width * 0.5 ? -1 : 1;
+        p.takeDamage(laser.damage || 20, knockDir, 350);
+        particles.createHitSparks(p.x, p.y - 35, 10, '#ff2244');
+        this.spawnVoxelBurst(p.x, p.y - 35, p.z || 0, '#ff1744', 12);
+        return;
+      }
+    }
+
+    // 2. Dark Lord Doom Laser in 3D
+    const doomLaser = (projectiles.projectiles || []).find((pr) => pr.type === 'doom_laser' && !pr.pendingRemoval);
+    if (doomLaser) {
+      const inBeamX = doomLaser.facing > 0
+        ? (p.x >= doomLaser.x && p.x <= doomLaser.x + 1800)
+        : (p.x <= doomLaser.x && p.x >= doomLaser.x - 1800);
+      const inBeamY = Math.abs((p.y - 35) - doomLaser.y) < (doomLaser.beamWidth || 32) + 25;
+      const bossZ = waves.bossZombie?.z || 0;
+      const inBeamZ = Math.abs((p.z || 0) - bossZ) <= 140;
+      if (inBeamX && inBeamY && inBeamZ) {
+        p.takeDamage(doomLaser.damage || 45, doomLaser.facing, 450);
+        particles.createHitSparks(p.x, doomLaser.y, 8, '#ff0033');
+        this.spawnVoxelBurst(p.x, p.y - 35, p.z || 0, '#ff0033', 14);
+      }
+    }
   }
 
   updatePlayer3DMovement(dt, hostileTargets) {
