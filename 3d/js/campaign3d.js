@@ -1,6 +1,6 @@
 import { particles } from '../../js/engine/particles.js?v=9.8';
 import { audio } from '../../js/engine/audio.js?v=9.8';
-import { speech } from '../../js/engine/speech.js?v=9.8';
+import { speech3d as speech } from './speech3d.js?v=10.3';
 import { combat } from '../../js/systems/combat.js?v=9.8';
 import { projectiles } from '../../js/entities/projectiles.js?v=9.8';
 import { CAMPAIGN_BEATS } from '../../js/systems/stages.js?v=9.8';
@@ -9,6 +9,7 @@ import { WAVE_RECIPES } from '../../js/systems/waves.js?v=9.8';
 const LEFT = -960;
 const RIGHT = 960;
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+let activeWaveDirector = null;
 
 function canHitPlayer(player) {
   return Boolean(
@@ -96,10 +97,16 @@ export class EnderDragonBoss {
       camera?.addShake?.(0.5);
       particles.addShockwave(this.x, this.y - 75, 250, '#d946ef', 12);
       particles.addTextBanner(this.x, this.y - 140, 'DRAGON FURY!', '#e879f9');
-      speech.spawnBubble(this.x, this.y - 120, 'THE END OBEYS ME!', 'enderDragon:phase', 1.5, {
-        anchor: this,
-        cooldownMs: 0
+      speech.spawnSpeechBubble(this, 'DRAGON FURY OVERDRIVE!', {
+        style: 'shout',
+        trauma: 1.0,
+        priority: 5,
+        mood: '💀',
+        anchor: this
       });
+      speech.triggerBanter([
+        { speaker: 'orange', text: 'NOT SO FAST, OVERGROWN LIZARD!', delay: 0.3, options: { style: 'comic', priority: 3, mood: '⚡' } }
+      ]);
     }
 
     this.hurtTimer = Math.max(0, this.hurtTimer - safeDt);
@@ -323,10 +330,10 @@ export class EnderDragonBoss {
     combat.registerKill(this);
     audio.playBossVictoryFanfare?.();
     audio.playFinisherImpact?.();
-    speech.spawnBubble(this.x, this.y - 120, 'THE END... SHATTERS...', 'enderDragon:defeat', 1.8, {
-      anchor: this,
-      cooldownMs: 0
-    });
+    speech.triggerBanter([
+      { speaker: 'ender_dragon', text: 'THE END... IS SILENT.', delay: 0, options: { style: 'shout', priority: 5, mood: '💀', anchor: this } },
+      { speaker: 'orange', text: 'RESTORE KEY SECURED!', delay: 0.25, options: { style: 'comic', priority: 3, mood: '★' } }
+    ]);
     this.camera?.addShake?.(0.78);
     this.camera?.addZoomPunch?.(0.08);
     particles.emitBossExplosion({
@@ -682,10 +689,23 @@ export class MercenaryBoss {
     this.state = 'defeated';
     combat.registerKill(this);
     audio.playFinisherImpact?.();
-    speech.spawnBubble(this.x, this.y - 95, this.profile.defeatLine, `${this.type}:defeat`, 1.5, {
-      anchor: this,
-      cooldownMs: 0
-    });
+    const aliveMercs = (activeWaveDirector?.zombies || []).filter((z) => z.isMercenary && !z.isDead && z !== this);
+    if (aliveMercs.length > 0) {
+      const comrade = aliveMercs[0];
+      const retortText = comrade.type === 'mercenary_ballista' ? 'AGENT DOWN! RETARGETING!' :
+                         comrade.type === 'mercenary_primal' ? 'FALLEN COMRADE! CHARGE!' :
+                         comrade.type === 'mercenary_hazard' ? '⚠ CASUALTY DETECTED! ESCALATING!' :
+                         'SQUAD MEMBER LOST. REGROUPING.';
+      speech.triggerBanter([
+        { speaker: this.type, text: this.profile.defeatLine, delay: 0, options: { style: 'pixel', priority: 3, anchor: this } },
+        { speaker: comrade.type, text: retortText, delay: 0.25, options: { style: 'pixel', priority: 3, anchor: comrade } }
+      ]);
+    } else {
+      speech.triggerBanter([
+        { speaker: this.type, text: this.profile.defeatLine, delay: 0, options: { style: 'pixel', priority: 3, anchor: this } },
+        { speaker: 'orange', text: 'ROCKET CORP DEFANGED!', delay: 0.25, options: { style: 'comic', priority: 3, mood: '★' } }
+      ]);
+    }
     this.camera?.addShake?.(0.45);
     particles.emitBossExplosion({
       x: this.x,
@@ -880,6 +900,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   };
 
   // Extend WaveDirector for Stages 18, 19, 20, 21
+  activeWaveDirector = waveDirector;
   const origGenerateWaveQueue = waveDirector.generateWaveQueue.bind(waveDirector);
   const origSpawnZombie = waveDirector.spawnZombie.bind(waveDirector);
   const origWaveUpdate = waveDirector.update.bind(waveDirector);
@@ -942,10 +963,10 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       camera?.addShake?.(0.85);
       particles.addShockwave(spawnX, groundY - 40, 260, '#d946ef', 12);
       particles.addTextBanner(spawnX, groundY - 125, '🐉 ENDER DRAGON // THE END 🐉', '#e879f9');
-      speech.spawnBubble(spawnX, groundY - 120, 'ROOOAAAR!!', 'enderDragon:intro', 1.6, {
-        anchor: boss,
-        cooldownMs: 0
-      });
+      speech.triggerBanter([
+        { speaker: boss, text: 'WHO DARES ENTER THE END?', delay: 0, options: { style: 'shout', priority: 5, mood: '💀', anchor: boss } },
+        { speaker: 'orange', text: 'WE HAVE A PENCIL, DRAGON!', delay: 0.35, options: { style: 'comic', priority: 3, mood: '!' } }
+      ]);
       return;
     }
 
@@ -962,11 +983,48 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       particles.addShockwave(spawnX, groundY - 25, 160, '#ff6b00', 8);
       if (idx === 0) {
         particles.addTextBanner(0, groundY - 135, '▲ ROCKET CORP // THE MERCENARIES ▲', '#ff6b00');
+        speech.triggerBanter([
+          { speaker: 'agent', text: 'Agent online. Target in sight.', delay: 0, options: { style: 'pixel', priority: 2, anchor: merc } },
+          { speaker: 'ballista', text: 'Ballista ready. Heavy rockets armed.', delay: 0.25, options: { style: 'pixel', priority: 2 } },
+          { speaker: 'primal', text: 'Primal ready. Axes sharpened!', delay: 0.5, options: { style: 'pixel', priority: 2 } },
+          { speaker: 'hazard', text: 'Hazard ready. Bio-mines deployed.', delay: 0.75, options: { style: 'pixel', priority: 2 } }
+        ]);
+      } else {
+        speech.spawnBubble(spawnX, groundY - 95, merc.profile.introLine, `${type}:intro`, 1.45, {
+          anchor: merc,
+          cooldownMs: 0
+        });
       }
-      speech.spawnBubble(spawnX, groundY - 95, merc.profile.introLine, `${type}:intro`, 1.45, {
-        anchor: merc,
-        cooldownMs: 0
-      });
+      return;
+    }
+
+    if (type === 'dark_lord') {
+      origSpawnZombie(type, player, groundY, camera);
+      const boss = waveDirector.bossZombie;
+      speech.triggerBanter([
+        { speaker: 'dark_lord', text: 'BACKUP ONLINE. OLD FIGHT, NEW DOOM.', delay: 0, options: { style: 'shout', priority: 4, mood: '💀', anchor: boss } },
+        { speaker: 'orange', text: 'BACKUP? MEET MY ERASER!', delay: 0.35, options: { style: 'comic', priority: 3, mood: '⚡' } }
+      ]);
+      return;
+    }
+
+    if (type === 'king_orange') {
+      origSpawnZombie(type, player, groundY, camera);
+      const boss = waveDirector.bossZombie;
+      speech.triggerBanter([
+        { speaker: 'king_orange', text: 'REPLAY LOADED. THIS IS ONLY A COPY.', delay: 0, options: { style: 'comic', priority: 4, mood: '!', anchor: boss } },
+        { speaker: 'orange', text: 'WE ARE BREAKING THE LOOP, KING!', delay: 0.35, options: { style: 'comic', priority: 3, mood: '★' } }
+      ]);
+      return;
+    }
+
+    if (type === 'h4c3r') {
+      origSpawnZombie(type, player, groundY, camera);
+      const boss = waveDirector.bossZombie;
+      speech.triggerBanter([
+        { speaker: 'h4c3r', text: 'WELCOME TO MY SCREEN. ROOT ACCESS: GRANTED.', delay: 0, options: { style: 'cyber', priority: 5, mood: '⚡', sound: true, anchor: boss } },
+        { speaker: 'orange', text: 'YOUR ROOT PRIVILEGES ARE ABOUT TO BE REVOKED!', delay: 0.35, options: { style: 'comic', priority: 3, mood: '!' } }
+      ]);
       return;
     }
 

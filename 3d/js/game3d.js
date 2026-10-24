@@ -10,7 +10,7 @@ import { shop } from '../../js/systems/shop.js?v=9.8';
 import { CAMPAIGN_BEATS, stages } from '../../js/systems/stages.js?v=9.8';
 import { projectiles } from '../../js/entities/projectiles.js?v=9.8';
 import { allies } from '../../js/entities/allies.js?v=9.8';
-import { speech } from '../../js/engine/speech.js?v=9.8';
+import { speech3d as speech } from './speech3d.js?v=10.3';
 import { save } from '../../js/systems/save.js?v=9.8';
 
 import {
@@ -43,7 +43,7 @@ const CAMERA_LABELS = {
 
 // Zero-allocation scratch structures for per-frame execution (F2.1)
 const _scratchProj = new THREE.Vector3();
-const _screenPoint = { x: 0, y: 0 };
+const _screenPoint = { x: 0, y: 0, zDepth: 0, visible: true, scale: 1.0 };
 const _camLookTarget = new THREE.Vector3();
 const _camDesiredPos = new THREE.Vector3();
 const ALLY_TYPES = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen', 'king'];
@@ -201,9 +201,16 @@ export class Game3D {
     this.viewportHeight = typeof window !== 'undefined' ? (window.innerHeight || 720) : 720;
     this.cameraAdapter = {
       zoom: 1,
-      worldToScreen: (wx, wy) => this.projectWorldToOverlay(wx, wy, 0)
+      worldToScreen: (wx, wy, wz = 0) => this.projectWorldToOverlay(wx, wy, wz)
     };
     this.lastHudValues = Object.create(null);
+
+    // Milestone 3 (F3.1, F3.2): Combat combo, grab, clutch & stage reaction tracking
+    this.lastComboMilestone = 0;
+    this.lastGrabHitApplied = false;
+    this.clutchReactionTriggered = false;
+    this.clutchCooldownTimer = 0;
+    this.lastStageObjectiveComplete = false;
 
     // Feature F2.2: Pools & Material Caches
     this.voxelParticles = [];
@@ -406,17 +413,12 @@ export class Game3D {
           this.placeCreativeBlock();
         } else if (this.creativeMode && e.code === 'KeyN') {
           this.spawnCreativeEntity();
+        } else if (this.creativeMode && e.code === 'KeyG') {
+          this.toggleCreativeGod();
         } else if (this.creativeMode && e.code === 'Space') {
           const now = performance.now();
           if (now - this.lastSpaceTapTime < 320) {
-            this.creativeFlyMode = !this.creativeFlyMode;
-            this.syncCreativeUI();
-            particles.addTextBanner(
-              this.player.x,
-              this.player.y - 85,
-              this.creativeFlyMode ? '✈️ 3D FLIGHT ENABLED' : '✈️ FLIGHT DISABLED',
-              '#38bdf8'
-            );
+            this.toggleCreativeFly();
           }
           this.lastSpaceTapTime = now;
         }
@@ -657,15 +659,13 @@ export class Game3D {
     const btnCreativeGod = document.getElementById('creative-god-btn');
     if (btnCreativeGod) {
       btnCreativeGod.addEventListener('click', () => {
-        this.creativeGodMode = !this.creativeGodMode;
-        this.syncCreativeUI();
+        this.toggleCreativeGod();
       });
     }
     const btnCreativeFly = document.getElementById('creative-fly-btn');
     if (btnCreativeFly) {
       btnCreativeFly.addEventListener('click', () => {
-        this.creativeFlyMode = !this.creativeFlyMode;
-        this.syncCreativeUI();
+        this.toggleCreativeFly();
       });
     }
     const btnCreativeFreezeAI = document.getElementById('creative-freeze-ai-btn');
@@ -678,15 +678,7 @@ export class Game3D {
     const selCreativeWeapon = document.getElementById('creative-weapon-select');
     if (selCreativeWeapon) {
       selCreativeWeapon.addEventListener('change', () => {
-        const w = selCreativeWeapon.value;
-        this.creativeWeaponOverride = w;
-        if (w === 'staff' || w === 'eraser' || w === 'pencil') {
-          this.player.weaponType = w;
-        } else {
-          this.player.weaponType = 'staff';
-        }
-        this.player.temporaryWeaponTimer = w === 'pencil' ? 0 : 999999;
-        particles.addTextBanner(this.player.x, this.player.y - 80, `⚔️ EQUIPPED: ${w.toUpperCase()}`, '#ffea00');
+        this.equipCreativeWeapon(selCreativeWeapon.value);
         selCreativeWeapon.blur();
       });
     }
@@ -845,7 +837,13 @@ export class Game3D {
       if (el) {
         el.addEventListener('click', () => {
           if (this.state === 'PLAYING') {
-            allies.summonAlly(type, this.player.x, this.groundY, this.player.facing, waves.zombies);
+            const summoned = allies.summonAlly(type, this.player.x, this.groundY, this.player.facing, waves.zombies);
+            if (summoned) {
+              const summonedAlly = type === 'cursor'
+                ? allies.activeCursors?.[allies.activeCursors.length - 1]
+                : allies.activeAllies?.[allies.activeAllies.length - 1];
+              speech.triggerTeamBanter(type, 'summon', { anchor: summonedAlly });
+            }
           }
         });
       }
@@ -913,13 +911,41 @@ export class Game3D {
     }
   }
 
+  toggleCreativeFly(forceState) {
+    if (!this.creativeMode) return;
+    this.creativeFlyMode = typeof forceState === 'boolean' ? forceState : !this.creativeFlyMode;
+    this.syncCreativeUI();
+    particles.addTextBanner(
+      this.player.x,
+      this.player.y - 85,
+      this.creativeFlyMode ? '✈️ 3D FLIGHT ENABLED' : '✈️ FLIGHT DISABLED',
+      '#38bdf8'
+    );
+    speech.onCreativeAction?.('flight', { enabled: this.creativeFlyMode, anchor: this.player });
+  }
+
+  toggleCreativeGod(forceState) {
+    if (!this.creativeMode) return;
+    this.creativeGodMode = typeof forceState === 'boolean' ? forceState : !this.creativeGodMode;
+    this.syncCreativeUI();
+    particles.addTextBanner(
+      this.player.x,
+      this.player.y - 85,
+      this.creativeGodMode ? '🛡️ GOD MODE: ON' : '🛡️ GOD MODE: OFF',
+      this.creativeGodMode ? '#f59e0b' : '#94a3b8'
+    );
+    speech.onCreativeAction?.('god_mode', { enabled: this.creativeGodMode, anchor: this.player });
+  }
+
   placeCreativeBlock() {
     if (this.state !== 'PLAYING') return;
     if (this.creativeBlocks.length >= 64) {
       const oldest = this.creativeBlocks.shift();
       if (oldest?.mesh) {
         oldest.mesh.visible = false;
-        oldest.mesh.scale.setScalar(1);
+        oldest.mesh.scale.set(1, 1, 1);
+        oldest.mesh.material?.emissive?.setHex?.(0x000000);
+        if (oldest.mesh.material) oldest.mesh.material.emissiveIntensity = 0;
         if (this.creativeBlockPool.length < 64) {
           this.creativeBlockPool.push(oldest.mesh);
         } else {
@@ -983,13 +1009,21 @@ export class Game3D {
     };
     this.creativeBlocks.push(blockRecord);
     this.spawnVoxelBurst(bx, by - blockH / 2, bz, '#38bdf8', 6);
+
+    if (texKey === 'tnt_block') {
+      speech.onCreativeAction?.('tnt_place', { anchor: blockRecord });
+    } else if (texKey === 'lucky_block') {
+      speech.onCreativeAction?.('lucky_block', { anchor: blockRecord });
+    }
   }
 
   clearCreativeBlocks() {
     for (const cb of this.creativeBlocks) {
       if (cb.mesh) {
         cb.mesh.visible = false;
-        cb.mesh.scale.setScalar(1);
+        cb.mesh.scale.set(1, 1, 1);
+        cb.mesh.material?.emissive?.setHex?.(0x000000);
+        if (cb.mesh.material) cb.mesh.material.emissiveIntensity = 0;
         if (this.creativeBlockPool.length < 64) {
           this.creativeBlockPool.push(cb.mesh);
         } else {
@@ -1018,9 +1052,9 @@ export class Game3D {
       if (cb.fuseTimer <= 0) {
         if (cb.mesh) {
           cb.mesh.visible = false;
-          cb.mesh.scale.setScalar(1);
-          if (cb.mesh.material && cb.mesh.material.emissive) {
-            cb.mesh.material.emissive.setHex(0x000000);
+          cb.mesh.scale.set(1, 1, 1);
+          cb.mesh.material?.emissive?.setHex?.(0x000000);
+          if (cb.mesh.material) {
             cb.mesh.material.emissiveIntensity = 0;
           }
           if (this.creativeBlockPool.length < 64) {
@@ -1055,15 +1089,39 @@ export class Game3D {
               enemy.takeDamage?.(280, dir, 520, true);
             }
           }
+          // Chain reaction: ignite neighboring TNT blocks within 240 units!
+          for (const other of this.creativeBlocks) {
+            if (other.texKey === 'tnt_block' && other.fuseTimer > 0.15) {
+              const dist = Math.hypot(other.x - cb.x, (other.z || 0) - cb.z);
+              if (dist <= 240) {
+                other.fuseTimer = Math.min(other.fuseTimer, 0.12);
+              }
+            }
+          }
+          speech.onCreativeAction?.('tnt_detonate', { anchor: cb, x: cb.x, y: cb.y - 34, z: cb.z });
         } else if (cb.texKey === 'lucky_block') {
           combat.ink += 250;
           this.player.heal?.(60);
           this.spawnVoxelBurst(cb.x, cb.y - 34, cb.z, '#facc15', 16);
           particles.addShockwave(cb.x, cb.y - 30, 180, '#facc15', 8);
           particles.addTextBanner(cb.x, cb.y - 75, '★ LUCKY PRIZE! +250 INK ★', '#facc15');
+          speech.onCreativeAction?.('lucky_block_open', { anchor: cb, x: cb.x, y: cb.y - 34, z: cb.z });
         }
       }
     }
+  }
+
+  equipCreativeWeapon(w) {
+    if (!w) return;
+    this.creativeWeaponOverride = w;
+    if (w === 'staff' || w === 'eraser' || w === 'pencil') {
+      this.player.weaponType = w;
+    } else {
+      this.player.weaponType = 'staff';
+    }
+    this.player.temporaryWeaponTimer = w === 'pencil' ? 0 : 999999;
+    particles.addTextBanner(this.player.x, this.player.y - 80, `⚔️ EQUIPPED: ${w.toUpperCase()}`, '#ffea00');
+    speech.onCreativeAction?.('weapon_switch', { weapon: w, anchor: this.player });
   }
 
   spawnCreativeEntity() {
@@ -1073,9 +1131,11 @@ export class Game3D {
       for (const m of ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard']) {
         waves.spawnZombie(m, this.player, this.groundY, this.camera2D);
       }
+      speech.onCreativeAction?.('spawn_entity', { entity: 'mercenary_squad', anchor: this.player });
       return;
     }
     waves.spawnZombie(type, this.player, this.groundY, this.camera2D);
+    speech.onCreativeAction?.('spawn_entity', { entity: type, anchor: this.player });
   }
 
   summonAllCreativeAllies() {
@@ -1094,6 +1154,12 @@ export class Game3D {
     });
     allies.unlockKingAlly?.(this.player.x - this.player.facing * 70, this.groundY);
     particles.addTextBanner(this.player.x, this.player.y - 95, '★ ALL STICK ALLIES DEPLOYED! ★', '#ffea00');
+    speech.onCreativeAction?.('summon_allies', { anchor: this.player });
+    speech.triggerNamedBanter?.('team_allies_assemble');
+  }
+
+  deployCreativeAllies() {
+    return this.summonAllCreativeAllies();
   }
 
   nukeCreativeEnemies() {
@@ -1105,8 +1171,9 @@ export class Game3D {
       this.spawnVoxelBurst(enemy.x, enemy.y - 40, enemy.z || 0, enemy.color || '#ff6b00', 14);
       enemy.takeDamage?.(99999, this.player.facing, 600, true);
     }
-    this.camera2D?.addShake?.(0.75);
+    this.camera2D?.addShake?.(1.0);
     particles.addTextBanner(this.player.x, this.player.y - 95, `💥 NUKED ${count} ENEMIES! 💥`, '#ff3344');
+    speech.onCreativeAction?.('nuke_enemies', { anchor: this.player });
   }
 
   maxCreativeUpgrades() {
@@ -1187,7 +1254,9 @@ export class Game3D {
       const cb = this.creativeBlocks[i];
       if (cb.mesh) {
         cb.mesh.visible = false;
-        cb.mesh.scale.setScalar(1);
+        cb.mesh.scale.set(1, 1, 1);
+        cb.mesh.material?.emissive?.setHex?.(0x000000);
+        if (cb.mesh.material) cb.mesh.material.emissiveIntensity = 0;
         if (this.creativeBlockPool.length < 64) {
           this.creativeBlockPool.push(cb.mesh);
         }
@@ -1213,6 +1282,85 @@ export class Game3D {
     this.lastHudValues = Object.create(null);
   }
 
+  resetCombatSpeechState() {
+    this.lastComboMilestone = 0;
+    this.lastGrabHitApplied = false;
+    this.clutchReactionTriggered = false;
+    this.clutchCooldownTimer = 0;
+    this.lastStageObjectiveComplete = false;
+  }
+
+  updateCombatSpeechReactions(simDt) {
+    if (this.creativeMode && this.creativeGodMode) {
+      // God mode disables clutch reactions
+      return;
+    }
+
+    // ------------------------------------------------------------------------
+    // F3.1: Combat Combo Milestones (10-hit, 20-hit, 30-hit)
+    // ------------------------------------------------------------------------
+    const curCombo = combat.combo || 0;
+    if (curCombo < 10) {
+      this.lastComboMilestone = 0;
+    } else if (curCombo >= 30 && this.lastComboMilestone < 30) {
+      this.lastComboMilestone = 30;
+      speech.onCombatEvent?.('combo', { hits: 30, anchor: this.player });
+    } else if (curCombo >= 20 && this.lastComboMilestone < 20) {
+      this.lastComboMilestone = 20;
+      speech.onCombatEvent?.('combo', { hits: 20, anchor: this.player });
+    } else if (curCombo >= 10 && this.lastComboMilestone < 10) {
+      this.lastComboMilestone = 10;
+      speech.onCombatEvent?.('combo', { hits: 10, anchor: this.player });
+    }
+
+    // ------------------------------------------------------------------------
+    // F3.1: Grab Finisher Execution
+    // ------------------------------------------------------------------------
+    const move = this.player?.activeMove;
+    if (move && move.action === 'grab') {
+      if (move.hitApplied && !this.lastGrabHitApplied) {
+        this.lastGrabHitApplied = true;
+        const grabPhrases = ['SLAM DUNK!', 'SEISMIC SLAM!', 'KNOCKOUT SLAM!'];
+        const text = grabPhrases[Math.floor(Math.random() * grabPhrases.length)];
+        speech.onCombatEvent?.('grab', { text, anchor: this.player });
+      }
+    } else if (!move) {
+      this.lastGrabHitApplied = false;
+    }
+
+    // ------------------------------------------------------------------------
+    // F3.2: Low-HP Clutch Reactions (<25% HP)
+    // ------------------------------------------------------------------------
+    if (this.clutchCooldownTimer > 0) {
+      this.clutchCooldownTimer -= simDt;
+    }
+    const player = this.player;
+    if (player && !player.isDead && (player.maxHp || 0) > 0) {
+      const hpRatio = player.hp / player.maxHp;
+      if (hpRatio < 0.25 && player.hp > 0) {
+        if (!this.clutchReactionTriggered && this.clutchCooldownTimer <= 0) {
+          this.clutchReactionTriggered = true;
+          this.clutchCooldownTimer = 15.0; // 15-second cooldown against spam
+          speech.onCombatEvent?.('low_hp', { anchor: player });
+        }
+      } else if (hpRatio >= 0.28) {
+        // Hysteresis reset: clear triggered flag once healed back above 28%
+        this.clutchReactionTriggered = false;
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // F3.2: Stage Objective Clear Reaction
+    // ------------------------------------------------------------------------
+    if (this.stageManager?.isObjectiveComplete && !this.lastStageObjectiveComplete) {
+      this.lastStageObjectiveComplete = true;
+      speech.onCombatEvent?.('stage_clear', {
+        stage: this.stageManager.currentStage,
+        anchor: this.player
+      });
+    }
+  }
+
   startGame(options = {}) {
     const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
     const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 21 ? checkpoint.stage : 1;
@@ -1224,6 +1372,7 @@ export class Game3D {
     allies.reset(true, false, stage > 11);
     particles.reset();
     speech.reset();
+    this.resetCombatSpeechState();
     shop.reset();
     combat.resetRun(checkpoint ? checkpoint.ink ?? 50 : 50);
     this.clearDynamic3DMeshes();
@@ -1259,6 +1408,7 @@ export class Game3D {
     this.prepareWeaponPickup(stage);
     this.captureStageCheckpoint();
     this.showMissionStrip(stage, checkpoint ? 'CONTINUE' : '');
+    speech.onCombatEvent?.('stage_start', { stage, anchor: this.player });
 
     this.syncStageSelectors(stage);
   }
@@ -1278,6 +1428,7 @@ export class Game3D {
     allies.reset(false, false, stage > 11);
     particles.reset();
     speech.reset();
+    this.resetCombatSpeechState();
     combat.clearArena();
     this.clearDynamic3DMeshes();
 
@@ -1305,6 +1456,7 @@ export class Game3D {
     this.prepareWeaponPickup(stage);
     this.captureStageCheckpoint();
     this.showMissionStrip(stage, 'RETRY');
+    speech.onCombatEvent?.('stage_start', { stage, anchor: this.player });
     waves.startWave(stage);
   }
 
@@ -1318,6 +1470,7 @@ export class Game3D {
     allies.reset(false, true, nextStage > 11);
     particles.reset();
     speech.reset();
+    this.resetCombatSpeechState();
     combat.clearArena();
     this.clearDynamic3DMeshes();
     this.arena3D.rebuildForStage();
@@ -1355,6 +1508,7 @@ export class Game3D {
     this.prepareWeaponPickup(nextStage);
     this.captureStageCheckpoint();
     this.showMissionStrip(nextStage);
+    speech.onCombatEvent?.('stage_start', { stage: nextStage, anchor: this.player });
 
     this.syncStageSelectors(nextStage);
   }
@@ -1369,6 +1523,7 @@ export class Game3D {
     allies.reset(false, false, true);
     particles.reset();
     speech.reset();
+    this.resetCombatSpeechState();
     combat.clearArena();
     this.clearDynamic3DMeshes();
 
@@ -1394,6 +1549,12 @@ export class Game3D {
     audio.setBGMDucked?.(false);
     this.showMissionStrip(21, 'EPILOGUE');
     particles.addTextBanner(this.player.x + 90, this.player.y - 90, '★ 3D TROPHY ROOM UNLOCKED! ★', '#ffd54a');
+    speech.spawnSpeechBubble?.('orange', 'TROPHY ROOM UNLOCKED!', {
+      style: 'comic',
+      mood: '★',
+      priority: 4,
+      anchor: this.player
+    });
 
     this.syncStageSelectors(22);
   }
@@ -1405,6 +1566,12 @@ export class Game3D {
     projectiles.reset();
     allies.reset(false);
     this.player.cancelHook?.(true);
+    speech.spawnSpeechBubble?.('orange', 'VICTORY! WE WON!', {
+      style: 'comic',
+      mood: '★',
+      priority: 5,
+      anchor: this.player
+    });
     save.recordRun(combat.score, combat.maxCombo, combat.totalKills);
     save.recordVictory();
     this.syncContinueButton();
@@ -1740,8 +1907,19 @@ export class Game3D {
     allies.update(simDt, this.groundY, hostileTargets, this.player, this.camera2D);
     combat.update(simDt, this.player);
     particles.update(simDt);
-    speech.update(simDt);
+    speech.update(simDt, this.player);
+    this.updateCombatSpeechReactions(simDt);
     this.updateWeaponPickup();
+
+    // Ambient zombie comedy banter: occasional humorous retorts during active zombie waves
+    this.zombieRetortTimer = (this.zombieRetortTimer || 0) + simDt;
+    if (this.zombieRetortTimer >= 14.0) {
+      this.zombieRetortTimer = 0;
+      const normalZombies = (waves.zombies || []).filter((z) => !z.isDead && !z.isBoss && !z.isMercenary);
+      if (normalZombies.length >= 2) {
+        speech.triggerRandomZombieRetort?.({ anchor: normalZombies[0] });
+      }
+    }
 
     // Update 3D Arena, 3D Laser Contact Damage & Voxel Particles
     this.arena3D.update(simDt);
@@ -2543,12 +2721,29 @@ export class Game3D {
   }
 
   projectWorldToOverlay(wx, wy, wz = 0, target = _screenPoint) {
-    _scratchProj.set(to3DX(wx), to3DY(wy), to3DZ(wz));
-    _scratchProj.project(this.camera3D);
+    const x3d = to3DX(wx);
+    const y3d = to3DY(wy);
+    const z3d = to3DZ(wz);
+    _scratchProj.set(x3d, y3d, z3d);
+
+    let dist = 16.0;
+    let visible = true;
+    if (this.camera3D) {
+      dist = this.camera3D.position.distanceTo(_scratchProj);
+      _scratchProj.project(this.camera3D);
+      // Behind-camera frustum culling: In Three.js NDC, z > 1.0 or z < -1.0
+      if (_scratchProj.z > 1.0 || _scratchProj.z < -1.0) {
+        visible = false;
+      }
+    }
+
     const width = this.viewportWidth || (this.overlayCanvas ? this.overlayCanvas.clientWidth : 0) || (typeof window !== 'undefined' ? window.innerWidth : 1280);
     const height = this.viewportHeight || (this.overlayCanvas ? this.overlayCanvas.clientHeight : 0) || (typeof window !== 'undefined' ? window.innerHeight : 720);
     target.x = (_scratchProj.x * 0.5 + 0.5) * width;
     target.y = (-_scratchProj.y * 0.5 + 0.5) * height;
+    target.zDepth = _scratchProj.z;
+    target.visible = visible;
+    target.scale = Math.max(0.65, Math.min(1.35, 16.0 / (dist || 16.0)));
     return target;
   }
 
@@ -2612,7 +2807,7 @@ export class Game3D {
 
     waves.drawScreenIndicators?.(ctx, cameraAdapter, width, height);
     this.stageManager.drawScreenGuide?.(ctx, cameraAdapter, width, height);
-    speech.draw(ctx, cameraAdapter, width, height);
+    speech.draw(ctx, this.cameraAdapter, width, height, this.camera3D);
   }
 
   getHudElement(id) {
