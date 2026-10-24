@@ -1,37 +1,82 @@
 import * as THREE from '../lib/three.module.min.js';
-import { StickFigureRenderer } from '../../js/entities/stickman.js?v=9.8';
 import { getVoxelTexture } from './textures3d.js';
 
-const LINE_RADIUS = 0.052;
-const BONE_SCALE = 1 / 30; // Maps 2D bone units (-62..0) to ~2.1 units tall in 3D
+export const SHOULDER_Y = 1.60;
+export const LINE_RADIUS = 0.052;
 
-const SHARED_GEOS = {
+export const SHARED_GEOS = {
   segment: new THREE.CylinderGeometry(LINE_RADIUS, LINE_RADIUS, 1.0, 12),
   solidHead: new THREE.SphereGeometry(0.35, 18, 16),
   hollowHead: new THREE.TorusGeometry(0.34, 0.058, 14, 32),
   eye: new THREE.SphereGeometry(0.05, 8, 8)
 };
+for (const geo of Object.values(SHARED_GEOS)) {
+  geo.isShared = true;
+  geo.userData = geo.userData || {};
+  geo.userData.isShared = true;
+}
 
-const POSE_HELPER = new StickFigureRenderer('#ff7700', 5, 1.0, true);
+export const POSE_KEYS = Object.freeze([
+  'torsoLean',
+  'headTilt',
+  'hipZ',
+  'liftY',
+  'thighL',
+  'kneeL',
+  'thighR',
+  'kneeR',
+  'uArmL',
+  'elbowL',
+  'uArmR',
+  'elbowR'
+]);
 const UP_VEC = new THREE.Vector3(0, 1, 0);
 const TEMP_A = new THREE.Vector3();
 const TEMP_B = new THREE.Vector3();
 const TEMP_DIR = new THREE.Vector3();
 
-function setCylinderBetween(mesh, x1, y1, z1, x2, y2, z2) {
-  TEMP_A.set(x1, y1, z1);
-  TEMP_B.set(x2, y2, z2);
-  TEMP_DIR.subVectors(TEMP_B, TEMP_A);
-  const len = TEMP_DIR.length();
-  if (len < 0.0001) {
-    mesh.visible = false;
+export function disposeHierarchy(root, keepShared = true) {
+  if (!root) return;
+  root.traverse((child) => {
+    if (child.geometry) {
+      if (!keepShared || (!child.geometry.isShared && !child.geometry.userData?.isShared)) {
+        child.geometry.dispose?.();
+      }
+    }
+    if (child.material) {
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      for (const m of mats) {
+        if (!m) continue;
+        if (!keepShared || (!m.isShared && !m.userData?.isShared)) {
+          m.dispose?.();
+        }
+      }
+    }
+  });
+}
+
+export function setCylinderBetween(mesh, x1, y1, z1, x2, y2, z2) {
+  if (mesh.setCyl) {
+    mesh.setCyl(x1, y1, z1, x2, y2, z2);
     return;
   }
+  const dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+  const lenSq = dx * dx + dy * dy + dz * dz;
+  if (lenSq < 1e-8) { mesh.visible = false; return; }
   mesh.visible = true;
-  mesh.position.copy(TEMP_A).addScaledVector(TEMP_DIR, 0.5);
-  // Slight endpoint overlap (LINE_RADIUS * 0.85) closes angled bends without joint spheres
-  mesh.scale.set(1, len + LINE_RADIUS * 0.85, 1);
-  mesh.quaternion.setFromUnitVectors(UP_VEC, TEMP_DIR.normalize());
+  mesh.position.set((x1 + x2) * 0.5, (y1 + y2) * 0.5, (z1 + z2) * 0.5);
+  const len = Math.sqrt(lenSq);
+  mesh.scale.set(1.0, len + LINE_RADIUS * 0.85, 1.0);
+  const invLen = 1.0 / len;
+  const ex = dx * invLen, ey = dy * invLen, ez = dz * invLen;
+  const n = ey + 1.0;
+  if (n < 1e-6) {
+    mesh.quaternion.set(0.0, 0.0, 1.0, 0.0);
+  } else {
+    const qx = ez, qz = -ex, qw = n;
+    const qLen = 1.0 / Math.sqrt(qx * qx + qz * qz + qw * qw);
+    mesh.quaternion.set(qx * qLen, 0.0, qz * qLen, qw * qLen);
+  }
 }
 
 export function buildVoxelWeaponMesh(weaponType) {
@@ -215,6 +260,38 @@ export class StickRig3D {
     this.isZombie = isZombie;
     this.isHunched = isHunched;
     this.zombieType = zombieType;
+    this.shoulderY = SHOULDER_Y;
+    this.lastPose = null;
+    this._emissiveKey = -1;
+
+    this._targetPose = {
+      torsoLean: 0.0,
+      headTilt: 0.0,
+      hipZ: 0.0,
+      liftY: 0.0,
+      thighL: 0.0,
+      kneeL: 0.0,
+      thighR: 0.0,
+      kneeR: 0.0,
+      uArmL: 0.0,
+      elbowL: 0.0,
+      uArmR: 0.0,
+      elbowR: 0.0
+    };
+    this.poseAngles = {
+      torsoLean: 0.0,
+      headTilt: 0.0,
+      hipZ: 0.0,
+      liftY: 0.0,
+      thighL: 0.0,
+      kneeL: 0.0,
+      thighR: 0.0,
+      kneeR: 0.0,
+      uArmL: 0.0,
+      elbowL: 0.0,
+      uArmR: 0.0,
+      elbowR: 0.0
+    };
 
     this.root = new THREE.Group();
     this.root.scale.setScalar(scale);
@@ -227,9 +304,34 @@ export class StickRig3D {
       emissiveIntensity: 1.0
     });
 
-    // Simple, joint-free stick figure segments (9 narrow line segments + head)
+    // Simple, joint-free stick figure segments with monomorphic zero-allocation setCyl method
     const makeSeg = () => {
       const m = new THREE.Mesh(SHARED_GEOS.segment, this.material);
+      m.quaternion._onChangeCallback = () => {};
+      m.rotation._onChangeCallback = () => {};
+      m.setCyl = function(x1, y1, z1, x2, y2, z2) {
+        const dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+        const lenSq = dx * dx + dy * dy + dz * dz;
+        if (lenSq < 1e-8) { this.visible = false; return; }
+        this.visible = true;
+        const p = this.position;
+        p.x = (x1 + x2) * 0.5;
+        p.y = (y1 + y2) * 0.5;
+        p.z = (z1 + z2) * 0.5;
+        const len = Math.sqrt(lenSq);
+        this.scale.y = len + LINE_RADIUS * 0.85;
+        const invLen = 1.0 / len;
+        const ex = dx * invLen, ey = dy * invLen, ez = dz * invLen;
+        const n = ey + 1.0;
+        const q = this.quaternion;
+        if (n < 1e-6) {
+          q._x = 0.0; q._y = 0.0; q._z = 1.0; q._w = 0.0;
+        } else {
+          const qx = ez, qz = -ex, qw = n;
+          const qLen = 1.0 / Math.sqrt(qx * qx + qz * qz + qw * qw);
+          q._x = qx * qLen; q._y = 0.0; q._z = qz * qLen; q._w = qw * qLen;
+        }
+      };
       m.castShadow = true;
       this.root.add(m);
       return m;
@@ -244,6 +346,13 @@ export class StickRig3D {
     this.fArmLSeg = makeSeg();
     this.uArmRSeg = makeSeg();
     this.fArmRSeg = makeSeg();
+
+    this._segments = [
+      this.spineSeg, this.thighLSeg, this.shinLSeg,
+      this.thighRSeg, this.shinRSeg, this.uArmLSeg,
+      this.fArmLSeg, this.uArmRSeg, this.fArmRSeg
+    ];
+    this._segEndpoints = new Float64Array(54);
 
     // Chest anchor for props
     this.chest = new THREE.Group();
@@ -340,10 +449,12 @@ export class StickRig3D {
     this.currentWeaponType = weaponType;
     if (this.weaponMeshR) {
       this.handR.remove(this.weaponMeshR);
+      disposeHierarchy(this.weaponMeshR, true);
       this.weaponMeshR = null;
     }
     if (this.weaponMeshL) {
       this.handL.remove(this.weaponMeshL);
+      disposeHierarchy(this.weaponMeshL, true);
       this.weaponMeshL = null;
     }
     if (!weaponType) return;
@@ -504,6 +615,55 @@ export class StickRig3D {
       this.chest.add(borderFrame, signPlate);
       this.eyeGroup.visible = false;
     }
+
+    // Warm up V8 inline caches and polymorphic feedback vectors across poses and float fields
+    const _warmupState = {
+      pose: 'idle',
+      animTimer: 0.016,
+      dt: 0.016,
+      isGrounded: true,
+      isHurt: false,
+      actionKind: null,
+      actionPhase: 0.5
+    };
+    for (let j = 0; j < 60; j++) {
+      _warmupState.pose = (j % 2 === 0) ? 'idle' : 'run';
+      _warmupState.animTimer = j * 0.016;
+      _warmupState.actionPhase = (j % 60) / 60;
+      this.update(_warmupState);
+    }
+    this.shoulderY = SHOULDER_Y;
+    this.lastPose = null;
+  }
+
+  _applySegments() {
+    const b = this._segEndpoints;
+    const segs = this._segments;
+    for (let m = 0; m < 9; m++) {
+      const idx = m * 6;
+      const x1 = b[idx], y1 = b[idx + 1], z1 = b[idx + 2];
+      const x2 = b[idx + 3], y2 = b[idx + 4], z2 = b[idx + 5];
+      const dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+      const lenSq = dx * dx + dy * dy + dz * dz;
+      const mesh = segs[m];
+      if (lenSq < 1e-8) { mesh.visible = false; continue; }
+      mesh.visible = true;
+      const p = mesh.position;
+      p.x = (x1 + x2) * 0.5; p.y = (y1 + y2) * 0.5; p.z = (z1 + z2) * 0.5;
+      const len = Math.sqrt(lenSq);
+      mesh.scale.y = len + LINE_RADIUS * 0.85;
+      const invLen = 1.0 / len;
+      const ex = dx * invLen, ey = dy * invLen, ez = dz * invLen;
+      const n = ey + 1.0;
+      const q = mesh.quaternion;
+      if (n < 1e-6) {
+        q._x = 0.0; q._y = 0.0; q._z = 1.0; q._w = 0.0;
+      } else {
+        const qx = ez, qz = -ex, qw = n;
+        const qLen = 1.0 / Math.sqrt(qx * qx + qz * qz + qw * qw);
+        q._x = qx * qLen; q._y = 0.0; q._z = qz * qLen; q._w = qw * qLen;
+      }
+    }
   }
 
   update(state = {}) {
@@ -524,21 +684,27 @@ export class StickRig3D {
       this.setWeapon(weaponType);
     }
 
-    if (isHurt) {
-      this.material.emissive.setHex(0xffffff);
-      this.material.emissiveIntensity = 0.85;
-    } else if (isFrozen) {
-      this.material.emissive.setHex(0x38bdf8);
-      this.material.emissiveIntensity = 0.65;
-    } else if (isAwakened) {
-      this.material.emissive.setHex(0xffd700);
-      this.material.emissiveIntensity = 0.8;
-    } else {
-      this.material.emissive.copy(this.color).multiplyScalar(this.isZombie ? 0.22 : 0.35);
-      this.material.emissiveIntensity = 1.0;
+    const emissiveKey = isHurt ? 1 : (isFrozen ? 2 : (isAwakened ? 3 : 0));
+    if (this._emissiveKey !== emissiveKey) {
+      this._emissiveKey = emissiveKey;
+      if (isHurt) {
+        this.material.emissive.setHex(0xffffff);
+        this.material.emissiveIntensity = 0.85;
+      } else if (isFrozen) {
+        this.material.emissive.setHex(0x38bdf8);
+        this.material.emissiveIntensity = 0.65;
+      } else if (isAwakened) {
+        this.material.emissive.setHex(0xffd700);
+        this.material.emissiveIntensity = 0.8;
+      } else {
+        this.material.emissive.copy(this.color).multiplyScalar(this.isZombie ? 0.22 : 0.35);
+        this.material.emissiveIntensity = 1.0;
+      }
     }
 
-    this.auraMesh.visible = Boolean(isAwakened);
+    if (this.auraMesh.visible !== Boolean(isAwakened)) {
+      this.auraMesh.visible = Boolean(isAwakened);
+    }
     if (isAwakened) {
       this.auraMesh.rotation.y = animTimer * 4;
     }
@@ -549,22 +715,56 @@ export class StickRig3D {
       this.boomCore.scale.setScalar(1 + Math.sin(animTimer * 16) * 0.14);
     }
 
+    const safeDt = (dt >= 0.004 && dt <= 0.05) ? dt : (Number.isFinite(dt) ? (dt < 0.004 ? 0.004 : 0.05) : 0.016);
     const target = this.computeNaturalPoseAngles(pose, animTimer, isGrounded, isHurt, actionKind, actionPhase);
-    if (!this.poseAngles || pose === 'roll') {
-      this.poseAngles = { ...target };
-    } else {
-      const isAttack = pose.startsWith('attack') || pose === 'weapon_slash' || pose === 'dive_kick';
-      const rate = isAttack ? 28 : 18;
-      const alpha = Math.min(1, 1 - Math.exp(-rate * Math.max(0.004, Math.min(0.05, dt))));
-      for (const k of Object.keys(target)) {
-        this.poseAngles[k] += (target[k] - this.poseAngles[k]) * alpha;
-      }
+    const isExitingRoll = (this.lastPose === 'roll' && pose !== 'roll');
+    if (!this.poseAngles) {
+      this.poseAngles = {
+        torsoLean: 0.0, headTilt: 0.0, hipZ: 0.0, liftY: 0.0,
+        thighL: 0.0, kneeL: 0.0, thighR: 0.0, kneeR: 0.0,
+        uArmL: 0.0, elbowL: 0.0, uArmR: 0.0, elbowR: 0.0
+      };
     }
-
     const a = this.poseAngles;
+
+    if (pose === 'roll' || isExitingRoll) {
+      a.torsoLean = target.torsoLean;
+      a.headTilt  = target.headTilt;
+      a.hipZ      = target.hipZ;
+      a.liftY     = target.liftY;
+      a.thighL    = target.thighL;
+      a.kneeL     = target.kneeL;
+      a.thighR    = target.thighR;
+      a.kneeR     = target.kneeR;
+      a.uArmL     = target.uArmL;
+      a.elbowL    = target.elbowL;
+      a.uArmR     = target.uArmR;
+      a.elbowR    = target.elbowR;
+    } else {
+      const isAttack = (pose[0] === 'a' && pose[1] === 't') || pose === 'weapon_slash' || pose === 'dive_kick';
+      const isFlinch = Boolean(isHurt || pose === 'hurt');
+      const rate = isFlinch ? 36 : (isAttack ? 28 : 18);
+      const rawAlpha = 1.0 - Math.exp(-rate * safeDt);
+      const alpha = rawAlpha < 1.0 ? rawAlpha : 1.0;
+
+      a.torsoLean += (target.torsoLean - a.torsoLean) * alpha;
+      a.headTilt  += (target.headTilt - a.headTilt) * alpha;
+      a.hipZ      += (target.hipZ - a.hipZ) * alpha;
+      a.liftY     += (target.liftY - a.liftY) * alpha;
+      a.thighL    += (target.thighL - a.thighL) * alpha;
+      a.kneeL     += (target.kneeL - a.kneeL) * alpha;
+      a.thighR    += (target.thighR - a.thighR) * alpha;
+      a.kneeR     += (target.kneeR - a.kneeR) * alpha;
+      a.uArmL     += (target.uArmL - a.uArmL) * alpha;
+      a.elbowL    += (target.elbowL - a.elbowL) * alpha;
+      a.uArmR     += (target.uArmR - a.uArmR) * alpha;
+      a.elbowR    += (target.elbowR - a.elbowR) * alpha;
+    }
+    this.lastPose = pose;
+
     const SPINE_LEN = 0.80;
-    const THIGH_LEN = 0.49;
-    const SHIN_LEN = 0.49;
+    const THIGH_LEN = 0.40;
+    const SHIN_LEN = 0.40;
     const UARM_LEN = 0.41;
     const FARM_LEN = 0.39;
     const HEAD_RADIUS = 0.34;
@@ -574,7 +774,7 @@ export class StickRig3D {
     const hipZ = a.hipZ;
     const relKneeLY = -Math.cos(a.thighL) * THIGH_LEN;
     const relKneeLZ = hipZ + Math.sin(a.thighL) * THIGH_LEN;
-    const shinAngleL = a.thighL - a.kneeL; // Knee always bends backward (kneeL >= 0)
+    const shinAngleL = a.thighL - a.kneeL;
     const relFootLY = relKneeLY - Math.cos(shinAngleL) * SHIN_LEN;
     const relFootLZ = relKneeLZ + Math.sin(shinAngleL) * SHIN_LEN;
 
@@ -584,10 +784,26 @@ export class StickRig3D {
     const relFootRY = relKneeRY - Math.cos(shinAngleR) * SHIN_LEN;
     const relFootRZ = relKneeRZ + Math.sin(shinAngleR) * SHIN_LEN;
 
-    const minRelFootY = Math.min(relFootLY, relFootRY);
-    const hipY = (pose === 'roll')
-      ? 0.72
-      : Math.max(0.28, -minRelFootY + 0.03 + a.liftY);
+    const minRelFootY = relFootLY < relFootRY ? relFootLY : relFootRY;
+    const torsoH = Math.cos(a.torsoLean) * SPINE_LEN;
+
+    let hipY;
+    if (pose === 'roll') {
+      hipY = 0.72;
+    } else if (pose === 'crouch' || this.zombieType === 'crawler') {
+      const cHip = -minRelFootY + 0.03 + a.liftY;
+      hipY = cHip > 0.28 ? cHip : 0.28;
+    } else {
+      // Aerial IK & root elevation: decouple pelvis height from kicking leg angles while
+      // respecting floor clearance and bounding shoulderY strictly to [1.45, 1.75]
+      const rootHipY = 0.82 + a.liftY * 0.2;
+      const footClearance = -minRelFootY + 0.03;
+      hipY = rootHipY > footClearance ? rootHipY : footClearance;
+      const minH = 1.45 - torsoH;
+      const maxH = 1.75 - torsoH;
+      if (hipY < minH) hipY = minH;
+      else if (hipY > maxH) hipY = maxH;
+    }
 
     const kLY = hipY + relKneeLY, kLZ = relKneeLZ;
     const fLY = hipY + relFootLY, fLZ = relFootLZ;
@@ -595,77 +811,110 @@ export class StickRig3D {
     const fRY = hipY + relFootRY, fRZ = relFootRZ;
 
     // 1. Spine: from hip (0, hipY, hipZ) up to neck (0, neckY, neckZ)
-    const neckY = hipY + Math.cos(a.torsoLean) * SPINE_LEN;
+    const neckY = hipY + torsoH;
     const neckZ = hipZ + Math.sin(a.torsoLean) * SPINE_LEN;
-    setCylinderBetween(this.spineSeg, 0, hipY, hipZ, 0, neckY, neckZ);
-    this.chest.position.set(0, (hipY + neckY) * 0.55, (hipZ + neckZ) * 0.55);
+    const shoulderY = neckY;
+    this.shoulderY = shoulderY;
+    const cp = this.chest.position;
+    cp.x = 0; cp.y = (hipY + neckY) * 0.55; cp.z = (hipZ + neckZ) * 0.55;
 
     // 2. Head: bottom of head connects directly to the neck (0, neckY, neckZ)
     const headAngle = a.torsoLean * 0.65 + a.headTilt;
     const headCenterDist = HEAD_RADIUS + 0.02;
-    this.headGroup.position.set(
-      0,
-      neckY + Math.cos(headAngle) * headCenterDist,
-      neckZ + Math.sin(headAngle) * headCenterDist
-    );
+    const hp = this.headGroup.position;
+    hp.x = 0;
+    hp.y = neckY + Math.cos(headAngle) * headCenterDist;
+    hp.z = neckZ + Math.sin(headAngle) * headCenterDist;
 
-    // 3. Legs: both thighs ALWAYS start at the hip (0, hipY, hipZ)
-    setCylinderBetween(this.thighLSeg, 0, hipY, hipZ, -zSep, kLY, kLZ);
-    setCylinderBetween(this.shinLSeg, -zSep, kLY, kLZ, -zSep * 1.4, fLY, fLZ);
-
-    setCylinderBetween(this.thighRSeg, 0, hipY, hipZ, zSep, kRY, kRZ);
-    setCylinderBetween(this.shinRSeg, zSep, kRY, kRZ, zSep * 1.4, fRY, fRZ);
-
-    // 4. Arms: both upper arms ALWAYS start from the exact neck point (0, neckY, neckZ)
+    // 3. Arms: both upper arms ALWAYS start from the exact neck point (0, neckY, neckZ)
     const eLY = neckY - Math.cos(a.uArmL) * UARM_LEN;
     const eLZ = neckZ + Math.sin(a.uArmL) * UARM_LEN;
     const fAngleL = a.uArmL + a.elbowL; // Elbow always bends forward (elbowL >= 0)
     const hLY = eLY - Math.cos(fAngleL) * FARM_LEN;
     const hLZ = eLZ + Math.sin(fAngleL) * FARM_LEN;
-    setCylinderBetween(this.uArmLSeg, 0, neckY, neckZ, -zSep * 1.4, eLY, eLZ);
-    setCylinderBetween(this.fArmLSeg, -zSep * 1.4, eLY, eLZ, -zSep * 2.0, hLY, hLZ);
 
     const eRY = neckY - Math.cos(a.uArmR) * UARM_LEN;
     const eRZ = neckZ + Math.sin(a.uArmR) * UARM_LEN;
     const fAngleR = a.uArmR + a.elbowR;
     const hRY = eRY - Math.cos(fAngleR) * FARM_LEN;
     const hRZ = eRZ + Math.sin(fAngleR) * FARM_LEN;
-    setCylinderBetween(this.uArmRSeg, 0, neckY, neckZ, zSep * 1.4, eRY, eRZ);
-    setCylinderBetween(this.fArmRSeg, zSep * 1.4, eRY, eRZ, zSep * 2.0, hRY, hRZ);
+
+    // 4. Pack segment endpoints into typed array and update segment meshes in unified pass
+    const b = this._segEndpoints;
+    // 0: Spine
+    b[0] = 0; b[1] = hipY; b[2] = hipZ; b[3] = 0; b[4] = neckY; b[5] = neckZ;
+    // 1: ThighL
+    b[6] = 0; b[7] = hipY; b[8] = hipZ; b[9] = -zSep; b[10] = kLY; b[11] = kLZ;
+    // 2: ShinL
+    b[12] = -zSep; b[13] = kLY; b[14] = kLZ; b[15] = -zSep * 1.4; b[16] = fLY; b[17] = fLZ;
+    // 3: ThighR
+    b[18] = 0; b[19] = hipY; b[20] = hipZ; b[21] = zSep; b[22] = kRY; b[23] = kRZ;
+    // 4: ShinR
+    b[24] = zSep; b[25] = kRY; b[26] = kRZ; b[27] = zSep * 1.4; b[28] = fRY; b[29] = fRZ;
+    // 5: UArmL
+    b[30] = 0; b[31] = neckY; b[32] = neckZ; b[33] = -zSep * 1.4; b[34] = eLY; b[35] = eLZ;
+    // 6: FArmL
+    b[36] = -zSep * 1.4; b[37] = eLY; b[38] = eLZ; b[39] = -zSep * 2.0; b[40] = hLY; b[41] = hLZ;
+    // 7: UArmR
+    b[42] = 0; b[43] = neckY; b[44] = neckZ; b[45] = zSep * 1.4; b[46] = eRY; b[47] = eRZ;
+    // 8: FArmR
+    b[48] = zSep * 1.4; b[49] = eRY; b[50] = eRZ; b[51] = zSep * 2.0; b[52] = hRY; b[53] = hRZ;
+
+    this._applySegments();
 
     // 5. Hand Weapon Mounts follow the hand position and forearm angle naturally
-    this.handL.position.set(-zSep * 2.0, hLY, hLZ);
-    this.handR.position.set(zSep * 2.0, hRY, hRZ);
+    const lp = this.handL.position;
+    lp.x = -zSep * 2.0; lp.y = hLY; lp.z = hLZ;
+    const rp = this.handR.position;
+    rp.x = zSep * 2.0; rp.y = hRY; rp.z = hRZ;
 
     let weaponPitch = fAngleR * 0.65 + 0.15;
     if (pose === 'weapon_slash') {
       weaponPitch = -0.95 + (actionPhase || 0.5) * 2.45;
-    } else if (pose.startsWith('attack')) {
+    } else if (pose[0] === 'a' && pose[1] === 't') {
       weaponPitch = fAngleR * 0.75 + 0.35;
     }
-    this.handR.rotation.set(weaponPitch, 0, 0);
-    this.handL.rotation.set(fAngleL * 0.65 + 0.15, 0, 0);
+    this.handR.rotation.x = weaponPitch;
+    this.handL.rotation.x = fAngleL * 0.65 + 0.15;
   }
 
   computeNaturalPoseAngles(pose, timer, isGrounded, isHurt, actionKind, actionPhase) {
-    const p = Math.max(0, Math.min(1, Number(actionPhase) || 0));
-    const swing = Math.sin(p * Math.PI); // 0 -> 1 -> 0 strike arc
-    const drive = p < 0.45 ? (p / 0.45) : 1 - (p - 0.45) * 0.35; // fast windup to full extension
+    let p = typeof actionPhase === 'number' ? actionPhase : 0.0;
+    if (p < 0.0) p = 0.0;
+    else if (p > 1.0) p = 1.0;
+    const isCombatPose = (pose[0] === 'a' && pose[1] === 't') || pose === 'weapon_slash' || pose === 'dive_kick' || Boolean(actionKind);
+    const swing = isCombatPose ? Math.sin(p * Math.PI) : 0.0;
+    const drive = isCombatPose ? (p < 0.45 ? (p / 0.45) : 1.0 - (p - 0.45) * 0.35) : 0.0;
 
-    const out = {
-      torsoLean: this.isHunched ? 0.28 : 0.06,
-      headTilt: 0.0,
-      hipZ: 0.0,
-      liftY: 0.0,
-      thighL: -0.16,
-      kneeL: 0.14,
-      thighR: 0.20,
-      kneeR: 0.18,
-      uArmL: -0.18,
-      elbowL: 0.68,
-      uArmR: 0.24,
-      elbowR: 0.88
-    };
+    if (!this._targetPose) {
+      this._targetPose = {
+        torsoLean: 0.0,
+        headTilt: 0.0,
+        hipZ: 0.0,
+        liftY: 0.0,
+        thighL: 0.0,
+        kneeL: 0.0,
+        thighR: 0.0,
+        kneeR: 0.0,
+        uArmL: 0.0,
+        elbowL: 0.0,
+        uArmR: 0.0,
+        elbowR: 0.0
+      };
+    }
+    const out = this._targetPose;
+    out.torsoLean = this.isHunched ? 0.28 : 0.06;
+    out.headTilt = 0.0;
+    out.hipZ = 0.0;
+    out.liftY = 0.0;
+    out.thighL = -0.16;
+    out.kneeL = 0.14;
+    out.thighR = 0.20;
+    out.kneeR = 0.18;
+    out.uArmL = -0.18;
+    out.elbowL = 0.68;
+    out.uArmR = 0.24;
+    out.elbowR = 0.88;
 
     if (isHurt) {
       out.torsoLean = -0.28;
@@ -720,13 +969,15 @@ export class StickRig3D {
         out.torsoLean = 0.36 + Math.sin(t * 2) * 0.05;
         out.headTilt = 0.08 + Math.cos(t) * 0.06;
         out.thighL = s * 0.54 + 0.04;
-        out.kneeL = 0.22 + Math.max(0, c * 0.65 + 0.35) * 0.58;
+        const c1 = c * 0.65 + 0.35;
+        out.kneeL = 0.22 + (c1 > 0 ? c1 : 0) * 0.58;
         out.thighR = -s * 0.54 + 0.04;
-        out.kneeR = 0.22 + Math.max(0, -c * 0.65 + 0.35) * 0.58;
+        const c2 = -c * 0.65 + 0.35;
+        out.kneeR = 0.22 + (c2 > 0 ? c2 : 0) * 0.58;
         out.uArmL = 0.92 - s * 0.24;
-        out.elbowL = 0.40 + Math.max(0, s) * 0.22;
+        out.elbowL = 0.40 + (s > 0 ? s : 0) * 0.22;
         out.uArmR = 0.84 + s * 0.24;
-        out.elbowR = 0.46 + Math.max(0, -s) * 0.22;
+        out.elbowR = 0.46 + (-s > 0 ? -s : 0) * 0.22;
         if (actionKind) {
           out.torsoLean += swing * 0.22;
           out.uArmL += swing * 0.55;
@@ -740,9 +991,9 @@ export class StickRig3D {
         out.torsoLean = 0.06 + b * 0.025;
         out.headTilt = -b * 0.03;
         out.thighL = -0.16 + b2 * 0.02;
-        out.kneeL = 0.14 + Math.max(0, -b) * 0.05;
+        out.kneeL = 0.14 + (-b > 0 ? -b : 0) * 0.05;
         out.thighR = 0.20 - b2 * 0.02;
-        out.kneeR = 0.18 + Math.max(0, b) * 0.05;
+        out.kneeR = 0.18 + (b > 0 ? b : 0) * 0.05;
         out.uArmL = -0.18 + b * 0.04;
         out.elbowL = 0.68 + b * 0.05;
         out.uArmR = 0.24 - b * 0.04;
@@ -755,17 +1006,18 @@ export class StickRig3D {
         const c = Math.cos(t);
         out.torsoLean = 0.25 + Math.sin(t * 2) * 0.035;
         out.headTilt = -0.07 + Math.cos(t * 2) * 0.03;
-        out.liftY = Math.max(0, Math.sin(t * 2 - 0.5) * 0.065);
-        // Natural sprint cycle: knee flexes during forward swing-through and extends on push-off
+        const lVal = Math.sin(t * 2 - 0.5) * 0.065;
+        out.liftY = lVal > 0 ? lVal : 0;
         out.thighL = s * 0.78 + 0.08;
-        out.kneeL = 0.14 + Math.max(0, c * 0.72 + 0.28) * 0.82;
+        const k1 = c * 0.72 + 0.28;
+        out.kneeL = 0.14 + (k1 > 0 ? k1 : 0) * 0.82;
         out.thighR = -s * 0.78 + 0.08;
-        out.kneeR = 0.14 + Math.max(0, -c * 0.72 + 0.28) * 0.82;
-        // Opposite arm pump starting from the neck with bent elbows
+        const k2 = -c * 0.72 + 0.28;
+        out.kneeR = 0.14 + (k2 > 0 ? k2 : 0) * 0.82;
         out.uArmL = -s * 0.68 - 0.06;
-        out.elbowL = 1.02 + Math.max(0, -s) * 0.42;
+        out.elbowL = 1.02 + (-s > 0 ? -s : 0) * 0.42;
         out.uArmR = s * 0.68 - 0.06;
-        out.elbowR = 1.02 + Math.max(0, s) * 0.42;
+        out.elbowR = 1.02 + (s > 0 ? s : 0) * 0.42;
         break;
       }
       case 'jump_rise': {
@@ -833,6 +1085,20 @@ export class StickRig3D {
         out.elbowR = 1.45;
         break;
       }
+      case 'hurt': {
+        out.torsoLean = -0.28;
+        out.headTilt = -0.22;
+        out.hipZ = -0.08;
+        out.thighL = -0.25;
+        out.kneeL = 0.35;
+        out.thighR = 0.32;
+        out.kneeR = 0.42;
+        out.uArmL = -0.55;
+        out.elbowL = 0.95;
+        out.uArmR = 0.45;
+        out.elbowR = 1.05;
+        break;
+      }
       case 'attack_jab': {
         out.torsoLean = 0.14 + drive * 0.12;
         out.hipZ = drive * 0.08;
@@ -886,12 +1152,13 @@ export class StickRig3D {
         break;
       }
       case 'attack_spin': {
-        const spin = Math.sin(timer * 18);
+        const spinPhase = p > 0 ? (p * Math.PI * 2) : ((timer || 0) * 18);
+        const spin = Math.sin(spinPhase);
         out.torsoLean = 0.08;
         out.liftY = 0.18;
-        out.thighL = spin * 1.35;
+        out.thighL = (p > 0 ? (0.65 + swing * 0.70) : spin * 1.35);
         out.kneeL = 0.18;
-        out.thighR = -spin * 1.15;
+        out.thighR = (p > 0 ? (-0.55 - swing * 0.60) : -spin * 1.15);
         out.kneeR = 0.35;
         out.uArmL = -spin * 0.95;
         out.elbowL = 0.65;

@@ -41,6 +41,109 @@ const CAMERA_LABELS = {
   SIDE_25D: '🎥 2.5D Side Cam (Tab)'
 };
 
+// Zero-allocation scratch structures for per-frame execution (F2.1)
+const _scratchProj = new THREE.Vector3();
+const _screenPoint = { x: 0, y: 0 };
+const _camLookTarget = new THREE.Vector3();
+const _camDesiredPos = new THREE.Vector3();
+const ALLY_TYPES = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen', 'king'];
+
+// ============================================================================
+// Feature F2.2: Shared Static Geometries & Materials (flagged isShared = true)
+// ============================================================================
+
+// 1. Voxel Hit Bursts (Unit Cube: scaled via mesh.scale.setScalar(size))
+export const SHARED_VOXEL_GEO = new THREE.BoxGeometry(1, 1, 1);
+SHARED_VOXEL_GEO.isShared = true;
+
+// 2. Floor Splat Decals (Unit 1x0.04x1 Box Decal: scaled via mesh.scale.set(r, 1, r))
+export const SHARED_SPLAT_GEO = new THREE.BoxGeometry(1, 0.04, 1);
+SHARED_SPLAT_GEO.isShared = true;
+export const SHARED_SPLAT_MAT = new THREE.MeshBasicMaterial({
+  color: 0x991b1b,
+  transparent: true,
+  opacity: 0.7,
+  depthWrite: false
+});
+SHARED_SPLAT_MAT.isShared = true;
+
+// 3. Attack & Boss Telegraph Rings
+export const SHARED_TELEGRAPH_GEO = new THREE.RingGeometry(0.4, 3.2, 28);
+SHARED_TELEGRAPH_GEO.rotateX(-Math.PI / 2);
+SHARED_TELEGRAPH_GEO.isShared = true;
+export const SHARED_TELEGRAPH_MAT = new THREE.MeshBasicMaterial({
+  color: 0xff2244,
+  transparent: true,
+  opacity: 0.48,
+  side: THREE.DoubleSide,
+  depthWrite: false
+});
+SHARED_TELEGRAPH_MAT.isShared = true;
+
+// 4. Creative Mode Voxel Blocks (68 * WORLD_TO_3D = 2.0 units)
+export const CREATIVE_BLOCK_SIZE = 68 * WORLD_TO_3D;
+export const CREATIVE_BLOCK_GEO = new THREE.BoxGeometry(
+  CREATIVE_BLOCK_SIZE,
+  CREATIVE_BLOCK_SIZE,
+  CREATIVE_BLOCK_SIZE
+);
+CREATIVE_BLOCK_GEO.isShared = true;
+
+// 5. Projectiles & Props Shared Geometries
+export const SHARED_SKETCH_BLOCK_GEO = new THREE.BoxGeometry(1, 1, 1);
+SHARED_SKETCH_BLOCK_GEO.isShared = true;
+let _sharedSketchMat = null;
+
+export const SHARED_ANVIL_BASE_GEO = new THREE.BoxGeometry(1.8, 0.5, 1.4);
+SHARED_ANVIL_BASE_GEO.isShared = true;
+export const SHARED_ANVIL_NECK_GEO = new THREE.BoxGeometry(1.1, 0.6, 0.9);
+SHARED_ANVIL_NECK_GEO.isShared = true;
+export const SHARED_ANVIL_TOP_GEO = new THREE.BoxGeometry(2.2, 0.75, 1.5);
+SHARED_ANVIL_TOP_GEO.isShared = true;
+let _sharedAnvilMat = null;
+
+export const SHARED_PROJECTILE_SPHERE_GEO = new THREE.SphereGeometry(0.36, 10, 10);
+SHARED_PROJECTILE_SPHERE_GEO.isShared = true;
+
+export const SHARED_HAZARD_CYLINDER_GEO = new THREE.CylinderGeometry(1, 1, 0.14, 16);
+SHARED_HAZARD_CYLINDER_GEO.isShared = true;
+
+export const SHARED_INK_DROP_GEO = new THREE.OctahedronGeometry(0.32, 0);
+SHARED_INK_DROP_GEO.isShared = true;
+export const SHARED_INK_DROP_MAT = new THREE.MeshStandardMaterial({
+  color: 0x38bdf8,
+  emissive: 0x00f5ff,
+  emissiveIntensity: 0.9,
+  roughness: 0.2
+});
+SHARED_INK_DROP_MAT.isShared = true;
+
+/**
+ * Recursively disposes geometries and materials in a Three.js hierarchy.
+ * Respects .isShared and .userData.isShared flags when keepShared is true.
+ * @param {THREE.Object3D} root
+ * @param {boolean} [keepShared=true]
+ */
+export function disposeHierarchy(root, keepShared = true) {
+  if (!root) return;
+  root.traverse((child) => {
+    if (child.geometry) {
+      if (!keepShared || (!child.geometry.isShared && !child.geometry.userData?.isShared)) {
+        child.geometry.dispose?.();
+      }
+    }
+    if (child.material) {
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      for (const m of mats) {
+        if (!m) continue;
+        if (!keepShared || (!m.isShared && !m.userData?.isShared)) {
+          m.dispose?.();
+        }
+      }
+    }
+  });
+}
+
 export class Game3D {
   constructor() {
     this.webglCanvas = document.getElementById('webglCanvas');
@@ -90,8 +193,32 @@ export class Game3D {
     this.hazardMeshes = new Map();
     this.inkMeshes = new Map();
     this.telegraphMeshes = new Map();
+    // Zero-allocation persistent scratch structures (F2.1)
+    this._scratchEntitySet = new Set();
+    this._alignedPlatforms = [];
+    this._allPlatforms = [];
+    this.viewportWidth = typeof window !== 'undefined' ? (window.innerWidth || 1280) : 1280;
+    this.viewportHeight = typeof window !== 'undefined' ? (window.innerHeight || 720) : 720;
+    this.cameraAdapter = {
+      zoom: 1,
+      worldToScreen: (wx, wy) => this.projectWorldToOverlay(wx, wy, 0)
+    };
+    this.lastHudValues = Object.create(null);
+
+    // Feature F2.2: Pools & Material Caches
     this.voxelParticles = [];
+    this.voxelParticlePool = [];
+    this.voxelMaterialCache = new Map();
+
     this.floorSplats3D = [];
+    this.floorSplatPool = [];
+
+    this.telegraphMeshPool = [];
+    this.creativeBlockPool = [];
+    this.creativeMaterialCache = new Map();
+
+    this.projectileMaterialCache = new Map();
+    this.hazardMaterialCache = new Map();
 
     this.buildPlayer3D();
     this.buildSpecialEffectMeshes();
@@ -419,6 +546,9 @@ export class Game3D {
       const width = window.innerWidth;
       const height = window.innerHeight;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
+
+      this.viewportWidth = width;
+      this.viewportHeight = height;
 
       this.renderer.setPixelRatio(dpr);
       this.renderer.setSize(width, height);
@@ -787,10 +917,20 @@ export class Game3D {
     if (this.state !== 'PLAYING') return;
     if (this.creativeBlocks.length >= 64) {
       const oldest = this.creativeBlocks.shift();
-      if (oldest?.mesh) this.dynamicGroup.remove(oldest.mesh);
+      if (oldest?.mesh) {
+        oldest.mesh.visible = false;
+        oldest.mesh.scale.setScalar(1);
+        if (this.creativeBlockPool.length < 64) {
+          this.creativeBlockPool.push(oldest.mesh);
+        } else {
+          this.dynamicGroup.remove(oldest.mesh);
+          disposeHierarchy(oldest.mesh, true);
+        }
+      }
     }
 
-    const texKey = document.getElementById('creative-block-select')?.value || 'command_block';
+    const blockSelect = this.getHudElement('creative-block-select');
+    const texKey = blockSelect?.value || 'command_block';
     const blockW = 68;
     const blockH = 68;
     const bx = Math.max(-920, Math.min(920, this.player.x + this.player.facing * 76));
@@ -804,17 +944,30 @@ export class Game3D {
       }
     }
 
-    const size3D = blockW * WORLD_TO_3D;
-    const mat = new THREE.MeshStandardMaterial({
-      map: getVoxelTexture(texKey),
-      roughness: 0.4,
-      metalness: texKey === 'gold_block' ? 0.55 : 0.15
-    });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(size3D, size3D, size3D), mat);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    let mat = this.creativeMaterialCache.get(texKey);
+    if (!mat) {
+      mat = new THREE.MeshStandardMaterial({
+        map: getVoxelTexture(texKey),
+        roughness: 0.4,
+        metalness: texKey === 'gold_block' ? 0.55 : 0.15
+      });
+      mat.isShared = true;
+      this.creativeMaterialCache.set(texKey, mat);
+    }
+
+    let mesh;
+    if (this.creativeBlockPool.length > 0) {
+      mesh = this.creativeBlockPool.pop();
+      mesh.material = mat;
+      mesh.scale.setScalar(1);
+    } else {
+      mesh = new THREE.Mesh(CREATIVE_BLOCK_GEO, mat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    }
+    if (!mesh.parent) this.dynamicGroup.add(mesh);
+    mesh.visible = true;
     mesh.position.set(to3DX(bx), to3DY(by - blockH / 2), to3DZ(bz));
-    this.dynamicGroup.add(mesh);
 
     const blockRecord = {
       x: bx,
@@ -834,7 +987,16 @@ export class Game3D {
 
   clearCreativeBlocks() {
     for (const cb of this.creativeBlocks) {
-      if (cb.mesh) this.dynamicGroup.remove(cb.mesh);
+      if (cb.mesh) {
+        cb.mesh.visible = false;
+        cb.mesh.scale.setScalar(1);
+        if (this.creativeBlockPool.length < 64) {
+          this.creativeBlockPool.push(cb.mesh);
+        } else {
+          this.dynamicGroup.remove(cb.mesh);
+          disposeHierarchy(cb.mesh, true);
+        }
+      }
     }
     this.creativeBlocks.length = 0;
     particles.addTextBanner(this.player.x, this.player.y - 80, '🗑️ BLOCKS CLEARED', '#94a3b8');
@@ -854,7 +1016,20 @@ export class Game3D {
       }
 
       if (cb.fuseTimer <= 0) {
-        this.dynamicGroup.remove(cb.mesh);
+        if (cb.mesh) {
+          cb.mesh.visible = false;
+          cb.mesh.scale.setScalar(1);
+          if (cb.mesh.material && cb.mesh.material.emissive) {
+            cb.mesh.material.emissive.setHex(0x000000);
+            cb.mesh.material.emissiveIntensity = 0;
+          }
+          if (this.creativeBlockPool.length < 64) {
+            this.creativeBlockPool.push(cb.mesh);
+          } else {
+            this.dynamicGroup.remove(cb.mesh);
+            disposeHierarchy(cb.mesh, true);
+          }
+        }
         this.creativeBlocks.splice(i, 1);
 
         if (cb.texKey === 'tnt_block') {
@@ -893,7 +1068,7 @@ export class Game3D {
 
   spawnCreativeEntity() {
     if (this.state !== 'PLAYING') return;
-    const type = document.getElementById('creative-spawn-select')?.value || 'ender_dragon';
+    const type = this.getHudElement('creative-spawn-select')?.value || 'ender_dragon';
     if (type === 'mercenary_squad') {
       for (const m of ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard']) {
         waves.spawnZombie(m, this.player, this.groundY, this.camera2D);
@@ -905,9 +1080,12 @@ export class Game3D {
 
   summonAllCreativeAllies() {
     if (this.state !== 'PLAYING') return;
-    for (const k of Object.keys(allies.cooldowns)) {
-      allies.cooldowns[k] = 0;
-      if (allies.recoveryStates) allies.recoveryStates[k] = false;
+    if (allies.cooldowns) {
+      for (let i = 0; i < ALLY_TYPES.length; i++) {
+        const k = ALLY_TYPES[i];
+        allies.cooldowns[k] = 0;
+        if (allies.recoveryStates) allies.recoveryStates[k] = false;
+      }
     }
     const types = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen'];
     types.forEach((t, idx) => {
@@ -975,9 +1153,54 @@ export class Game3D {
   }
 
   clearDynamic3DMeshes() {
+    // 1. Recycle active voxel particles into pool (cap 140)
+    for (let i = 0; i < this.voxelParticles.length; i++) {
+      const p = this.voxelParticles[i];
+      p.mesh.visible = false;
+      if (this.voxelParticlePool.length < 140) {
+        this.voxelParticlePool.push(p);
+      }
+    }
+    this.voxelParticles.length = 0;
+
+    // 2. Recycle active floor splats into pool (cap 36)
+    for (let i = 0; i < this.floorSplats3D.length; i++) {
+      const s = this.floorSplats3D[i];
+      s.mesh.visible = false;
+      if (this.floorSplatPool.length < 36) {
+        this.floorSplatPool.push(s);
+      }
+    }
+    this.floorSplats3D.length = 0;
+
+    // 3. Recycle active telegraph rings into pool (cap 12)
+    for (const mesh of this.telegraphMeshes.values()) {
+      mesh.visible = false;
+      if (this.telegraphMeshPool.length < 12) {
+        this.telegraphMeshPool.push(mesh);
+      }
+    }
+    this.telegraphMeshes.clear();
+
+    // 4. Recycle active creative blocks into pool (cap 64)
+    for (let i = 0; i < this.creativeBlocks.length; i++) {
+      const cb = this.creativeBlocks[i];
+      if (cb.mesh) {
+        cb.mesh.visible = false;
+        cb.mesh.scale.setScalar(1);
+        if (this.creativeBlockPool.length < 64) {
+          this.creativeBlockPool.push(cb.mesh);
+        }
+      }
+    }
+    this.creativeBlocks.length = 0;
+
+    // 5. Dispose unpooled dynamic meshes & clear dynamicGroup
+    disposeHierarchy(this.dynamicGroup, true);
     while (this.dynamicGroup.children.length > 0) {
       this.dynamicGroup.remove(this.dynamicGroup.children[0]);
     }
+
     this.enemyRigs.clear();
     this.allyRigs.clear();
     this.turretMeshes.clear();
@@ -986,11 +1209,8 @@ export class Game3D {
     this.projectileMeshes.clear();
     this.hazardMeshes.clear();
     this.inkMeshes.clear();
-    this.telegraphMeshes.clear();
-    this.voxelParticles.length = 0;
-    this.floorSplats3D.length = 0;
-    this.creativeBlocks.length = 0;
     this.currentLookTarget = null;
+    this.lastHudValues = Object.create(null);
   }
 
   startGame(options = {}) {
@@ -1290,7 +1510,7 @@ export class Game3D {
     if (this.missionStripTimer <= 0) return;
     this.missionStripTimer = Math.max(0, this.missionStripTimer - dt);
     this.missionStripGrace = Math.max(0, (this.missionStripGrace ?? 0) - dt);
-    if (this.missionStripTimer === 0) document.getElementById('mission-strip')?.classList.remove('active');
+    if (this.missionStripTimer === 0) this.getHudElement('mission-strip')?.classList.remove('active');
   }
 
   showTitleScreen() {
@@ -1424,9 +1644,12 @@ export class Game3D {
       this.player.hookCooldown = 0;
       this.player.grabCooldown = 0;
       combat.ink = Math.max(combat.ink, 99999);
-      for (const k of Object.keys(allies.cooldowns)) {
-        allies.cooldowns[k] = 0;
-        if (allies.recoveryStates) allies.recoveryStates[k] = false;
+      if (allies.cooldowns) {
+        for (let i = 0; i < ALLY_TYPES.length; i++) {
+          const k = ALLY_TYPES[i];
+          allies.cooldowns[k] = 0;
+          if (allies.recoveryStates) allies.recoveryStates[k] = false;
+        }
       }
       if (this.creativeWeaponOverride && this.creativeWeaponOverride !== 'pencil') {
         this.player.temporaryWeaponTimer = 999999;
@@ -1434,13 +1657,26 @@ export class Game3D {
     }
 
     // Filter platforms by 3D Z-proximity (including custom Creative Voxel Blocks!) so player lands on 3D slabs
-    const allPlatforms = [...this.stageManager.getAllSolidPlatforms(), ...this.creativeBlocks];
+    const solidPlatforms = this.stageManager.getAllSolidPlatforms();
+    let allPlatforms = solidPlatforms;
+    if (this.creativeBlocks.length > 0) {
+      this._allPlatforms.length = 0;
+      for (let i = 0; i < solidPlatforms.length; i++) this._allPlatforms.push(solidPlatforms[i]);
+      for (let i = 0; i < this.creativeBlocks.length; i++) this._allPlatforms.push(this.creativeBlocks[i]);
+      allPlatforms = this._allPlatforms;
+    }
+
+    this._alignedPlatforms.length = 0;
     const playerZ = this.player.z || 0;
-    const zAlignedPlatforms = allPlatforms.filter((p) => {
+    for (let i = 0; i < allPlatforms.length; i++) {
+      const p = allPlatforms[i];
       const pz = p.z3d || 0;
       const halfD = (p.depth3d || 170) * 0.62;
-      return Math.abs(playerZ - pz) <= halfD;
-    });
+      if (Math.abs(playerZ - pz) <= halfD) {
+        this._alignedPlatforms.push(p);
+      }
+    }
+    const zAlignedPlatforms = this._alignedPlatforms;
 
     const hostileTargets = this.collectHostileTargets();
     if (this.creativeMode && input.actions.weaponPressed) {
@@ -1570,19 +1806,26 @@ export class Game3D {
     const zSpeed = this.player.speed * (this.player.isRolling ? 1.35 : 0.78);
     if (zDir !== 0 && !this.player.isDead) {
       this.player.vz = zDir * zSpeed;
-      if (this.player.vx === 0 && this.player.isGrounded && this.player.pose === 'idle') {
-        this.player.pose = 'run';
-      }
     } else {
       this.player.vz *= Math.pow(0.001, dt);
     }
 
+    // Maintain 'run' pose during pure Z-axis movement without 1-frame flickering to 'idle' or 'crouch'
+    if (!this.player.isDead && this.player.isGrounded && Math.abs(this.player.vz) > 20 && Math.abs(this.player.vx || 0) <= 20) {
+      if (this.player.pose === 'idle' || this.player.pose === 'crouch') {
+        this.player.pose = 'run';
+        this.player.isCrouching = false;
+      }
+    }
+
     // Target Z-assist during attacks so 3D combos snap smoothly into the nearest enemy's Z lane!
-    if (this.player.pose?.startsWith('attack') || this.player.pose === 'weapon_slash') {
+    if (this.player.pose?.startsWith('attack') || this.player.pose === 'weapon_slash' || this.player.pose === 'dive_kick') {
       let nearest = null;
       let bestDist = 260;
+      const facing = this.player.facing >= 0 ? 1 : -1;
       for (const t of hostileTargets) {
         if (!t || t.isDead) continue;
+        if ((t.x - this.player.x) * facing < -30) continue;
         const d = Math.hypot(t.x - this.player.x, (t.z || 0) - this.player.z);
         if (d < bestDist) {
           bestDist = d;
@@ -1643,48 +1886,83 @@ export class Game3D {
   }
 
   spawnVoxelBurst(x, y, z, hexColor = '#ff7700', count = 8) {
-    if (this.voxelParticles.length > 140) return;
-    const color = new THREE.Color(hexColor);
-    const mat = new THREE.MeshStandardMaterial({
-      color,
-      emissive: color,
-      emissiveIntensity: 0.35,
-      roughness: 0.4
-    });
+    if (this.voxelParticles.length >= 140) return;
+    const toSpawn = Math.min(count, 140 - this.voxelParticles.length);
+    if (toSpawn <= 0) return;
+
+    let mat = this.voxelMaterialCache.get(hexColor);
+    if (!mat) {
+      const color = new THREE.Color(hexColor);
+      mat = new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 0.35,
+        roughness: 0.4
+      });
+      mat.isShared = true;
+      this.voxelMaterialCache.set(hexColor, mat);
+    }
+
     const x3 = to3DX(x);
     const y3 = Math.max(0.3, to3DY(y));
     const z3 = to3DZ(z);
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < toSpawn; i++) {
       const size = 0.14 + Math.random() * 0.18;
-      const cube = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), mat);
-      cube.position.set(x3, y3, z3);
+      let p;
+      if (this.voxelParticlePool.length > 0) {
+        p = this.voxelParticlePool.pop();
+      } else {
+        const cube = new THREE.Mesh(SHARED_VOXEL_GEO, mat);
+        p = { mesh: cube, vx: 0, vy: 0, vz: 0, life: 0 };
+      }
+      p.mesh.material = mat;
+      p.mesh.scale.setScalar(size);
+      p.mesh.position.set(x3, y3, z3);
+      p.mesh.rotation.set(0, 0, 0);
+      if (!p.mesh.parent) this.dynamicGroup.add(p.mesh);
+      p.mesh.visible = true;
+
       const angle = Math.random() * Math.PI * 2;
       const speed = 2.5 + Math.random() * 6.5;
-      this.dynamicGroup.add(cube);
-      this.voxelParticles.push({
-        mesh: cube,
-        vx: Math.cos(angle) * speed,
-        vy: 3.0 + Math.random() * 6.5,
-        vz: Math.sin(angle) * speed,
-        life: 0.55 + Math.random() * 0.35
-      });
+      p.vx = Math.cos(angle) * speed;
+      p.vy = 3.0 + Math.random() * 6.5;
+      p.vz = Math.sin(angle) * speed;
+      p.life = 0.55 + Math.random() * 0.35;
+      this.voxelParticles.push(p);
     }
 
     // Optional 3D floor splatter stamp if splatter enabled
-    if (particles.splatterEnabled !== false && this.floorSplats3D.length < 36) {
-      const splatMat = new THREE.MeshBasicMaterial({
-        color: 0x991b1b,
-        transparent: true,
-        opacity: 0.7,
-        depthWrite: false
-      });
-      const r = 0.35 + Math.random() * 0.45;
-      const splat = new THREE.Mesh(new THREE.BoxGeometry(r, 0.04, r), splatMat);
-      splat.position.set(x3 + (Math.random() - 0.5) * 0.8, 0.03, z3 + (Math.random() - 0.5) * 0.8);
-      this.dynamicGroup.add(splat);
-      this.floorSplats3D.push({ mesh: splat, life: 5.5 });
+    if (particles.splatterEnabled !== false) {
+      this.spawnFloorSplat3D(x3, z3);
     }
+  }
+
+  spawnFloorSplat3D(x3, z3) {
+    if (particles.splatterEnabled === false) return;
+    const r = 0.35 + Math.random() * 0.45;
+    let sRecord;
+
+    if (this.floorSplats3D.length >= 36) {
+      // FIFO recycling: recycle oldest splat
+      sRecord = this.floorSplats3D.shift();
+    } else if (this.floorSplatPool.length > 0) {
+      sRecord = this.floorSplatPool.pop();
+    } else {
+      const splat = new THREE.Mesh(SHARED_SPLAT_GEO, SHARED_SPLAT_MAT);
+      sRecord = { mesh: splat, life: 5.5 };
+    }
+
+    if (!sRecord.mesh.parent) this.dynamicGroup.add(sRecord.mesh);
+    sRecord.mesh.visible = true;
+    sRecord.mesh.scale.set(r, 1, r);
+    sRecord.mesh.position.set(
+      x3 + (Math.random() - 0.5) * 0.8,
+      0.03,
+      z3 + (Math.random() - 0.5) * 0.8
+    );
+    sRecord.life = 5.5;
+    this.floorSplats3D.push(sRecord);
   }
 
   updateVoxelParticles(dt) {
@@ -1692,7 +1970,12 @@ export class Game3D {
       const p = this.voxelParticles[i];
       p.life -= dt;
       if (p.life <= 0) {
-        this.dynamicGroup.remove(p.mesh);
+        p.mesh.visible = false;
+        if (this.voxelParticlePool.length < 140) {
+          this.voxelParticlePool.push(p);
+        } else {
+          this.dynamicGroup.remove(p.mesh);
+        }
         this.voxelParticles.splice(i, 1);
         continue;
       }
@@ -1708,10 +1991,13 @@ export class Game3D {
       const s = this.floorSplats3D[i];
       s.life -= dt;
       if (s.life <= 0) {
-        this.dynamicGroup.remove(s.mesh);
+        s.mesh.visible = false;
+        if (this.floorSplatPool.length < 36) {
+          this.floorSplatPool.push(s);
+        } else {
+          this.dynamicGroup.remove(s.mesh);
+        }
         this.floorSplats3D.splice(i, 1);
-      } else if (s.life < 1.2) {
-        s.mesh.material.opacity = s.life * 0.55;
       }
     }
   }
@@ -1744,14 +2030,21 @@ export class Game3D {
     const pz = to3DZ(this.player.z || 0);
     this.playerRig.root.position.set(px, py, pz);
     this.playerRig.root.rotation.y = this.player.yaw ?? (this.player.facing >= 0 ? Math.PI / 2 : -Math.PI / 2);
+
+    const isPureZRun = !this.player.isDead && this.player.isGrounded !== false &&
+      Math.abs(this.player.vz || 0) > 20 && Math.abs(this.player.vx || 0) <= 20;
+    const playerPose = (isPureZRun && (this.player.pose === 'idle' || this.player.pose === 'crouch'))
+      ? 'run'
+      : this.player.pose;
+
     this.playerRig.update({
-      pose: this.player.pose,
+      pose: playerPose,
       animTimer: this.player.animTimer,
       isGrounded: this.player.isGrounded !== false,
       isHurt: this.player.isHurt,
       isAwakened: this.player.isAwakened,
       weaponType: (this.creativeMode && this.creativeWeaponOverride) ? this.creativeWeaponOverride : (this.player.weaponType || 'pencil'),
-      actionPhase: this.player.moveProgress || 0,
+      actionPhase: this.player.moveProgress || (this.player.diveKick ? Math.max(0, Math.min(1, 1 - (this.player.diveKickTimer || 0.5) / 0.5)) : 0),
       dt
     });
 
@@ -1784,10 +2077,14 @@ export class Game3D {
     }
 
     // 5. Sync Enemies & Bosses in 3D
-    const activeEnemies = new Set(waves.zombies);
+    const activeEnemies = this._scratchEntitySet;
+    activeEnemies.clear();
+    const zombies = waves.zombies;
+    for (let i = 0; i < zombies.length; i++) activeEnemies.add(zombies[i]);
     for (const [enemy, rig] of this.enemyRigs.entries()) {
       if (!activeEnemies.has(enemy) || enemy.isDead) {
         this.dynamicGroup.remove(rig.root);
+        disposeHierarchy(rig.root, true);
         this.enemyRigs.delete(enemy);
       }
     }
@@ -1901,8 +2198,11 @@ export class Game3D {
   }
 
   syncTelegraphs3D() {
-    const activeSources = new Set();
-    for (const z of waves.zombies) {
+    const activeSources = this._scratchEntitySet;
+    activeSources.clear();
+
+    for (let i = 0; i < waves.zombies.length; i++) {
+      const z = waves.zombies[i];
       if (z.isDead) continue;
       const isHeavyWindup = z.actionPhase === 'windup' && z.actionDuration > 0;
       const isBossTelegraph = z.isBoss && (
@@ -1916,17 +2216,14 @@ export class Game3D {
 
       let mesh = this.telegraphMeshes.get(z);
       if (!mesh) {
-        const geo = new THREE.RingGeometry(0.4, 3.2, 28);
-        geo.rotateX(-Math.PI / 2);
-        const mat = new THREE.MeshBasicMaterial({
-          color: 0xff2244,
-          transparent: true,
-          opacity: 0.48,
-          side: THREE.DoubleSide,
-          depthWrite: false
-        });
-        mesh = new THREE.Mesh(geo, mat);
-        this.dynamicGroup.add(mesh);
+        if (this.telegraphMeshes.size >= 12) continue; // Strict cap of 12 active rings
+        if (this.telegraphMeshPool.length > 0) {
+          mesh = this.telegraphMeshPool.pop();
+        } else {
+          mesh = new THREE.Mesh(SHARED_TELEGRAPH_GEO, SHARED_TELEGRAPH_MAT);
+        }
+        if (!mesh.parent) this.dynamicGroup.add(mesh);
+        mesh.visible = true;
         this.telegraphMeshes.set(z, mesh);
       }
       const tx = z.leapTargetX !== undefined && (z.actionKind?.includes('leap') || z.actionKind === 'cat_pounce' || z.actionKind === 'mercenary_lunge')
@@ -1939,17 +2236,27 @@ export class Game3D {
 
     for (const [src, mesh] of this.telegraphMeshes.entries()) {
       if (!activeSources.has(src)) {
-        this.dynamicGroup.remove(mesh);
+        mesh.visible = false;
+        if (this.telegraphMeshPool.length < 12) {
+          this.telegraphMeshPool.push(mesh);
+        } else {
+          this.dynamicGroup.remove(mesh);
+          disposeHierarchy(mesh, true);
+        }
         this.telegraphMeshes.delete(src);
       }
     }
   }
 
   syncAllies3D(dt = 0.016) {
-    const activeSet = new Set(allies.activeAllies);
+    const activeSet = this._scratchEntitySet;
+    activeSet.clear();
+    const activeAllies = allies.activeAllies || [];
+    for (let i = 0; i < activeAllies.length; i++) activeSet.add(activeAllies[i]);
     for (const [ally, rig] of this.allyRigs.entries()) {
       if (!activeSet.has(ally)) {
         this.dynamicGroup.remove(rig.root);
+        disposeHierarchy(rig.root, true);
         this.allyRigs.delete(ally);
       }
     }
@@ -1961,7 +2268,7 @@ export class Game3D {
       chosen: '#0a0a0a',
       king: '#ff8a00'
     };
-    for (const ally of allies.activeAllies) {
+    for (const ally of activeAllies) {
       let rig = this.allyRigs.get(ally);
       if (!rig) {
         rig = new StickRig3D({
@@ -1986,14 +2293,18 @@ export class Game3D {
     }
 
     // Yellow Turrets
-    const turretSet = new Set(allies.turrets);
+    const turretSet = this._scratchEntitySet;
+    turretSet.clear();
+    const turrets = allies.turrets || [];
+    for (let i = 0; i < turrets.length; i++) turretSet.add(turrets[i]);
     for (const [t, mesh] of this.turretMeshes.entries()) {
       if (!turretSet.has(t) || t.isDead) {
         this.dynamicGroup.remove(mesh);
+        disposeHierarchy(mesh, true);
         this.turretMeshes.delete(t);
       }
     }
-    for (const t of allies.turrets) {
+    for (const t of turrets) {
       if (t.isDead) continue;
       let mesh = this.turretMeshes.get(t);
       if (!mesh) {
@@ -2018,23 +2329,33 @@ export class Game3D {
 
   syncProjectilesAndProps3D() {
     // 1. Sketch Blocks
-    const blockSet = new Set(projectiles.sketchBlocks);
+    const sketchBlocks = projectiles.sketchBlocks || [];
+    const blockSet = this._scratchEntitySet;
+    blockSet.clear();
+    for (let i = 0; i < sketchBlocks.length; i++) blockSet.add(sketchBlocks[i]);
     for (const [b, mesh] of this.sketchBlockMeshes.entries()) {
       if (!blockSet.has(b)) {
         this.dynamicGroup.remove(mesh);
+        disposeHierarchy(mesh, true);
         this.sketchBlockMeshes.delete(b);
       }
     }
-    for (const b of projectiles.sketchBlocks) {
+    for (let i = 0; i < sketchBlocks.length; i++) {
+      const b = sketchBlocks[i];
       if (b.z === undefined) b.z = this.player.z || 0;
       let mesh = this.sketchBlockMeshes.get(b);
       if (!mesh) {
         const w = (b.width || 65) * WORLD_TO_3D;
         const h = (b.height || 65) * WORLD_TO_3D;
-        mesh = new THREE.Mesh(
-          new THREE.BoxGeometry(w, h, w),
-          new THREE.MeshStandardMaterial({ map: getVoxelTexture('sketch_block'), roughness: 0.4 })
-        );
+        if (!_sharedSketchMat) {
+          _sharedSketchMat = new THREE.MeshStandardMaterial({
+            map: getVoxelTexture('sketch_block'),
+            roughness: 0.4
+          });
+          _sharedSketchMat.isShared = true;
+        }
+        mesh = new THREE.Mesh(SHARED_SKETCH_BLOCK_GEO, _sharedSketchMat);
+        mesh.scale.set(w, h, w);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         this.dynamicGroup.add(mesh);
@@ -2045,30 +2366,37 @@ export class Game3D {
 
     // 2. Projectiles (Anvils, ViraBots, Pencils, Javelins, Thrown Zombies, Acid, Notes)
     const allProjs = projectiles.projectiles || [];
-    const projSet = new Set(allProjs);
+    const projSet = this._scratchEntitySet;
+    projSet.clear();
+    for (let i = 0; i < allProjs.length; i++) projSet.add(allProjs[i]);
     for (const [p, mesh] of this.projectileMeshes.entries()) {
       if (!projSet.has(p) || p.isDead || p.pendingRemoval) {
         this.dynamicGroup.remove(mesh);
+        disposeHierarchy(mesh, true);
         this.projectileMeshes.delete(p);
       }
     }
-    for (const p of allProjs) {
+    for (let i = 0; i < allProjs.length; i++) {
+      const p = allProjs[i];
       if (p.isDead || p.pendingRemoval || p.type === 'doom_laser') continue;
       if (p.z === undefined) p.z = this.player.z || 0;
       let mesh = this.projectileMeshes.get(p);
       if (!mesh) {
         if (p.type === 'anvil') {
+          if (!_sharedAnvilMat) {
+            _sharedAnvilMat = new THREE.MeshStandardMaterial({
+              map: getVoxelTexture('anvil_iron'),
+              metalness: 0.7,
+              roughness: 0.3
+            });
+            _sharedAnvilMat.isShared = true;
+          }
           mesh = new THREE.Group();
-          const ironMat = new THREE.MeshStandardMaterial({
-            map: getVoxelTexture('anvil_iron'),
-            metalness: 0.7,
-            roughness: 0.3
-          });
-          const base = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 1.4), ironMat);
+          const base = new THREE.Mesh(SHARED_ANVIL_BASE_GEO, _sharedAnvilMat);
           base.position.y = 0.25;
-          const neck = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.6, 0.9), ironMat);
+          const neck = new THREE.Mesh(SHARED_ANVIL_NECK_GEO, _sharedAnvilMat);
           neck.position.y = 0.8;
-          const top = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.75, 1.5), ironMat);
+          const top = new THREE.Mesh(SHARED_ANVIL_TOP_GEO, _sharedAnvilMat);
           top.position.y = 1.45;
           mesh.add(base, neck, top);
         } else if (p.type === 'virabot') {
@@ -2081,11 +2409,14 @@ export class Game3D {
           const rig = new StickRig3D({ color: '#2e7d32', scale: 0.9, isZombie: true });
           mesh = rig.root;
         } else {
-          const col = p.color ? new THREE.Color(p.color) : new THREE.Color(0x76ff03);
-          mesh = new THREE.Mesh(
-            new THREE.SphereGeometry(0.36, 10, 10),
-            new THREE.MeshBasicMaterial({ color: col })
-          );
+          const colorKey = typeof p.color === 'string' ? p.color : (typeof p.color === 'number' ? `#${p.color.toString(16).padStart(6, '0')}` : '#76ff03');
+          let mat = this.projectileMaterialCache.get(colorKey);
+          if (!mat) {
+            mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(colorKey) });
+            mat.isShared = true;
+            this.projectileMaterialCache.set(colorKey, mat);
+          }
+          mesh = new THREE.Mesh(SHARED_PROJECTILE_SPHERE_GEO, mat);
         }
         this.dynamicGroup.add(mesh);
         this.projectileMeshes.set(p, mesh);
@@ -2097,27 +2428,37 @@ export class Game3D {
     }
 
     // 3. Floor Acid Hazards & Command Pillars
-    const hazSet = new Set(projectiles.hazards || []);
+    const hazList = projectiles.hazards || [];
+    const hazSet = this._scratchEntitySet;
+    hazSet.clear();
+    for (let i = 0; i < hazList.length; i++) hazSet.add(hazList[i]);
     for (const [h, mesh] of this.hazardMeshes.entries()) {
       if (!hazSet.has(h) || h.pendingRemoval) {
         this.dynamicGroup.remove(mesh);
+        disposeHierarchy(mesh, true);
         this.hazardMeshes.delete(h);
       }
     }
-    for (const h of projectiles.hazards || []) {
+    for (let i = 0; i < hazList.length; i++) {
+      const h = hazList[i];
       if (h.pendingRemoval) continue;
       if (h.z === undefined) h.z = this.player.z || 0;
       let mesh = this.hazardMeshes.get(h);
       if (!mesh) {
         const r = Math.max(0.9, (h.radius || 45) * WORLD_TO_3D);
-        mesh = new THREE.Mesh(
-          new THREE.CylinderGeometry(r, r, 0.14, 16),
-          new THREE.MeshBasicMaterial({
-            color: h.color || 0x76ff03,
+        const colorKey = typeof h.color === 'string' ? h.color : (typeof h.color === 'number' ? `#${h.color.toString(16).padStart(6, '0')}` : '#76ff03');
+        let mat = this.hazardMaterialCache.get(colorKey);
+        if (!mat) {
+          mat = new THREE.MeshBasicMaterial({
+            color: new THREE.Color(colorKey),
             transparent: true,
             opacity: 0.65
-          })
-        );
+          });
+          mat.isShared = true;
+          this.hazardMaterialCache.set(colorKey, mat);
+        }
+        mesh = new THREE.Mesh(SHARED_HAZARD_CYLINDER_GEO, mat);
+        mesh.scale.set(r, 1, r);
         this.dynamicGroup.add(mesh);
         this.hazardMeshes.set(h, mesh);
       }
@@ -2125,26 +2466,23 @@ export class Game3D {
     }
 
     // 4. Collectible Ink Drops (3D Glowing Cubes/Crystals)
-    const inkSet = new Set(combat.inkDrops || []);
+    const inkList = combat.inkDrops || [];
+    const inkSet = this._scratchEntitySet;
+    inkSet.clear();
+    for (let i = 0; i < inkList.length; i++) inkSet.add(inkList[i]);
     for (const [orb, mesh] of this.inkMeshes.entries()) {
       if (!inkSet.has(orb)) {
         this.dynamicGroup.remove(mesh);
+        disposeHierarchy(mesh, true);
         this.inkMeshes.delete(orb);
       }
     }
-    for (const orb of combat.inkDrops || []) {
+    for (let i = 0; i < inkList.length; i++) {
+      const orb = inkList[i];
       if (orb.z === undefined) orb.z = (this.player.z || 0) * 0.6;
       let mesh = this.inkMeshes.get(orb);
       if (!mesh) {
-        mesh = new THREE.Mesh(
-          new THREE.OctahedronGeometry(0.32, 0),
-          new THREE.MeshStandardMaterial({
-            color: 0x38bdf8,
-            emissive: 0x00f5ff,
-            emissiveIntensity: 0.9,
-            roughness: 0.2
-          })
-        );
+        mesh = new THREE.Mesh(SHARED_INK_DROP_GEO, SHARED_INK_DROP_MAT);
         this.dynamicGroup.add(mesh);
         this.inkMeshes.set(orb, mesh);
       }
@@ -2178,42 +2516,40 @@ export class Game3D {
     // from feet (py + 0) to head (py + 2.4) is always centered and completely visible.
     const centerY = py + 1.15 + shakeY;
 
-    let desiredPos;
-    const lookTarget = new THREE.Vector3(camX, centerY, pz);
+    _camLookTarget.set(camX, centerY, pz);
 
     if (mode === 'ISOMETRIC_3D') {
-      desiredPos = new THREE.Vector3(camX, centerY + 7.2, pz + camDistZ);
+      _camDesiredPos.set(camX, centerY + 7.2, pz + camDistZ);
     } else if (mode === 'SIDE_25D') {
-      desiredPos = new THREE.Vector3(camX, centerY + 1.1, pz + camDistZ);
+      _camDesiredPos.set(camX, centerY + 1.1, pz + camDistZ);
     } else {
       // CHASE_3D (Default 3D Arena Brawler Camera)
-      desiredPos = new THREE.Vector3(camX, centerY + 2.8, pz + camDistZ);
+      _camDesiredPos.set(camX, centerY + 2.8, pz + camDistZ);
     }
 
     const yzLerp = Math.min(1, dt * 16);
     if (!this.currentLookTarget) {
-      this.currentLookTarget = lookTarget.clone();
-      this.camera3D.position.copy(desiredPos);
+      this.currentLookTarget = _camLookTarget.clone();
+      this.camera3D.position.copy(_camDesiredPos);
     } else {
-      this.camera3D.position.x = desiredPos.x;
-      this.camera3D.position.y += (desiredPos.y - this.camera3D.position.y) * yzLerp;
-      this.camera3D.position.z += (desiredPos.z - this.camera3D.position.z) * yzLerp;
-      this.currentLookTarget.x = lookTarget.x;
-      this.currentLookTarget.y += (lookTarget.y - this.currentLookTarget.y) * yzLerp;
-      this.currentLookTarget.z += (lookTarget.z - this.currentLookTarget.z) * yzLerp;
+      this.camera3D.position.x = _camDesiredPos.x;
+      this.camera3D.position.y += (_camDesiredPos.y - this.camera3D.position.y) * yzLerp;
+      this.camera3D.position.z += (_camDesiredPos.z - this.camera3D.position.z) * yzLerp;
+      this.currentLookTarget.x = _camLookTarget.x;
+      this.currentLookTarget.y += (_camLookTarget.y - this.currentLookTarget.y) * yzLerp;
+      this.currentLookTarget.z += (_camLookTarget.z - this.currentLookTarget.z) * yzLerp;
     }
     this.camera3D.lookAt(this.currentLookTarget);
   }
 
-  projectWorldToOverlay(wx, wy, wz = 0) {
-    const v = new THREE.Vector3(to3DX(wx), to3DY(wy), to3DZ(wz));
-    v.project(this.camera3D);
-    const width = this.overlayCanvas.clientWidth || window.innerWidth;
-    const height = this.overlayCanvas.clientHeight || window.innerHeight;
-    return {
-      x: (v.x * 0.5 + 0.5) * width,
-      y: (-v.y * 0.5 + 0.5) * height
-    };
+  projectWorldToOverlay(wx, wy, wz = 0, target = _screenPoint) {
+    _scratchProj.set(to3DX(wx), to3DY(wy), to3DZ(wz));
+    _scratchProj.project(this.camera3D);
+    const width = this.viewportWidth || (this.overlayCanvas ? this.overlayCanvas.clientWidth : 0) || (typeof window !== 'undefined' ? window.innerWidth : 1280);
+    const height = this.viewportHeight || (this.overlayCanvas ? this.overlayCanvas.clientHeight : 0) || (typeof window !== 'undefined' ? window.innerHeight : 720);
+    target.x = (_scratchProj.x * 0.5 + 0.5) * width;
+    target.y = (-_scratchProj.y * 0.5 + 0.5) * height;
+    return target;
   }
 
   render(dt = 0.016) {
@@ -2228,44 +2564,49 @@ export class Game3D {
 
     // 2. Render 2D Comic Overlay (Speech Bubbles, Floating Damage Text, Indicators)
     const ctx = this.ctx;
-    const width = this.overlayCanvas.clientWidth || window.innerWidth;
-    const height = this.overlayCanvas.clientHeight || window.innerHeight;
+    const width = this.viewportWidth || (this.overlayCanvas ? this.overlayCanvas.clientWidth : 0) || (typeof window !== 'undefined' ? window.innerWidth : 1280);
+    const height = this.viewportHeight || (this.overlayCanvas ? this.overlayCanvas.clientHeight : 0) || (typeof window !== 'undefined' ? window.innerHeight : 720);
     ctx.clearRect(0, 0, width, height);
 
-    const cameraAdapter = {
-      zoom: 1,
-      worldToScreen: (wx, wy) => this.projectWorldToOverlay(wx, wy, 0)
-    };
+    const cameraAdapter = this.cameraAdapter;
 
     // Draw floating damage numbers, text banners, & comic KABOOM popups projected in 3D
     ctx.save();
-    for (const ft of particles.damageTexts || []) {
-      const screen = this.projectWorldToOverlay(ft.x, ft.y, 0);
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, Math.min(1, ft.life / (ft.maxLife || 1)));
-      ctx.font = ft.isBanner
-        ? "900 22px 'Bungee', Impact, sans-serif"
-        : (ft.isCrit ? "900 18px 'Bungee', Impact, sans-serif" : "bold 15px 'Trebuchet MS', sans-serif");
-      ctx.textAlign = 'center';
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 4;
-      ctx.fillStyle = ft.color || '#ffffff';
-      ctx.strokeText(ft.text, screen.x, screen.y);
-      ctx.fillText(ft.text, screen.x, screen.y);
-      ctx.restore();
+    const damageTexts = particles.damageTexts;
+    if (damageTexts) {
+      for (let i = 0; i < damageTexts.length; i++) {
+        const ft = damageTexts[i];
+        const screen = this.projectWorldToOverlay(ft.x, ft.y, 0);
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, ft.life / (ft.maxLife || 1)));
+        ctx.font = ft.isBanner
+          ? "900 22px 'Bungee', Impact, sans-serif"
+          : (ft.isCrit ? "900 18px 'Bungee', Impact, sans-serif" : "bold 15px 'Trebuchet MS', sans-serif");
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.fillStyle = ft.color || '#ffffff';
+        ctx.strokeText(ft.text, screen.x, screen.y);
+        ctx.fillText(ft.text, screen.x, screen.y);
+        ctx.restore();
+      }
     }
-    for (const pop of particles.comicPopups || []) {
-      const screen = this.projectWorldToOverlay(pop.x, pop.y, 0);
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, Math.min(1, pop.life / (pop.maxLife || 0.7)));
-      ctx.font = "900 28px 'Bungee', Impact, sans-serif";
-      ctx.textAlign = 'center';
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 5;
-      ctx.fillStyle = pop.color || '#ffea00';
-      ctx.strokeText(pop.text || 'KABOOM!', screen.x, screen.y);
-      ctx.fillText(pop.text || 'KABOOM!', screen.x, screen.y);
-      ctx.restore();
+    const comicPopups = particles.comicPopups;
+    if (comicPopups) {
+      for (let i = 0; i < comicPopups.length; i++) {
+        const pop = comicPopups[i];
+        const screen = this.projectWorldToOverlay(pop.x, pop.y, 0);
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, pop.life / (pop.maxLife || 0.7)));
+        ctx.font = "900 28px 'Bungee', Impact, sans-serif";
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 5;
+        ctx.fillStyle = pop.color || '#ffea00';
+        ctx.strokeText(pop.text || 'KABOOM!', screen.x, screen.y);
+        ctx.fillText(pop.text || 'KABOOM!', screen.x, screen.y);
+        ctx.restore();
+      }
     }
     ctx.restore();
 
@@ -2280,87 +2621,192 @@ export class Game3D {
   }
 
   syncHUD() {
+    // 1. Player HP
     const hpFill = this.getHudElement('hud-hp-fill');
     const hpText = this.getHudElement('hud-hp-text');
     if (hpFill && hpText) {
       const pct = Math.max(0, (this.player.hp / this.player.maxHp) * 100);
-      hpFill.style.width = `${pct}%`;
-      hpText.innerText = `${Math.ceil(this.player.hp)} / ${this.player.maxHp}`;
+      const hpPctStr = `${pct.toFixed(1)}%`;
+      const hpTextStr = `${Math.ceil(this.player.hp)} / ${this.player.maxHp}`;
+      if (this.lastHudValues.hpPct !== hpPctStr) {
+        hpFill.style.width = hpPctStr;
+        this.lastHudValues.hpPct = hpPctStr;
+      }
+      if (this.lastHudValues.hpText !== hpTextStr) {
+        hpText.textContent = hpTextStr;
+        this.lastHudValues.hpText = hpTextStr;
+      }
     }
+
+    // 2. Player Super Meter & Awakening Status
     const superFill = this.getHudElement('hud-super-fill');
     const superText = this.getHudElement('hud-super-text');
     const superSlot = this.getHudElement('skill-super');
     if (superFill && superText) {
       const pct = Math.min(100, (this.player.superMeter / this.player.maxSuper) * 100);
-      superFill.style.width = `${pct}%`;
-      superText.innerText = this.player.isAwakened ? '⚡ ACTIVE!' : `${Math.floor(pct)}%`;
-      superFill.classList.toggle('super-ready', pct >= 100 || this.player.isAwakened);
-      if (superSlot) superSlot.classList.toggle('ready', pct >= 100 || this.player.isAwakened);
+      const superPctStr = `${pct.toFixed(1)}%`;
+      const superTextStr = this.player.isAwakened ? '⚡ ACTIVE!' : `${Math.floor(pct)}%`;
+      const isSuperReady = pct >= 100 || this.player.isAwakened;
+
+      if (this.lastHudValues.superPct !== superPctStr) {
+        superFill.style.width = superPctStr;
+        this.lastHudValues.superPct = superPctStr;
+      }
+      if (this.lastHudValues.superText !== superTextStr) {
+        superText.textContent = superTextStr;
+        this.lastHudValues.superText = superTextStr;
+      }
+      if (this.lastHudValues.superReady !== isSuperReady) {
+        superFill.classList.toggle('super-ready', isSuperReady);
+        if (superSlot) superSlot.classList.toggle('ready', isSuperReady);
+        this.lastHudValues.superReady = isSuperReady;
+      }
     }
+
+    // 3. Stage & Wave / Objective Status
     const waveNum = this.getHudElement('hud-wave-number');
     const zombieCount = this.getHudElement('hud-zombies-count');
     if (waveNum) {
-      waveNum.innerText = this.stageManager.isTrophyRoom
+      const waveStr = this.stageManager.isTrophyRoom
         ? 'EPILOGUE - 3D TROPHY ROOM'
         : `${this.stageManager.currentStage} - ${this.stageManager.stageName}`;
-    }
-    if (zombieCount) {
-      if (this.stageManager.exitDoor.isOpen) {
-        zombieCount.innerHTML = `<span style="color: #34d399;">${this.stageManager.isTrophyRoom ? '★ EXPLORE ➔ RESULTS' : '★ PORTAL OPEN ➔ ENTER EXIT'}</span>`;
-      } else {
-        zombieCount.innerText = `Zombies: ${waves.getAliveCount()}`;
+      if (this.lastHudValues.waveStr !== waveStr) {
+        waveNum.textContent = waveStr;
+        this.lastHudValues.waveStr = waveStr;
       }
     }
+    if (zombieCount) {
+      const isDoorOpen = this.stageManager.exitDoor.isOpen;
+      const isTrophy = this.stageManager.isTrophyRoom;
+      const aliveZombies = waves.getAliveCount();
+      const zombieKey = `${isDoorOpen}:${isTrophy}:${aliveZombies}`;
+      if (this.lastHudValues.zombieKey !== zombieKey) {
+        if (isDoorOpen) {
+          zombieCount.innerHTML = `<span style="color: #34d399;">${isTrophy ? '★ EXPLORE ➔ RESULTS' : '★ PORTAL OPEN ➔ ENTER EXIT'}</span>`;
+        } else {
+          zombieCount.textContent = `Zombies: ${aliveZombies}`;
+        }
+        this.lastHudValues.zombieKey = zombieKey;
+      }
+    }
+
+    // 4. Boss Health Bar & Label
     const bossBox = this.getHudElement('boss-health-box');
     const bossFill = this.getHudElement('boss-hp-fill');
     const bossLabel = this.getHudElement('boss-name-label');
     if (bossBox && bossFill) {
-      if (waves.bossZombie && !waves.bossZombie.isDead) {
-        bossBox.style.display = 'flex';
-        const bossType = waves.bossZombie.type;
-        bossBox.className = `boss-health-container ${bossType.replaceAll('_', '-')}-boss`;
-        if (bossLabel) {
-          bossLabel.innerText = waves.bossZombie.name?.startsWith('MERCENARIES')
-            ? waves.bossZombie.name
-            : (this.stageManager.campaignBeat?.bossLabel || waves.bossZombie.name || bossType.toUpperCase());
+      const boss = waves.bossZombie;
+      const hasActiveBoss = Boolean(boss && !boss.isDead);
+      if (hasActiveBoss) {
+        if (this.lastHudValues.bossVisible !== true) {
+          bossBox.style.display = 'flex';
+          this.lastHudValues.bossVisible = true;
         }
-        const bossPct = (waves.bossZombie.hp / waves.bossZombie.maxHp) * 100;
-        bossFill.style.width = `${Math.max(0, bossPct)}%`;
+        const bossType = boss.type;
+        const bossClassName = `boss-health-container ${bossType.replaceAll('_', '-')}-boss`;
+        if (this.lastHudValues.bossClassName !== bossClassName) {
+          bossBox.className = bossClassName;
+          this.lastHudValues.bossClassName = bossClassName;
+        }
+        if (bossLabel) {
+          const labelText = boss.name?.startsWith('MERCENARIES')
+            ? boss.name
+            : (this.stageManager.campaignBeat?.bossLabel || boss.name || bossType.toUpperCase());
+          if (this.lastHudValues.bossLabel !== labelText) {
+            bossLabel.textContent = labelText;
+            this.lastHudValues.bossLabel = labelText;
+          }
+        }
+        const bossPct = Math.max(0, (boss.hp / boss.maxHp) * 100);
+        const bossPctStr = `${bossPct.toFixed(1)}%`;
+        if (this.lastHudValues.bossPct !== bossPctStr) {
+          bossFill.style.width = bossPctStr;
+          this.lastHudValues.bossPct = bossPctStr;
+        }
       } else {
-        bossBox.style.display = 'none';
+        if (this.lastHudValues.bossVisible !== false) {
+          bossBox.style.display = 'none';
+          this.lastHudValues.bossVisible = false;
+          this.lastHudValues.bossClassName = null;
+          this.lastHudValues.bossLabel = null;
+          this.lastHudValues.bossPct = null;
+        }
       }
     }
+
+    // 5. Score & Ink Counter
     const hudScore = this.getHudElement('hud-score');
     const hudInk = this.getHudElement('hud-ink');
-    if (hudScore) hudScore.innerText = combat.score;
-    if (hudInk) hudInk.innerText = combat.ink;
+    if (hudScore && this.lastHudValues.score !== combat.score) {
+      hudScore.textContent = combat.score;
+      this.lastHudValues.score = combat.score;
+    }
+    if (hudInk && this.lastHudValues.ink !== combat.ink) {
+      hudInk.textContent = combat.ink;
+      this.lastHudValues.ink = combat.ink;
+    }
 
+    // 6. Combo Rank & Timer Bar
     const comboContainer = this.getHudElement('hud-combo');
     const comboHits = this.getHudElement('combo-hit-count');
     const comboTitle = this.getHudElement('combo-rank-title');
     const comboBar = this.getHudElement('combo-timer-fill');
-    if (comboContainer && combat.combo >= 2) {
-      comboContainer.classList.add('active');
-      const rankInfo = combat.getRankTitle();
-      if (comboHits) comboHits.innerText = `${combat.combo} HITS`;
-      if (comboTitle) comboTitle.innerText = `${rankInfo.rank} · ${rankInfo.title}`;
-      if (comboBar) comboBar.style.width = `${(combat.comboTimer / combat.comboDuration) * 100}%`;
-    } else if (comboContainer) {
-      comboContainer.classList.remove('active');
+    if (comboContainer) {
+      const isComboActive = combat.combo >= 2;
+      if (isComboActive) {
+        if (!this.lastHudValues.comboActive) {
+          comboContainer.classList.add('active');
+          this.lastHudValues.comboActive = true;
+        }
+        const hitsText = `${combat.combo} HITS`;
+        if (comboHits && this.lastHudValues.comboHits !== hitsText) {
+          comboHits.textContent = hitsText;
+          this.lastHudValues.comboHits = hitsText;
+        }
+        const rankInfo = combat.getRankTitle();
+        const rankText = `${rankInfo.rank} · ${rankInfo.title}`;
+        if (comboTitle && this.lastHudValues.comboTitle !== rankText) {
+          comboTitle.textContent = rankText;
+          this.lastHudValues.comboTitle = rankText;
+        }
+        if (comboBar) {
+          const pct = Math.max(0, Math.min(100, (combat.comboTimer / combat.comboDuration) * 100));
+          const barWidth = `${pct.toFixed(1)}%`;
+          if (this.lastHudValues.comboBarWidth !== barWidth) {
+            comboBar.style.width = barWidth;
+            this.lastHudValues.comboBarWidth = barWidth;
+          }
+        }
+      } else if (this.lastHudValues.comboActive !== false) {
+        comboContainer.classList.remove('active');
+        this.lastHudValues.comboActive = false;
+        this.lastHudValues.comboHits = null;
+        this.lastHudValues.comboTitle = null;
+        this.lastHudValues.comboBarWidth = null;
+      }
     }
 
+    // 7. Ally Summon Slot Cooldowns
     const syncAlly = (id, type, statusId) => {
       const el = this.getHudElement(id);
       if (!el) return;
       const cd = allies.cooldowns[type] || 0;
       const recovering = allies.recoveryStates?.[type] === true;
-      el.style.opacity = cd > 0 ? '0.5' : '1.0';
-      el.style.filter = cd > 0 ? 'grayscale(0.6)' : 'none';
-      el.classList.toggle('recovering', recovering && cd > 0);
-      const status = this.getHudElement(statusId);
-      if (status) {
-        status.innerText = cd > 0 ? `${recovering ? '↻' : ''}${Math.ceil(cd)}` : '';
-        status.style.opacity = cd > 0 ? '1' : '0';
+      const cdCeil = Math.ceil(cd);
+      const allyKey = `${cd > 0}:${recovering}:${cdCeil}`;
+
+      if (this.lastHudValues[`ally_${type}`] !== allyKey) {
+        const isCooling = cd > 0;
+        el.style.opacity = isCooling ? '0.5' : '1.0';
+        el.style.filter = isCooling ? 'grayscale(0.6)' : 'none';
+        el.classList.toggle('recovering', recovering && isCooling);
+
+        const status = this.getHudElement(statusId);
+        if (status) {
+          status.textContent = isCooling ? `${recovering ? '↻' : ''}${cdCeil}` : '';
+          status.style.opacity = isCooling ? '1' : '0';
+        }
+        this.lastHudValues[`ally_${type}`] = allyKey;
       }
     };
     syncAlly('ally-red-slot', 'red', 'ally-red-status');
@@ -2370,17 +2816,24 @@ export class Game3D {
     syncAlly('ally-cursor-slot', 'cursor', 'ally-cursor-status');
     syncAlly('ally-chosen-slot', 'chosen', 'ally-chosen-status');
 
+    // 8. Combat Skill Cooldowns
     const syncSkillCooldown = (slotId, overlayId, remaining) => {
-      const slot = this.getHudElement(slotId);
-      const overlay = this.getHudElement(overlayId);
+      const remainingCeil = Math.max(1, Math.ceil(remaining));
       const coolingDown = remaining > 0;
-      if (slot) {
-        slot.classList.toggle('cooldown', coolingDown);
-        slot.classList.toggle('ready', !coolingDown);
-      }
-      if (overlay) {
-        overlay.style.opacity = coolingDown ? '1' : '0';
-        overlay.innerText = coolingDown ? Math.max(1, Math.ceil(remaining)) : '';
+      const skillKey = `${coolingDown}:${coolingDown ? remainingCeil : 0}`;
+
+      if (this.lastHudValues[`skill_${slotId}`] !== skillKey) {
+        const slot = this.getHudElement(slotId);
+        const overlay = this.getHudElement(overlayId);
+        if (slot) {
+          slot.classList.toggle('cooldown', coolingDown);
+          slot.classList.toggle('ready', !coolingDown);
+        }
+        if (overlay) {
+          overlay.style.opacity = coolingDown ? '1' : '0';
+          overlay.textContent = coolingDown ? remainingCeil : '';
+        }
+        this.lastHudValues[`skill_${slotId}`] = skillKey;
       }
     };
     syncSkillCooldown('skill-roll', 'cd-roll-overlay', this.player.rollCooldown);

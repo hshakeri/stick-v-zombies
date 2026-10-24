@@ -22,6 +22,26 @@ export function to3DZ(z) {
   return (z || 0) * WORLD_TO_3D;
 }
 
+export function disposeHierarchy(root, keepShared = true) {
+  if (!root) return;
+  root.traverse((child) => {
+    if (child.geometry) {
+      if (!keepShared || (!child.geometry.isShared && !child.geometry.userData?.isShared)) {
+        child.geometry.dispose?.();
+      }
+    }
+    if (child.material) {
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      for (const m of mats) {
+        if (!m) continue;
+        if (!keepShared || (!m.isShared && !m.userData?.isShared)) {
+          m.dispose?.();
+        }
+      }
+    }
+  });
+}
+
 function makeTextSignTexture(title, subtitle = '', bg = '#1e293b', border = '#38bdf8', textCol = '#ffffff') {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -78,8 +98,15 @@ export class Arena3DBuilder {
     this.monitorTexture = new THREE.CanvasTexture(this.monitorCanvas);
     this.monitorTexture.colorSpace = THREE.SRGBColorSpace;
     this.lastMonitorRedraw = -1;
+    this.lastMonitorStateKey = '';
 
     this.buildPersistentMonitor();
+  }
+
+  dispose() {
+    disposeHierarchy(this.group, false);
+    disposeHierarchy(this.monitorGroup, false);
+    this.monitorTexture?.dispose?.();
   }
 
   buildPersistentMonitor() {
@@ -105,6 +132,7 @@ export class Arena3DBuilder {
   }
 
   rebuildForStage() {
+    disposeHierarchy(this.group, true);
     while (this.group.children.length > 0) {
       const child = this.group.children.pop();
       this.group.remove(child);
@@ -983,7 +1011,13 @@ export class Arena3DBuilder {
 
   redrawMonitorScreen(force = false) {
     const sm = this.stageManager;
-    if (!force && sm.stageTime - this.lastMonitorRedraw < 0.25) return;
+    const beat = sm.campaignBeat || {};
+    const clearedThrough = sm.currentStage - (sm.isObjectiveComplete ? 0 : 1);
+    const keyPieces = sm.isTrophyRoom ? 3 : (clearedThrough < 5 ? 0 : (clearedThrough < 10 ? 1 : (clearedThrough < 11 ? 2 : 3)));
+    const stateKey = `${sm.theme}|${sm.currentStage}|${sm.stageName}|${sm.isObjectiveComplete}|${sm.isTrophyRoom}|${sm.whiteVoidProgress > 0.5}|${beat.act || ''}|${beat.mission || ''}|${beat.bossLabel || ''}|${beat.clue || ''}|${keyPieces}`;
+
+    if (!force && this.lastMonitorStateKey === stateKey) return;
+    this.lastMonitorStateKey = stateKey;
     this.lastMonitorRedraw = sm.stageTime;
 
     const ctx = this.monitorCtx;
