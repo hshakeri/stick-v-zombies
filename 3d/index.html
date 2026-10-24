@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Orange Stickman vs Zombies 3D — Voxel Desktop Edition</title>
 <link rel="stylesheet" href="../css/style.css?v=9.8">
-<link rel="stylesheet" href="css/style3d.css?v=10.3">
+<link rel="stylesheet" href="css/style3d.css?v=10.4">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23ff7700%22 stroke=%22white%22 stroke-width=%228%22/></svg>">
 </head>
 <body>
@@ -67,6 +67,85 @@
 </div>
 </div>
 </div>
+<div id="creative-dock" class="creative-dock" aria-label="Creative Sandbox Toolbar">
+<div class="creative-dock-header">
+<span class="creative-dock-title">🛠️ CREATIVE SANDBOX</span>
+<button type="button" id="btn-creative-collapse" class="creative-collapse-btn" title="Minimize / Expand Sandbox Panel">▾</button>
+</div>
+<div id="creative-dock-body" class="creative-dock-body">
+<div class="creative-row creative-toggles-row">
+<button type="button" id="creative-god-btn" class="creative-chip active" title="Invincibility, Infinite Ink &amp; Zero Cooldowns">🛡️ God: ON</button>
+<button type="button" id="creative-fly-btn" class="creative-chip" title="Toggle 3D Flight (Space = Up, Z = Down, or Double-Tap Space)">✈️ Fly: OFF</button>
+<button type="button" id="creative-freeze-ai-btn" class="creative-chip" title="Freeze or unfreeze enemy AI">⏸️ AI: RUN</button>
+</div>
+<div class="creative-row">
+<label for="creative-weapon-select" class="creative-row-label">⚔️ WEAPON</label>
+<select id="creative-weapon-select" class="creative-select" aria-label="Equip 3D Weapon">
+<option value="pencil">✏️ Giant Pencil</option>
+<option value="staff">🟧 Command Staff (King Orange)</option>
+<option value="eraser">🧽 Giant Pink Eraser</option>
+<option value="toolbar_staff">🕶️ UI Toolbar Staff (Agent)</option>
+<option value="pixel_bazooka">🚀 8-Bit Bazooka (Ballista)</option>
+<option value="stone_spear">🦴 Stone Spear (Primal)</option>
+<option value="hazard_sign">⚠️ High-Voltage Sign (Hazard)</option>
+<option value="vira_blades">🗡️ Dual Vira-Blades (Dark Lord)</option>
+</select>
+</div>
+<div class="creative-row">
+<label for="creative-block-select" class="creative-row-label">🧱 BLOCK</label>
+<select id="creative-block-select" class="creative-select" aria-label="Select 3D Voxel Block">
+<option value="command_block">🟧 Command Block</option>
+<option value="obsidian">⬛ Obsidian</option>
+<option value="gold_block">🟨 Gold Block</option>
+<option value="tnt_block">🧨 TNT Block (Explosive!)</option>
+<option value="lucky_block">❓ Lucky Block</option>
+<option value="purpur_block">🟪 Purpur Block</option>
+<option value="holystone">☁️ Aether Holystone</option>
+<option value="rocket_corp_wall">🏢 Rocket Corp Panel</option>
+<option value="sketch_block">✏️ Sketch Block</option>
+</select>
+<button type="button" id="creative-place-block-btn" class="creative-action-btn" title="Place 3D Voxel Block at Orange's position (Shortcut: V)">➕ [V]</button>
+<button type="button" id="creative-clear-blocks-btn" class="creative-action-btn secondary" title="Clear placed blocks">🗑️</button>
+</div>
+<div class="creative-row">
+<label for="creative-spawn-select" class="creative-row-label">👾 SPAWN</label>
+<select id="creative-spawn-select" class="creative-select" aria-label="Select Boss or Zombie to Spawn">
+<optgroup label="★ STORY BOSSES">
+<option value="ender_dragon">🐉 Ender Dragon</option>
+<option value="mercenary_squad">🕶️ All 4 Mercenaries Squad</option>
+<option value="mercenary_agent">🕶️ Agent (Rocket Corp)</option>
+<option value="mercenary_ballista">🚀 Ballista (Rocket Corp)</option>
+<option value="mercenary_primal">🦴 Primal (Rocket Corp)</option>
+<option value="mercenary_hazard">⚠️ Hazard (Rocket Corp)</option>
+<option value="h4c3r">💻 H4C3R (Zero-Day)</option>
+<option value="king_orange">👑 King Orange</option>
+<option value="dark_lord">😈 The Dark Lord</option>
+<option value="lucky_orb">🟡 The Lucky Orb</option>
+<option value="creeper_lord">🟩 Creeper Lord</option>
+<option value="giant_cat">🐱 Giant Cat</option>
+<option value="titan_boss">👹 Titan Undead</option>
+</optgroup>
+<optgroup label="🧟 ZOMBIES">
+<option value="basic">🧟 Basic Zombie</option>
+<option value="runner">🏃 Runner</option>
+<option value="brute">💪 Brute</option>
+<option value="shieldbearer">🛡️ Shieldbearer</option>
+<option value="crawler">🕷️ Crawler</option>
+<option value="boom_bug">💣 Boom-Bug</option>
+<option value="spitter">🧪 Acid Spitter</option>
+<option value="necromancer">🔮 Necromancer</option>
+</optgroup>
+</select>
+<button type="button" id="creative-spawn-btn" class="creative-action-btn spawn" title="Spawn selected Boss or Zombie (Shortcut: N)">⚡ [N]</button>
+</div>
+<div class="creative-row creative-actions-grid">
+<button type="button" id="creative-allies-btn" class="creative-action-btn" title="Summon Red, Blue, Yellow, Green, Chosen One &amp; Friendly King Orange!">🤝 All Allies</button>
+<button type="button" id="creative-nuke-btn" class="creative-action-btn danger" title="Obliterate all active enemies">💥 Nuke Enemies</button>
+<button type="button" id="creative-max-shop-btn" class="creative-action-btn" title="Max out all Shop upgrades">⬆️ Max Stats</button>
+<button type="button" id="creative-portal-btn" class="creative-action-btn" title="Unlock the Stage Exit Portal">🚪 Open Exit</button>
+</div>
+</div>
+</div>
 <div id="hud-combo" class="hud-combo-container">
 <div id="combo-hit-count" class="combo-hits">12 HITS</div>
 <div id="combo-rank-title" class="combo-title">STICK-TACULAR!</div>
@@ -119,6 +198,7 @@
 <div class="ally-slot chosen" id="ally-chosen-slot" title="The Chosen One: Fire Sweep (6)"><div class="ally-badge chosen">TCO</div><div class="skill-key">6</div><div class="ally-cd-overlay" id="ally-chosen-status"></div></div>
 </div>
 <div class="hud-quick-buttons">
+<button id="btn-creative-toggle" class="hud-btn creative-hud-btn" title="Toggle Creative Sandbox Mode (C)"><span class="hud-btn-icon">🛠️</span><span class="hud-btn-label">Creative: OFF (C)</span></button>
 <button id="btn-camera-mode" class="hud-btn" title="Switch 3D Camera Angle (Tab)"><span class="hud-btn-icon">🎥</span><span class="hud-btn-label">🎥 3D Chase Cam (Tab)</span></button>
 <button id="btn-open-shop" class="hud-btn" title="Open upgrades (B)"><span class="hud-btn-icon">🛒</span><span class="hud-btn-label">Upgrades (B)</span></button>
 <button id="btn-pause" class="hud-btn" title="Pause (Escape)"><span class="hud-btn-icon">⏸️</span><span class="hud-btn-label">Pause (Esc)</span></button>
@@ -139,6 +219,7 @@
 </div>
 <div class="title-actions">
 <button id="btn-start-game" class="primary-btn" style="font-size: 20px; padding: 14px 28px;">▶ PLAY 3D CAMPAIGN</button>
+<button id="btn-start-creative" class="primary-btn creative-start-btn" style="font-size: 18px; padding: 14px 24px;">🛠️ CREATIVE MODE (SANDBOX)</button>
 <button id="btn-continue-game" class="secondary-btn" style="display: none;">↻ CONTINUE</button>
 <button id="btn-how-to-play" class="secondary-btn">📖 3D Controls &amp; Tips</button>
 <a href="../index.html" class="secondary-btn" style="text-decoration:none; display:inline-block;">🕹️ Classic 2D Edition</a>
@@ -205,6 +286,10 @@
 <span class="control-keys"><kbd class="key-badge">R</kbd><span>then hold</span><kbd class="key-badge">Q / K</kbd></span>
 </div>
 <div class="controls-row">
+<span>Creative Sandbox Mode</span>
+<span class="control-keys"><kbd class="key-badge">C</kbd><span>• Place Block:</span><kbd class="key-badge">V</kbd><span>• Spawn:</span><kbd class="key-badge">N</kbd></span>
+</div>
+<div class="controls-row">
 <span>Switch 3D Camera View</span>
 <span class="control-keys"><kbd class="key-badge">TAB</kbd><span>or</span><kbd class="key-badge">M</kbd></span>
 </div>
@@ -241,6 +326,7 @@
 <select id="pause-stage-select" class="stage-select-box stage-select-prominent" aria-label="Jump to stage from pause menu">
 </select>
 </div>
+<button id="btn-pause-creative" class="secondary-btn" aria-pressed="false">🛠️ Creative Mode: OFF</button>
 <button id="btn-pause-shop" class="secondary-btn">Open Upgrades</button>
 <button id="btn-splatter-toggle" class="secondary-btn" aria-pressed="true">🩸 Comic Splatter: ON</button>
 <button id="btn-pause-audio" class="secondary-btn" aria-pressed="true">🔊 Audio: ON</button>
@@ -331,6 +417,6 @@
 </div>
 </div>
 </div>
-<script type="module" src="js/game3d.js?v=10.3"></script>
+<script type="module" src="js/game3d.js?v=10.4"></script>
 </body>
 </html>

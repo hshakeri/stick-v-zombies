@@ -68,6 +68,15 @@ export class Game3D {
     this.cameraModeIndex = 0;
     this.keys3D = Object.create(null);
 
+    // Creative Sandbox Mode State
+    this.creativeMode = false;
+    this.creativeGodMode = true;
+    this.creativeFlyMode = false;
+    this.creativeFreezeAI = false;
+    this.creativeWeaponOverride = null;
+    this.creativeBlocks = [];
+    this.lastSpaceTapTime = 0;
+
     this.initThreeScene();
     this.arena3D = new Arena3DBuilder(this.scene, this.stageManager);
 
@@ -263,6 +272,28 @@ export class Game3D {
         e.preventDefault();
         this.cycleCameraMode();
       }
+      if (this.state === 'PLAYING' && !e.repeat) {
+        if (e.code === 'KeyC') {
+          this.toggleCreativeMode();
+        } else if (this.creativeMode && e.code === 'KeyV') {
+          this.placeCreativeBlock();
+        } else if (this.creativeMode && e.code === 'KeyN') {
+          this.spawnCreativeEntity();
+        } else if (this.creativeMode && e.code === 'Space') {
+          const now = performance.now();
+          if (now - this.lastSpaceTapTime < 320) {
+            this.creativeFlyMode = !this.creativeFlyMode;
+            this.syncCreativeUI();
+            particles.addTextBanner(
+              this.player.x,
+              this.player.y - 85,
+              this.creativeFlyMode ? '✈️ 3D FLIGHT ENABLED' : '✈️ FLIGHT DISABLED',
+              '#38bdf8'
+            );
+          }
+          this.lastSpaceTapTime = now;
+        }
+      }
     });
     window.addEventListener('keyup', (e) => {
       this.keys3D[e.code] = false;
@@ -378,8 +409,9 @@ export class Game3D {
     waves.startWave(stageNum);
     this.prepareWeaponPickup(stageNum);
     this.captureStageCheckpoint();
-    this.showMissionStrip(stageNum, 'STAGE JUMP');
+    this.showMissionStrip(stageNum, this.creativeMode ? 'CREATIVE SANDBOX' : 'STAGE JUMP');
     this.syncStageSelectors(stageNum);
+    this.syncCreativeUI();
   }
 
   setupResize() {
@@ -452,6 +484,104 @@ export class Game3D {
         }
       });
     }
+    const btnStartCreative = document.getElementById('btn-start-creative');
+    if (btnStartCreative) {
+      btnStartCreative.addEventListener('click', () => {
+        audio.init();
+        const selectedStage = parseInt(document.getElementById('title-stage-select')?.value, 10) || 1;
+        this.creativeMode = true;
+        this.creativeGodMode = true;
+        if (selectedStage === 22) {
+          this.startGame();
+          this.enterTrophyRoom();
+        } else {
+          this.jumpToStage(selectedStage);
+        }
+        this.syncCreativeUI();
+        particles.addTextBanner(this.player.x, this.player.y - 95, '🛠️ CREATIVE SANDBOX MODE ON 🛠️', '#34d399');
+      });
+    }
+    const btnCreativeToggle = document.getElementById('btn-creative-toggle');
+    if (btnCreativeToggle) {
+      btnCreativeToggle.addEventListener('click', () => {
+        this.toggleCreativeMode();
+        btnCreativeToggle.blur();
+      });
+    }
+    const btnPauseCreative = document.getElementById('btn-pause-creative');
+    if (btnPauseCreative) {
+      btnPauseCreative.addEventListener('click', () => {
+        this.toggleCreativeMode();
+      });
+    }
+    const btnCreativeCollapse = document.getElementById('btn-creative-collapse');
+    if (btnCreativeCollapse) {
+      btnCreativeCollapse.addEventListener('click', () => {
+        const dock = document.getElementById('creative-dock');
+        if (dock) {
+          const collapsed = dock.classList.toggle('collapsed');
+          btnCreativeCollapse.textContent = collapsed ? '▸' : '▾';
+        }
+      });
+    }
+    const btnCreativeGod = document.getElementById('creative-god-btn');
+    if (btnCreativeGod) {
+      btnCreativeGod.addEventListener('click', () => {
+        this.creativeGodMode = !this.creativeGodMode;
+        this.syncCreativeUI();
+      });
+    }
+    const btnCreativeFly = document.getElementById('creative-fly-btn');
+    if (btnCreativeFly) {
+      btnCreativeFly.addEventListener('click', () => {
+        this.creativeFlyMode = !this.creativeFlyMode;
+        this.syncCreativeUI();
+      });
+    }
+    const btnCreativeFreezeAI = document.getElementById('creative-freeze-ai-btn');
+    if (btnCreativeFreezeAI) {
+      btnCreativeFreezeAI.addEventListener('click', () => {
+        this.creativeFreezeAI = !this.creativeFreezeAI;
+        this.syncCreativeUI();
+      });
+    }
+    const selCreativeWeapon = document.getElementById('creative-weapon-select');
+    if (selCreativeWeapon) {
+      selCreativeWeapon.addEventListener('change', () => {
+        const w = selCreativeWeapon.value;
+        this.creativeWeaponOverride = w;
+        if (w === 'staff' || w === 'eraser' || w === 'pencil') {
+          this.player.weaponType = w;
+        } else {
+          this.player.weaponType = 'staff';
+        }
+        this.player.temporaryWeaponTimer = w === 'pencil' ? 0 : 999999;
+        particles.addTextBanner(this.player.x, this.player.y - 80, `⚔️ EQUIPPED: ${w.toUpperCase()}`, '#ffea00');
+        selCreativeWeapon.blur();
+      });
+    }
+    const btnPlaceBlock = document.getElementById('creative-place-block-btn');
+    if (btnPlaceBlock) btnPlaceBlock.addEventListener('click', () => this.placeCreativeBlock());
+    const btnClearBlocks = document.getElementById('creative-clear-blocks-btn');
+    if (btnClearBlocks) btnClearBlocks.addEventListener('click', () => this.clearCreativeBlocks());
+    const btnSpawnEntity = document.getElementById('creative-spawn-btn');
+    if (btnSpawnEntity) btnSpawnEntity.addEventListener('click', () => this.spawnCreativeEntity());
+    const btnAllAllies = document.getElementById('creative-allies-btn');
+    if (btnAllAllies) btnAllAllies.addEventListener('click', () => this.summonAllCreativeAllies());
+    const btnNuke = document.getElementById('creative-nuke-btn');
+    if (btnNuke) btnNuke.addEventListener('click', () => this.nukeCreativeEnemies());
+    const btnMaxShop = document.getElementById('creative-max-shop-btn');
+    if (btnMaxShop) btnMaxShop.addEventListener('click', () => this.maxCreativeUpgrades());
+    const btnOpenPortal = document.getElementById('creative-portal-btn');
+    if (btnOpenPortal) {
+      btnOpenPortal.addEventListener('click', () => {
+        this.stageManager.isObjectiveComplete = true;
+        this.stageManager.exitDoor.isOpen = true;
+        waves.spawnQueue.length = 0;
+        particles.addTextBanner(this.player.x, this.player.y - 85, '🚪 EXIT PORTAL UNLOCKED!', '#34d399');
+      });
+    }
+
     const btnContinue = document.getElementById('btn-continue-game');
     if (btnContinue) {
       btnContinue.addEventListener('click', () => {
@@ -598,6 +728,252 @@ export class Game3D {
     bindAllyClick('ally-chosen-slot', 'chosen');
   }
 
+  toggleCreativeMode(forceState) {
+    this.creativeMode = typeof forceState === 'boolean' ? forceState : !this.creativeMode;
+    if (this.creativeMode) {
+      this.creativeGodMode = true;
+      combat.ink = Math.max(combat.ink, 99999);
+      this.player.hp = this.player.maxHp;
+      this.player.superMeter = this.player.maxSuper;
+      particles.addTextBanner(this.player.x, this.player.y - 95, '🛠️ CREATIVE SANDBOX MODE ON 🛠️', '#34d399');
+    } else {
+      this.creativeFlyMode = false;
+      this.creativeFreezeAI = false;
+      this.creativeWeaponOverride = null;
+      this.player.weaponType = 'pencil';
+      this.player.temporaryWeaponTimer = 0;
+      particles.addTextBanner(this.player.x, this.player.y - 95, '⚔️ SURVIVAL CAMPAIGN MODE ⚔️', '#ffaa00');
+    }
+    this.syncCreativeUI();
+  }
+
+  syncCreativeUI() {
+    const dock = document.getElementById('creative-dock');
+    if (dock) dock.classList.toggle('active', this.creativeMode);
+
+    const hudBtn = document.getElementById('btn-creative-toggle');
+    if (hudBtn) {
+      hudBtn.classList.toggle('active', this.creativeMode);
+      const label = hudBtn.querySelector('.hud-btn-label');
+      if (label) label.textContent = `Creative: ${this.creativeMode ? 'ON' : 'OFF'} (C)`;
+    }
+
+    const pauseBtn = document.getElementById('btn-pause-creative');
+    if (pauseBtn) {
+      pauseBtn.textContent = `🛠️ Creative Mode: ${this.creativeMode ? 'ON' : 'OFF'}`;
+      pauseBtn.setAttribute('aria-pressed', String(this.creativeMode));
+    }
+
+    const godBtn = document.getElementById('creative-god-btn');
+    if (godBtn) {
+      godBtn.classList.toggle('active', this.creativeGodMode);
+      godBtn.textContent = `🛡️ God: ${this.creativeGodMode ? 'ON' : 'OFF'}`;
+    }
+
+    const flyBtn = document.getElementById('creative-fly-btn');
+    if (flyBtn) {
+      flyBtn.classList.toggle('active', this.creativeFlyMode);
+      flyBtn.textContent = `✈️ Fly: ${this.creativeFlyMode ? 'ON' : 'OFF'}`;
+    }
+
+    const freezeBtn = document.getElementById('creative-freeze-ai-btn');
+    if (freezeBtn) {
+      freezeBtn.classList.toggle('active', this.creativeFreezeAI);
+      freezeBtn.textContent = this.creativeFreezeAI ? '⏸️ AI: FROZEN' : '▶️ AI: RUN';
+    }
+  }
+
+  placeCreativeBlock() {
+    if (this.state !== 'PLAYING') return;
+    if (this.creativeBlocks.length >= 64) {
+      const oldest = this.creativeBlocks.shift();
+      if (oldest?.mesh) this.dynamicGroup.remove(oldest.mesh);
+    }
+
+    const texKey = document.getElementById('creative-block-select')?.value || 'command_block';
+    const blockW = 68;
+    const blockH = 68;
+    const bx = Math.max(-920, Math.min(920, this.player.x + this.player.facing * 76));
+    const bz = this.player.z || 0;
+
+    // Stack on top if another creative block is already placed at this X/Z spot
+    let by = this.player.y;
+    for (const cb of this.creativeBlocks) {
+      if (Math.abs(cb.x - bx) < 48 && Math.abs(cb.z - bz) < 80) {
+        by = Math.min(by, cb.y - cb.height);
+      }
+    }
+
+    const size3D = blockW * WORLD_TO_3D;
+    const mat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture(texKey),
+      roughness: 0.4,
+      metalness: texKey === 'gold_block' ? 0.55 : 0.15
+    });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(size3D, size3D, size3D), mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.position.set(to3DX(bx), to3DY(by - blockH / 2), to3DZ(bz));
+    this.dynamicGroup.add(mesh);
+
+    const blockRecord = {
+      x: bx,
+      y: by,
+      z: bz,
+      z3d: bz,
+      width: blockW,
+      height: blockH,
+      depth3d: 180,
+      texKey,
+      mesh,
+      fuseTimer: texKey === 'tnt_block' ? 2.2 : (texKey === 'lucky_block' ? 1.1 : null)
+    };
+    this.creativeBlocks.push(blockRecord);
+    this.spawnVoxelBurst(bx, by - blockH / 2, bz, '#38bdf8', 6);
+  }
+
+  clearCreativeBlocks() {
+    for (const cb of this.creativeBlocks) {
+      if (cb.mesh) this.dynamicGroup.remove(cb.mesh);
+    }
+    this.creativeBlocks.length = 0;
+    particles.addTextBanner(this.player.x, this.player.y - 80, '🗑️ BLOCKS CLEARED', '#94a3b8');
+  }
+
+  updateCreativeBlocks(dt) {
+    for (let i = this.creativeBlocks.length - 1; i >= 0; i--) {
+      const cb = this.creativeBlocks[i];
+      if (cb.fuseTimer === null || cb.fuseTimer === undefined) continue;
+      cb.fuseTimer -= dt;
+
+      if (cb.texKey === 'tnt_block' && cb.mesh) {
+        const flash = Math.sin(cb.fuseTimer * 24) > 0;
+        cb.mesh.scale.setScalar(1 + Math.max(0, (2.2 - cb.fuseTimer) * 0.08));
+        cb.mesh.material.emissive?.setHex(flash ? 0xff2222 : 0x000000);
+        cb.mesh.material.emissiveIntensity = flash ? 0.75 : 0;
+      }
+
+      if (cb.fuseTimer <= 0) {
+        this.dynamicGroup.remove(cb.mesh);
+        this.creativeBlocks.splice(i, 1);
+
+        if (cb.texKey === 'tnt_block') {
+          audio.playFinisherImpact?.();
+          this.camera2D?.addShake?.(0.65);
+          particles.emitBossExplosion({
+            x: cb.x,
+            y: cb.y - 34,
+            bodyY: cb.y,
+            groundY: this.groundY,
+            color: '#ef4444',
+            accent: '#facc15',
+            radius: 220,
+            stickFigure: false,
+            seed: Math.abs(Math.round(cb.x + cb.z)) + 101
+          });
+          this.spawnVoxelBurst(cb.x, cb.y - 34, cb.z, '#ef4444', 22);
+          for (const enemy of waves.zombies) {
+            if (!enemy || enemy.isDead) continue;
+            const dist = Math.hypot(enemy.x - cb.x, (enemy.z || 0) - cb.z);
+            if (dist <= 280) {
+              const dir = enemy.x >= cb.x ? 1 : -1;
+              enemy.takeDamage?.(280, dir, 520, true);
+            }
+          }
+        } else if (cb.texKey === 'lucky_block') {
+          combat.ink += 250;
+          this.player.heal?.(60);
+          this.spawnVoxelBurst(cb.x, cb.y - 34, cb.z, '#facc15', 16);
+          particles.addShockwave(cb.x, cb.y - 30, 180, '#facc15', 8);
+          particles.addTextBanner(cb.x, cb.y - 75, '★ LUCKY PRIZE! +250 INK ★', '#facc15');
+        }
+      }
+    }
+  }
+
+  spawnCreativeEntity() {
+    if (this.state !== 'PLAYING') return;
+    const type = document.getElementById('creative-spawn-select')?.value || 'ender_dragon';
+    if (type === 'mercenary_squad') {
+      for (const m of ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard']) {
+        waves.spawnZombie(m, this.player, this.groundY, this.camera2D);
+      }
+      return;
+    }
+    waves.spawnZombie(type, this.player, this.groundY, this.camera2D);
+  }
+
+  summonAllCreativeAllies() {
+    if (this.state !== 'PLAYING') return;
+    for (const k of Object.keys(allies.cooldowns)) {
+      allies.cooldowns[k] = 0;
+      if (allies.recoveryStates) allies.recoveryStates[k] = false;
+    }
+    const types = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen'];
+    types.forEach((t, idx) => {
+      allies.cooldowns[t] = 0;
+      allies.summonAlly(t, this.player.x + (idx - 2.5) * 45, this.groundY, this.player.facing, waves.zombies);
+    });
+    allies.unlockKingAlly?.(this.player.x - this.player.facing * 70, this.groundY);
+    particles.addTextBanner(this.player.x, this.player.y - 95, '★ ALL STICK ALLIES DEPLOYED! ★', '#ffea00');
+  }
+
+  nukeCreativeEnemies() {
+    if (this.state !== 'PLAYING') return;
+    let count = 0;
+    for (const enemy of [...waves.zombies]) {
+      if (!enemy || enemy.isDead) continue;
+      count++;
+      this.spawnVoxelBurst(enemy.x, enemy.y - 40, enemy.z || 0, enemy.color || '#ff6b00', 14);
+      enemy.takeDamage?.(99999, this.player.facing, 600, true);
+    }
+    this.camera2D?.addShake?.(0.75);
+    particles.addTextBanner(this.player.x, this.player.y - 95, `💥 NUKED ${count} ENEMIES! 💥`, '#ff3344');
+  }
+
+  maxCreativeUpgrades() {
+    combat.ink = Math.max(combat.ink, 99999);
+    for (const upgrade of shop.upgrades || []) {
+      while (upgrade.level < upgrade.maxLevel) {
+        upgrade.level++;
+        upgrade.apply(this.player);
+      }
+    }
+    this.player.hp = this.player.maxHp;
+    this.player.superMeter = this.player.maxSuper;
+    particles.addTextBanner(this.player.x, this.player.y - 95, '⚡ ALL STATS & UPGRADES MAXED! ⚡', '#38bdf8');
+  }
+
+  triggerCreativeWeaponEffect(hostileTargets) {
+    const w = this.creativeWeaponOverride;
+    if (!w || w === 'pencil' || w === 'staff' || w === 'eraser') return;
+
+    const px = this.player.x + this.player.facing * 65;
+    const py = this.player.y - 42;
+    const pz = this.player.z || 0;
+
+    if (w === 'pixel_bazooka') {
+      // Ballista's 8-Bit Pixel Rocket Barrage
+      for (const vy of [-55, 0, 55]) {
+        projectiles.spawnViralDart?.(px, py, this.player.facing * 560, vy, 65, '#ef4444');
+      }
+      this.spawnVoxelBurst(px, py, pz, '#ef4444', 10);
+    } else if (w === 'toolbar_staff' || w === 'hazard_sign' || w === 'vira_blades' || w === 'stone_spear') {
+      const col = w === 'toolbar_staff' ? '#38bdf8' : (w === 'hazard_sign' ? '#facc15' : (w === 'vira_blades' ? '#ff0033' : '#fbbf24'));
+      particles.addShockwave(px, py, 190, col, 8);
+      this.spawnVoxelBurst(px, py, pz, col, 12);
+      for (const t of hostileTargets) {
+        if (!t || t.isDead) continue;
+        const dist = Math.hypot(t.x - px, (t.z || 0) - pz);
+        if (dist <= 220) {
+          t.takeDamage?.(75, this.player.facing, 380, true);
+          if (w === 'toolbar_staff') t.applyFreeze?.(2.5);
+          if (w === 'hazard_sign') t.applyStun?.(2.0);
+        }
+      }
+    }
+  }
+
   clearDynamic3DMeshes() {
     while (this.dynamicGroup.children.length > 0) {
       this.dynamicGroup.remove(this.dynamicGroup.children[0]);
@@ -613,6 +989,7 @@ export class Game3D {
     this.telegraphMeshes.clear();
     this.voxelParticles.length = 0;
     this.floorSplats3D.length = 0;
+    this.creativeBlocks.length = 0;
     this.currentLookTarget = null;
   }
 
@@ -1037,8 +1414,27 @@ export class Game3D {
     this.hudSyncTimer += simDt;
     this.updateMissionStrip(simDt);
 
-    // Filter platforms by 3D Z-proximity so player lands on 3D slabs when aligned in Z!
-    const allPlatforms = this.stageManager.getAllSolidPlatforms();
+    // Creative Mode God Mode: Infinite HP, Infinite Ink, Full Super, Zero Cooldowns
+    if (this.creativeMode && this.creativeGodMode) {
+      this.player.hp = this.player.maxHp;
+      this.player.isDead = false;
+      this.player.superMeter = this.player.maxSuper;
+      this.player.rollCooldown = 0;
+      this.player.blockCooldown = 0;
+      this.player.hookCooldown = 0;
+      this.player.grabCooldown = 0;
+      combat.ink = Math.max(combat.ink, 99999);
+      for (const k of Object.keys(allies.cooldowns)) {
+        allies.cooldowns[k] = 0;
+        if (allies.recoveryStates) allies.recoveryStates[k] = false;
+      }
+      if (this.creativeWeaponOverride && this.creativeWeaponOverride !== 'pencil') {
+        this.player.temporaryWeaponTimer = 999999;
+      }
+    }
+
+    // Filter platforms by 3D Z-proximity (including custom Creative Voxel Blocks!) so player lands on 3D slabs
+    const allPlatforms = [...this.stageManager.getAllSolidPlatforms(), ...this.creativeBlocks];
     const playerZ = this.player.z || 0;
     const zAlignedPlatforms = allPlatforms.filter((p) => {
       const pz = p.z3d || 0;
@@ -1047,29 +1443,46 @@ export class Game3D {
     });
 
     const hostileTargets = this.collectHostileTargets();
+    if (this.creativeMode && input.actions.weaponPressed) {
+      this.triggerCreativeWeaponEffect(hostileTargets);
+    }
+
     this.player.update(simDt, input, this.groundY, projectiles.sketchBlocks, hostileTargets, this.camera2D, zAlignedPlatforms);
 
-    // Update Player 3D Z-axis movement
+    if (this.creativeMode && this.creativeGodMode) {
+      this.player.hp = this.player.maxHp;
+      this.player.isDead = false;
+    }
+
+    // Update Player 3D Z-axis movement & Creative 3D Flight
     this.updatePlayer3DMovement(simDt, hostileTargets);
+    this.updateCreativeBlocks(simDt);
 
     if (this.player.isDead && this.player.deathTimer <= 0) {
       this.gameOver();
       return;
     }
 
-    waves.update(
-      simDt,
-      this.player,
-      this.groundY,
-      projectiles.sketchBlocks,
-      this.camera2D,
-      () => {},
-      allPlatforms,
-      allies.getCombatTargets?.() || []
-    );
+    if (!(this.creativeMode && this.creativeFreezeAI)) {
+      waves.update(
+        simDt,
+        this.player,
+        this.groundY,
+        projectiles.sketchBlocks,
+        this.camera2D,
+        () => {},
+        allPlatforms,
+        allies.getCombatTargets?.() || []
+      );
 
-    // Update Enemy & Boss 3D Z-positions and separation
-    this.updateEnemies3DMovement(simDt);
+      // Update Enemy & Boss 3D Z-positions and separation
+      this.updateEnemies3DMovement(simDt);
+    } else {
+      // Even when AI is frozen, remove any enemies killed by the player
+      for (let i = waves.zombies.length - 1; i >= 0; i--) {
+        if (waves.zombies[i].isDead) waves.zombies.splice(i, 1);
+      }
+    }
 
     this.stageManager.update(simDt, this.player, waves, (nextStage) => {
       this.stageManager.resolveStageExit(
@@ -1101,6 +1514,7 @@ export class Game3D {
   }
 
   check3DLaserDamage() {
+    if (this.creativeMode && this.creativeGodMode) return;
     const p = this.player;
     if (!p || p.isDead || (p.iFrames || 0) > 0 || p.isRolling || p.isAwakened) return;
 
@@ -1141,6 +1555,16 @@ export class Game3D {
   updatePlayer3DMovement(dt, hostileTargets) {
     if (this.player.z === undefined) this.player.z = 0;
     if (this.player.vz === undefined) this.player.vz = 0;
+
+    // Creative Mode 3D Flight (Space = Ascend, Z / Ctrl = Descend, Hover in Mid-Air)
+    if (this.creativeMode && this.creativeFlyMode && !this.player.isDead) {
+      const flyUp = Boolean(this.keys3D.Space || input.touch?.jump);
+      const flyDown = Boolean(this.keys3D.KeyZ || this.keys3D.ControlLeft || this.keys3D.ControlRight);
+      const flyDir = (flyDown ? 1 : 0) - (flyUp ? 1 : 0);
+      this.player.vy = flyDir * 390;
+      this.player.y = Math.max(-520, Math.min(this.groundY, this.player.y + this.player.vy * dt));
+      this.player.isGrounded = true;
+    }
 
     const zDir = this.zInput || 0;
     const zSpeed = this.player.speed * (this.player.isRolling ? 1.35 : 0.78);
@@ -1326,7 +1750,7 @@ export class Game3D {
       isGrounded: this.player.isGrounded !== false,
       isHurt: this.player.isHurt,
       isAwakened: this.player.isAwakened,
-      weaponType: this.player.weaponType || 'pencil',
+      weaponType: (this.creativeMode && this.creativeWeaponOverride) ? this.creativeWeaponOverride : (this.player.weaponType || 'pencil'),
       actionPhase: this.player.moveProgress || 0,
       dt
     });
