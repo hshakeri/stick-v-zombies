@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Orange Stickman vs Zombies 3D — Voxel Desktop Edition</title>
 <link rel="stylesheet" href="../css/style.css?v=9.8">
-<link rel="stylesheet" href="css/style3d.css">
+<link rel="stylesheet" href="css/style3d.css?v=10.2">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23ff7700%22 stroke=%22white%22 stroke-width=%228%22/></svg>">
 </head>
 <body>
@@ -135,13 +135,26 @@
 <span>STICK</span><span class="title-vs">VS</span><span>ZOMBIES</span><span class="badge-3d-pill">3D VOXEL</span>
 </h1>
 <h2 class="game-sub-title">3D DESKTOP &amp; MINECRAFT ARENA</h2>
-<p class="title-tagline">All 18 Stages • 7 Story Bosses • Playable 3D Trophy Room Epilogue</p>
+<p class="title-tagline">21 Stages • Ender Dragon • The Aether • Rocket Corp Mercenaries • H4C3R</p>
 </div>
 <div class="title-actions">
 <button id="btn-start-game" class="primary-btn" style="font-size: 20px; padding: 14px 28px;">▶ PLAY 3D CAMPAIGN</button>
 <button id="btn-continue-game" class="secondary-btn" style="display: none;">↻ CONTINUE</button>
 <button id="btn-how-to-play" class="secondary-btn">📖 3D Controls &amp; Tips</button>
 <a href="../index.html" class="secondary-btn" style="text-decoration:none; display:inline-block;">🕹️ Classic 2D Edition</a>
+</div>
+<div class="level-selector-banner">
+<div class="level-selector-row">
+<label for="title-stage-select" class="level-selector-label">🎯 JUMP TO STAGE / BOSS:</label>
+<select id="title-stage-select" class="stage-select-box stage-select-prominent" aria-label="Select a stage to play">
+</select>
+</div>
+<div class="quick-stage-pills">
+<button type="button" class="quick-stage-btn" data-jump-stage="18">🐉 18: The End (Ender Dragon)</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="19">☁️ 19: The Aether</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="20">🕶️ 20: Rocket Corp (Mercenaries)</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="21">⌁ 21: Zero-Day (H4C3R)</button>
+</div>
 </div>
 <div class="controls-guide-card">
 <h4>⚡ 3D ARENA CONTROLS &amp; CAMERA</h4>
@@ -223,6 +236,11 @@
 <div class="modal-title" style="margin-bottom: 20px;">⏸️ 3D GAME PAUSED</div>
 <div style="display: flex; flex-direction: column; gap: 14px;">
 <button id="btn-resume-game" class="primary-btn">Resume</button>
+<div style="display: flex; flex-direction: column; gap: 6px; background: rgba(15, 23, 42, 0.85); padding: 10px; border-radius: 10px; border: 1px solid #38bdf8;">
+<label for="pause-stage-select" style="font-family: var(--font-pop-art); font-size: 12px; color: #ffea00;">🎯 JUMP TO STAGE / BOSS:</label>
+<select id="pause-stage-select" class="stage-select-box stage-select-prominent" aria-label="Jump to stage from pause menu">
+</select>
+</div>
 <button id="btn-pause-shop" class="secondary-btn">Open Upgrades</button>
 <button id="btn-splatter-toggle" class="secondary-btn" aria-pressed="true">🩸 Comic Splatter: ON</button>
 <button id="btn-pause-audio" class="secondary-btn" aria-pressed="true">🔊 Audio: ON</button>
@@ -313,6 +331,6 @@
 </div>
 </div>
 </div>
-<script type="module" src="js/game3d.js"></script>
+<script type="module" src="js/game3d.js?v=10.2"></script>
 </body>
 </html>

@@ -20,7 +20,7 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from './arena3d.js';
+} from './arena3d.js?v=10.2';
 import {
   StickRig3D,
   CreeperLordRig3D,
@@ -30,9 +30,9 @@ import {
   buildVoxelWeaponMesh,
   createTurretMesh3D,
   createViraBotMesh3D
-} from './models3d.js';
-import { getVoxelTexture } from './textures3d.js';
-import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js';
+} from './models3d.js?v=10.2';
+import { getVoxelTexture } from './textures3d.js?v=10.2';
+import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.2';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
 const CAMERA_LABELS = {
@@ -282,9 +282,6 @@ export class Game3D {
   }
 
   populateStageSelector() {
-    const select = document.getElementById('stage-select-dropdown');
-    if (!select) return;
-    select.innerHTML = '';
     const stageNames = [
       '1: Main Desktop',
       '2: Adobe Animate',
@@ -309,23 +306,46 @@ export class Game3D {
       '21: Zero-Day (H4C3R)',
       '22: 🏆 Trophy Room Epilogue'
     ];
-    stageNames.forEach((label, idx) => {
-      const opt = document.createElement('option');
-      opt.value = String(idx + 1);
-      opt.textContent = `Stage ${label}`;
-      select.appendChild(opt);
+    const selectorIds = ['stage-select-dropdown', 'title-stage-select', 'pause-stage-select'];
+    selectorIds.forEach((id) => {
+      const select = document.getElementById(id);
+      if (!select) return;
+      select.innerHTML = '';
+      stageNames.forEach((label, idx) => {
+        const opt = document.createElement('option');
+        opt.value = String(idx + 1);
+        opt.textContent = `🎯 Stage ${label}`;
+        select.appendChild(opt);
+      });
+      select.addEventListener('change', () => {
+        const val = Number(select.value);
+        audio.init();
+        if (val === 22) {
+          this.startGame();
+          this.enterTrophyRoom();
+        } else if (val >= 1 && val <= 21) {
+          this.jumpToStage(val);
+        }
+        select.blur();
+      });
     });
-    select.addEventListener('change', () => {
-      const val = Number(select.value);
-      audio.init();
-      if (val === 22) {
-        this.startGame();
-        this.enterTrophyRoom();
-      } else if (val >= 1 && val <= 21) {
-        this.jumpToStage(val);
-      }
-      select.blur();
+
+    document.querySelectorAll('[data-jump-stage]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const stg = Number(btn.getAttribute('data-jump-stage'));
+        if (stg >= 1 && stg <= 21) {
+          audio.init();
+          this.jumpToStage(stg);
+        }
+      });
     });
+  }
+
+  syncStageSelectors(val) {
+    for (const id of ['stage-select-dropdown', 'title-stage-select', 'pause-stage-select']) {
+      const el = document.getElementById(id);
+      if (el) el.value = String(val);
+    }
   }
 
   jumpToStage(stageNum) {
@@ -359,9 +379,7 @@ export class Game3D {
     this.prepareWeaponPickup(stageNum);
     this.captureStageCheckpoint();
     this.showMissionStrip(stageNum, 'STAGE JUMP');
-
-    const select = document.getElementById('stage-select-dropdown');
-    if (select) select.value = String(stageNum);
+    this.syncStageSelectors(stageNum);
   }
 
   setupResize() {
@@ -426,7 +444,12 @@ export class Game3D {
     if (btnStart) {
       btnStart.addEventListener('click', () => {
         audio.init();
-        this.startGame();
+        const selectedStage = parseInt(document.getElementById('title-stage-select')?.value, 10);
+        if (selectedStage && selectedStage > 1) {
+          this.jumpToStage(selectedStage);
+        } else {
+          this.startGame();
+        }
       });
     }
     const btnContinue = document.getElementById('btn-continue-game');
@@ -640,8 +663,7 @@ export class Game3D {
     this.captureStageCheckpoint();
     this.showMissionStrip(stage, checkpoint ? 'CONTINUE' : '');
 
-    const select = document.getElementById('stage-select-dropdown');
-    if (select) select.value = String(stage);
+    this.syncStageSelectors(stage);
   }
 
   restartGame() {
@@ -737,8 +759,7 @@ export class Game3D {
     this.captureStageCheckpoint();
     this.showMissionStrip(nextStage);
 
-    const select = document.getElementById('stage-select-dropdown');
-    if (select) select.value = String(nextStage);
+    this.syncStageSelectors(nextStage);
   }
 
   enterTrophyRoom() {
@@ -777,8 +798,7 @@ export class Game3D {
     this.showMissionStrip(21, 'EPILOGUE');
     particles.addTextBanner(this.player.x + 90, this.player.y - 90, '★ 3D TROPHY ROOM UNLOCKED! ★', '#ffd54a');
 
-    const select = document.getElementById('stage-select-dropdown');
-    if (select) select.value = '22';
+    this.syncStageSelectors(22);
   }
 
   completeGame() {
