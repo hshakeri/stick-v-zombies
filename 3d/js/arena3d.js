@@ -1,12 +1,12 @@
 import * as THREE from '../lib/three.module.min.js';
-import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js';
+import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.3';
 import {
   StickRig3D,
   CreeperLordRig3D,
   GiantCatRig3D,
   LuckyOrbRig3D,
   EnderDragonRig3D
-} from './models3d.js';
+} from './models3d.js?v=10.3';
 
 export const WORLD_TO_3D = 1 / 34;
 export const ARENA_HALF_X = 980;
@@ -91,16 +91,16 @@ export class Arena3DBuilder {
       roughness: 0.4,
       metalness: 0.5
     });
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(66, 23.5, 1.2), bezelMat);
-    frame.position.z = -0.7;
+    this.monitorFrame = new THREE.Mesh(new THREE.BoxGeometry(66, 23.5, 1.2), bezelMat);
+    this.monitorFrame.position.z = -0.7;
 
-    const standNeck = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 1.6), bezelMat);
-    standNeck.position.set(0, -13.5, -1.0);
+    this.standNeck = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 1.6), bezelMat);
+    this.standNeck.position.set(0, -13.5, -1.0);
 
     const screenMat = new THREE.MeshBasicMaterial({ map: this.monitorTexture });
     this.screenMesh = new THREE.Mesh(new THREE.PlaneGeometry(63.6, 21.4), screenMat);
 
-    this.monitorGroup.add(frame, standNeck, this.screenMesh);
+    this.monitorGroup.add(this.monitorFrame, this.standNeck, this.screenMesh);
     this.scene.add(this.monitorGroup);
   }
 
@@ -119,55 +119,73 @@ export class Arena3DBuilder {
     const theme = sm.theme || 'desktop';
     const floorKey = getThemeFloorTextureKey(theme, false);
 
+    // Hide PC monitor stand neck when inside Rocket Corp Facility so backdrop is the Observation Window
+    if (this.standNeck) {
+      this.standNeck.visible = theme !== 'rocket_corp';
+    }
+
     // 1. Voxel Arena Floor (62 x 26 blocks)
     const floorW = 62;
     const floorD = 26;
     const floorTex = getVoxelTexture(floorKey, 31, 13);
     this.floorMat = new THREE.MeshStandardMaterial({
       map: floorTex,
-      roughness: 0.55,
-      metalness: 0.1
+      roughness: theme === 'rocket_corp' ? 0.35 : 0.55,
+      metalness: theme === 'rocket_corp' ? 0.22 : 0.1
     });
     const floorMesh = new THREE.Mesh(new THREE.BoxGeometry(floorW, 1.5, floorD), this.floorMat);
     floorMesh.position.set(0, -0.75, 0);
     floorMesh.receiveShadow = true;
     this.group.add(floorMesh);
 
-    // Sub-floor voxel cliff layers (Minecraft island feel)
+    // Sub-floor voxel cliff layers (Minecraft island / Facility foundation)
     const subTexKey = theme === 'minecraft' || theme === 'dark_core' || theme === 'the_end'
       ? 'obsidian'
-      : (theme === 'aether' ? 'holystone' : 'anvil_iron');
+      : (theme === 'aether' ? 'holystone' : (theme === 'rocket_corp' ? 'rocket_corp_wall' : 'anvil_iron'));
     const subTex = getVoxelTexture(subTexKey, 31, 2);
     const subMat = new THREE.MeshStandardMaterial({ map: subTex, roughness: 0.7 });
     const subLayer = new THREE.Mesh(new THREE.BoxGeometry(floorW - 1.5, 3.2, floorD - 1.5), subMat);
     subLayer.position.set(0, -3.1, 0);
     this.group.add(subLayer);
 
-    // Glowing Arena Border Rails (North, South, West/Left Wall, East/Right Wall)
+    // Glowing Arena Border Rails (or Industrial Yellow/Black Hazard Curbs in Rocket Corp!)
     const accentHex = this.getThemeAccentColor(theme);
-    const railMat = new THREE.MeshStandardMaterial({
-      color: accentHex,
-      emissive: accentHex,
-      emissiveIntensity: 0.55,
-      roughness: 0.25
-    });
+    const railMat = theme === 'rocket_corp'
+      ? new THREE.MeshStandardMaterial({
+          map: getVoxelTexture('rocket_corp_hazard', 24, 1),
+          roughness: 0.4,
+          metalness: 0.2
+        })
+      : new THREE.MeshStandardMaterial({
+          color: accentHex,
+          emissive: accentHex,
+          emissiveIntensity: 0.55,
+          roughness: 0.25
+        });
+    const sideRailMat = theme === 'rocket_corp'
+      ? new THREE.MeshStandardMaterial({
+          map: getVoxelTexture('rocket_corp_hazard', 1, 10),
+          roughness: 0.4,
+          metalness: 0.2
+        })
+      : railMat;
     const railNorth = new THREE.Mesh(new THREE.BoxGeometry(floorW, 0.35, 0.45), railMat);
     railNorth.position.set(0, 0.18, -floorD / 2 + 0.25);
     const railSouth = railNorth.clone();
     railSouth.position.set(0, 0.18, floorD / 2 - 0.25);
     const wallX = to3DX(980) + 0.55;
-    const railWest = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, floorD), railMat);
+    const railWest = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, floorD), sideRailMat);
     railWest.position.set(-wallX, 0.55, 0);
     const railEast = railWest.clone();
     railEast.position.set(wallX, 0.55, 0);
     this.group.add(railNorth, railSouth, railWest, railEast);
 
-    // 2. Voxel Pillars / Minecraft Biome Props along Back Edge
+    // 2. Voxel Pillars / Minecraft Biome Props / Rocket Corp Facility Architecture
     this.buildBiomeColumns(theme, accentHex);
 
     // 3. Start Portal & Exit Portal (set slightly back in Z so the full player figure is always visible in front)
-    this.buildPortal(to3DX(sm.entranceDoor.x), -2.2, false, sm.isTrophyRoom ? 'ENTRY' : 'START');
-    this.buildPortal(to3DX(sm.exitDoor.x), -2.2, true, sm.isTrophyRoom ? 'RESULTS' : 'EXIT');
+    this.buildPortal(to3DX(sm.entranceDoor.x), -2.2, false, sm.isTrophyRoom ? 'ENTRY' : (theme === 'rocket_corp' ? 'AIRLOCK IN' : 'START'));
+    this.buildPortal(to3DX(sm.exitDoor.x), -2.2, true, sm.isTrophyRoom ? 'RESULTS' : (theme === 'rocket_corp' ? 'SECTOR EXIT' : 'EXIT'));
 
     // 4. Static Platforms (3D Voxel Slabs)
     sm.platforms.forEach((p, idx) => {
@@ -252,6 +270,11 @@ export class Arena3DBuilder {
   }
 
   buildBiomeColumns(theme, accentHex) {
+    if (theme === 'rocket_corp') {
+      this.buildRocketCorpFacility();
+      return;
+    }
+
     const texKey = theme === 'minecraft' || theme === 'the_end' ? 'obsidian'
       : (theme === 'command_realm' || theme === 'trophy' ? 'gold_block'
       : (theme === 'lucky_orb' ? 'lucky_block'
@@ -345,36 +368,368 @@ export class Arena3DBuilder {
       pWater.position.set(0, 2.2, 0);
       aetherPortal.add(pL, pR, pTop, pWater);
       this.group.add(aetherPortal);
-    } else if (theme === 'rocket_corp') {
-      // Rocket Corp "The Box" Glass Containment Chamber in Back Center
-      const boxChamber = new THREE.Group();
-      boxChamber.position.set(0, 0, -8.5);
-      const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.25 });
-      const glassMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
-      const base = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.45, 3.4), frameMat);
-      base.position.y = 0.22;
-      const roof = base.clone();
-      roof.position.y = 3.85;
-      const glass = new THREE.Mesh(new THREE.BoxGeometry(4.8, 3.4, 3.0), glassMat);
-      glass.position.y = 2.05;
-      const wire = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.BoxGeometry(4.85, 3.45, 3.05)),
-        new THREE.LineBasicMaterial({ color: 0xff6b00 })
-      );
-      wire.position.y = 2.05;
-      boxChamber.add(base, roof, glass, wire);
-      this.group.add(boxChamber);
     }
+  }
+
+  createRocketCorpEmblem3D(scale = 1) {
+    const emblem = new THREE.Group();
+    const darkSteel = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.7, roughness: 0.3 });
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.25, metalness: 0.2 });
+    const orangeGlow = new THREE.MeshStandardMaterial({ color: 0xff6b00, emissive: 0xff6b00, emissiveIntensity: 0.75 });
+    const cyanGlow = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.65 });
+
+    // Circular backing disc & glowing ring
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.75, 0.24, 24), darkSteel);
+    disc.rotation.x = Math.PI / 2;
+    const outerRing = new THREE.Mesh(new THREE.TorusGeometry(1.78, 0.14, 10, 28), orangeGlow);
+    outerRing.position.z = 0.08;
+    const innerRing = new THREE.Mesh(new THREE.TorusGeometry(1.38, 0.06, 8, 24), cyanGlow);
+    innerRing.position.z = 0.1;
+
+    // Sculpted 3D Rocket / Cursor Arrow (Rocket Corp Logo)
+    const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.42, 1.35, 12), whiteMat);
+    fuselage.position.set(0, 0.05, 0.2);
+    const noseCone = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.75, 12), orangeGlow);
+    noseCone.position.set(0, 1.05, 0.2);
+    const windowPorthole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.15, 12), cyanGlow);
+    windowPorthole.rotation.x = Math.PI / 2;
+    windowPorthole.position.set(0, 0.22, 0.48);
+
+    // Swept Delta Fins
+    const finGeo = new THREE.BoxGeometry(0.48, 0.65, 0.14);
+    const finL = new THREE.Mesh(finGeo, whiteMat);
+    finL.position.set(-0.48, -0.35, 0.18);
+    finL.rotation.z = 0.42;
+    const finR = new THREE.Mesh(finGeo, whiteMat);
+    finR.position.set(0.48, -0.35, 0.18);
+    finR.rotation.z = -0.42;
+
+    // Exhaust Thruster Flame
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.65, 10), orangeGlow);
+    flame.rotation.z = Math.PI;
+    flame.position.set(0, -0.92, 0.2);
+
+    // "ROCKET CORP" Plaque below emblem
+    const plaqueTex = makeTextSignTexture('ROCKET CORP', 'CONTAINMENT DIV.', '#0f172a', '#ff6b00', '#f8fafc');
+    const plaque = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.5, 1.05),
+      new THREE.MeshBasicMaterial({ map: plaqueTex })
+    );
+    plaque.position.set(0, -2.45, 0.15);
+
+    emblem.add(disc, outerRing, innerRing, fuselage, noseCone, windowPorthole, finL, finR, flame, plaque);
+    emblem.scale.setScalar(scale);
+    return emblem;
+  }
+
+  createRocketCorpHoverBike3D(facing = 1) {
+    const bike = new THREE.Group();
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.45, roughness: 0.3 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
+    const orangeMat = new THREE.MeshStandardMaterial({ color: 0xff6b00, emissive: 0xff6b00, emissiveIntensity: 0.65 });
+    const cyanMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 0.85 });
+
+    // Main hover chassis
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.48, 0.85), hullMat);
+    body.position.y = 0.75;
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.0, 4), hullMat);
+    nose.rotation.z = -Math.PI / 2;
+    nose.rotation.y = Math.PI / 4;
+    nose.position.set(1.65, 0.78, 0);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.14, 0.88), orangeMat);
+    stripe.position.y = 0.82;
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.25, 0.65), darkMat);
+    seat.position.set(-0.35, 1.08, 0);
+    const windshield = new THREE.Mesh(
+      new THREE.BoxGeometry(0.55, 0.45, 0.72),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.55 })
+    );
+    windshield.position.set(0.85, 1.15, 0);
+    windshield.rotation.z = 0.45;
+    const handlebars = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.15, 8), darkMat);
+    handlebars.rotation.x = Math.PI / 2;
+    handlebars.position.set(0.55, 1.22, 0);
+
+    // Dual underside hover-pads
+    const padGeo = new THREE.CylinderGeometry(0.48, 0.52, 0.16, 14);
+    const padFront = new THREE.Mesh(padGeo, cyanMat);
+    padFront.position.set(0.95, 0.38, 0);
+    const padRear = new THREE.Mesh(padGeo, cyanMat);
+    padRear.position.set(-0.95, 0.38, 0);
+    const thruster = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 0.45, 10), orangeMat);
+    thruster.rotation.z = Math.PI / 2;
+    thruster.position.set(-1.45, 0.75, 0);
+
+    bike.add(body, nose, stripe, seat, windshield, handlebars, padFront, padRear, thruster);
+    bike.rotation.y = facing >= 0 ? 0.35 : Math.PI - 0.35;
+    return bike;
+  }
+
+  makeRocketCorpFloorMedallionTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // Transparent floor decal with industrial stencil frame
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+    ctx.fillRect(8, 8, 496, 240);
+    ctx.strokeStyle = '#ff6b00';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(12, 12, 488, 232);
+
+    // Yellow hazard corner stripes
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(18, 18, 48, 8);
+    ctx.fillRect(18, 18, 8, 48);
+    ctx.fillRect(446, 18, 48, 8);
+    ctx.fillRect(486, 18, 8, 48);
+    ctx.fillRect(18, 230, 48, 8);
+    ctx.fillRect(18, 190, 8, 48);
+    ctx.fillRect(446, 230, 48, 8);
+    ctx.fillRect(486, 190, 8, 48);
+
+    // Center Rocket Corp Emblem Circle
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(256, 108, 64, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Upward Rocket Silhouette inside circle
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.moveTo(256, 52);
+    ctx.lineTo(276, 92);
+    ctx.lineTo(272, 136);
+    ctx.lineTo(292, 154);
+    ctx.lineTo(268, 148);
+    ctx.lineTo(256, 162);
+    ctx.lineTo(244, 148);
+    ctx.lineTo(220, 154);
+    ctx.lineTo(240, 136);
+    ctx.lineTo(236, 92);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#ff6b00';
+    ctx.beginPath();
+    ctx.arc(256, 98, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 26px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('ROCKET CORP // THE BOX', 256, 202);
+    ctx.fillStyle = '#ff6b00';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText('SECTOR 01 · ANOMALY CONTAINMENT & TESTING FLOOR', 256, 226);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  buildRocketCorpFacility() {
+    const wallMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('rocket_corp_wall', 6, 4),
+      roughness: 0.5,
+      metalness: 0.35
+    });
+    const steelMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      metalness: 0.75,
+      roughness: 0.28
+    });
+    const hazardMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('rocket_corp_hazard', 8, 1),
+      roughness: 0.4
+    });
+    const orangeGlow = new THREE.MeshStandardMaterial({
+      color: 0xff6b00,
+      emissive: 0xff6b00,
+      emissiveIntensity: 0.75
+    });
+    const cyanGlow = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      emissive: 0x38bdf8,
+      emissiveIntensity: 0.75
+    });
+
+    // 1. Giant Painted Rocket Corp Floor Medallion in Center of Arena
+    const medallionMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(18.5, 9.2),
+      new THREE.MeshBasicMaterial({
+        map: this.makeRocketCorpFloorMedallionTexture(),
+        transparent: true,
+        depthWrite: false
+      })
+    );
+    medallionMesh.rotation.x = -Math.PI / 2;
+    medallionMesh.position.set(0, 0.03, 0.4);
+    this.group.add(medallionMesh);
+
+    // 2. Gridded "The Box" Facility Back Wall Wings & Angled Side Bulkheads
+    const leftBackWall = new THREE.Mesh(new THREE.BoxGeometry(19, 12.5, 1.2), wallMat);
+    leftBackWall.position.set(-21.2, 6.25, -12.6);
+    const rightBackWall = leftBackWall.clone();
+    rightBackWall.position.set(21.2, 6.25, -12.6);
+    const leftBaseboard = new THREE.Mesh(new THREE.BoxGeometry(19.2, 0.65, 1.35), hazardMat);
+    leftBaseboard.position.set(-21.2, 0.32, -12.6);
+    const rightBaseboard = leftBaseboard.clone();
+    rightBaseboard.position.set(21.2, 0.32, -12.6);
+    this.group.add(leftBackWall, rightBackWall, leftBaseboard, rightBaseboard);
+
+    // Side Containment Bulkhead Walls framing Left & Right edges of "The Box"
+    const sideWallGeo = new THREE.BoxGeometry(1.2, 9.5, 16);
+    const sideWallL = new THREE.Mesh(sideWallGeo, wallMat);
+    sideWallL.position.set(-30.2, 4.75, -4.5);
+    const sideWallR = new THREE.Mesh(sideWallGeo, wallMat);
+    sideWallR.position.set(30.2, 4.75, -4.5);
+    this.group.add(sideWallL, sideWallR);
+
+    // 3. Heavy Steel I-Beam Facility Columns & Overhead Gantry Truss with Security Cameras
+    const pillarXs = [-27.5, -17.5, -8.5, 8.5, 17.5, 27.5];
+    pillarXs.forEach((px, idx) => {
+      const col = new THREE.Mesh(new THREE.BoxGeometry(1.35, 12.8, 1.45), steelMat);
+      col.position.set(px, 6.4, -12.0);
+      col.castShadow = true;
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.28, 11.2, 1.52), idx % 2 === 0 ? orangeGlow : cyanGlow);
+      strip.position.set(px, 6.2, -12.0);
+      this.group.add(col, strip);
+
+      // Ceiling-mounted Rocket Corp Security Camera / Suppression Turret
+      const camGroup = new THREE.Group();
+      camGroup.position.set(px, 11.6, -10.9);
+      const housing = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.5, 1.15), steelMat);
+      housing.rotation.x = 0.42;
+      const lens = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.18, 0.25, 10),
+        new THREE.MeshBasicMaterial({ color: 0xff1744 })
+      );
+      lens.rotation.x = Math.PI / 2 + 0.42;
+      lens.position.set(0, -0.18, 0.55);
+      camGroup.add(housing, lens);
+      this.group.add(camGroup);
+    });
+
+    const overheadGantry = new THREE.Mesh(new THREE.BoxGeometry(61, 0.95, 1.6), steelMat);
+    overheadGantry.position.set(0, 12.6, -11.8);
+    this.group.add(overheadGantry);
+
+    // 4. Two Giant 3D Sculpted Rocket Corp Logos on Left & Right Facility Wings
+    const logoLeft = this.createRocketCorpEmblem3D(1.35);
+    logoLeft.position.set(-22.5, 7.6, -11.85);
+    const logoRight = this.createRocketCorpEmblem3D(1.35);
+    logoRight.position.set(22.5, 7.6, -11.85);
+    this.group.add(logoLeft, logoRight);
+
+    // 5. "The Box" Center Hard-Light Containment Chamber + Suppression Clamps
+    const boxChamber = new THREE.Group();
+    boxChamber.position.set(0, 0, -8.5);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.5, 3.8), steelMat);
+    base.position.y = 0.25;
+    const baseHazard = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.22, 3.9), hazardMat);
+    baseHazard.position.y = 0.52;
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.55, 3.8), steelMat);
+    roof.position.y = 4.35;
+    const glassMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.22,
+      side: THREE.DoubleSide
+    });
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(5.8, 3.7, 3.2), glassMat);
+    glass.position.y = 2.4;
+    const wire = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(5.86, 3.76, 3.26)),
+      new THREE.LineBasicMaterial({ color: 0xff6b00 })
+    );
+    wire.position.y = 2.4;
+
+    // Restraint Clamp Rings inside "The Box" (used on The Chosen One in AvA Season 3)
+    const clampRingL = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.08, 8, 16), orangeGlow);
+    clampRingL.position.set(-1.1, 2.2, 0);
+    const clampRingR = clampRingL.clone();
+    clampRingR.position.set(1.1, 2.2, 0);
+
+    const boxSignTex = makeTextSignTexture('THE BOX // CELL 01', 'MAX SUPPRESSION ACTIVE', '#0f172a', '#ff6b00', '#38bdf8');
+    const boxSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.8, 1.05),
+      new THREE.MeshBasicMaterial({ map: boxSignTex })
+    );
+    boxSign.position.set(0, 5.2, 1.6);
+
+    boxChamber.add(base, baseHazard, roof, glass, wire, clampRingL, clampRingR, boxSign);
+    this.group.add(boxChamber);
+
+    // 6. Two Cylindrical Cyan Glass Stasis Tubes (Left: Gray Rocket Corp Clone, Right: Memory Scanner Rig)
+    [-12.6, 12.6].forEach((tx, idx) => {
+      const tubeGroup = new THREE.Group();
+      tubeGroup.position.set(tx, 0, -9.6);
+      const podBase = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.45, 0.55, 18), steelMat);
+      podBase.position.y = 0.28;
+      const podCap = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.35, 0.55, 18), steelMat);
+      podCap.position.y = 4.15;
+      const podRing = new THREE.Mesh(new THREE.TorusGeometry(1.38, 0.09, 8, 20), idx === 0 ? cyanGlow : orangeGlow);
+      podRing.rotation.x = Math.PI / 2;
+      podRing.position.y = 0.58;
+      const cylGlass = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.18, 1.18, 3.4, 18),
+        new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.26 })
+      );
+      cylGlass.position.y = 2.25;
+      tubeGroup.add(podBase, podCap, podRing, cylGlass);
+
+      if (idx === 0) {
+        // Rocket Corp Gray Clone Worker inside Left Stasis Tube
+        const cloneWorker = new StickRig3D({ color: '#94a3b8', scale: 0.78 });
+        cloneWorker.root.position.y = 0.65;
+        tubeGroup.add(cloneWorker.root);
+      } else {
+        // Memory Scanner Helmet Rig inside Right Stasis Tube
+        const helmet = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.56, 0.55, 12), steelMat);
+        helmet.position.y = 2.55;
+        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.2, 0.65), cyanGlow);
+        visor.position.y = 2.45;
+        tubeGroup.add(helmet, visor);
+      }
+      this.group.add(tubeGroup);
+    });
+
+    // 7. Wanted Posters & Target Displays on Facility Pillars
+    const wantedLeftTex = makeTextSignTexture('WANTED: CHOSEN ONE', 'BOUNTY // MAX PRIORITY', '#1e293b', '#ff6b00', '#facc15');
+    const wantedLeft = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 1.25),
+      new THREE.MeshBasicMaterial({ map: wantedLeftTex })
+    );
+    wantedLeft.position.set(-17.5, 4.2, -11.15);
+
+    const wantedRightTex = makeTextSignTexture('TARGET: ORANGE', 'ANOMALY // PENCIL USER', '#1e293b', '#38bdf8', '#ffffff');
+    const wantedRight = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 1.25),
+      new THREE.MeshBasicMaterial({ map: wantedRightTex })
+    );
+    wantedRight.position.set(17.5, 4.2, -11.15);
+    this.group.add(wantedLeft, wantedRight);
+
+    // 8. Two Rocket Corp Hover-Bikes parked on Left & Right Deck (from AvA Season 3 "Wanted")
+    const bikeLeft = this.createRocketCorpHoverBike3D(1);
+    bikeLeft.position.set(-22.5, 0, -8.6);
+    const bikeRight = this.createRocketCorpHoverBike3D(-1);
+    bikeRight.position.set(22.5, 0, -8.6);
+    this.group.add(bikeLeft, bikeRight);
   }
 
   buildPortal(x3d, z3d, isExit, label) {
     const group = new THREE.Group();
     group.position.set(x3d, 0, z3d);
 
+    const isRocketCorp = this.stageManager?.theme === 'rocket_corp';
     const frameMat = new THREE.MeshStandardMaterial({
-      map: getVoxelTexture('obsidian', 1, 2),
-      roughness: 0.4,
-      metalness: 0.3
+      map: getVoxelTexture(isRocketCorp ? 'rocket_corp_wall' : 'obsidian', 1, 2),
+      roughness: 0.35,
+      metalness: isRocketCorp ? 0.65 : 0.3
     });
 
     const pillarL = new THREE.Mesh(new THREE.BoxGeometry(0.7, 3.6, 0.7), frameMat);
@@ -382,7 +737,12 @@ export class Arena3DBuilder {
     pillarL.castShadow = true;
     const pillarR = pillarL.clone();
     pillarR.position.set(1.25, 1.8, 0);
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.7, 0.8), frameMat);
+    const lintel = new THREE.Mesh(
+      new THREE.BoxGeometry(3.2, 0.7, 0.8),
+      isRocketCorp
+        ? new THREE.MeshStandardMaterial({ map: getVoxelTexture('rocket_corp_hazard', 4, 1), roughness: 0.4 })
+        : frameMat
+    );
     lintel.position.set(0, 3.75, 0);
     group.add(pillarL, pillarR, lintel);
 
@@ -397,7 +757,12 @@ export class Arena3DBuilder {
     coreMesh.position.set(0, 1.75, 0);
     group.add(coreMesh);
 
-    const signTex = makeTextSignTexture(label, isExit ? 'PORTAL' : 'SPAWN', '#0f172a', isExit ? '#10b981' : '#38bdf8');
+    const signTex = makeTextSignTexture(
+      label,
+      isRocketCorp ? 'ROCKET CORP' : (isExit ? 'PORTAL' : 'SPAWN'),
+      '#0f172a',
+      isRocketCorp ? '#ff6b00' : (isExit ? '#10b981' : '#38bdf8')
+    );
     const signMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2.4, 0.9),
       new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide })
@@ -424,7 +789,7 @@ export class Arena3DBuilder {
       : (theme === 'minecraft' ? 'obsidian'
       : (theme === 'the_end' ? 'purpur_block'
       : (theme === 'aether' ? 'holystone'
-      : (theme === 'rocket_corp' ? 'rocket_corp_floor'
+      : (theme === 'rocket_corp' ? 'rocket_corp_wall'
       : (theme === 'lucky_orb' ? 'lucky_block'
       : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))));
 
@@ -438,14 +803,19 @@ export class Arena3DBuilder {
     slab.receiveShadow = true;
     group.add(slab);
 
-    const headerColor = isMoving ? 0x38bdf8 : this.getThemeAccentColor(theme);
+    const headerMat = theme === 'rocket_corp' && !isMoving
+      ? new THREE.MeshStandardMaterial({
+          map: getVoxelTexture('rocket_corp_hazard', Math.max(4, Math.round(w)), 1),
+          roughness: 0.35
+        })
+      : new THREE.MeshStandardMaterial({
+          color: isMoving ? 0x38bdf8 : this.getThemeAccentColor(theme),
+          emissive: isMoving ? 0x38bdf8 : this.getThemeAccentColor(theme),
+          emissiveIntensity: 0.35
+        });
     const headerBar = new THREE.Mesh(
       new THREE.BoxGeometry(w + 0.08, 0.22, d + 0.08),
-      new THREE.MeshStandardMaterial({
-        color: headerColor,
-        emissive: headerColor,
-        emissiveIntensity: 0.35
-      })
+      headerMat
     );
     headerBar.position.y = h / 2 + 0.05;
     group.add(headerBar);
@@ -629,14 +999,15 @@ export class Arena3DBuilder {
       ctx.fillText('untitled.fla — 100% — WHITE VOID OVERRIDE', 48, 72);
       ctx.fillStyle = '#00f5ff';
       ctx.fillRect(48, 100, w - 96, 6);
+    } else if (sm.theme === 'rocket_corp') {
+      this.drawRocketCorpControlRoom(ctx, w, h, sm);
     } else {
       ctx.fillStyle = sm.theme === 'bsod' ? '#003999'
         : (sm.theme === 'dark_core' ? '#1a0008'
         : (sm.theme === 'the_end' ? '#120624'
         : (sm.theme === 'aether' ? '#0c3b5e'
-        : (sm.theme === 'rocket_corp' ? '#182232'
         : (sm.theme === 'minecraft' ? '#291218'
-        : (sm.theme === 'trophy' ? '#051b3b' : '#0b192c'))))));
+        : (sm.theme === 'trophy' ? '#051b3b' : '#0b192c')))));
       ctx.fillRect(0, 0, w, h);
 
       // Subtle cyber grid
@@ -647,24 +1018,6 @@ export class Arena3DBuilder {
       }
       for (let y = 0; y < h; y += 64) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-      }
-
-      if (sm.theme === 'rocket_corp') {
-        // Iconic Rocket Corp triangle emblem on the facility backdrop screen
-        ctx.save();
-        ctx.strokeStyle = '#ff6b00';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(w - 150, 50);
-        ctx.lineTo(w - 90, 165);
-        ctx.lineTo(w - 210, 165);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.fillStyle = '#ff6b00';
-        ctx.font = 'bold 18px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('ROCKET CORP', w - 150, 192);
-        ctx.restore();
       }
 
       const beat = sm.campaignBeat || {};
@@ -705,6 +1058,208 @@ export class Arena3DBuilder {
 
     ctx.restore();
     this.monitorTexture.needsUpdate = true;
+  }
+
+  drawRocketCorpControlRoom(ctx, w, h, sm) {
+    // 1. Control Room Interior Wall (Gridded "The Box" Slate Acoustic Panels)
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 2;
+    for (let x = 0; x < w; x += 64) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (let y = 0; y < h; y += 64) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+
+    // 2. Left Panel: Rocket Corp Corporate Identity & Security Alert
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(26, 22, 300, 325);
+    ctx.strokeStyle = '#ff6b00';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(26, 22, 300, 325);
+
+    // Rocket Corp Circle + Rocket Emblem
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(176, 108, 52, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.moveTo(176, 62);
+    ctx.lineTo(192, 95);
+    ctx.lineTo(188, 132);
+    ctx.lineTo(206, 146);
+    ctx.lineTo(186, 142);
+    ctx.lineTo(176, 154);
+    ctx.lineTo(166, 142);
+    ctx.lineTo(146, 146);
+    ctx.lineTo(164, 132);
+    ctx.lineTo(160, 95);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#ff6b00';
+    ctx.beginPath();
+    ctx.arc(176, 98, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px monospace';
+    ctx.fillText('ROCKET CORP', 176, 192);
+    ctx.fillStyle = '#ff6b00';
+    ctx.font = 'bold 15px monospace';
+    ctx.fillText('SECTOR 01 // THE BOX', 176, 214);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 15px monospace';
+    ctx.fillText('▸ CEO: VICTIM [ONLINE]', 44, 250);
+    ctx.fillText('▸ SQUAD: MERCENARIES', 44, 274);
+    ctx.fillStyle = '#facc15';
+    ctx.fillText('▸ AGENT  · BALLISTA', 44, 300);
+    ctx.fillText('▸ PRIMAL · HAZARD', 44, 322);
+
+    // 3. Center Observation Window: Victim (Gray Hollow-Head CEO in Suit & Tie) Watching!
+    ctx.fillStyle = '#0b1322';
+    ctx.fillRect(346, 22, 332, 325);
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(346, 22, 332, 325);
+
+    // Subtle cyan observation glass reflection
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+    ctx.beginPath();
+    ctx.moveTo(350, 26);
+    ctx.lineTo(440, 26);
+    ctx.lineTo(380, 342);
+    ctx.lineTo(350, 342);
+    ctx.closePath();
+    ctx.fill();
+
+    // Two Gray Rocket Corp Clone Technicians on left/right of Victim
+    [412, 612].forEach((cx) => {
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(cx, 178, 16, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx, 194);
+      ctx.lineTo(cx, 268);
+      ctx.moveTo(cx, 206);
+      ctx.lineTo(cx - 22, 242);
+      ctx.moveTo(cx, 206);
+      ctx.lineTo(cx + 22, 242);
+      ctx.stroke();
+    });
+
+    // Victim (Center — Gray Hollow-Head Stick Figure `#94a3b8` + White Collar + Red/Black Tie)
+    const vx = 512;
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(vx, 146, 24, 0, Math.PI * 2);
+    ctx.stroke();
+    // Victim's torso & clasped-behind-back executive stance
+    ctx.beginPath();
+    ctx.moveTo(vx, 170);
+    ctx.lineTo(vx, 272);
+    ctx.moveTo(vx, 182);
+    ctx.lineTo(vx - 26, 228);
+    ctx.lineTo(vx - 10, 252);
+    ctx.moveTo(vx, 182);
+    ctx.lineTo(vx + 26, 228);
+    ctx.lineTo(vx + 10, 252);
+    ctx.stroke();
+    // Executive Tie
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(vx, 174);
+    ctx.lineTo(vx + 6, 218);
+    ctx.lineTo(vx, 228);
+    ctx.lineTo(vx - 6, 218);
+    ctx.closePath();
+    ctx.fill();
+
+    // Control Room Desk in front of Victim
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(350, 268, 324, 75);
+    ctx.fillStyle = '#ff6b00';
+    ctx.fillRect(350, 268, 324, 5);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText('OBSERVATION DECK // DIRECTOR: VICTIM', vx, 302);
+    ctx.fillStyle = '#ffea00';
+    ctx.font = 'bold 15px monospace';
+    ctx.fillText(`STATUS: ${sm.isObjectiveComplete ? 'CONTAINMENT BREACHED!' : 'OBSERVING SUBJECTS'}`, vx, 326);
+
+    // 4. Right Panel: "THE BOX" Live Parameter Sliders & Toolbar Controls
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(698, 22, 300, 325);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(698, 22, 300, 325);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 19px monospace';
+    ctx.fillText('⚙ THE BOX // CONTROLS', 718, 54);
+
+    const sliders = [
+      { label: 'STRENGTH', pct: 0.85, col: '#ff6b00' },
+      { label: 'SPEED   ', pct: 0.92, col: '#38bdf8' },
+      { label: 'DEFENSE ', pct: 0.78, col: '#22c55e' },
+      { label: 'SUPPRESS', pct: 0.68, col: '#facc15' }
+    ];
+    sliders.forEach((s, idx) => {
+      const sy = 88 + idx * 44;
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(s.label, 718, sy);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(802, sy - 13, 168, 16);
+      ctx.fillStyle = s.col;
+      ctx.fillRect(802, sy - 13, Math.round(168 * s.pct), 16);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(802 + Math.round(168 * s.pct) - 5, sy - 16, 10, 22);
+    });
+
+    // Iconic AvA Toolbar Buttons (Pause, Slow-Mo, Box Seal, Memory Scanner)
+    const tools = ['|| PAUSE', '⏪ 0.25x', '⛶ BOX', '🔍 MEM'];
+    tools.forEach((t, idx) => {
+      const bx = 716 + (idx % 2) * 136;
+      const by = 258 + Math.floor(idx / 2) * 38;
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(bx, by, 124, 30);
+      ctx.strokeStyle = idx === 0 ? '#ff6b00' : '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, 124, 30);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(t, bx + 16, by + 20);
+    });
+
+    // 5. Bottom Facility Caution Footer Bar (No Windows Taskbar!)
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, h - 68, w, 68);
+    ctx.fillStyle = '#facc15';
+    for (let sx = 0; sx < w; sx += 48) {
+      ctx.fillRect(sx, h - 68, 24, 8);
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 22px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('ROCKET CORP HQ // CONTAINMENT CHAMBER 01 ("THE BOX")', 28, h - 24);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ff6b00';
+    ctx.fillText('SECURITY LEVEL: MAXIMUM', w - 28, h - 24);
   }
 
   update(dt) {

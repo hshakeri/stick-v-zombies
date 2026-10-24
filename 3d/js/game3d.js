@@ -20,7 +20,7 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from './arena3d.js?v=10.2';
+} from './arena3d.js?v=10.3';
 import {
   StickRig3D,
   CreeperLordRig3D,
@@ -30,9 +30,9 @@ import {
   buildVoxelWeaponMesh,
   createTurretMesh3D,
   createViraBotMesh3D
-} from './models3d.js?v=10.2';
-import { getVoxelTexture } from './textures3d.js?v=10.2';
-import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.2';
+} from './models3d.js?v=10.3';
+import { getVoxelTexture } from './textures3d.js?v=10.3';
+import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.3';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
 const CAMERA_LABELS = {
@@ -1306,7 +1306,7 @@ export class Game3D {
         command_realm: 0x1f1105,
         the_end: 0x0c0517,
         aether: 0x1a4b75,
-        rocket_corp: 0x141d2b,
+        rocket_corp: 0x334155,
         trophy: 0x041838,
         zero_day: 0x060a14
       }[this.stageManager.theme] || 0x0b1528;

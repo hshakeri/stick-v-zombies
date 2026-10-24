@@ -319,12 +319,45 @@ function drawPixelBlock(ctx, kind) {
       break;
     }
     case 'rocket_corp_floor': {
-      fillNoisyPixels(ctx, '#334155', 0.1, 250);
-      drawBevelBorder(ctx, '#64748b', '#1e293b');
-      ctx.fillStyle = '#ff6b00';
-      ctx.fillRect(2, 2, 12, 1);
-      ctx.fillStyle = '#38bdf8';
-      ctx.fillRect(7, 6, 2, 4);
+      fillNoisyPixels(ctx, '#cbd5e1', 0.06, 250);
+      drawBevelBorder(ctx, '#f1f5f9', '#64748b');
+      // Modular "The Box" lab tile grid cross-seam and corner rivets
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(0, 7, 16, 1);
+      ctx.fillRect(7, 0, 1, 16);
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(2, 2, 1, 1);
+      ctx.fillRect(13, 2, 1, 1);
+      ctx.fillRect(2, 13, 1, 1);
+      ctx.fillRect(13, 13, 1, 1);
+      break;
+    }
+    case 'rocket_corp_wall': {
+      fillNoisyPixels(ctx, '#475569', 0.08, 252);
+      drawBevelBorder(ctx, '#94a3b8', '#1e293b');
+      // Gridded "The Box" containment chamber square sub-panels
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 7, 16, 2);
+      ctx.fillRect(7, 0, 2, 16);
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(2, 2, 4, 4);
+      ctx.fillRect(10, 2, 4, 4);
+      ctx.fillRect(2, 10, 4, 4);
+      ctx.fillRect(10, 10, 4, 4);
+      break;
+    }
+    case 'rocket_corp_hazard': {
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = '#111827';
+      for (let x = -16; x < 32; x += 6) {
+        for (let y = 0; y < 16; y++) {
+          const sx = x + y;
+          if (sx >= 0 && sx < 16) {
+            ctx.fillRect(sx, y, 3, 1);
+          }
+        }
+      }
       break;
     }
     default: {
