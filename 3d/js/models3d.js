@@ -130,6 +130,68 @@ export function buildVoxelWeaponMesh(weaponType) {
     core.position.y = 0.98;
 
     group.add(hilt, blade, core);
+  } else if (weaponType === 'toolbar_staff') {
+    // Agent's Adobe/Media UI Toolbar Staff (AvA Season 3)
+    const barMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, roughness: 0.25 });
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const pauseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+    const rod = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.3, 0.12), barMat);
+    rod.position.y = 0.65;
+    const uiPanel = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.95, 0.16), barMat);
+    uiPanel.position.y = 1.65;
+    const pauseL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.32, 0.18), pauseMat);
+    pauseL.position.set(-0.07, 1.82, 0);
+    const pauseR = pauseL.clone();
+    pauseR.position.x = 0.07;
+    const slider = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.18), glowMat);
+    slider.position.set(0, 1.42, 0);
+    group.add(rod, uiPanel, pauseL, pauseR, slider);
+  } else if (weaponType === 'pixel_bazooka') {
+    // Ballista's 8-Bit Pixel Bazooka / Heavy Blaster
+    const gunMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.4, metalness: 0.4 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 });
+    const muzzleMat = new THREE.MeshBasicMaterial({ color: 0xff3b30 });
+
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.38, 1.85, 0.38), gunMat);
+    barrel.position.y = 0.75;
+    const vent = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.45, 0.44), darkMat);
+    vent.position.y = 1.35;
+    const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.3), muzzleMat);
+    muzzle.position.y = 1.72;
+    group.add(barrel, vent, muzzle);
+  } else if (weaponType === 'stone_spear') {
+    // Primal's Prehistoric Stone Spear
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.75 });
+    const wrapMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.6 });
+    const stoneMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.5, metalness: 0.2 });
+
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 2.5, 6), woodMat);
+    shaft.position.y = 0.65;
+    const wrap = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.28, 0.2), wrapMat);
+    wrap.position.y = 1.75;
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.72, 4), stoneMat);
+    tip.position.y = 2.18;
+    group.add(shaft, wrap, tip);
+  } else if (weaponType === 'hazard_sign') {
+    // Hazard's High-Voltage Caution Triangle Gadget
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 });
+    const signMat = new THREE.MeshStandardMaterial({
+      color: 0xfacc15,
+      emissive: 0xca8a04,
+      emissiveIntensity: 0.35,
+      roughness: 0.3
+    });
+    const bangMat = new THREE.MeshBasicMaterial({ color: 0x111827 });
+
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.5, 0.1), poleMat);
+    pole.position.y = 0.45;
+    const triangle = new THREE.Mesh(new THREE.ConeGeometry(0.48, 0.75, 3), signMat);
+    triangle.position.y = 1.45;
+    triangle.rotation.y = Math.PI / 2;
+    const bang = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.32, 0.32), bangMat);
+    bang.position.y = 1.42;
+    group.add(pole, triangle, bang);
   }
   return group;
 }
@@ -380,6 +442,67 @@ export class StickRig3D {
         this.hackerHandles.add(box);
       }
       this.chest.add(this.hackerHandles);
+    } else if (type === 'mercenary_agent') {
+      // Agent's signature dark sunglasses (AvA Season 3)
+      const shadeMat = new THREE.MeshStandardMaterial({ color: 0x05070b, roughness: 0.15, metalness: 0.85 });
+      const rimMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.3, metalness: 0.6 });
+      const shades = new THREE.Group();
+      const lensL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.12), shadeMat);
+      lensL.position.set(-0.15, 0.05, 0.33);
+      const lensR = lensL.clone();
+      lensR.position.x = 0.15;
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.04, 0.11), rimMat);
+      bridge.position.set(0, 0.11, 0.33);
+      shades.add(lensL, lensR, bridge);
+      this.headGroup.add(shades);
+      this.eyeGroup.visible = false;
+    } else if (type === 'mercenary_ballista') {
+      // Ballista's boxy 8-bit pixel-art head & visor (AvA Season 3)
+      this.headMesh.visible = false;
+      this.eyeGroup.visible = false;
+      const pixMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
+      const bandMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xb91c1c, emissiveIntensity: 0.4 });
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+      const pixHead = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.66, 0.66), pixMat);
+      const headband = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.7), bandMat);
+      headband.position.y = 0.16;
+      const pEyeL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.08), eyeMat);
+      pEyeL.position.set(-0.15, 0.0, 0.34);
+      const pEyeR = pEyeL.clone();
+      pEyeR.position.x = 0.15;
+      this.headGroup.add(pixHead, headband, pEyeL, pEyeR);
+    } else if (type === 'mercenary_primal') {
+      // Primal's prehistoric animal skull / horned pelt hood & shoulder fur (AvA Season 3)
+      const boneMat = new THREE.MeshStandardMaterial({ color: 0xfef3c7, roughness: 0.55 });
+      const furMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.85 });
+      const skull = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.36, 0.68), boneMat);
+      skull.position.set(0, 0.24, 0.04);
+      const hornL = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.52, 5), boneMat);
+      hornL.position.set(-0.34, 0.38, 0.08);
+      hornL.rotation.z = 0.55;
+      const hornR = hornL.clone();
+      hornR.position.x = 0.34;
+      hornR.rotation.z = -0.55;
+      this.headGroup.add(skull, hornL, hornR);
+      const pelt = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.45, 0.38), furMat);
+      pelt.position.set(0, 0.18, -0.06);
+      this.chest.add(pelt);
+      this.eyeGroup.visible = false;
+    } else if (type === 'mercenary_hazard') {
+      // Hazard's Caution-Sign / Bathroom-Pictogram flat wide shoulders & warning vest (AvA Season 3)
+      const signBlack = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.35 });
+      const signYellow = new THREE.MeshStandardMaterial({
+        color: 0xfacc15,
+        emissive: 0xca8a04,
+        emissiveIntensity: 0.35,
+        roughness: 0.3
+      });
+      const signPlate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.72, 0.72), signBlack);
+      signPlate.position.set(0, 0.08, 0);
+      const borderFrame = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.78, 0.78), signYellow);
+      borderFrame.position.set(0, 0.08, 0);
+      this.chest.add(borderFrame, signPlate);
+      this.eyeGroup.visible = false;
     }
   }
 
@@ -1135,3 +1258,152 @@ export function createViraBotMesh3D() {
   }
   return group;
 }
+
+export class EnderDragonRig3D {
+  constructor() {
+    this.root = new THREE.Group();
+    this.flightGroup = new THREE.Group();
+    this.flightGroup.position.y = 3.35;
+    this.root.add(this.flightGroup);
+
+    const scaleMat = new THREE.MeshStandardMaterial({
+      color: 0x111118,
+      roughness: 0.45,
+      metalness: 0.2
+    });
+    const spineMat = new THREE.MeshStandardMaterial({
+      color: 0x94a3b8,
+      roughness: 0.5,
+      metalness: 0.25
+    });
+    const wingMembraneMat = new THREE.MeshStandardMaterial({
+      color: 0x2e1065,
+      emissive: 0x4c1d95,
+      emissiveIntensity: 0.35,
+      roughness: 0.5,
+      side: THREE.DoubleSide
+    });
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xe879f9 });
+    const breathMat = new THREE.MeshBasicMaterial({ color: 0xd946ef });
+
+    // Torso & Dorsal Spine Plates
+    this.torso = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.45, 3.6), scaleMat);
+    this.torso.castShadow = true;
+    this.flightGroup.add(this.torso);
+
+    for (let i = -2; i <= 2; i++) {
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.42, 0.46), spineMat);
+      plate.position.set(0, 0.9, i * 0.65);
+      this.flightGroup.add(plate);
+    }
+
+    // Neck & Articulated Dragon Head (extending forward along +Z in local space)
+    this.headPivot = new THREE.Group();
+    this.headPivot.position.set(0, 0.35, 2.1);
+    this.flightGroup.add(this.headPivot);
+
+    const neck = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.85, 1.35), scaleMat);
+    neck.position.set(0, 0, -0.35);
+    this.headPivot.add(neck);
+
+    const skull = new THREE.Mesh(new THREE.BoxGeometry(1.35, 1.05, 1.55), scaleMat);
+    skull.position.set(0, 0.18, 0.65);
+    skull.castShadow = true;
+    const upperSnout = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.48, 1.25), scaleMat);
+    upperSnout.position.set(0, 0.08, 1.75);
+    const nostrilL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.18), spineMat);
+    nostrilL.position.set(-0.28, 0.34, 2.15);
+    const nostrilR = nostrilL.clone();
+    nostrilR.position.x = 0.28;
+
+    const hornL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 0.88), spineMat);
+    hornL.position.set(-0.42, 0.78, 0.22);
+    hornL.rotation.x = 0.38;
+    const hornR = hornL.clone();
+    hornR.position.x = 0.42;
+
+    const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.18), eyeMat);
+    eyeL.position.set(-0.66, 0.28, 0.95);
+    const eyeR = eyeL.clone();
+    eyeR.position.x = 0.66;
+
+    this.jaw = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.28, 1.22), scaleMat);
+    this.jaw.position.set(0, -0.28, 1.68);
+    this.mouthGlow = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 10), breathMat);
+    this.mouthGlow.position.set(0, -0.05, 1.65);
+    this.mouthGlow.visible = false;
+
+    this.headPivot.add(skull, upperSnout, nostrilL, nostrilR, hornL, hornR, eyeL, eyeR, this.jaw, this.mouthGlow);
+
+    // Articulated Bat-like Wings (Left & Right)
+    const createWing = (side) => {
+      const wingRoot = new THREE.Group();
+      wingRoot.position.set(side * 1.0, 0.55, 0.4);
+      const innerBone = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.22, 0.26), spineMat);
+      innerBone.position.set(side * 1.3, 0, 0.6);
+      const innerMembrane = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.08, 2.5), wingMembraneMat);
+      innerMembrane.position.set(side * 1.3, -0.04, -0.55);
+
+      const outerPivot = new THREE.Group();
+      outerPivot.position.set(side * 2.55, 0, 0.6);
+      const outerBone = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.18, 0.22), spineMat);
+      outerBone.position.set(side * 1.2, 0, -0.15);
+      const outerMembrane = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.07, 2.15), wingMembraneMat);
+      outerMembrane.position.set(side * 1.18, -0.04, -0.95);
+      outerPivot.add(outerBone, outerMembrane);
+
+      wingRoot.add(innerBone, innerMembrane, outerPivot);
+      return { wingRoot, outerPivot };
+    };
+
+    this.wingL = createWing(-1);
+    this.wingR = createWing(1);
+    this.flightGroup.add(this.wingL.wingRoot, this.wingR.wingRoot);
+
+    // Segmented Dragon Tail
+    this.tailSegments = [];
+    for (let i = 0; i < 4; i++) {
+      const seg = new THREE.Mesh(
+        new THREE.BoxGeometry(0.75 - i * 0.12, 0.65 - i * 0.1, 1.05),
+        scaleMat
+      );
+      seg.position.set(0, 0.05 - i * 0.08, -2.3 - i * 0.98);
+      const crest = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.3, 0.36), spineMat);
+      crest.position.y = 0.4;
+      seg.add(crest);
+      this.flightGroup.add(seg);
+      this.tailSegments.push(seg);
+    }
+  }
+
+  update(state = {}) {
+    const t = state.animTimer || 0;
+    const isSwooping = state.actionKind === 'dragon_swoop';
+    const isBreathing = state.actionKind === 'dragon_breath';
+    const flapSpeed = isSwooping ? 11.0 : 5.2;
+    const flap = Math.sin(t * flapSpeed);
+
+    // Wing flap kinematics
+    const wingAngle = flap * 0.58;
+    const outerAngle = Math.sin(t * flapSpeed - 0.7) * 0.45;
+    this.wingL.wingRoot.rotation.z = -wingAngle;
+    this.wingL.outerPivot.rotation.z = -outerAngle;
+    this.wingR.wingRoot.rotation.z = wingAngle;
+    this.wingR.outerPivot.rotation.z = outerAngle;
+
+    // Hover bob or low swoop altitude
+    const targetY = isSwooping ? 1.55 : (2.95 + Math.sin(t * 2.6) * 0.35);
+    this.flightGroup.position.y += (targetY - this.flightGroup.position.y) * 0.18;
+    this.flightGroup.rotation.x = isSwooping ? 0.26 : Math.cos(t * 2.6) * 0.08;
+
+    // Jaw & Dragon's Breath glow
+    this.jaw.rotation.x = isBreathing ? 0.48 + Math.sin(t * 16) * 0.1 : (0.12 + Math.max(0, flap) * 0.12);
+    this.mouthGlow.visible = Boolean(isBreathing);
+
+    // Whipping tail wave
+    for (let i = 0; i < this.tailSegments.length; i++) {
+      this.tailSegments[i].position.x = Math.sin(t * 4.5 - i * 0.7) * (0.22 + i * 0.12);
+    }
+  }
+}
+

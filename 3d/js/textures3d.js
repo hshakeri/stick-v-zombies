@@ -272,6 +272,61 @@ function drawPixelBlock(ctx, kind) {
       ctx.fillRect(13, 7, 1, 3);
       break;
     }
+    case 'end_stone': {
+      fillNoisyPixels(ctx, '#dce39c', 0.14, 230);
+      for (let i = 0; i < 14; i++) {
+        const x = (i * 7 + 2) % 14;
+        const y = (i * 5 + 1) % 14;
+        ctx.fillStyle = i % 2 === 0 ? '#b5bc76' : '#eaefb4';
+        ctx.fillRect(x, y, 2, 2);
+      }
+      drawBevelBorder(ctx, '#eef2be', '#9ca362');
+      break;
+    }
+    case 'purpur_block': {
+      fillNoisyPixels(ctx, '#a87ca8', 0.12, 235);
+      drawBevelBorder(ctx, '#c79ec7', '#785278');
+      ctx.fillStyle = '#916391';
+      ctx.fillRect(0, 7, 16, 2);
+      ctx.fillRect(7, 0, 2, 16);
+      break;
+    }
+    case 'end_portal': {
+      fillNoisyPixels(ctx, '#06030f', 0.12, 238);
+      const starCols = ['#e879f9', '#38bdf8', '#c084fc', '#ffffff'];
+      for (let i = 0; i < 12; i++) {
+        ctx.fillStyle = starCols[i % starCols.length];
+        ctx.fillRect((i * 5 + 3) % 15, (i * 9 + 2) % 15, 1, 1);
+      }
+      break;
+    }
+    case 'aether_grass': {
+      fillNoisyPixels(ctx, '#38d9a9', 0.14, 240);
+      drawBevelBorder(ctx, '#63e6be', '#12b886');
+      ctx.fillStyle = '#ffd43b';
+      ctx.fillRect(3, 4, 2, 1);
+      ctx.fillRect(11, 9, 2, 1);
+      ctx.fillStyle = '#96f2d7';
+      ctx.fillRect(6, 12, 3, 1);
+      break;
+    }
+    case 'holystone': {
+      fillNoisyPixels(ctx, '#cbd5e1', 0.14, 245);
+      drawBevelBorder(ctx, '#f1f5f9', '#64748b');
+      ctx.fillStyle = '#ffd43b';
+      ctx.fillRect(4, 5, 2, 2);
+      ctx.fillRect(10, 10, 2, 2);
+      break;
+    }
+    case 'rocket_corp_floor': {
+      fillNoisyPixels(ctx, '#334155', 0.1, 250);
+      drawBevelBorder(ctx, '#64748b', '#1e293b');
+      ctx.fillStyle = '#ff6b00';
+      ctx.fillRect(2, 2, 12, 1);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(7, 6, 2, 4);
+      break;
+    }
     default: {
       fillNoisyPixels(ctx, '#334155', 0.14, 999);
       drawBevelBorder(ctx, '#64748b', '#1e293b');
@@ -299,6 +354,9 @@ export function getThemeFloorTextureKey(theme, isWhiteVoid = false) {
     case 'cloud_cache': return 'cloud_floor';
     case 'creeper_clan': return 'creeper_moss';
     case 'lucky_orb': return 'lucky_block';
+    case 'the_end': return 'end_stone';
+    case 'aether': return 'aether_grass';
+    case 'rocket_corp': return 'rocket_corp_floor';
     case 'zero_day': return 'zero_day_floor';
     case 'trophy': return 'trophy_floor';
     default: return 'desktop_floor';

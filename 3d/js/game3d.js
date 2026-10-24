@@ -26,11 +26,13 @@ import {
   CreeperLordRig3D,
   GiantCatRig3D,
   LuckyOrbRig3D,
+  EnderDragonRig3D,
   buildVoxelWeaponMesh,
   createTurretMesh3D,
   createViraBotMesh3D
 } from './models3d.js';
 import { getVoxelTexture } from './textures3d.js';
+import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
 const CAMERA_LABELS = {
@@ -48,6 +50,7 @@ export class Game3D {
     this.groundY = 0;
     this.camera2D = new Camera(this.overlayCanvas);
     this.stageManager = stages;
+    extendCampaignFor3D(this.stageManager, waves);
     this.player = new Player(this.stageManager.entranceDoor.x + 30, this.groundY);
     this.player.z = 0;
     this.player.vz = 0;
@@ -300,8 +303,11 @@ export class Game3D {
       '15: Creeper Lord Replay',
       '16: Giant Cat Replay',
       '17: Lucky Dimension (Lucky Orb)',
-      '18: Zero-Day (H4C3R)',
-      '19: 🏆 Trophy Room Epilogue'
+      '18: The End (Ender Dragon)',
+      '19: The Aether (Skylands)',
+      '20: Rocket Corp (The Mercenaries)',
+      '21: Zero-Day (H4C3R)',
+      '22: 🏆 Trophy Room Epilogue'
     ];
     stageNames.forEach((label, idx) => {
       const opt = document.createElement('option');
@@ -312,10 +318,10 @@ export class Game3D {
     select.addEventListener('change', () => {
       const val = Number(select.value);
       audio.init();
-      if (val === 19) {
+      if (val === 22) {
         this.startGame();
         this.enterTrophyRoom();
-      } else if (val >= 1 && val <= 18) {
+      } else if (val >= 1 && val <= 21) {
         this.jumpToStage(val);
       }
       select.blur();
@@ -589,7 +595,7 @@ export class Game3D {
 
   startGame(options = {}) {
     const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
-    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 18 ? checkpoint.stage : 1;
+    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 21 ? checkpoint.stage : 1;
     this.hideAllModals();
     this.state = 'PLAYING';
     audio.setBGMDucked?.(false);
@@ -719,7 +725,7 @@ export class Game3D {
     this.player.weaponType = 'pencil';
     this.player.stageDamageTaken = 0;
 
-    const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 18].includes(nextStage);
+    const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 18, 20, 21].includes(nextStage);
     const baselineHeal = this.player.maxHp * 0.18;
     const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
     this.player.heal(isBossCheckpoint ? Math.max(baselineHeal, bossSafetyHeal) : baselineHeal);
@@ -768,11 +774,11 @@ export class Game3D {
     this.syncContinueButton();
     audio.setIntensity(0.12);
     audio.setBGMDucked?.(false);
-    this.showMissionStrip(18, 'EPILOGUE');
+    this.showMissionStrip(21, 'EPILOGUE');
     particles.addTextBanner(this.player.x + 90, this.player.y - 90, '★ 3D TROPHY ROOM UNLOCKED! ★', '#ffd54a');
 
     const select = document.getElementById('stage-select-dropdown');
-    if (select) select.value = '19';
+    if (select) select.value = '22';
   }
 
   completeGame() {
@@ -870,7 +876,7 @@ export class Game3D {
     if (mission) mission.textContent = beat.mission || this.stageManager.stageName;
     const clue = document.getElementById('mission-clue');
     if (clue) {
-      const previousClue = this.stageManager.isTrophyRoom ? beat.clue : (stage > 1 ? CAMPAIGN_BEATS[stage - 1]?.clue : null);
+      const previousClue = this.stageManager.isTrophyRoom ? beat.clue : (stage > 1 ? CAMPAIGN_BEATS_3D[stage - 1]?.clue : null);
       clue.textContent = previousClue ? `TRACE // ${previousClue}` : '';
     }
     if (lesson) {
@@ -1278,6 +1284,9 @@ export class Game3D {
         minecraft: 0x220c12,
         dark_core: 0x140005,
         command_realm: 0x1f1105,
+        the_end: 0x0c0517,
+        aether: 0x1a4b75,
+        rocket_corp: 0x141d2b,
         trophy: 0x041838,
         zero_day: 0x060a14
       }[this.stageManager.theme] || 0x0b1528;
@@ -1399,9 +1408,21 @@ export class Game3D {
   }
 
   createEnemyRig3D(enemy) {
+    if (enemy.type === 'ender_dragon') return new EnderDragonRig3D();
     if (enemy.type === 'creeper_lord') return new CreeperLordRig3D();
     if (enemy.type === 'giant_cat') return new GiantCatRig3D();
     if (enemy.type === 'lucky_orb') return new LuckyOrbRig3D();
+    if (enemy.isMercenary) {
+      return new StickRig3D({
+        color: enemy.color || '#1e293b',
+        scale: enemy.scale || 1.24,
+        isHollowHead: false,
+        isZombie: false,
+        isHunched: enemy.type === 'mercenary_primal',
+        zombieType: enemy.type,
+        weaponType: enemy.weaponType
+      });
+    }
     if (enemy.type === 'dark_lord') {
       return new StickRig3D({
         color: '#ff1744',
@@ -1464,9 +1485,9 @@ export class Game3D {
         this.dynamicGroup.add(mesh);
         this.telegraphMeshes.set(z, mesh);
       }
-      const tx = z.leapTargetX !== undefined && (z.actionKind?.includes('leap') || z.actionKind === 'cat_pounce')
+      const tx = z.leapTargetX !== undefined && (z.actionKind?.includes('leap') || z.actionKind === 'cat_pounce' || z.actionKind === 'mercenary_lunge')
         ? z.leapTargetX
-        : (z.rollTargetX !== undefined && z.state === 'roll_windup' ? z.rollTargetX : z.x);
+        : (z.rollTargetX !== undefined && (z.state === 'roll_windup' || z.state === 'swoop_windup' || z.state === 'ranged_windup') ? z.rollTargetX : z.x);
       mesh.position.set(to3DX(tx), 0.08, to3DZ(z.z || 0));
       const scale = z.isBoss ? 1.45 : 0.95;
       mesh.scale.setScalar(scale * (0.85 + Math.sin(this.stageManager.stageTime * 14) * 0.15));
@@ -1855,7 +1876,9 @@ export class Game3D {
         const bossType = waves.bossZombie.type;
         bossBox.className = `boss-health-container ${bossType.replaceAll('_', '-')}-boss`;
         if (bossLabel) {
-          bossLabel.innerText = this.stageManager.campaignBeat?.bossLabel || waves.bossZombie.name || bossType.toUpperCase();
+          bossLabel.innerText = waves.bossZombie.name?.startsWith('MERCENARIES')
+            ? waves.bossZombie.name
+            : (this.stageManager.campaignBeat?.bossLabel || waves.bossZombie.name || bossType.toUpperCase());
         }
         const bossPct = (waves.bossZombie.hp / waves.bossZombie.maxHp) * 100;
         bossFill.style.width = `${Math.max(0, bossPct)}%`;

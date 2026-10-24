@@ -4,7 +4,8 @@ import {
   StickRig3D,
   CreeperLordRig3D,
   GiantCatRig3D,
-  LuckyOrbRig3D
+  LuckyOrbRig3D,
+  EnderDragonRig3D
 } from './models3d.js';
 
 export const WORLD_TO_3D = 1 / 34;
@@ -133,7 +134,10 @@ export class Arena3DBuilder {
     this.group.add(floorMesh);
 
     // Sub-floor voxel cliff layers (Minecraft island feel)
-    const subTex = getVoxelTexture(theme === 'minecraft' || theme === 'dark_core' ? 'obsidian' : 'anvil_iron', 31, 2);
+    const subTexKey = theme === 'minecraft' || theme === 'dark_core' || theme === 'the_end'
+      ? 'obsidian'
+      : (theme === 'aether' ? 'holystone' : 'anvil_iron');
+    const subTex = getVoxelTexture(subTexKey, 31, 2);
     const subMat = new THREE.MeshStandardMaterial({ map: subTex, roughness: 0.7 });
     const subLayer = new THREE.Mesh(new THREE.BoxGeometry(floorW - 1.5, 3.2, floorD - 1.5), subMat);
     subLayer.position.set(0, -3.1, 0);
@@ -239,16 +243,20 @@ export class Arena3DBuilder {
       root_gateway: 0x22c55e,
       creeper_clan: 0xa3e635,
       lucky_orb: 0xfacc15,
+      the_end: 0xd946ef,
+      aether: 0x38d9a9,
+      rocket_corp: 0xff6b00,
       zero_day: 0x00f5ff,
       trophy: 0xffd54a
     }[theme] || 0x38bdf8;
   }
 
   buildBiomeColumns(theme, accentHex) {
-    const texKey = theme === 'minecraft' ? 'obsidian'
+    const texKey = theme === 'minecraft' || theme === 'the_end' ? 'obsidian'
       : (theme === 'command_realm' || theme === 'trophy' ? 'gold_block'
       : (theme === 'lucky_orb' ? 'lucky_block'
-      : (theme === 'creeper_clan' ? 'creeper_moss' : getThemeFloorTextureKey(theme))));
+      : (theme === 'aether' ? 'holystone'
+      : (theme === 'creeper_clan' ? 'creeper_moss' : getThemeFloorTextureKey(theme)))));
     const blockMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(texKey, 1, 4),
       roughness: 0.55
@@ -261,15 +269,102 @@ export class Arena3DBuilder {
 
     const columnXs = [-26, -16, -6, 6, 16, 26];
     columnXs.forEach((cx, i) => {
-      const h = 3.2 + (i % 3) * 1.4;
-      const col = new THREE.Mesh(new THREE.BoxGeometry(1.6, h, 1.6), blockMat);
+      const h = theme === 'the_end' ? (5.5 + (i % 3) * 1.8) : (3.2 + (i % 3) * 1.4);
+      const w = theme === 'the_end' ? 2.2 : 1.6;
+      const col = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), blockMat);
       col.position.set(cx, h / 2, -12.0);
       col.castShadow = true;
       col.receiveShadow = true;
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.35, 1.8), capMat);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.35, w + 0.2), capMat);
       cap.position.set(cx, h + 0.18, -12.0);
       this.group.add(col, cap);
+
+      if (theme === 'the_end') {
+        // Floating End Crystal atop each Obsidian Pillar
+        const crystalGroup = new THREE.Group();
+        crystalGroup.position.set(cx, h + 1.25, -12.0);
+        const crystalCore = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.62, 0),
+          new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0xd946ef, emissiveIntensity: 0.9 })
+        );
+        const glassCage = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(1.1, 1.1, 1.1)),
+          new THREE.LineBasicMaterial({ color: 0xf5d0fe })
+        );
+        crystalGroup.add(crystalCore, glassCage);
+        this.group.add(crystalGroup);
+        this.floatingProps.push(crystalGroup);
+      } else if (theme === 'aether' && i % 2 === 0) {
+        // Golden Oak Tree Crown atop Aether Sky Pillars
+        const crown = new THREE.Mesh(
+          new THREE.BoxGeometry(2.8, 2.2, 2.8),
+          new THREE.MeshStandardMaterial({ map: getVoxelTexture('gold_block', 2, 2), roughness: 0.5 })
+        );
+        crown.position.set(cx, h + 1.3, -12.0);
+        this.group.add(crown);
+      }
     });
+
+    if (theme === 'the_end') {
+      // Center End Portal Fountain & Dragon Egg Monument
+      const fountain = new THREE.Group();
+      fountain.position.set(0, 0, -6.8);
+      const bedrockMat = new THREE.MeshStandardMaterial({ map: getVoxelTexture('anvil_iron', 2, 2), roughness: 0.8 });
+      const portalMat = new THREE.MeshBasicMaterial({ map: getVoxelTexture('end_portal', 2, 2) });
+      const rim = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.65, 4.4), bedrockMat);
+      rim.position.y = 0.32;
+      const pool = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.72, 3.4), portalMat);
+      pool.position.y = 0.34;
+      const centerPost = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.4, 1.1), bedrockMat);
+      centerPost.position.y = 1.2;
+      const dragonEgg = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.58, 1),
+        new THREE.MeshStandardMaterial({ color: 0x1a0b2e, emissive: 0x9333ea, emissiveIntensity: 0.5, roughness: 0.3 })
+      );
+      dragonEgg.scale.set(0.85, 1.25, 0.85);
+      dragonEgg.position.y = 2.85;
+      fountain.add(rim, pool, centerPost, dragonEgg);
+      this.group.add(fountain);
+    } else if (theme === 'aether') {
+      // Glowing Glowstone + Water Aether Portal in Back Center
+      const aetherPortal = new THREE.Group();
+      aetherPortal.position.set(0, 0, -9.2);
+      const glowMat = new THREE.MeshStandardMaterial({
+        map: getVoxelTexture('gold_block', 2, 3),
+        emissive: 0xfacc15,
+        emissiveIntensity: 0.55
+      });
+      const waterMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
+      const pL = new THREE.Mesh(new THREE.BoxGeometry(0.85, 4.4, 0.85), glowMat);
+      pL.position.set(-1.5, 2.2, 0);
+      const pR = pL.clone();
+      pR.position.x = 1.5;
+      const pTop = new THREE.Mesh(new THREE.BoxGeometry(3.85, 0.85, 0.85), glowMat);
+      pTop.position.set(0, 4.4, 0);
+      const pWater = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 3.8), waterMat);
+      pWater.position.set(0, 2.2, 0);
+      aetherPortal.add(pL, pR, pTop, pWater);
+      this.group.add(aetherPortal);
+    } else if (theme === 'rocket_corp') {
+      // Rocket Corp "The Box" Glass Containment Chamber in Back Center
+      const boxChamber = new THREE.Group();
+      boxChamber.position.set(0, 0, -8.5);
+      const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.25 });
+      const glassMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+      const base = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.45, 3.4), frameMat);
+      base.position.y = 0.22;
+      const roof = base.clone();
+      roof.position.y = 3.85;
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(4.8, 3.4, 3.0), glassMat);
+      glass.position.y = 2.05;
+      const wire = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(4.85, 3.45, 3.05)),
+        new THREE.LineBasicMaterial({ color: 0xff6b00 })
+      );
+      wire.position.y = 2.05;
+      boxChamber.add(base, roof, glass, wire);
+      this.group.add(boxChamber);
+    }
   }
 
   buildPortal(x3d, z3d, isExit, label) {
@@ -327,8 +422,11 @@ export class Arena3DBuilder {
     const group = new THREE.Group();
     const texKey = theme === 'command_realm' ? 'gold_block'
       : (theme === 'minecraft' ? 'obsidian'
+      : (theme === 'the_end' ? 'purpur_block'
+      : (theme === 'aether' ? 'holystone'
+      : (theme === 'rocket_corp' ? 'rocket_corp_floor'
       : (theme === 'lucky_orb' ? 'lucky_block'
-      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron')));
+      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))));
 
     const bodyMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(texKey, Math.max(2, Math.round(w / 2)), 2),
@@ -495,6 +593,16 @@ export class Arena3DBuilder {
       const rig = new StickRig3D({ color: '#ff1744', scale: 0.68, isHollowHead: true, weaponType: 'vira_blades' });
       return rig.root;
     }
+    if (label.includes('DRAGON') || label.includes('END')) {
+      const rig = new EnderDragonRig3D();
+      rig.root.scale.setScalar(0.32);
+      rig.flightGroup.position.y = 1.65;
+      return rig.root;
+    }
+    if (label.includes('MERCENAR') || label.includes('ROCKET')) {
+      const rig = new StickRig3D({ color: '#1e293b', scale: 0.68, zombieType: 'mercenary_agent', weaponType: 'toolbar_staff' });
+      return rig.root;
+    }
     if (label.includes('KING')) {
       const rig = new StickRig3D({ color: '#ff8a00', scale: 0.68, hasCrown: true, weaponType: 'staff' });
       return rig.root;
@@ -524,8 +632,11 @@ export class Arena3DBuilder {
     } else {
       ctx.fillStyle = sm.theme === 'bsod' ? '#003999'
         : (sm.theme === 'dark_core' ? '#1a0008'
+        : (sm.theme === 'the_end' ? '#120624'
+        : (sm.theme === 'aether' ? '#0c3b5e'
+        : (sm.theme === 'rocket_corp' ? '#182232'
         : (sm.theme === 'minecraft' ? '#291218'
-        : (sm.theme === 'trophy' ? '#051b3b' : '#0b192c')));
+        : (sm.theme === 'trophy' ? '#051b3b' : '#0b192c'))))));
       ctx.fillRect(0, 0, w, h);
 
       // Subtle cyber grid
@@ -536,6 +647,24 @@ export class Arena3DBuilder {
       }
       for (let y = 0; y < h; y += 64) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      if (sm.theme === 'rocket_corp') {
+        // Iconic Rocket Corp triangle emblem on the facility backdrop screen
+        ctx.save();
+        ctx.strokeStyle = '#ff6b00';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(w - 150, 50);
+        ctx.lineTo(w - 90, 165);
+        ctx.lineTo(w - 210, 165);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = '#ff6b00';
+        ctx.font = 'bold 18px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('ROCKET CORP', w - 150, 192);
+        ctx.restore();
       }
 
       const beat = sm.campaignBeat || {};
