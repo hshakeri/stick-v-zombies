@@ -9,6 +9,8 @@
 //     15 Voxel Blocks w/ TNT/Lucky/Lava/Creaking Heart, Boss & Zombie Spawner)
 //   - Swept Vertical Platform Contact, Floating Island Void Plunge & Lava Burn
 //   - Expressive 2D Comic Speech Bubbles & Team/Boss Banter (Zero Three.js!)
+//   - Multi-Plane Depth-of-Field (Cached Blurred Far/Mid Planes, Aerial Haze,
+//     Platform/Entity Contact Shadows & Fast Foreground Bokeh)
 // ============================================================================
 
 import { audio } from '../js/engine/audio.js?v=9.8';
@@ -50,6 +52,7 @@ import {
   drawCustomStagePlatforms2D
 } from './arenas2d.js?v=9.8';
 import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=9.8';
+import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=9.8';
 
 export const STAGE_OPTIONS_2D = Object.freeze([
   { value: 1, label: '1: Main Desktop' },
@@ -385,6 +388,7 @@ export function install2DExpansion(game) {
     suppressCreativeBlocksInPlatformDraw = true;
     try {
       const stageOnlyPlatforms = origGetAllSolidPlatforms();
+      depth2d.drawPlatformDepthShadows(ctx, stageOnlyPlatforms);
       if (!drawCustomStagePlatforms2D(stageManager, ctx, stageOnlyPlatforms)) {
         origDrawPlatforms(ctx);
       }
@@ -395,7 +399,18 @@ export function install2DExpansion(game) {
 
   const origDrawDesktopBackground = stageManager.drawDesktopBackground.bind(stageManager);
   stageManager.drawDesktopBackground = (ctx, groundY) => {
-    const handledCustom = drawExpandedStageBackground2D(stageManager, ctx, groundY);
+    const renderDepthPlanes = () => {
+      if ((stageManager.whiteVoidProgress || 0) >= 0.85) return;
+      depth2d.drawBackgroundDepthPlanes(
+        ctx,
+        stageManager,
+        game.camera,
+        groundY,
+        particles.reducedEffects === true
+      );
+    };
+
+    const handledCustom = drawExpandedStageBackground2D(stageManager, ctx, groundY, renderDepthPlanes);
     if (handledCustom) {
       stageManager.drawEnvironmentMotifs(ctx, 0);
       stageManager.drawCampaignSignal(ctx, stageManager.bounds.minX, stageManager.bounds.minY);
@@ -421,6 +436,9 @@ export function install2DExpansion(game) {
       ctx.fillRect(-halfX, groundY + 1, halfX * 2, 1050);
       ctx.restore();
 
+      // Render blurred distant Nether fortresses / sky islands / monoliths + aerial haze behind the crisp island
+      renderDepthPlanes();
+
       if (isLavaSeaTheme(stageManager.theme)) {
         drawMinecraftLavaFeatures2D(stageManager, ctx, groundY);
       } else if (stageManager.theme === 'cloud_cache') {
@@ -428,6 +446,9 @@ export function install2DExpansion(game) {
       } else if (stageManager.theme === 'lucky_orb') {
         drawFloatingIslandBody2D(ctx, groundY, '#facc15', '#4c1d95', '#fde047', stageManager.stageTime);
       }
+    } else {
+      // Enclosed desktop, BSOD, firewall, terminal, archive, Zero-Day, and Trophy rooms
+      renderDepthPlanes();
     }
   };
 
@@ -436,7 +457,27 @@ export function install2DExpansion(game) {
     if (stageManager.isTrophyRoom && drawExpandedTrophyIcons2D(stageManager, ctx, game.groundY)) {
       return;
     }
+    if (!stageManager.isTrophyRoom) {
+      const camX = Number.isFinite(game.camera?.x) ? game.camera.x : 0;
+      ctx.save();
+      ctx.translate(camX * (1 - DEPTH_PARALLAX.ICONS), 0);
+      ctx.globalAlpha = 0.86;
+      origDrawDesktopIcons(ctx);
+      ctx.restore();
+      return;
+    }
     origDrawDesktopIcons(ctx);
+  };
+
+  const origDrawErrorPopups = stageManager.drawErrorPopups.bind(stageManager);
+  stageManager.drawErrorPopups = (ctx) => {
+    if (!stageManager.errorPopups?.length) return;
+    const camX = Number.isFinite(game.camera?.x) ? game.camera.x : 0;
+    ctx.save();
+    ctx.translate(camX * 0.16, 0);
+    ctx.globalAlpha = 0.9;
+    origDrawErrorPopups(ctx);
+    ctx.restore();
   };
 
   const origDrawTaskbar = stageManager.drawTaskbar.bind(stageManager);
@@ -1426,16 +1467,35 @@ export function install2DExpansion(game) {
     try {
       const crowded = waves.zombies.length >= 8;
       game.renderLayer('background', (layerCtx) => stageManager.draw(layerCtx, game.groundY, crowded));
-      game.renderLayer('creative-blocks', (layerCtx) => drawCreativeBlocks2D(layerCtx, sandbox.blocks, stageManager.stageTime));
+      game.renderLayer('creative-blocks', (layerCtx) => {
+        depth2d.drawPlatformDepthShadows(layerCtx, sandbox.blocks);
+        drawCreativeBlocks2D(layerCtx, sandbox.blocks, stageManager.stageTime);
+      });
       game.renderLayer('boss-telegraphs', (layerCtx) => drawBossFloorTelegraphs2D(layerCtx, waves.zombies, game.groundY, stageManager.stageTime));
       game.renderLayer('projectiles', (layerCtx) => projectiles.draw(layerCtx, crowded));
       game.renderLayer('ink', (layerCtx) => combat.draw(layerCtx));
+      game.renderLayer('depth-shadows', (layerCtx) => depth2d.drawEntityContactShadows(
+        layerCtx,
+        game.player,
+        allies.activeAllies,
+        waves.zombies,
+        stageManager.getAllSolidPlatforms(),
+        game.groundY,
+        isOpenEdgeTheme(stageManager.theme)
+      ));
       game.renderLayer('enemies', (layerCtx) => waves.draw(layerCtx));
       game.renderLayer('weapon-pickup', (layerCtx) => game.drawWeaponPickup(layerCtx));
       game.renderLayer('allies', (layerCtx) => allies.draw(layerCtx, crowded));
       const playerDrawn = game.renderLayer('player', (layerCtx) => game.player.draw(layerCtx));
       if (!playerDrawn) game.renderLayer('player-fallback', (layerCtx) => game.drawFallbackPlayer(layerCtx));
       game.renderLayer('effects', (layerCtx) => particles.draw(layerCtx));
+      game.renderLayer('foreground-depth', (layerCtx) => depth2d.drawForegroundBokeh(
+        layerCtx,
+        stageManager,
+        game.camera,
+        game.groundY,
+        particles.reducedEffects === true
+      ));
     } finally {
       game.camera.restore(ctx);
     }
@@ -1596,6 +1656,7 @@ export function install2DExpansion(game) {
   const controller = {
     sandbox,
     speech3d,
+    depth2d,
     cameraAdapter2D,
     setCreativeMode,
     equipCreativeWeapon,

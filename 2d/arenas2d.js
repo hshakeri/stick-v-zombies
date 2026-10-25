@@ -298,7 +298,7 @@ export function drawMinecraftLavaFeatures2D(stageManager, ctx, groundY) {
 // ----------------------------------------------------------------------------
 // Bespoke 2D Stage Themes (Stages 18, 19, 20, 21, 22 + 11-Boss Trophy Room)
 // ----------------------------------------------------------------------------
-export function drawExpandedStageBackground2D(stageManager, ctx, groundY) {
+export function drawExpandedStageBackground2D(stageManager, ctx, groundY, onSkyPainted = null) {
   const theme = stageManager.theme;
   const minX = stageManager.bounds.minX;
   const maxX = stageManager.bounds.maxX;
@@ -330,6 +330,8 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY) {
       ctx.fillStyle = i % 3 === 0 ? `rgba(232, 121, 249, ${twinkle})` : `rgba(248, 250, 252, ${twinkle})`;
       ctx.fillRect(sx, sy, i % 4 === 0 ? 4 : 2.5, i % 4 === 0 ? 4 : 2.5);
     }
+
+    onSkyPainted?.();
 
     // 6 Towering Obsidian Pillars + End Crystals
     const pillarXs = [-780, -500, -240, 240, 500, 780];
@@ -410,6 +412,7 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY) {
     grad.addColorStop(0.55, '#7dd3fc');
     grad.addColorStop(1, '#fef3c7');
     paintFullVoid(grad);
+    onSkyPainted?.();
 
     // Drifting White & Gold Aerclouds
     for (let i = 0; i < 10; i++) {
@@ -461,6 +464,7 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY) {
   if (theme === 'ancient_city') {
     ctx.save();
     paintFullVoid('#030910');
+    onSkyPainted?.();
 
     // Deep Dark Cavern grid & ruined Deepslate pillars
     ctx.strokeStyle = 'rgba(14, 116, 144, 0.14)';
@@ -577,6 +581,7 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY) {
     grad.addColorStop(0.65, '#1f252e');
     grad.addColorStop(1, '#2c333d');
     paintFullVoid(grad);
+    onSkyPainted?.();
 
     // Drifting Haunted Silver Mist Banks
     for (let i = 0; i < 7; i++) {
@@ -705,6 +710,7 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY) {
     // Brushed Steel Facility Panels & Structural I-Beams
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(minX, minY, maxX - minX, groundY - minY);
+    onSkyPainted?.();
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.16)';
     ctx.lineWidth = 2;
     for (let x = minX; x <= maxX; x += 140) {

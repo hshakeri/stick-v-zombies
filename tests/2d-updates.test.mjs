@@ -31,6 +31,11 @@ import {
   drawCreativeBlocks2D
 } from '../2d/arenas2d.js?v=9.8';
 import {
+  DEPTH_PARALLAX,
+  Depth2DRenderer,
+  getDepthProfile2D
+} from '../2d/depth2d.js?v=9.8';
+import {
   STAGE_OPTIONS_2D,
   install2DExpansion
 } from '../2d/expansion2d.js?v=9.8';
@@ -117,6 +122,7 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
     '2d/expansion2d.js',
     '2d/arenas2d.js',
     '2d/bosses2d.js',
+    '2d/depth2d.js',
     '3d/js/campaign3d.js',
     '3d/js/physics3d.js',
     '3d/js/speech3d.js'
@@ -489,3 +495,185 @@ test('2D Expansion [7] Expressive 2D Comic Speech Bubbles: banter bridge, boss i
 
   resetGlobalSystems();
 });
+
+test('2D Expansion [8] Depth-of-Field, Cached Offscreen Far/Mid Blur, Parallax, Contact Shadows & Foreground Bokeh', () => {
+  resetGlobalSystems();
+
+  // 1. Theme depth profiles cover classic, open-edge, and expanded biomes cleanly
+  for (const theme of ['desktop', 'minecraft', 'the_end', 'aether', 'ancient_city', 'pale_garden', 'rocket_corp', 'zero_day', 'trophy']) {
+    const profile = getDepthProfile2D(theme);
+    assert.ok(profile.farTint && profile.midTint && profile.bokehTint, `theme ${theme} must provide full depth palette`);
+  }
+
+  // 2. Instrumented offscreen buffer factory verifies ONCE-PER-STAGE blur baking (zero per-frame ctx.filter!)
+  const bakeFilterHistory = [];
+  const createOffscreenMock = (width, height) => {
+    const gradientStub = { addColorStop() {} };
+    let currentFilter = 'none';
+    const bctx = new Proxy(
+      { filter: 'none' },
+      {
+        get(target, prop) {
+          if (prop === 'filter') return currentFilter;
+          if (prop === 'createLinearGradient' || prop === 'createRadialGradient') return () => gradientStub;
+          if (prop in target) return target[prop];
+          return () => {};
+        },
+        set(target, prop, value) {
+          if (prop === 'filter') {
+            currentFilter = value;
+            if (value !== 'none') bakeFilterHistory.push(value);
+            return true;
+          }
+          target[prop] = value;
+          return true;
+        }
+      }
+    );
+    return {
+      width,
+      height,
+      getContext: () => bctx
+    };
+  };
+
+  const liveBlits = [];
+  const liveFilterAssignments = [];
+  const ellipses = [];
+  const liveGradStub = { addColorStop() {} };
+  let liveSaves = 0;
+  let liveRestores = 0;
+  const liveCtx = new Proxy({}, {
+    get(target, prop) {
+      if (prop === 'save') return () => { liveSaves += 1; };
+      if (prop === 'restore') return () => { liveRestores += 1; };
+      if (prop === 'drawImage') {
+        return (img, dx, dy, dw, dh) => {
+          liveBlits.push({ img, dx, dy, dw, dh });
+        };
+      }
+      if (prop === 'ellipse') {
+        return (x, y, rx, ry) => {
+          ellipses.push({ x, y, rx, ry });
+        };
+      }
+      if (prop === 'createLinearGradient' || prop === 'createRadialGradient') return () => liveGradStub;
+      if (prop in target) return target[prop];
+      return () => {};
+    },
+    set(target, prop, value) {
+      if (prop === 'filter') liveFilterAssignments.push(value);
+      target[prop] = value;
+      return true;
+    }
+  });
+
+  const depth = new Depth2DRenderer({ createCanvas: createOffscreenMock });
+  const stageStub = {
+    currentStage: 21,
+    theme: 'pale_garden',
+    isTrophyRoom: false,
+    stageTime: 1.5,
+    crowdedRender: false,
+    bounds: { minX: -1200, maxX: 1200, minY: -620 }
+  };
+
+  // Frame 1 at camera.x = 0: bakes Far (3.4px blur) + Mid (1.5px blur) offscreen buffers ONCE
+  depth.drawBackgroundDepthPlanes(liveCtx, stageStub, { x: 0, y: -140 }, 0, false);
+  assert.deepEqual(
+    bakeFilterHistory,
+    ['blur(3.4px)', 'blur(1.5px)'],
+    'Far (3.4px) and Mid (1.5px) depth planes must bake into blurred offscreen buffers on stage load'
+  );
+  assert.equal(liveFilterAssignments.length, 0, 'live frame ctx must NEVER touch ctx.filter');
+  assert.equal(liveBlits.length, 2, 'background depth pass must blit Far and Mid cached buffers');
+
+  // Render 60 consecutive frames while sweeping camera.x -> ZERO additional blur bakes!
+  liveBlits.length = 0;
+  for (let f = 1; f <= 60; f++) {
+    const camX = -300 + f * 10;
+    depth.drawBackgroundDepthPlanes(liveCtx, stageStub, { x: camX, y: -140 }, 0, false);
+  }
+  assert.equal(
+    bakeFilterHistory.length,
+    2,
+    '60 consecutive frames on the same stage must trigger ZERO additional blur bakes'
+  );
+
+  // Verify exact parallax rates at camera.x = 500:
+  // Far world shift = 500 * (1 - 0.28) = +360; Mid world shift = 500 * (1 - 0.56) = +220
+  liveBlits.length = 0;
+  depth.drawBackgroundDepthPlanes(liveCtx, stageStub, { x: 500, y: -140 }, 0, false);
+  const [farBlit, midBlit] = liveBlits;
+  assert.ok(
+    Math.abs((farBlit.dx - (-1400)) - 500 * (1 - DEPTH_PARALLAX.FAR)) < 1e-6,
+    'Far plane must parallax at 0.28x camera speed'
+  );
+  assert.ok(
+    Math.abs((midBlit.dx - (-1400)) - 500 * (1 - DEPTH_PARALLAX.MID)) < 1e-6,
+    'Mid plane must parallax at 0.56x camera speed'
+  );
+
+  // Foreground bokeh moves faster than camera (1.28x -> world shift = -0.28 * camX)
+  liveBlits.length = 0;
+  depth.drawForegroundBokeh(liveCtx, stageStub, { x: 0, y: -140 }, 0, false);
+  const bokehXAt0 = liveBlits[0].dx;
+  liveBlits.length = 0;
+  depth.drawForegroundBokeh(liveCtx, stageStub, { x: 500, y: -140 }, 0, false);
+  const bokehXAt500 = liveBlits[0].dx;
+  assert.ok(
+    Math.abs((bokehXAt500 - bokehXAt0) - 500 * (1 - DEPTH_PARALLAX.FOREGROUND)) < 1e-6,
+    'Foreground bokeh must move faster than camera at 1.28x parallax'
+  );
+
+  // Reduced effects mode skips Mid plane blit and Foreground bokeh cleanly
+  liveBlits.length = 0;
+  depth.drawBackgroundDepthPlanes(liveCtx, stageStub, { x: 200, y: -140 }, 0, true);
+  depth.drawForegroundBokeh(liveCtx, stageStub, { x: 200, y: -140 }, 0, true);
+  assert.equal(liveBlits.length, 1, 'reducedEffects=true must blit only Far plane and skip Mid + Foreground bokeh');
+
+  // Stage transition triggers a single clean re-bake for the new biome
+  stageStub.currentStage = 20;
+  stageStub.theme = 'ancient_city';
+  depth.drawBackgroundDepthPlanes(liveCtx, stageStub, { x: 0, y: -140 }, 0, false);
+  assert.equal(bakeFilterHistory.length, 4, 'changing stages must re-bake Far + Mid depth buffers once');
+  assert.equal(liveSaves, liveRestores, 'Depth2DRenderer passes must strictly balance save/restore');
+
+  // 3. Entity elevation contact shadows shrink with jump height and snap onto elevated platforms
+  ellipses.length = 0;
+  const groundedPlayer = { x: 0, y: 0, isDead: false };
+  const jumpingPlayer = { x: 100, y: -220, isDead: false };
+  const platformRider = { x: 300, y: -160, isDead: false };
+  const voidPlunger = { x: 1120, y: 80, isDead: false };
+  const platforms = [{ x: 300, y: -140, width: 140, height: 20 }];
+  depth.drawEntityContactShadows(
+    liveCtx,
+    groundedPlayer,
+    [jumpingPlayer, platformRider],
+    [voidPlunger],
+    platforms,
+    0,
+    true // openEdge = true -> voidPlunger past |x| > 980 casts no floor shadow!
+  );
+  assert.equal(ellipses.length, 3, 'entity over open-edge void abyss must not cast a phantom floor shadow');
+  const jumpShadow = ellipses[0];
+  const platShadow = ellipses[1];
+  const groundShadow = ellipses[2];
+  assert.ok(jumpShadow.rx < groundShadow.rx, 'airborne entity shadow must shrink with height');
+  assert.equal(platShadow.y, -160 + 1.5, 'entity above a solid platform must cast its contact shadow onto that platform top');
+
+  // 4. Full integrated 2D game.render() across enclosed, popup, open-edge, and expanded stages
+  const { game, controller, calls } = create2DGameHarness();
+  for (const stage of [1, 3, 7, 13, 17, 20, 21, 22]) {
+    controller.jumpToStage(stage, { freshStart: stage === 1 });
+    game.camera.x = 240;
+    calls.save = 0;
+    calls.restore = 0;
+    game.render();
+    assert.equal(calls.save, calls.restore, `integrated depth render on Stage ${stage} must balance save/restore`);
+    assert.equal(game.reportedLayerErrors.size, 0, `Stage ${stage} depth render must emit zero layer errors`);
+  }
+
+  resetGlobalSystems();
+});
+
