@@ -281,3 +281,18 @@
 .boss-health-container.warden-boss-boss .boss-bar-fill {
   background: linear-gradient(90deg, #0891b2, #22d3ee, #a5f3fc);
 }
+
+.boss-health-container.creaking-boss-boss {
+  border-color: #f97316;
+  box-shadow: 0 0 22px rgba(249, 115, 22, 0.55);
+}
+
+.boss-health-container.creaking-boss-boss .boss-name {
+  color: #fdba74;
+  text-shadow: 0 0 10px rgba(249, 115, 22, 0.78);
+}
+
+.boss-health-container.creaking-boss-boss .boss-bar-fill {
+  background: linear-gradient(90deg, #c2410c, #f97316, #fde047);
+}
+

@@ -137,6 +137,12 @@ export const SPEAKER_BADGES = Object.freeze({
   warden_boss: '🔊 THE WARDEN',
   the_warden: '🔊 THE WARDEN',
   'THE WARDEN': '🔊 THE WARDEN',
+  creaking_boss: '🪵 THE CREAKING',
+  the_creaking: '🪵 THE CREAKING',
+  creaking: '🪵 THE CREAKING',
+  creeking: '🪵 THE CREAKING',
+  the_creeking: '🪵 THE CREAKING',
+  'THE CREAKING': '🪵 THE CREAKING',
   h4c3r: '👾 H4C3R',
   virabot: '👾 VIRABOT',
   zombie: '🧟 ZOMBIE',
@@ -145,7 +151,7 @@ export const SPEAKER_BADGES = Object.freeze({
 
 export const BANTER_CHAINS = Object.freeze({
   // --------------------------------------------------------------------------
-  // F2.2: ROCKET CORP MERCENARIES (STAGE 20 & ARENA)
+  // F2.2: ROCKET CORP MERCENARIES (STAGE 22 & ARENA)
   // --------------------------------------------------------------------------
   merc_squad_rollcall: [
     { speaker: 'agent', text: 'TARGET LOCATED.', delay: 0.0, options: { style: 'pixel', badge: '🕶️ AGENT', mood: '!', priority: 4, duration: 1.6 } },
@@ -360,6 +366,21 @@ export const BANTER_CHAINS = Object.freeze({
   boss_warden_defeat: [
     { speaker: 'warden_boss', text: '*HEARTBEAT... SILENT...*', delay: 0.0, options: { style: 'shout', badge: '🔊 THE WARDEN', mood: '💀', priority: 5, duration: 1.6 } },
     { speaker: 'orange', text: 'ANCIENT CITY SILENCED!', delay: 0.6, options: { style: 'comic', badge: '🟠 ORANGE', mood: '★', priority: 4, duration: 1.5 } }
+  ],
+
+  boss_creaking_intro: [
+    { speaker: 'creaking_boss', text: '*CREEAAAK... DONT BLINK!*', delay: 0.0, options: { style: 'shout', badge: '🪵 THE CREAKING', mood: '💀', priority: 5, duration: 1.6, trauma: 0.85 } },
+    { speaker: 'orange', text: 'EYES ON THE SPOOKY TREE!', delay: 0.6, options: { style: 'comic', badge: '🟠 ORANGE', mood: '!', priority: 4, duration: 1.5 } }
+  ],
+
+  boss_creaking_phase: [
+    { speaker: 'creaking_boss', text: 'RESIN HEART OVERDRIVE!', delay: 0.0, options: { style: 'shout', badge: '🪵 THE CREAKING', mood: '⚡', priority: 5, duration: 1.6, trauma: 1.0 } },
+    { speaker: 'yellow', text: 'WATCH THE ORANGE ROOTS!', delay: 0.6, options: { style: 'comic', badge: '🟡 YELLOW', mood: '⚡', priority: 4, duration: 1.5 } }
+  ],
+
+  boss_creaking_defeat: [
+    { speaker: 'creaking_boss', text: '*HEART... SHATTERED...*', delay: 0.0, options: { style: 'shout', badge: '🪵 THE CREAKING', mood: '💀', priority: 5, duration: 1.6 } },
+    { speaker: 'orange', text: 'PALE GARDEN CLEARED!', delay: 0.6, options: { style: 'comic', badge: '🟠 ORANGE', mood: '★', priority: 4, duration: 1.5 } }
   ],
 
   boss_h4c3r_intro: [
@@ -604,7 +625,8 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
     if (options.style && BUBBLE_STYLES.includes(options.style)) return options.style;
     const s = String(speakerType || '').toLowerCase();
     if (s === 'h4c3r' || s === 'virabot' || s === 'terminal') return 'cyber';
-    if (s.includes('dragon') || s.includes('warden') || s.includes('titan') || s.includes('dark_lord') || s.includes('darklord') ||
+    if (s.includes('dragon') || s.includes('warden') || s.includes('creaking') || s.includes('creeking') ||
+        s.includes('titan') || s.includes('dark_lord') || s.includes('darklord') ||
         s.includes('cat') || s.includes('creeper') || s.includes('orb') || s.includes('boss') ||
         s.includes('roar') || s.includes('shout') || s.includes('boom') || s.includes('nuke') ||
         s.includes('slam') || s.includes('clutch')) {
@@ -630,7 +652,12 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
 
   _getSpeakerPriority(speakerId) {
     const s = String(speakerId || '').replace(/^ally-/, '').replace(/^mercenary_/, '');
-    if (s === 'campaign' || s === 'h4c3r' || s === 'ender_dragon' || s === 'enderDragon' || s === 'warden_boss' || s === 'the_warden' || s === 'THE WARDEN' || s === 'titan') return 5;
+    if (
+      s === 'campaign' || s === 'h4c3r' || s === 'ender_dragon' || s === 'enderDragon' ||
+      s === 'warden_boss' || s === 'the_warden' || s === 'THE WARDEN' ||
+      s === 'creaking_boss' || s === 'the_creaking' || s === 'creaking' || s === 'creeking' || s === 'the_creeking' || s === 'THE CREAKING' ||
+      s === 'titan'
+    ) return 5;
     if (s === 'dark_lord' || s === 'darkLord' || s === 'king_orange' || s === 'kingOrange' || s === 'creeper_lord' || s === 'creeperLord' || s === 'giant_cat' || s === 'giantCat' || s === 'lucky_orb' || s === 'luckyOrb') return 4;
     if (s === 'orange_awakened' || s === 'playerAwakened') return 3;
     if (['red', 'blue', 'yellow', 'green', 'agent', 'ballista', 'primal', 'hazard', 'cursor', 'chosen', 'king', 'virabot'].includes(s)) return 2;
@@ -945,7 +972,7 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
   }
 
   triggerBossTrashTalk(bossName, eventName = 'intro', options = {}) {
-    const normalizedBoss = String(bossName || '')
+    const rawBoss = String(bossName || '')
       .replace(/^boss[_-]/i, '')
       .replace(/([A-Z])/g, '_$1')
       .toLowerCase()
@@ -954,6 +981,7 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
       .replace(/^_+|_+$/g, '')
       .replace(/^the_/, '')
       .replace(/_boss$/, '');
+    const normalizedBoss = rawBoss === 'creeking' ? 'creaking' : rawBoss;
     const normalizedEvent = String(eventName || 'intro')
       .toLowerCase()
       .replace(/[-\s]+/g, '_')
@@ -1000,13 +1028,16 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
   }
 
   shoutBoss(x, y, bossName, eventName = 'default', duration = 1.6, options = {}) {
-    const normalizedBoss = String(bossName || '')
+    const rawBoss = String(bossName || '')
       .replace(/^boss[_-]/i, '')
       .replace(/([A-Z])/g, '_$1')
       .toLowerCase()
       .replace(/[-\s]+/g, '_')
       .replace(/__+/g, '_')
-      .replace(/^_+|_+$/g, '');
+      .replace(/^_+|_+$/g, '')
+      .replace(/^the_/, '')
+      .replace(/_boss$/, '');
+    const normalizedBoss = rawBoss === 'creeking' ? 'creaking' : rawBoss;
     const normalizedEvent = String(eventName || 'default')
       .toLowerCase()
       .replace(/[-\s]+/g, '_')
@@ -1728,7 +1759,8 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
       case 'spawn_entity': {
         const ent = String(payload.entity || 'enemy').toLowerCase();
         const BOSS_SET = new Set([
-          'ender_dragon', 'warden_boss', 'mercenary_squad', 'mercenary_agent', 'mercenary_ballista',
+          'ender_dragon', 'warden_boss', 'creaking_boss', 'creeking',
+          'mercenary_squad', 'mercenary_agent', 'mercenary_ballista',
           'mercenary_primal', 'mercenary_hazard', 'h4c3r', 'king_orange',
           'dark_lord', 'lucky_orb', 'creeper_lord', 'giant_cat', 'titan_boss', 'boss'
         ]);

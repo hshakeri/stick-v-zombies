@@ -406,6 +406,69 @@ function drawPixelBlock(ctx, kind) {
       ctx.fillRect(12, 7, 1, 2);
       break;
     }
+    case 'pale_moss': {
+      fillNoisyPixels(ctx, '#9aa1a8', 0.14, 275);
+      drawBevelBorder(ctx, '#b8bec5', '#70777f');
+      // Soft desaturated lichen patches & eerie silver moss tufts
+      ctx.fillStyle = '#c4cad0';
+      ctx.fillRect(3, 3, 3, 2);
+      ctx.fillRect(10, 9, 3, 2);
+      ctx.fillStyle = '#7b828a';
+      ctx.fillRect(6, 12, 4, 1);
+      ctx.fillRect(11, 4, 2, 2);
+      break;
+    }
+    case 'pale_oak_log': {
+      fillNoisyPixels(ctx, '#686d75', 0.15, 280);
+      // Vertical pale ash bark grooves + subtle amber resin sap fleck
+      ctx.fillStyle = '#494e56';
+      ctx.fillRect(2, 0, 2, 16);
+      ctx.fillRect(7, 0, 2, 16);
+      ctx.fillRect(12, 0, 2, 16);
+      ctx.fillStyle = '#878d96';
+      ctx.fillRect(5, 2, 1, 12);
+      ctx.fillRect(10, 3, 1, 10);
+      ctx.fillStyle = '#f97316';
+      ctx.fillRect(7, 6, 2, 2);
+      break;
+    }
+    case 'pale_oak_leaves': {
+      fillNoisyPixels(ctx, '#888e96', 0.2, 285);
+      drawBevelBorder(ctx, '#a8aeb6', '#5e646c');
+      ctx.fillStyle = '#535860';
+      ctx.fillRect(3, 4, 2, 2);
+      ctx.fillRect(10, 6, 2, 2);
+      ctx.fillRect(6, 11, 2, 2);
+      break;
+    }
+    case 'creaking_heart': {
+      fillNoisyPixels(ctx, '#474b52', 0.16, 290);
+      drawBevelBorder(ctx, '#686d75', '#2b2e33');
+      // Blazing orange Resin Heart core nested inside dark Pale Oak fissures
+      ctx.fillStyle = '#ea580c';
+      ctx.fillRect(3, 3, 10, 10);
+      ctx.fillStyle = '#f97316';
+      ctx.fillRect(4, 4, 8, 8);
+      ctx.fillStyle = '#fb923c';
+      ctx.fillRect(5, 5, 6, 6);
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(6, 6, 4, 4);
+      // Bark ribs clamping across the glowing heart
+      ctx.fillStyle = '#2b2e33';
+      ctx.fillRect(3, 7, 3, 2);
+      ctx.fillRect(10, 7, 3, 2);
+      break;
+    }
+    case 'resin_block': {
+      fillNoisyPixels(ctx, '#ea580c', 0.16, 295);
+      drawBevelBorder(ctx, '#fdba74', '#9a3412');
+      ctx.fillStyle = '#fb923c';
+      ctx.fillRect(3, 3, 4, 3);
+      ctx.fillRect(9, 9, 4, 3);
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(4, 4, 2, 1);
+      break;
+    }
     default: {
       fillNoisyPixels(ctx, '#334155', 0.14, 999);
       drawBevelBorder(ctx, '#64748b', '#1e293b');
@@ -436,6 +499,7 @@ export function getThemeFloorTextureKey(theme, isWhiteVoid = false) {
     case 'the_end': return 'end_stone';
     case 'aether': return 'aether_grass';
     case 'ancient_city': return 'sculk';
+    case 'pale_garden': return 'pale_moss';
     case 'rocket_corp': return 'rocket_corp_floor';
     case 'zero_day': return 'zero_day_floor';
     case 'trophy': return 'trophy_floor';

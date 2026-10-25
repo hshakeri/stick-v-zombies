@@ -6,7 +6,8 @@ import {
   GiantCatRig3D,
   LuckyOrbRig3D,
   EnderDragonRig3D,
-  WardenBossRig3D
+  WardenBossRig3D,
+  CreakingBossRig3D
 } from './models3d.js?v=10.3';
 
 export const WORLD_TO_3D = 1 / 34;
@@ -167,15 +168,16 @@ export class Arena3DBuilder {
     this.floatingProps.length = 0;
     this.trophyKeyGroup = null;
     this.ancientCityCenterPortal = null;
+    this.paleGardenHeartShrine = null;
 
     if (stageManager) this.stageManager = stageManager;
     const sm = stageManager || this.stageManager;
     const theme = themeOverride || sm?.theme || 'desktop';
     const floorKey = getThemeFloorTextureKey(theme, false);
 
-    // Hide PC monitor stand neck when inside Rocket Corp Facility or Ancient City Cavern
+    // Hide PC monitor stand neck when inside Rocket Corp Facility, Ancient City Cavern, or Pale Garden Grove
     if (this.standNeck) {
-      this.standNeck.visible = theme !== 'rocket_corp' && theme !== 'ancient_city';
+      this.standNeck.visible = theme !== 'rocket_corp' && theme !== 'ancient_city' && theme !== 'pale_garden';
     }
 
     // 1. Voxel Arena Floor (62 x 26 blocks)
@@ -192,11 +194,12 @@ export class Arena3DBuilder {
     floorMesh.receiveShadow = true;
     this.group.add(floorMesh);
 
-    // Sub-floor voxel cliff layers (Minecraft island / Ancient City deepslate / Facility foundation)
+    // Sub-floor voxel cliff layers (Minecraft island / Ancient City deepslate / Pale Garden oak / Facility foundation)
     const subTexKey = theme === 'minecraft' || theme === 'dark_core' || theme === 'the_end'
       ? 'obsidian'
       : (theme === 'ancient_city' ? 'deepslate_tiles'
-      : (theme === 'aether' ? 'holystone' : (theme === 'rocket_corp' ? 'rocket_corp_wall' : 'anvil_iron')));
+      : (theme === 'pale_garden' ? 'pale_oak_log'
+      : (theme === 'aether' ? 'holystone' : (theme === 'rocket_corp' ? 'rocket_corp_wall' : 'anvil_iron'))));
     const subTex = getVoxelTexture(subTexKey, 31, 2);
     const subMat = new THREE.MeshStandardMaterial({ map: subTex, roughness: 0.7 });
     const subLayer = new THREE.Mesh(new THREE.BoxGeometry(floorW - 1.5, 3.2, floorD - 1.5), subMat);
@@ -344,6 +347,7 @@ export class Arena3DBuilder {
       the_end: 0xd946ef,
       aether: 0x38d9a9,
       ancient_city: 0x22d3ee,
+      pale_garden: 0xf97316,
       rocket_corp: 0xff6b00,
       zero_day: 0x00f5ff,
       trophy: 0xffd54a
@@ -594,6 +598,169 @@ export class Arena3DBuilder {
     });
   }
 
+  buildPaleGardenGrove() {
+    const oakTex = getVoxelTexture('pale_oak_log', 1, 3);
+    oakTex.isShared = true;
+    const leavesTex = getVoxelTexture('pale_oak_leaves', 2, 2);
+    leavesTex.isShared = true;
+    const mossTex = getVoxelTexture('pale_moss', 2, 1);
+    mossTex.isShared = true;
+    const heartTex = getVoxelTexture('creaking_heart', 1, 1);
+    heartTex.isShared = true;
+
+    const oakMat = new THREE.MeshStandardMaterial({
+      map: oakTex,
+      roughness: 0.72,
+      metalness: 0.08
+    });
+    const leavesMat = new THREE.MeshStandardMaterial({
+      map: leavesTex,
+      roughness: 0.78
+    });
+    const mossMat = new THREE.MeshStandardMaterial({
+      map: mossTex,
+      roughness: 0.85
+    });
+    const hangingMossMat = new THREE.MeshStandardMaterial({
+      color: 0xcbd5e1,
+      roughness: 0.9
+    });
+    const resinGlowMat = new THREE.MeshStandardMaterial({
+      color: 0xfb923c,
+      emissive: new THREE.Color(0xf97316),
+      emissiveIntensity: 0.92,
+      roughness: 0.25
+    });
+    const heartMat = new THREE.MeshStandardMaterial({
+      map: heartTex,
+      emissive: new THREE.Color(0xf97316),
+      emissiveIntensity: 0.85,
+      roughness: 0.35
+    });
+
+    // 1. Center Gnarled Ancient Pale Oak & Suspended Creaking Heart Shrine
+    const shrine = new THREE.Group();
+    shrine.name = 'paleGardenHeartShrine';
+    shrine.position.set(0, 0, -11.4);
+
+    // Moss-covered root mound
+    const rootMound = new THREE.Mesh(new THREE.BoxGeometry(14.5, 0.75, 3.4), mossMat);
+    rootMound.position.y = 0.38;
+    const rootStep = new THREE.Mesh(new THREE.BoxGeometry(10.8, 0.62, 2.6), oakMat);
+    rootStep.position.y = 0.98;
+    shrine.add(rootMound, rootStep);
+
+    // Twin gnarled Pale Oak trunks arching around the glowing Creaking Heart cavity
+    const trunkL = new THREE.Mesh(new THREE.BoxGeometry(1.75, 7.6, 1.75), oakMat);
+    trunkL.position.set(-2.65, 4.4, 0);
+    trunkL.rotation.z = -0.14;
+    const trunkR = new THREE.Mesh(new THREE.BoxGeometry(1.75, 7.6, 1.75), oakMat);
+    trunkR.position.set(2.65, 4.4, 0);
+    trunkR.rotation.z = 0.14;
+    const boughArch = new THREE.Mesh(new THREE.BoxGeometry(7.8, 1.45, 1.85), oakMat);
+    boughArch.position.set(0, 8.15, 0);
+
+    // Wide Pale Oak Leaf Canopy & Hanging Pale Moss Drapes
+    const mainCanopy = new THREE.Mesh(new THREE.BoxGeometry(13.6, 2.6, 3.8), leavesMat);
+    mainCanopy.position.set(0, 9.85, 0);
+    const upperCanopy = new THREE.Mesh(new THREE.BoxGeometry(9.2, 1.8, 3.0), leavesMat);
+    upperCanopy.position.set(0, 11.55, 0);
+    shrine.add(trunkL, trunkR, boughArch, mainCanopy, upperCanopy);
+
+    for (const mx of [-5.2, -3.6, 3.6, 5.2]) {
+      const mossStrand = new THREE.Mesh(new THREE.BoxGeometry(0.32, 2.6, 0.22), hangingMossMat);
+      mossStrand.position.set(mx, 7.35, 1.1);
+      shrine.add(mossStrand);
+      this.floatingProps.push(mossStrand);
+    }
+
+    // Glowing Resin Clump Bark Veins leading into the Creaking Heart
+    for (const vx of [-1.85, 1.85]) {
+      const vein = new THREE.Mesh(new THREE.BoxGeometry(0.28, 3.8, 0.28), resinGlowMat);
+      vein.position.set(vx, 4.85, 0.82);
+      vein.rotation.z = vx < 0 ? -0.22 : 0.22;
+      shrine.add(vein);
+    }
+
+    // Central Pulsing Creaking Heart Block & Resin Aura Ring
+    const heartMesh = new THREE.Mesh(new THREE.BoxGeometry(2.15, 2.15, 2.15), heartMat);
+    heartMesh.position.set(0, 5.15, 0.15);
+    const resinRing = new THREE.Mesh(new THREE.TorusGeometry(1.65, 0.11, 8, 22), resinGlowMat);
+    resinRing.position.set(0, 5.15, 0.2);
+
+    const plaqueTex = makeTextSignTexture('PALE GARDEN // CREAKING HEART', "DON'T BLINK · SHATTER THE PUPPET", '#181b20', '#fb923c', '#f8fafc');
+    const plaque = new THREE.Mesh(
+      new THREE.PlaneGeometry(5.0, 1.05),
+      new THREE.MeshBasicMaterial({ map: plaqueTex })
+    );
+    plaque.position.set(0, 10.25, 1.98);
+
+    shrine.add(heartMesh, resinRing, plaque);
+    this.paleGardenHeartShrine = { root: shrine, heartMesh, heartMat, resinRing };
+    this.group.add(shrine);
+
+    // 2. Six Haunted Twisted Pale Oak Trees with Hanging Moss Curtains
+    const treeXs = [-25.5, -17.0, -9.2, 9.2, 17.0, 25.5];
+    treeXs.forEach((tx, idx) => {
+      const h = 7.4 + (idx % 3) * 1.35;
+      const tree = new THREE.Group();
+      tree.position.set(tx, 0, -11.8);
+
+      const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.85, h, 1.85), oakMat);
+      trunk.position.y = h / 2;
+      trunk.rotation.z = (idx % 2 === 0 ? 1 : -1) * 0.05;
+      trunk.castShadow = true;
+
+      const mossBase = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.85, 2.35), mossMat);
+      mossBase.position.y = 0.42;
+
+      const crown = new THREE.Mesh(new THREE.BoxGeometry(4.8, 2.35, 3.6), leavesMat);
+      crown.position.y = h + 0.95;
+
+      const limbDir = tx < 0 ? 1 : -1;
+      const limb = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.55, 0.65), oakMat);
+      limb.position.set(limbDir * 1.45, h - 1.1, 0.45);
+      limb.rotation.z = limbDir * 0.22;
+
+      const drape = new THREE.Mesh(new THREE.BoxGeometry(0.26, 2.15, 0.2), hangingMossMat);
+      drape.position.set(limbDir * 2.15, h - 2.25, 0.45);
+      this.floatingProps.push(drape);
+
+      // Subtle orange resin sap knot on alternate Pale Oaks
+      if (idx % 2 === 1) {
+        const resinKnot = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.24), resinGlowMat);
+        resinKnot.position.set(0, h * 0.52, 0.92);
+        tree.add(resinKnot);
+      }
+
+      tree.add(trunk, mossBase, crown, limb, drape);
+      this.group.add(tree);
+    });
+
+    // 3. Open Eyeblossom Flower Clusters Glowing in the Pale Moss
+    const stemMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.8 });
+    const petalMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.6 });
+    [-12.8, -5.6, 5.6, 12.8].forEach((fx) => {
+      const cluster = new THREE.Group();
+      cluster.position.set(fx, 0, -8.7);
+      const patch = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.28, 1.3), mossMat);
+      patch.position.y = 0.14;
+      cluster.add(patch);
+
+      for (const ox of [-0.38, 0.36]) {
+        const stemH = ox < 0 ? 0.72 : 0.92;
+        const stem = new THREE.Mesh(new THREE.BoxGeometry(0.12, stemH, 0.12), stemMat);
+        stem.position.set(ox, stemH / 2 + 0.2, 0);
+        const petals = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.14, 0.46), petalMat);
+        petals.position.set(ox, stemH + 0.24, 0);
+        const eyePupil = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 0.22), resinGlowMat);
+        eyePupil.position.set(ox, stemH + 0.32, 0.04);
+        cluster.add(stem, petals, eyePupil);
+      }
+      this.group.add(cluster);
+    });
+  }
+
   buildBiomeColumns(theme, accentHex) {
     if (theme === 'rocket_corp') {
       this.buildRocketCorpFacility();
@@ -601,6 +768,10 @@ export class Arena3DBuilder {
     }
     if (theme === 'ancient_city') {
       this.buildAncientCityRuins();
+      return;
+    }
+    if (theme === 'pale_garden') {
+      this.buildPaleGardenGrove();
       return;
     }
 
@@ -1056,8 +1227,15 @@ export class Arena3DBuilder {
 
     const isRocketCorp = this.stageManager?.theme === 'rocket_corp';
     const isAncientCity = this.stageManager?.theme === 'ancient_city';
+    const isPaleGarden = this.stageManager?.theme === 'pale_garden';
     const frameMat = new THREE.MeshStandardMaterial({
-      map: getVoxelTexture(isRocketCorp ? 'rocket_corp_wall' : (isAncientCity ? 'reinforced_deepslate' : 'obsidian'), 1, 2),
+      map: getVoxelTexture(
+        isRocketCorp
+          ? 'rocket_corp_wall'
+          : (isAncientCity ? 'reinforced_deepslate' : (isPaleGarden ? 'pale_oak_log' : 'obsidian')),
+        1,
+        2
+      ),
       roughness: 0.35,
       metalness: isRocketCorp ? 0.65 : 0.3
     });
@@ -1089,9 +1267,13 @@ export class Arena3DBuilder {
 
     const signTex = makeTextSignTexture(
       label,
-      isRocketCorp ? 'ROCKET CORP' : (isAncientCity ? 'DEEP DARK' : (isExit ? 'PORTAL' : 'SPAWN')),
+      isRocketCorp
+        ? 'ROCKET CORP'
+        : (isAncientCity ? 'DEEP DARK' : (isPaleGarden ? 'PALE GARDEN' : (isExit ? 'PORTAL' : 'SPAWN'))),
       '#0f172a',
-      isRocketCorp ? '#ff6b00' : (isAncientCity ? '#22d3ee' : (isExit ? '#10b981' : '#38bdf8'))
+      isRocketCorp
+        ? '#ff6b00'
+        : (isAncientCity ? '#22d3ee' : (isPaleGarden ? '#fb923c' : (isExit ? '#10b981' : '#38bdf8')))
     );
     const signMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2.4, 0.9),
@@ -1120,9 +1302,10 @@ export class Arena3DBuilder {
       : (theme === 'the_end' ? 'purpur_block'
       : (theme === 'aether' ? 'holystone'
       : (theme === 'ancient_city' ? 'deepslate_tiles'
+      : (theme === 'pale_garden' ? 'pale_oak_log'
       : (theme === 'rocket_corp' ? 'rocket_corp_wall'
       : (theme === 'lucky_orb' ? 'lucky_block'
-      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron')))))));
+      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))))));
 
     const bodyMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(texKey, Math.max(2, Math.round(w / 2)), 2),
@@ -1314,6 +1497,11 @@ export class Arena3DBuilder {
       rig.root.scale.setScalar(0.38);
       return rig.root;
     }
+    if (label.includes('CREAKING') || label.includes('CREEKING')) {
+      const rig = new CreakingBossRig3D();
+      rig.root.scale.setScalar(0.42);
+      return rig.root;
+    }
     if (label.includes('MERCENAR') || label.includes('ROCKET')) {
       const rig = new StickRig3D({ color: '#1e293b', scale: 0.68, zombieType: 'mercenary_agent', weaponType: 'toolbar_staff' });
       return rig.root;
@@ -1406,6 +1594,88 @@ export class Arena3DBuilder {
     ctx.fillText(sm.isObjectiveComplete ? 'HEARTBEAT: SILENT' : 'HEARTBEAT: 180 BPM', w - 32, h - 22);
   }
 
+  drawPaleGardenBackdrop(ctx, w, h, sm) {
+    // 1. Haunted Monochrome Grey-Ash Forest Mist Gradient
+    const grad = typeof ctx.createLinearGradient === 'function' ? ctx.createLinearGradient(0, 0, 0, h) : null;
+    if (grad && typeof grad.addColorStop === 'function') {
+      grad.addColorStop(0, '#14171c');
+      grad.addColorStop(0.55, '#1f242c');
+      grad.addColorStop(1, '#2a303a');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#1d2229';
+    }
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Pale Hanging Moss Curtains draping from canopy ceiling
+    ctx.fillStyle = '#8b949b';
+    for (let mx = 18; mx < w; mx += 44) {
+      const mossLen = 58 + ((mx * 31) % 95);
+      ctx.fillRect(mx, 0, 8, mossLen);
+      ctx.fillStyle = '#b4bcc2';
+      ctx.fillRect(mx + 2, 0, 3, Math.max(18, mossLen - 22));
+      ctx.fillStyle = '#8b949b';
+    }
+
+    // 3. Silhouette Pale Oak Trunks in the Fog
+    const trunks = [74, 198, 336, 684, 816, 932];
+    trunks.forEach((tx, idx) => {
+      const tw = idx % 2 === 0 ? 48 : 38;
+      ctx.fillStyle = '#363b42';
+      ctx.fillRect(tx, 34, tw, h - 96);
+      ctx.fillStyle = '#535962';
+      ctx.fillRect(tx + 8, 34, 8, h - 96);
+      // Glowing Resin Heart scars on inner trunks
+      if (idx === 2 || idx === 3) {
+        ctx.fillStyle = '#f97316';
+        ctx.fillRect(tx + 14, 195, 16, 26);
+        ctx.fillStyle = '#fde047';
+        ctx.fillRect(tx + 18, 202, 8, 12);
+      }
+    });
+
+    // 4. Glowing Orange Open Eyeblossoms & Unblinking Eyes in the Undergrowth
+    for (let i = 0; i < 28; i++) {
+      const ex = 36 + ((i * 139) % (w - 72));
+      const ey = h - 135 + ((i * 47) % 58);
+      ctx.fillStyle = i % 2 === 0 ? '#f97316' : '#fb923c';
+      ctx.fillRect(ex, ey, 6, 6);
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(ex + 2, ey + 2, 2, 2);
+    }
+
+    // 5. Pale Garden Header & Gaze-Freeze Telemetry
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText('ACT VI // MINECRAFT PALE GARDEN — CREAKING HEART GROVE', w / 2, 74);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 34px monospace';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ CREAKING HEART SHATTERED — PORTAL OPEN' : '⚠ DON\'T BLINK — THE CREAKING STALKS WHEN UNSEEN',
+      w / 2,
+      122
+    );
+
+    ctx.fillStyle = '#fb923c';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('GAZE-FREEZE ACTIVE: FACE IT TO LOCK  •  WATCH FOR ROOT SNARE & RESIN SURGE', w / 2, 162);
+
+    // 6. Pale Moss & Resin Footer Bar
+    ctx.fillStyle = '#16191f';
+    ctx.fillRect(0, h - 62, w, 62);
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(0, h - 62, w, 5);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('🪵 PALE GARDEN // EYEBLOSSOMS OPEN  •  RESIN HEART ACTIVE', 32, h - 22);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fb923c';
+    ctx.fillText(sm.isObjectiveComplete ? 'HEART TETHER: SEVERED' : 'HEART TETHER: LINKED', w - 32, h - 22);
+  }
+
   redrawMonitorScreen(force = false) {
     const sm = this.stageManager;
     const beat = sm.campaignBeat || {};
@@ -1434,6 +1704,8 @@ export class Arena3DBuilder {
       this.drawRocketCorpControlRoom(ctx, w, h, sm);
     } else if (sm.theme === 'ancient_city') {
       this.drawAncientCityCavernBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'pale_garden') {
+      this.drawPaleGardenBackdrop(ctx, w, h, sm);
     } else {
       ctx.fillStyle = sm.theme === 'bsod' ? '#003999'
         : (sm.theme === 'dark_core' ? '#1a0008'
@@ -1748,6 +2020,17 @@ export class Arena3DBuilder {
     if (this.ancientCityCenterPortal?.veilMat) {
       const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
       this.ancientCityCenterPortal.veilMat.opacity = 0.28 + Math.sin(t * 3.2) * 0.07;
+    }
+
+    // Pulse Pale Garden Creaking Heart Shrine & Resin Halo
+    if (this.paleGardenHeartShrine) {
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+      if (this.paleGardenHeartShrine.heartMat) {
+        this.paleGardenHeartShrine.heartMat.emissiveIntensity = 0.75 + Math.sin(t * 4.2) * 0.25;
+      }
+      if (this.paleGardenHeartShrine.resinRing) {
+        this.paleGardenHeartShrine.resinRing.rotation.z = t * 0.9;
+      }
     }
 
     // Spin Trophy Key if in Trophy Room

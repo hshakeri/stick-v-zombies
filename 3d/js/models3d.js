@@ -1930,4 +1930,294 @@ export class WardenBossRig3D {
   }
 }
 
+// ============================================================================
+// 5b. THE CREAKING BOSS RIG (Stage 21: Pale Garden — Asymmetrical Pale Oak Puppet)
+// ============================================================================
+export class CreakingBossRig3D {
+  constructor() {
+    this.root = new THREE.Group();
+
+    const barkTex = getVoxelTexture('pale_oak_log', 2, 3);
+    barkTex.isShared = true;
+    const mossTex = getVoxelTexture('pale_moss', 1, 1);
+    mossTex.isShared = true;
+
+    this.barkMat = new THREE.MeshStandardMaterial({
+      map: barkTex,
+      color: 0xffffff,
+      roughness: 0.72,
+      metalness: 0.08
+    });
+    this.darkWoodMat = new THREE.MeshStandardMaterial({
+      color: 0x3b3f46,
+      roughness: 0.8
+    });
+    this.mossMat = new THREE.MeshStandardMaterial({
+      map: mossTex,
+      roughness: 0.85
+    });
+    this.eyeMat = new THREE.MeshBasicMaterial({
+      color: 0xfb923c
+    });
+    this.eyeCoreMat = new THREE.MeshBasicMaterial({
+      color: 0xfef08a
+    });
+    this.resinMat = new THREE.MeshBasicMaterial({
+      color: 0xf97316,
+      transparent: true,
+      opacity: 0.88
+    });
+
+    // 1. Asymmetrical Splintered Wooden Stilt Legs (Flush foot alignment: bottom exactly at y = 0)
+    this.legL = new THREE.Group();
+    this.legL.position.set(-0.36, 1.38, 0);
+    const stiltL = new THREE.Mesh(new THREE.BoxGeometry(0.32, 1.38, 0.34), this.barkMat);
+    stiltL.position.y = -0.69;
+    stiltL.castShadow = true;
+    const mossKneeL = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.24, 0.38), this.mossMat);
+    mossKneeL.position.y = -0.42;
+    this.legL.add(stiltL, mossKneeL);
+
+    this.legR = new THREE.Group();
+    this.legR.position.set(0.38, 1.38, 0);
+    const stiltR = new THREE.Mesh(new THREE.BoxGeometry(0.38, 1.38, 0.38), this.barkMat);
+    stiltR.position.y = -0.69;
+    stiltR.castShadow = true;
+    const resinAnkleR = new THREE.Mesh(new THREE.BoxGeometry(0.41, 0.16, 0.41), this.resinMat);
+    resinAnkleR.position.y = -1.05;
+    this.legR.add(stiltR, resinAnkleR);
+    this.root.add(this.legL, this.legR);
+
+    // 2. Crooked Pale Oak Torso & Glowing Resin Heart Fissures
+    this.bodyPivot = new THREE.Group();
+    this.bodyPivot.position.set(0, 1.38, 0);
+    this.root.add(this.bodyPivot);
+
+    const lowerTrunk = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.72, 0.58), this.barkMat);
+    lowerTrunk.position.set(-0.04, 0.36, 0);
+    lowerTrunk.rotation.z = 0.06;
+    const upperTrunk = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.92, 0.68), this.barkMat);
+    upperTrunk.position.set(0.05, 1.12, 0.04);
+    upperTrunk.rotation.z = -0.07;
+    upperTrunk.castShadow = true;
+
+    const chestHollow = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.58, 0.46), this.darkWoodMat);
+    chestHollow.position.set(0.04, 1.1, 0.16);
+
+    // Pulsing Resin Heart Core inside splintered chest bark
+    this.resinCore = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.44, 0.34), this.resinMat);
+    this.resinCore.position.set(0.04, 1.1, 0.22);
+
+    // Asymmetrical deadwood shoulder boughs & hanging pale moss
+    const boughL = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.24, 0.36), this.barkMat);
+    boughL.position.set(-0.72, 1.48, 0);
+    boughL.rotation.z = 0.28;
+    const boughR = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.28, 0.38), this.barkMat);
+    boughR.position.set(0.78, 1.56, 0);
+    boughR.rotation.z = -0.34;
+    const mossDrape = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.68, 0.14), this.mossMat);
+    mossDrape.position.set(-0.56, 1.05, 0.28);
+
+    this.bodyPivot.add(lowerTrunk, upperTrunk, chestHollow, this.resinCore, boughL, boughR, mossDrape);
+
+    // 3. Iconic Crooked Wooden Crown Head & 3 Staggered Glowing Orange Eyes
+    this.headPivot = new THREE.Group();
+    this.headPivot.position.set(0.08, 1.62, 0.08);
+    this.bodyPivot.add(this.headPivot);
+
+    const skull = new THREE.Mesh(new THREE.BoxGeometry(0.84, 1.16, 0.72), this.barkMat);
+    skull.position.set(0, 0.56, 0);
+    skull.rotation.z = -0.08;
+    skull.castShadow = true;
+
+    const faceSplit = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.92, 0.75), this.darkWoodMat);
+    faceSplit.position.set(-0.04, 0.54, 0.01);
+    faceSplit.rotation.z = -0.08;
+
+    // Uneven jagged wooden crown prongs atop The Creaking's head
+    const prongL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.62, 0.24), this.barkMat);
+    prongL.position.set(-0.3, 1.36, 0);
+    prongL.rotation.z = 0.12;
+    const prongM = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.38, 0.2), this.darkWoodMat);
+    prongM.position.set(0.02, 1.24, -0.05);
+    const prongR = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.78, 0.26), this.barkMat);
+    prongR.position.set(0.3, 1.44, 0.02);
+    prongR.rotation.z = -0.14;
+
+    // 3 Asymmetrical Glowing Orange Eyes (The Creaking's signature vertical/diagonal triad!)
+    const makeEye = (ex, ey) => {
+      const g = new THREE.Group();
+      const outer = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.08), this.eyeMat);
+      const inner = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.08, 0.1), this.eyeCoreMat);
+      g.add(outer, inner);
+      g.position.set(ex, ey, 0.36);
+      return g;
+    };
+    this.eyeTop = makeEye(0.16, 0.84);
+    this.eyeMid = makeEye(-0.18, 0.58);
+    this.eyeLow = makeEye(0.14, 0.34);
+
+    this.headPivot.add(skull, faceSplit, prongL, prongM, prongR, this.eyeTop, this.eyeMid, this.eyeLow);
+
+    // 4. Long Lanky Asymmetrical Wooden Puppet Arms & Branch Claws
+    const buildCreakingArm = (side, length) => {
+      const armGroup = new THREE.Group();
+      armGroup.position.set(side * 0.82, 1.48 + (side > 0 ? 0.08 : 0), 0.04);
+
+      const upper = new THREE.Mesh(new THREE.BoxGeometry(0.28, length * 0.52, 0.28), this.barkMat);
+      upper.position.y = -length * 0.26;
+      upper.castShadow = true;
+
+      const resinJoint = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.16, 0.32), this.resinMat);
+      resinJoint.position.y = -length * 0.52;
+
+      const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.24, length * 0.52, 0.26), this.barkMat);
+      forearm.position.set(0, -length * 0.78, 0.08);
+      forearm.rotation.x = -0.18;
+
+      // 3 jagged wooden branch-claws
+      for (const cx of [-0.09, 0, 0.09]) {
+        const claw = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.34, 0.08), this.darkWoodMat);
+        claw.position.set(cx, -length * 1.06, 0.16);
+        claw.rotation.x = -0.28;
+        armGroup.add(claw);
+      }
+
+      armGroup.add(upper, resinJoint, forearm);
+      return armGroup;
+    };
+    this.armL = buildCreakingArm(-1, 2.05);
+    this.armR = buildCreakingArm(1, 2.22);
+    this.bodyPivot.add(this.armL, this.armR);
+
+    // 5. Orange Resin Heart-Tether Particle Stream (points toward Creaking Heart when struck/surging!)
+    this.tetherGroup = new THREE.Group();
+    this.tetherGroup.position.set(0, 2.48, 0);
+    this.tetherMotes = [];
+    const moteGeo = new THREE.BoxGeometry(0.22, 0.22, 0.22);
+    for (let i = 0; i < 4; i++) {
+      const mote = new THREE.Mesh(moteGeo, this.resinMat);
+      this.tetherGroup.add(mote);
+      this.tetherMotes.push(mote);
+    }
+    this.tetherGroup.visible = false;
+    this.root.add(this.tetherGroup);
+  }
+
+  update({
+    pose = 'idle',
+    animTimer = 0,
+    isGrounded = true,
+    isHurt = false,
+    isAwakened = false,
+    isFrozen = false,
+    actionKind = null,
+    actionPhase = 0
+  }) {
+    const isStatue = actionKind === 'creaking_statue';
+    const isBlink = actionKind === 'creaking_blink';
+    const isRoots = actionKind === 'creaking_roots';
+    const isSurge = actionKind === 'creaking_surge';
+    const phase = Math.max(0, Math.min(1, actionPhase || 0));
+
+    // Stop-motion puppet cadence when stalking; dead-still when observed as a statue!
+    const t = isStatue ? 0 : Math.floor(animTimer * 12) / 12;
+
+    if (isHurt) {
+      this.barkMat.emissive.setHex(0xf97316);
+      this.barkMat.emissiveIntensity = 0.72;
+    } else if (isFrozen) {
+      this.barkMat.emissive.setHex(0x38bdf8);
+      this.barkMat.emissiveIntensity = 0.45;
+    } else if (isAwakened) {
+      this.barkMat.emissive.setHex(0xea580c);
+      this.barkMat.emissiveIntensity = 0.28 + Math.sin(animTimer * 9) * 0.12;
+    } else {
+      this.barkMat.emissive.setHex(0x000000);
+      this.barkMat.emissiveIntensity = 0;
+    }
+
+    // Pulsing Resin Heart core
+    const heartPulse = isStatue
+      ? 0.45
+      : (0.65 + 0.35 * Math.sin(animTimer * (isAwakened || isSurge ? 12.0 : 5.0)));
+    this.resinMat.opacity = Math.min(1, heartPulse);
+    this.resinCore.scale.setScalar(0.92 + heartPulse * 0.16);
+
+    const isMoving = !isStatue && (pose === 'run' || pose === 'walk' || pose === 'zombie_walk' || isBlink);
+    const stride = isMoving ? Math.sin(t * 9.5) * 0.62 : 0;
+    this.legL.rotation.x = stride;
+    this.legR.rotation.x = stride ? -stride : 0;
+
+    const bob = (!isStatue && isGrounded && isMoving) ? Math.abs(Math.cos(t * 9.5)) * 0.11 : 0;
+    this.bodyPivot.position.y = 1.38 + bob;
+
+    if (isStatue) {
+      // Eerie frozen Weeping-Statue posture when player gazes at The Creaking!
+      this.bodyPivot.rotation.x = 0.08;
+      this.bodyPivot.rotation.z = -0.09;
+      this.headPivot.rotation.z = -0.26;
+      this.headPivot.rotation.x = 0.06;
+      this.armL.rotation.x = -0.42;
+      this.armL.rotation.z = 0.22;
+      this.armR.rotation.x = -0.68;
+      this.armR.rotation.z = -0.18;
+    } else if (isBlink) {
+      // Sudden lunging puppet claw slash after blinking behind player!
+      this.bodyPivot.rotation.x = 0.34;
+      this.bodyPivot.rotation.z = 0;
+      const slash = -1.65 + phase * 2.55;
+      this.armL.rotation.x = slash;
+      this.armR.rotation.x = slash - 0.22;
+      this.armL.rotation.z = 0.16;
+      this.armR.rotation.z = -0.16;
+      this.headPivot.rotation.z = 0.15;
+    } else if (isRoots) {
+      // Impales long wooden claws downward into Pale Moss floor to erupt root snares!
+      const plunge = phase < 0.45 ? -1.9 * (phase / 0.45) : -1.9 + 2.9 * ((phase - 0.45) / 0.55);
+      this.bodyPivot.rotation.x = phase < 0.45 ? -0.14 : 0.44;
+      this.bodyPivot.rotation.z = 0;
+      this.armL.rotation.x = plunge;
+      this.armR.rotation.x = plunge;
+      this.armL.rotation.z = 0.14;
+      this.armR.rotation.z = -0.14;
+      this.headPivot.rotation.z = Math.sin(animTimer * 14) * 0.12;
+    } else if (isSurge) {
+      // Channels fiery orange Resin Surge from Creaking Heart!
+      this.bodyPivot.rotation.x = -0.2;
+      this.bodyPivot.rotation.z = 0;
+      this.armL.rotation.x = -0.95;
+      this.armL.rotation.z = 0.52;
+      this.armR.rotation.x = -0.95;
+      this.armR.rotation.z = -0.52;
+      this.headPivot.rotation.z = Math.sin(animTimer * 18) * 0.14;
+    } else {
+      // Jerky crooked puppet stalk
+      this.bodyPivot.rotation.x = 0.14;
+      this.bodyPivot.rotation.z = Math.sin(t * 4.5) * 0.07;
+      this.armL.rotation.x = -stride * 0.9 - 0.28;
+      this.armR.rotation.x = stride * 0.9 - 0.34;
+      this.armL.rotation.z = 0.1;
+      this.armR.rotation.z = -0.12;
+      this.headPivot.rotation.z = -0.16 + Math.sin(t * 3.8) * 0.14;
+    }
+
+    // Orange Resin Heart-Tether particle stream (visible when hurt, surging, or Phase 2 awakened)
+    this.tetherGroup.visible = Boolean(isHurt || isSurge || isAwakened);
+    if (this.tetherGroup.visible) {
+      for (let i = 0; i < this.tetherMotes.length; i++) {
+        const prog = ((animTimer * 2.6) + i * 0.25) % 1;
+        const mote = this.tetherMotes[i];
+        mote.position.set(
+          Math.sin(animTimer * 6 + i) * 0.25,
+          prog * 2.2,
+          -prog * 3.4
+        );
+        mote.scale.setScalar(1.1 - prog * 0.55);
+      }
+    }
+  }
+}
+
+
 

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Orange Stickman vs Zombies 3D — Voxel Desktop Edition</title>
 <link rel="stylesheet" href="../css/style.css?v=9.8">
-<link rel="stylesheet" href="css/style3d.css?v=10.8">
+<link rel="stylesheet" href="css/style3d.css?v=10.9">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23ff7700%22 stroke=%22white%22 stroke-width=%228%22/></svg>">
 </head>
 <body>
@@ -104,6 +104,9 @@
 <option value="rocket_corp_wall">🏢 Rocket Corp Panel</option>
 <option value="sculk">🌌 Sculk Block</option>
 <option value="deepslate_tiles">🧱 Deepslate Tiles</option>
+<option value="pale_moss">🌿 Pale Moss Block</option>
+<option value="pale_oak_log">🪵 Pale Oak Log</option>
+<option value="creaking_heart">🧡 Creaking Heart</option>
 <option value="sketch_block">✏️ Sketch Block</option>
 <option value="lava">🔥 Lava Block</option>
 </select>
@@ -114,6 +117,7 @@
 <label for="creative-spawn-select" class="creative-row-label">👾 SPAWN</label>
 <select id="creative-spawn-select" class="creative-select" aria-label="Select Boss or Zombie to Spawn">
 <optgroup label="★ STORY BOSSES">
+<option value="creaking_boss">🪵 The Creaking (Pale Garden)</option>
 <option value="warden_boss">🔊 The Warden (Ancient City)</option>
 <option value="ender_dragon">🐉 Ender Dragon</option>
 <option value="mercenary_squad">🕶️ All 4 Mercenaries Squad</option>
@@ -219,7 +223,7 @@
 <span>STICK</span><span class="title-vs">VS</span><span>ZOMBIES</span><span class="badge-3d-pill">3D VOXEL</span>
 </h1>
 <h2 class="game-sub-title">3D DESKTOP &amp; MINECRAFT ARENA</h2>
-<p class="title-tagline">22 Stages • Ender Dragon • The Aether • Ancient City Warden • Mercenaries • H4C3R</p>
+<p class="title-tagline">23 Stages • Ender Dragon • Ancient City Warden • Pale Garden Creaking • Mercenaries • H4C3R</p>
 </div>
 <div class="title-actions">
 <button id="btn-start-game" class="primary-btn" style="font-size: 20px; padding: 14px 28px;">▶ PLAY 3D CAMPAIGN</button>
@@ -238,8 +242,9 @@
 <button type="button" class="quick-stage-btn" data-jump-stage="18">🐉 18: The End (Ender Dragon)</button>
 <button type="button" class="quick-stage-btn" data-jump-stage="19">☁️ 19: The Aether</button>
 <button type="button" class="quick-stage-btn" data-jump-stage="20">🔊 20: Ancient City (The Warden)</button>
-<button type="button" class="quick-stage-btn" data-jump-stage="21">🕶️ 21: Rocket Corp (Mercenaries)</button>
-<button type="button" class="quick-stage-btn" data-jump-stage="22">⌁ 22: Zero-Day (H4C3R)</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="21">🪵 21: Pale Garden (The Creaking)</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="22">🕶️ 22: Rocket Corp (Mercenaries)</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="23">⌁ 23: Zero-Day (H4C3R)</button>
 </div>
 </div>
 <div class="controls-guide-card">
@@ -422,6 +427,6 @@
 </div>
 </div>
 </div>
-<script type="module" src="js/game3d.js?v=10.8"></script>
+<script type="module" src="js/game3d.js?v=10.9"></script>
 </body>
 </html>

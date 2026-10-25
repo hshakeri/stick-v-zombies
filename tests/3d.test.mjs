@@ -120,6 +120,7 @@ const {
   LuckyOrbRig3D,
   EnderDragonRig3D,
   WardenBossRig3D,
+  CreakingBossRig3D,
   buildVoxelWeaponMesh,
   createTurretMesh3D,
   createViraBotMesh3D
@@ -139,7 +140,8 @@ import {
   CAMPAIGN_BEATS_3D,
   EnderDragonBoss,
   MercenaryBoss,
-  WardenBoss
+  WardenBoss,
+  CreakingBoss
 } from '../3d/js/campaign3d.js?v=10.3';
 import { getVoxelTexture, getThemeFloorTextureKey } from '../3d/js/textures3d.js?v=10.3';
 
@@ -1285,7 +1287,7 @@ test('Tier 4 [Scenario 5] Lucky Orb Mystery Encounter: Spinning Cage & Prize Dro
   assert.equal(orbEntity.rollResolved, true, 'prize drop resolves after telegraph completes');
 });
 
-test('Tier 4 [Scenario 6] Full 22-Stage Campaign Routing & 10-Trophy Victory Room', () => {
+test('Tier 4 [Scenario 6] Full 23-Stage Campaign Routing & 11-Trophy Victory Room', () => {
   const stageManager = {
     stages: [],
     customStages: new Map(),
@@ -1303,27 +1305,31 @@ test('Tier 4 [Scenario 6] Full 22-Stage Campaign Routing & 10-Trophy Victory Roo
   };
 
   extendCampaignFor3D(stageManager, waveDirector);
-  assert.equal(stageManager.maxStage, 22, 'extendCampaignFor3D must set maxStage to 22');
+  assert.equal(stageManager.maxStage, 23, 'extendCampaignFor3D must set maxStage to 23');
 
   // Check 3D custom late-game campaign beats are defined
   assert.ok(CAMPAIGN_BEATS_3D[18], 'stage 18 (The End) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[19], 'stage 19 (The Aether) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[20], 'stage 20 (Ancient City) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[21], 'stage 21 (Rocket Corp HQ) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[22], 'stage 22 (Zero-Day Mainframe) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[21], 'stage 21 (Pale Garden) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[22], 'stage 22 (Rocket Corp HQ) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[23], 'stage 23 (Zero-Day Mainframe) must exist in CAMPAIGN_BEATS_3D');
 
   assert.equal(CAMPAIGN_BEATS_3D[18].bossLabel, 'ENDER DRAGON');
   assert.equal(CAMPAIGN_BEATS_3D[18].mission, 'SLAY THE ENDER DRAGON');
   assert.equal(CAMPAIGN_BEATS_3D[19].mission, 'CROSS THE AETHER SKYLANDS');
   assert.equal(CAMPAIGN_BEATS_3D[20].bossLabel, 'THE WARDEN');
   assert.equal(CAMPAIGN_BEATS_3D[20].mission, 'SILENCE THE WARDEN');
-  assert.equal(CAMPAIGN_BEATS_3D[21].bossLabel, 'AGENT · BALLISTA · PRIMAL · HAZARD');
-  assert.equal(CAMPAIGN_BEATS_3D[22].bossLabel, 'H4C3R');
+  assert.equal(CAMPAIGN_BEATS_3D[21].bossLabel, 'THE CREAKING');
+  assert.equal(CAMPAIGN_BEATS_3D[21].mission, 'SHATTER THE CREAKING');
+  assert.equal(CAMPAIGN_BEATS_3D[22].bossLabel, 'AGENT · BALLISTA · PRIMAL · HAZARD');
+  assert.equal(CAMPAIGN_BEATS_3D[23].bossLabel, 'H4C3R');
 
-  // 10-Trophy victory room roster
+  // 11-Trophy victory room roster
   stageManager.enterTrophyRoom();
-  assert.equal(stageManager.desktopIcons.length, 10, 'must define all 10 campaign trophy pedestals');
+  assert.equal(stageManager.desktopIcons.length, 11, 'must define all 11 campaign trophy pedestals');
   assert.ok(stageManager.desktopIcons.some((ic) => ic.label === 'THE WARDEN'), 'Trophy Room must include THE WARDEN monument');
+  assert.ok(stageManager.desktopIcons.some((ic) => ic.label === 'THE CREAKING'), 'Trophy Room must include THE CREAKING monument');
 });
 
 
@@ -4552,9 +4558,9 @@ test('Ancient City [2] Stage 20 Arena3DBuilder: builds Center Reinforced Deepsla
   arena.update(0.25);
   assert.ok(arena.ancientCityCenterPortal.veilMat.opacity > 0.2, 'Center Portal cyan soul veil must pulse');
 
-  // Verify clean rebuild transition to Stage 21 (Rocket Corp HQ — right before Stage 22 H4C3R)
+  // Verify clean rebuild transition to Stage 21 (Pale Garden)
   stageManager.loadStage(21);
-  assert.equal(stageManager.stageName, 'Rocket Corp HQ');
+  assert.equal(stageManager.stageName, 'Pale Garden');
   arena.rebuildForStage();
   assert.equal(arena.ancientCityCenterPortal, null, 'Center Portal reference must clear on stage rebuild');
 });
@@ -4667,7 +4673,229 @@ test('Ancient City [5] Creative Sandbox & Title Quick-Jump UI: 3d/index.html exp
   assert.ok(html.includes('value="sculk"'), '3d/index.html must include sculk in Creative block select');
   assert.ok(html.includes('value="deepslate_tiles"'), '3d/index.html must include deepslate_tiles in Creative block select');
   assert.ok(html.includes('data-jump-stage="20">🔊 20: Ancient City (The Warden)'), 'Title screen must include Stage 20 Ancient City quick-jump pill');
-  assert.ok(html.includes('data-jump-stage="21">🕶️ 21: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must be Stage 21 right before Stage 22 H4C3R');
-  assert.ok(html.includes('data-jump-stage="22">⌁ 22: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 22');
+  assert.ok(html.includes('data-jump-stage="22">🕶️ 22: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must be Stage 22 right before Stage 23 H4C3R');
+  assert.ok(html.includes('data-jump-stage="23">⌁ 23: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 23');
 });
+
+// ============================================================================
+// Stage 21: Pale Garden & The Creaking Boss Suite
+// ============================================================================
+
+test('Pale Garden [1] Pale Garden Voxel Textures: pale_moss, pale_oak_log, pale_oak_leaves, creaking_heart, and resin_block generate cached CanvasTextures', () => {
+  const paleMoss = getVoxelTexture('pale_moss');
+  const paleOakLog = getVoxelTexture('pale_oak_log');
+  const paleOakLeaves = getVoxelTexture('pale_oak_leaves');
+  const creakingHeart = getVoxelTexture('creaking_heart');
+  const resinBlock = getVoxelTexture('resin_block');
+
+  assert.ok(paleMoss instanceof THREE.CanvasTexture, 'pale_moss must be a THREE.CanvasTexture');
+  assert.ok(paleOakLog instanceof THREE.CanvasTexture, 'pale_oak_log must be a THREE.CanvasTexture');
+  assert.ok(paleOakLeaves instanceof THREE.CanvasTexture, 'pale_oak_leaves must be a THREE.CanvasTexture');
+  assert.ok(creakingHeart instanceof THREE.CanvasTexture, 'creaking_heart must be a THREE.CanvasTexture');
+  assert.ok(resinBlock instanceof THREE.CanvasTexture, 'resin_block must be a THREE.CanvasTexture');
+  assert.equal(getVoxelTexture('pale_moss'), paleMoss, 'pale_moss texture must be singleton-cached');
+  assert.equal(getThemeFloorTextureKey('pale_garden'), 'pale_moss', 'pale_garden floor must map to pale_moss');
+});
+
+test('Pale Garden [2] Stage 21 Arena3DBuilder: builds Center Ancient Pale Oak & Creaking Heart Shrine, twisted trees, Eyeblossoms, and disposes cleanly', () => {
+  const scene = new THREE.Scene();
+  const stageManager = {
+    currentStage: 1,
+    stageName: 'Main Desktop',
+    theme: 'desktop',
+    stageTime: 0,
+    platforms: [],
+    movingPlatforms: [],
+    desktopIcons: [],
+    laserHazards: [],
+    lavaHazards: [],
+    errorPopups: [],
+    entranceDoor: { x: -900, y: 0, width: 60, height: 110 },
+    exitDoor: { x: 860, y: 0, width: 60, height: 110, isOpen: false },
+    loadStage: () => {},
+    enterTrophyRoom: () => {},
+    getCampaignBeat: (n) => ({ name: `Stage ${n}` })
+  };
+  const waveDirector = {
+    zombies: [],
+    spawnQueue: [],
+    generateWaveQueue: () => {},
+    queueWaveRecipe: () => {},
+    spawnZombie: () => {},
+    getSafeSpawnX: () => 420,
+    update: () => {}
+  };
+
+  extendCampaignFor3D(stageManager, waveDirector);
+  stageManager.loadStage(21);
+
+  assert.equal(stageManager.stageName, 'Pale Garden');
+  assert.equal(stageManager.theme, 'pale_garden');
+  assert.equal(stageManager.platforms.length, 3, 'Pale Garden must have 3 static Pale Oak bough platforms');
+  assert.equal(stageManager.movingPlatforms.length, 1, 'Pale Garden must have 1 moving Hanging_Moss_Bough bridge');
+  assert.equal(stageManager.movingPlatforms[0].title, 'Hanging_Moss_Bough');
+  assert.equal(refIsOpenEdgeTheme('pale_garden'), false, 'pale_garden is an enclosed haunted forest glade');
+
+  const arena = new Arena3DBuilder(scene, stageManager);
+  arena.rebuildForStage();
+
+  assert.ok(arena.paleGardenHeartShrine, 'Pale Garden must construct the Center Creaking Heart Shrine');
+  assert.equal(arena.standNeck.visible, false, 'monitor stand neck must be hidden in Pale Garden');
+  const prevRingRot = arena.paleGardenHeartShrine.resinRing.rotation.z;
+  stageManager.stageTime = 0.5;
+  arena.update(0.25);
+  assert.ok(arena.paleGardenHeartShrine.heartMat.emissiveIntensity >= 0.4, 'Creaking Heart emissive must pulse');
+  assert.notEqual(arena.paleGardenHeartShrine.resinRing.rotation.z, prevRingRot, 'Resin ring around Creaking Heart must rotate');
+
+  // Verify clean rebuild transition to Stage 22 (Rocket Corp HQ — right before Stage 23 H4C3R)
+  stageManager.loadStage(22);
+  assert.equal(stageManager.stageName, 'Rocket Corp HQ');
+  arena.rebuildForStage();
+  assert.equal(arena.paleGardenHeartShrine, null, 'Creaking Heart Shrine reference must clear on stage rebuild');
+});
+
+test('Pale Garden [3] CreakingBossRig3D Anatomy & Animation: 3 asymmetrical glowing eyes, flush stilts, frozen statue pose, and Resin Heart-Tether motes', () => {
+  const rig = new CreakingBossRig3D();
+  assert.ok(rig.root instanceof THREE.Group);
+  assert.ok(rig.eyeTop && rig.eyeMid && rig.eyeLow, 'Creaking rig must feature 3 asymmetrical glowing orange eyes');
+  assert.notEqual(rig.eyeTop.position.x, rig.eyeMid.position.x, 'Creaking eyes must be staggered asymmetrically');
+  assert.equal(rig.tetherGroup.visible, false, 'Resin Heart-Tether motes must start hidden');
+
+  // Gaze-frozen statue state: zero leg stride and rigid weeping-statue posture
+  rig.update({
+    pose: 'idle',
+    animTimer: 1.7,
+    isGrounded: true,
+    actionKind: 'creaking_statue',
+    actionPhase: 0,
+    dt: 0.016
+  });
+  assert.equal(rig.legL.rotation.x, 0, 'Statue pose must lock left stilt leg stride at 0');
+  assert.equal(rig.legR.rotation.x, 0, 'Statue pose must lock right stilt leg stride at 0');
+  assert.equal(rig.headPivot.rotation.z, -0.26, 'Statue pose must tilt crooked wooden crown head');
+  assert.equal(rig.tetherGroup.visible, false);
+
+  // Resin Surge / Hurt / Awakened activates the 4-mote orange Resin Heart-Tether stream
+  rig.update({
+    pose: 'idle',
+    animTimer: 2.3,
+    isGrounded: true,
+    isHurt: true,
+    actionKind: 'creaking_surge',
+    actionPhase: 0.5,
+    dt: 0.016
+  });
+  assert.equal(rig.tetherGroup.visible, true, 'Resin Heart-Tether stream must appear when hurt or surging');
+  assert.equal(rig.tetherMotes.length, 4, 'Resin Heart-Tether must animate 4 resin motes toward the Heart');
+});
+
+test('Pale Garden [4] CreakingBoss Combat AI Lifecycle: Gaze-Freeze ("Don\'t Blink"), Blink Ambush, Pale Root Snare, Heart-Link Resin Surge, Phase 2 Overdrive, and Defeat', () => {
+  const creaking = new CreakingBoss(360, 0);
+  assert.equal(creaking.type, 'creaking_boss');
+  assert.equal(creaking.name, 'THE CREAKING');
+  assert.equal(creaking.maxHp, 1480);
+  assert.equal(creaking.phase, 1);
+
+  let playerHits = 0;
+  let lastDamage = 0;
+  const mockPlayer = {
+    x: 100,
+    y: 0,
+    z: 0,
+    facing: 1, // Facing +X toward creaking at x = 360!
+    radius: 20,
+    isDead: false,
+    isRolling: false,
+    iFrames: 0,
+    isAwakened: false,
+    takeDamage(dmg) {
+      playerHits++;
+      lastDamage = dmg;
+    }
+  };
+
+  // 1. Gaze-Freeze ("Don't Blink"): Player looks toward Creaking -> freezes into bark-armored statue!
+  const cdBeforeGaze = creaking.actionCooldown;
+  creaking.update(0.05, 0, mockPlayer, [], null);
+  assert.equal(creaking.isObserved, true, 'Creaking must detect player gazing toward it');
+  assert.equal(creaking.actionKind, 'creaking_statue', 'Creaking must freeze into creaking_statue while watched');
+  assert.equal(creaking.vx, 0, 'Watched Creaking must have zero horizontal velocity');
+  assert.ok(creaking.actionCooldown < cdBeforeGaze, 'Cooldown must still tick while watched so combat never stalls');
+
+  // Verify hardened bark damage reduction (0.65x) on non-crit hits while frozen as statue
+  const dmgTakenStatue = creaking.takeDamage(100, -1, 200, false);
+  assert.equal(dmgTakenStatue, 65, 'Statue bark armor must reduce non-crit damage to 65%');
+
+  // Player looks away (facing -1 while Creaking is at +X) -> Creaking stalks rapidly!
+  mockPlayer.facing = -1;
+  creaking.update(0.05, 0, mockPlayer, [], null);
+  assert.equal(creaking.isObserved, false, 'Creaking must detect player looking away');
+  assert.equal(creaking.actionKind, null);
+  assert.ok(Math.abs(creaking.vx) >= 250, 'Unobserved Creaking must stalk rapidly toward player');
+
+  // 2. Attack 0: Weeping Blink Ambush
+  creaking.actionCooldown = 0;
+  creaking.update(0.05, 0, mockPlayer, [], null);
+  assert.equal(creaking.state, 'blink_windup');
+  assert.equal(creaking.actionKind, 'creaking_blink');
+  for (let i = 0; i < 25; i++) {
+    creaking.update(0.05, 0, mockPlayer, [], null);
+  }
+  assert.equal(playerHits, 1, 'Player in Weeping Blink Ambush path must take damage');
+  assert.equal(lastDamage, 26);
+
+  // 3. Attack 1: Pale Root Snare
+  creaking.state = 'idle';
+  creaking.actionCooldown = 0;
+  creaking.update(0.05, 0, mockPlayer, [], null);
+  assert.equal(creaking.state, 'roots_windup');
+  assert.equal(creaking.actionKind, 'creaking_roots');
+  for (let i = 0; i < 25; i++) {
+    creaking.update(0.05, 0, mockPlayer, [], null);
+  }
+  assert.ok(creaking.dropResolved, 'Pale Root Snare must resolve');
+  assert.equal(playerHits, 2, 'Grounded player in Pale Root Snare zone must take damage');
+
+  // 4. Attack 2: Heart-Link Resin Surge (move player close for resin burst AoE)
+  creaking.state = 'idle';
+  creaking.actionCooldown = 0;
+  mockPlayer.x = creaking.x - 60;
+  creaking.update(0.05, 0, mockPlayer, [], null);
+  assert.equal(creaking.state, 'surge_windup');
+  assert.equal(creaking.actionKind, 'creaking_surge');
+  for (let i = 0; i < 25; i++) {
+    creaking.update(0.05, 0, mockPlayer, [], null);
+  }
+  assert.ok(creaking.surgeResolved, 'Heart-Link Resin Surge must resolve');
+  assert.equal(playerHits, 3, 'Nearby player in Resin Surge blast must take damage');
+
+  // 5. Phase 2 Resin Overdrive at <= 50% HP and final defeat
+  creaking.takeDamage(800, -1, 300, true);
+  creaking.update(0.016, 0, mockPlayer, [], null);
+  assert.equal(creaking.phase, 2, 'Creaking must enter Phase 2 Resin Overdrive at <= 50% HP');
+  assert.equal(creaking.isAwakened, true);
+
+  creaking.takeDamage(1000, -1, 400, true);
+  assert.equal(creaking.isDead, true, 'Creaking must be severed and defeated at 0 HP');
+  assert.equal(creaking.state, 'defeated');
+});
+
+test('Pale Garden [5] Creative Sandbox, Title Quick-Jump UI & Speech Aliases: 3d/index.html & speech3d support Creaking / Creeking', () => {
+  const htmlPath = fileURLToPath(new URL('../3d/index.html', import.meta.url));
+  const html = readFileSync(htmlPath, 'utf8');
+  assert.ok(html.includes('value="creaking_boss"'), '3d/index.html must include creaking_boss in Creative spawn select');
+  assert.ok(html.includes('value="pale_moss"'), '3d/index.html must include pale_moss in Creative block select');
+  assert.ok(html.includes('value="pale_oak_log"'), '3d/index.html must include pale_oak_log in Creative block select');
+  assert.ok(html.includes('value="creaking_heart"'), '3d/index.html must include creaking_heart in Creative block select');
+  assert.ok(html.includes('data-jump-stage="21">🪵 21: Pale Garden (The Creaking)'), 'Title screen must include Stage 21 Pale Garden quick-jump pill');
+  assert.ok(html.includes('data-jump-stage="22">🕶️ 22: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must remain immediately before Zero-Day H4C3R');
+  assert.ok(html.includes('data-jump-stage="23">⌁ 23: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 23');
+
+  if (speech3dModule) {
+    assert.ok(speech3dModule.SPEAKER_BADGES.creaking_boss, 'SPEAKER_BADGES must define creaking_boss');
+    assert.ok(speech3dModule.SPEAKER_BADGES.creeking, 'SPEAKER_BADGES must also support alternate creeking spelling');
+    assert.ok(speech3dModule.BANTER_CHAINS.boss_creaking_intro, 'BANTER_CHAINS must define boss_creaking_intro');
+  }
+});
+
 

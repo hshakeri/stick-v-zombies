@@ -40,6 +40,7 @@ import {
   LuckyOrbRig3D,
   EnderDragonRig3D,
   WardenBossRig3D,
+  CreakingBossRig3D,
   buildVoxelWeaponMesh,
   createTurretMesh3D,
   createViraBotMesh3D
@@ -510,9 +511,10 @@ export class Game3D {
       '18: The End (Ender Dragon)',
       '19: The Aether (Skylands)',
       '20: Ancient City (The Warden)',
-      '21: Rocket Corp (The Mercenaries)',
-      '22: Zero-Day (H4C3R)',
-      '23: 🏆 Trophy Room Epilogue'
+      '21: Pale Garden (The Creaking)',
+      '22: Rocket Corp (The Mercenaries)',
+      '23: Zero-Day (H4C3R)',
+      '24: 🏆 Trophy Room Epilogue'
     ];
     const selectorIds = ['stage-select-dropdown', 'title-stage-select', 'pause-stage-select'];
     selectorIds.forEach((id) => {
@@ -528,10 +530,10 @@ export class Game3D {
       select.addEventListener('change', () => {
         const val = Number(select.value);
         audio.init();
-        if (val === 23) {
+        if (val === 24) {
           this.startGame();
           this.enterTrophyRoom();
-        } else if (val >= 1 && val <= 22) {
+        } else if (val >= 1 && val <= 23) {
           this.jumpToStage(val);
         }
         select.blur();
@@ -541,7 +543,7 @@ export class Game3D {
     document.querySelectorAll('[data-jump-stage]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const stg = Number(btn.getAttribute('data-jump-stage'));
-        if (stg >= 1 && stg <= 22) {
+        if (stg >= 1 && stg <= 23) {
           audio.init();
           this.jumpToStage(stg);
         }
@@ -657,7 +659,7 @@ export class Game3D {
       btnStart.addEventListener('click', () => {
         audio.init();
         const selectedStage = parseInt(document.getElementById('title-stage-select')?.value, 10);
-        if (selectedStage === 23) {
+        if (selectedStage === 24) {
           this.startGame();
           this.enterTrophyRoom();
         } else if (selectedStage && selectedStage > 1) {
@@ -674,7 +676,7 @@ export class Game3D {
         const selectedStage = parseInt(document.getElementById('title-stage-select')?.value, 10) || 1;
         this.creativeMode = true;
         this.creativeGodMode = true;
-        if (selectedStage === 23) {
+        if (selectedStage === 24) {
           this.startGame();
           this.enterTrophyRoom();
         } else {
@@ -995,7 +997,7 @@ export class Game3D {
       if (oldest?.mesh) {
         oldest.mesh.visible = false;
         oldest.mesh.scale.set(1, 1, 1);
-        if (oldest.texKey !== 'lava' && oldest.texKey !== 'sculk') {
+        if (oldest.texKey !== 'lava' && oldest.texKey !== 'sculk' && oldest.texKey !== 'creaking_heart') {
           oldest.mesh.material?.emissive?.setHex?.(0x000000);
           if (oldest.mesh.material) oldest.mesh.material.emissiveIntensity = 0;
         }
@@ -1012,6 +1014,7 @@ export class Game3D {
     const texKey = blockSelect?.value || 'command_block';
     const isLava = texKey === 'lava';
     const isSculk = texKey === 'sculk';
+    const isCreakingHeart = texKey === 'creaking_heart';
     const blockW = 68;
     const blockH = 68;
     const bx = Math.max(-920, Math.min(920, this.player.x + this.player.facing * 76));
@@ -1029,10 +1032,12 @@ export class Game3D {
     if (!mat) {
       mat = new THREE.MeshStandardMaterial({
         map: getVoxelTexture(texKey),
-        roughness: isLava ? 0.25 : (isSculk ? 0.65 : 0.4),
+        roughness: isLava ? 0.25 : (isSculk ? 0.65 : (isCreakingHeart ? 0.72 : 0.4)),
         metalness: texKey === 'gold_block' ? 0.55 : 0.15,
-        emissive: isLava ? new THREE.Color(0xff4400) : (isSculk ? new THREE.Color(0x06b6d4) : new THREE.Color(0x000000)),
-        emissiveIntensity: isLava ? 0.8 : (isSculk ? 0.35 : 0)
+        emissive: isLava
+          ? new THREE.Color(0xff4400)
+          : (isSculk ? new THREE.Color(0x06b6d4) : (isCreakingHeart ? new THREE.Color(0xf97316) : new THREE.Color(0x000000))),
+        emissiveIntensity: isLava ? 0.8 : (isSculk ? 0.35 : (isCreakingHeart ? 0.55 : 0))
       });
       mat.isShared = true;
       this.creativeMaterialCache.set(texKey, mat);
@@ -1043,6 +1048,9 @@ export class Game3D {
     } else if (isSculk) {
       mat.emissive?.setHex?.(0x06b6d4);
       mat.emissiveIntensity = 0.35;
+    } else if (isCreakingHeart) {
+      mat.emissive?.setHex?.(0xf97316);
+      mat.emissiveIntensity = 0.55;
     }
 
     let mesh;
@@ -1074,7 +1082,8 @@ export class Game3D {
       fuseTimer: texKey === 'tnt_block' ? 2.2 : (texKey === 'lucky_block' ? 1.1 : null)
     };
     this.creativeBlocks.push(blockRecord);
-    this.spawnVoxelBurst(bx, by - blockH / 2, bz, isLava ? '#ff6600' : (isSculk ? '#22d3ee' : '#38bdf8'), isLava ? 8 : 6);
+    const burstColor = isLava ? '#ff6600' : (isSculk ? '#22d3ee' : (isCreakingHeart ? '#f97316' : '#38bdf8'));
+    this.spawnVoxelBurst(bx, by - blockH / 2, bz, burstColor, isLava ? 8 : 6);
 
     if (texKey === 'tnt_block') {
       speech.onCreativeAction?.('tnt_place', { anchor: blockRecord });
@@ -1091,7 +1100,7 @@ export class Game3D {
       if (cb.mesh) {
         cb.mesh.visible = false;
         cb.mesh.scale.set(1, 1, 1);
-        if (cb.texKey !== 'lava' && cb.texKey !== 'sculk') {
+        if (cb.texKey !== 'lava' && cb.texKey !== 'sculk' && cb.texKey !== 'creaking_heart') {
           cb.mesh.material?.emissive?.setHex?.(0x000000);
           if (cb.mesh.material) cb.mesh.material.emissiveIntensity = 0;
         }
@@ -1111,6 +1120,10 @@ export class Game3D {
     const lavaMat = this.creativeMaterialCache.get('lava');
     if (lavaMat) {
       lavaMat.emissiveIntensity = 0.75 + 0.25 * Math.sin((this.stageManager?.stageTime || 0) * 3.5);
+    }
+    const heartMat = this.creativeMaterialCache.get('creaking_heart');
+    if (heartMat) {
+      heartMat.emissiveIntensity = 0.5 + 0.25 * Math.sin((this.stageManager?.stageTime || 0) * 4.2);
     }
 
     for (let i = this.creativeBlocks.length - 1; i >= 0; i--) {
@@ -1142,7 +1155,7 @@ export class Game3D {
         if (cb.mesh) {
           cb.mesh.visible = false;
           cb.mesh.scale.set(1, 1, 1);
-          if (cb.texKey !== 'lava' && cb.texKey !== 'sculk') {
+          if (cb.texKey !== 'lava' && cb.texKey !== 'sculk' && cb.texKey !== 'creaking_heart') {
             cb.mesh.material?.emissive?.setHex?.(0x000000);
             if (cb.mesh.material) {
               cb.mesh.material.emissiveIntensity = 0;
@@ -1346,7 +1359,7 @@ export class Game3D {
       if (cb.mesh) {
         cb.mesh.visible = false;
         cb.mesh.scale.set(1, 1, 1);
-        if (cb.texKey !== 'lava' && cb.texKey !== 'sculk') {
+        if (cb.texKey !== 'lava' && cb.texKey !== 'sculk' && cb.texKey !== 'creaking_heart') {
           cb.mesh.material?.emissive?.setHex?.(0x000000);
           if (cb.mesh.material) cb.mesh.material.emissiveIntensity = 0;
         }
@@ -1459,7 +1472,7 @@ export class Game3D {
 
   startGame(options = {}) {
     const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
-    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 22 ? checkpoint.stage : 1;
+    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 23 ? checkpoint.stage : 1;
     this.hideAllModals();
     this.state = 'PLAYING';
     audio.setBGMDucked?.(false);
@@ -1596,7 +1609,7 @@ export class Game3D {
     this.player.weaponType = 'pencil';
     this.player.stageDamageTaken = 0;
 
-    const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 18, 20, 21, 22].includes(nextStage);
+    const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 18, 20, 21, 22, 23].includes(nextStage);
     const baselineHeal = this.player.maxHp * 0.18;
     const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
     this.player.heal(isBossCheckpoint ? Math.max(baselineHeal, bossSafetyHeal) : baselineHeal);
@@ -1647,7 +1660,7 @@ export class Game3D {
     this.syncContinueButton();
     audio.setIntensity(0.12);
     audio.setBGMDucked?.(false);
-    this.showMissionStrip(22, 'EPILOGUE');
+    this.showMissionStrip(23, 'EPILOGUE');
     particles.addTextBanner(this.player.x + 90, this.player.y - 90, '★ 3D TROPHY ROOM UNLOCKED! ★', '#ffd54a');
     speech.spawnSpeechBubble?.('orange', 'TROPHY ROOM UNLOCKED!', {
       style: 'comic',
@@ -1656,7 +1669,7 @@ export class Game3D {
       anchor: this.player
     });
 
-    this.syncStageSelectors(23);
+    this.syncStageSelectors(24);
   }
 
   completeGame() {
@@ -2615,6 +2628,7 @@ export class Game3D {
         the_end: 0x0c0517,
         aether: 0x1a4b75,
         ancient_city: 0x040d14,
+        pale_garden: 0x1a1e24,
         rocket_corp: 0x334155,
         trophy: 0x041838,
         zero_day: 0x060a14
@@ -2751,6 +2765,7 @@ export class Game3D {
   }
 
   createEnemyRig3D(enemy) {
+    if (enemy.type === 'creaking_boss') return new CreakingBossRig3D();
     if (enemy.type === 'warden_boss') return new WardenBossRig3D();
     if (enemy.type === 'ender_dragon') return new EnderDragonRig3D();
     if (enemy.type === 'creeper_lord') return new CreeperLordRig3D();
@@ -2831,9 +2846,9 @@ export class Game3D {
       }
       const tx = z.leapTargetX !== undefined && (z.actionKind?.includes('leap') || z.actionKind === 'cat_pounce' || z.actionKind === 'mercenary_lunge')
         ? z.leapTargetX
-        : (z.rollTargetX !== undefined && (z.state === 'roll_windup' || z.state === 'swoop_windup' || z.state === 'ranged_windup' || z.state === 'charge_windup')
+        : (z.rollTargetX !== undefined && (z.state === 'roll_windup' || z.state === 'swoop_windup' || z.state === 'ranged_windup' || z.state === 'charge_windup' || z.state === 'blink_windup')
           ? z.rollTargetX
-          : (z.dropXs !== undefined && (z.state === 'slam_windup' || z.state === 'breath_windup') ? z.dropXs[0] : z.x));
+          : (z.dropXs !== undefined && (z.state === 'slam_windup' || z.state === 'breath_windup' || z.state === 'roots_windup') ? z.dropXs[0] : z.x));
       mesh.position.set(to3DX(tx), 0.08, to3DZ(z.z || 0));
       const scale = z.isBoss ? 1.45 : 0.95;
       mesh.scale.setScalar(scale * (0.85 + Math.sin(this.stageManager.stageTime * 14) * 0.15));

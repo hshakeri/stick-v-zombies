@@ -1121,7 +1121,444 @@ export class WardenBoss {
 }
 
 // ============================================================================
-// 4. 3D CAMPAIGN EXTENSION (Stages 18: The End, 19: The Aether, 20: Ancient City, 21: Rocket Corp, 22: H4C3R)
+// 4. THE CREAKING BOSS (Stage 21: Pale Garden — Asymmetric Puppet & Gaze-Freeze)
+// ============================================================================
+export class CreakingBoss {
+  constructor(x, y) {
+    Object.assign(this, {
+      x,
+      y,
+      z: 0,
+      vx: 0,
+      vy: 0,
+      groundY: y,
+      type: 'creaking_boss',
+      name: 'THE CREAKING',
+      hookClass: 'anchor',
+      speechOffsetY: -136,
+      bannerOffsetY: -166,
+      isBoss: true,
+      isDead: false,
+      isGrounded: true,
+      isHurt: false,
+      isAwakened: false,
+      isObserved: false,
+      maxHp: 1480,
+      hp: 1480,
+      radius: 44,
+      height: 136,
+      color: '#f97316',
+      inkReward: 600,
+      scoreReward: 11500,
+      phase: 1,
+      pose: 'idle',
+      state: 'idle',
+      stateTimer: 0,
+      stateDuration: 0,
+      actionCooldown: 1.05,
+      actionKind: null,
+      attackIndex: 0,
+      attackHit: false,
+      surgeResolved: false,
+      dropResolved: false,
+      animTimer: 0,
+      hurtTimer: 0,
+      freezeTimer: 0,
+      stunTimer: 0,
+      facing: -1,
+      rollStartX: x,
+      rollTargetX: x,
+      rollDirection: -1,
+      camera: null
+    });
+    this.dropXs = new Float32Array(3);
+    this.friendlyTargets = [];
+  }
+
+  getActionRenderPhase() {
+    if (!this.stateDuration || this.stateDuration <= 0) return 0;
+    return clamp(1 - this.stateTimer / this.stateDuration, 0, 1);
+  }
+
+  checkPlayerGaze(player) {
+    if (!player || player.isDead) return false;
+    const dx = this.x - player.x;
+    if (Math.abs(dx) < 12) return true;
+    const playerFacing = Math.sign(player.facing || 1) || 1;
+    return Math.sign(dx) === playerFacing;
+  }
+
+  update(dt, groundY, player, sketchBlocks, camera, platforms = [], enemies = [], friendlyTargets = []) {
+    if (this.isDead) return;
+    const safeDt = clamp(Number(dt) || 0, 0, 0.05);
+    this.animTimer += safeDt;
+    this.groundY = groundY;
+    this.camera = camera || this.camera;
+    this.friendlyTargets = friendlyTargets;
+
+    if (this.phase === 1 && this.hp <= this.maxHp * 0.5) {
+      this.phase = 2;
+      this.isAwakened = true;
+      this.isObserved = false;
+      this.state = 'phase_shift';
+      this.actionKind = 'creaking_surge';
+      this.stateDuration = this.stateTimer = 0.85;
+      this.vx = 0;
+      audio.playAwakening?.();
+      camera?.addShake?.(0.58);
+      particles.addShockwave(this.x, this.y - 68, 270, '#f97316', 12);
+      particles.addTextBanner(this.x, this.y - 145, '🔶 CREAKING HEART // RESIN OVERDRIVE! 🔶', '#fb923c');
+      speech.spawnSpeechBubble(this, '*CREEAAAK! THE GARDEN AWAKENS!*', {
+        style: 'shout',
+        trauma: 1.0,
+        priority: 5,
+        mood: '💀',
+        anchor: this
+      });
+      speech.triggerBanter([
+        { speaker: 'yellow', text: 'ITS HEART IS GLOWING ORANGE!', delay: 0.35, options: { style: 'comic', priority: 3, mood: '⚡' } }
+      ]);
+    }
+
+    this.hurtTimer = Math.max(0, this.hurtTimer - safeDt);
+    this.isHurt = this.hurtTimer > 0;
+    this.freezeTimer = Math.max(0, this.freezeTimer - safeDt);
+    this.stunTimer = Math.max(0, this.stunTimer - safeDt);
+
+    const stepDt = safeDt * (this.freezeTimer > 0 ? 0.68 : 1);
+    if (this.stunTimer > 0 && this.state !== 'phase_shift') {
+      this.vx = 0;
+    } else {
+      this.updateAI(stepDt, player, camera);
+    }
+
+    if (this.state !== 'blink_active') {
+      this.x += this.vx * stepDt;
+    }
+    this.y = groundY;
+    this.isGrounded = true;
+    this.x = clamp(this.x, LEFT, RIGHT);
+    if (this.actionKind === 'creaking_statue') {
+      this.pose = 'idle';
+    } else {
+      this.pose = Math.abs(this.vx) > 15 || this.state === 'blink_active' ? 'zombie_walk' : 'idle';
+    }
+  }
+
+  updateAI(dt, player, camera) {
+    if (!player || player.isDead) {
+      this.vx *= 0.85;
+      this.isObserved = false;
+      return;
+    }
+    const dx = player.x - this.x;
+    if (this.state === 'recovery') {
+      this.facing = dx >= 0 ? 1 : -1;
+      this.actionKind = null;
+      this.isObserved = false;
+    }
+
+    switch (this.state) {
+      case 'idle': {
+        this.facing = dx >= 0 ? 1 : -1;
+        this.isObserved = this.checkPlayerGaze(player);
+
+        if (this.isObserved) {
+          // Gaze-Freeze ("Don't Blink"): freezes into a rigid Pale Oak statue when watched!
+          this.vx = 0;
+          this.actionKind = 'creaking_statue';
+          this.actionCooldown -= dt * 0.75;
+        } else {
+          // Unobserved: stalks rapidly with jerky wooden puppet steps!
+          this.actionKind = null;
+          this.actionCooldown -= dt * 1.15;
+          const stalkSpeed = this.phase === 2 ? 320 : 255;
+          if (Math.abs(dx) > 95) this.vx = this.facing * stalkSpeed;
+          else if (Math.abs(dx) < 55) this.vx = -this.facing * 65;
+          else this.vx *= 0.78;
+        }
+
+        if (this.actionCooldown <= 0) {
+          this.isObserved = false;
+          const moveSlot = this.attackIndex % 3;
+          this.attackIndex++;
+          if (moveSlot === 0) this.startBlinkAmbush(player, camera);
+          else if (moveSlot === 1) this.startRootSnare(player, camera);
+          else this.startResinSurge(player, camera);
+        }
+        break;
+      }
+      case 'phase_shift': {
+        this.stateTimer -= dt;
+        this.actionKind = 'creaking_surge';
+        if (this.stateTimer <= 0) this.recover(0.5);
+        break;
+      }
+      case 'blink_windup': {
+        this.stateTimer -= dt;
+        this.vx = 0;
+        this.actionKind = 'creaking_blink';
+        if (this.stateTimer <= 0) {
+          this.state = 'blink_active';
+          this.stateDuration = this.stateTimer = this.phase === 2 ? 0.34 : 0.42;
+          this.rollStartX = this.x;
+          particles.createHitSparks(this.x, this.groundY - 68, 10, '#cbd5e1');
+          particles.createHitSparks(this.x, this.groundY - 72, 8, '#f97316');
+          audio.playBruteStomp?.();
+          camera?.addShake?.(0.24);
+        }
+        break;
+      }
+      case 'blink_active': {
+        this.stateTimer -= dt;
+        this.actionKind = 'creaking_blink';
+        const progress = clamp(1 - this.stateTimer / this.stateDuration, 0, 1);
+        this.x = this.rollStartX + (this.rollTargetX - this.rollStartX) * progress;
+
+        if (!this.attackHit && canHitPlayer(player)) {
+          const inX = Math.abs(player.x - this.x) < this.radius + (player.radius || 20) + 22;
+          const inY = Math.abs(player.y - this.groundY) < 95;
+          const inZ = Math.abs((player.z || 0) - (this.z || 0)) <= 170;
+          if (inX && inY && inZ) {
+            this.attackHit = true;
+            player.takeDamage(this.phase === 2 ? 32 : 26, this.rollDirection, 540);
+            particles.createHitSparks(player.x, player.y - 38, 12, '#f97316');
+          }
+        }
+        if (this.stateTimer <= 0) {
+          particles.addShockwave(this.x, this.groundY - 16, 125, '#f97316', 8);
+          camera?.addShake?.(0.24);
+          this.recover(this.phase === 2 ? 0.46 : 0.62);
+        }
+        break;
+      }
+      case 'roots_windup': {
+        this.stateTimer -= dt;
+        this.vx = 0;
+        this.actionKind = 'creaking_roots';
+        if (this.stateTimer <= 0) {
+          this.state = 'roots_active';
+          this.stateDuration = this.stateTimer = 0.4;
+          this.dropResolved = false;
+        }
+        break;
+      }
+      case 'roots_active': {
+        this.stateTimer -= dt;
+        this.vx = 0;
+        this.actionKind = 'creaking_roots';
+        if (!this.dropResolved && this.stateTimer <= 0.22) {
+          this.resolveRootSnare(player, camera);
+        }
+        if (this.stateTimer <= 0) {
+          this.recover(this.phase === 2 ? 0.48 : 0.65);
+        }
+        break;
+      }
+      case 'surge_windup': {
+        this.stateTimer -= dt;
+        this.vx = 0;
+        this.actionKind = 'creaking_surge';
+        if (this.stateTimer <= 0) {
+          this.state = 'surge_active';
+          this.stateDuration = this.stateTimer = 0.44;
+          this.surgeResolved = false;
+        }
+        break;
+      }
+      case 'surge_active': {
+        this.stateTimer -= dt;
+        this.vx = 0;
+        this.actionKind = 'creaking_surge';
+        if (!this.surgeResolved && this.stateTimer <= 0.26) {
+          this.resolveResinSurge(player, camera);
+        }
+        if (this.stateTimer <= 0) {
+          this.recover(this.phase === 2 ? 0.5 : 0.68);
+        }
+        break;
+      }
+      case 'recovery': {
+        this.stateTimer -= dt;
+        this.vx *= 0.82;
+        if (this.stateTimer <= 0) {
+          this.state = 'idle';
+          this.actionCooldown = this.phase === 2 ? 0.42 : 0.64;
+        }
+        break;
+      }
+      default:
+        this.state = 'idle';
+    }
+  }
+
+  startBlinkAmbush(player, camera) {
+    this.state = 'blink_windup';
+    this.actionKind = 'creaking_blink';
+    this.stateDuration = this.stateTimer = this.phase === 2 ? 0.46 : 0.58;
+    this.rollStartX = this.x;
+    this.rollDirection = player.x >= this.x ? 1 : -1;
+    this.facing = this.rollDirection;
+    this.rollTargetX = clamp(player.x + this.rollDirection * 140, LEFT + 60, RIGHT - 60);
+    if (Math.abs(this.rollTargetX - this.x) < 180) {
+      this.rollTargetX = clamp(player.x - this.rollDirection * 260, LEFT + 60, RIGHT - 60);
+      this.rollDirection = Math.sign(this.rollTargetX - this.x) || 1;
+      this.facing = this.rollDirection;
+    }
+    this.attackHit = false;
+    speech.spawnBubble(this.x, this.y - 126, '🪵 *CREAK... DON\'T BLINK!*', 'creaking:blink', 1.2, {
+      anchor: this,
+      cooldownMs: 2400
+    });
+    camera?.addShake?.(0.16);
+  }
+
+  startRootSnare(player, camera) {
+    this.state = 'roots_windup';
+    this.actionKind = 'creaking_roots';
+    this.stateDuration = this.stateTimer = this.phase === 2 ? 0.5 : 0.62;
+    const base = clamp(player.x, LEFT + 80, RIGHT - 80);
+    this.dropXs[0] = base;
+    this.dropXs[1] = clamp(base - 160, LEFT + 60, RIGHT - 60);
+    this.dropXs[2] = clamp(base + 160, LEFT + 60, RIGHT - 60);
+    this.dropResolved = false;
+    speech.spawnBubble(this.x, this.y - 126, '*PALE ROOTS... SNARE!*', 'creaking:roots', 1.2, {
+      anchor: this,
+      cooldownMs: 2400
+    });
+    camera?.addShake?.(0.18);
+  }
+
+  resolveRootSnare(player, camera) {
+    this.dropResolved = true;
+    const blastRadius = 76;
+    for (let i = 0; i < this.dropXs.length; i++) {
+      const bx = this.dropXs[i];
+      particles.addShockwave(bx, this.groundY - 14, 102, '#f97316', 9);
+      particles.createHitSparks(bx, this.groundY - 26, 12, '#cbd5e1');
+    }
+    if (canHitPlayer(player) && Math.abs(player.y - this.groundY) < 82) {
+      const inZ = Math.abs((player.z || 0) - (this.z || 0)) <= 185;
+      if (inZ) {
+        for (const bx of this.dropXs) {
+          if (Math.abs(player.x - bx) < blastRadius + (player.radius || 20)) {
+            player.takeDamage(this.phase === 2 ? 30 : 24, player.x >= bx ? 1 : -1, 470);
+            break;
+          }
+        }
+      }
+    }
+    audio.playBruteStomp?.();
+    camera?.addShake?.(0.36);
+  }
+
+  startResinSurge(player, camera) {
+    this.state = 'surge_windup';
+    this.actionKind = 'creaking_surge';
+    this.stateDuration = this.stateTimer = this.phase === 2 ? 0.52 : 0.65;
+    this.facing = player.x >= this.x ? 1 : -1;
+    this.surgeResolved = false;
+    audio.playDoomLaserCharge?.();
+    speech.spawnBubble(this.x, this.y - 126, '🧡 *CREAKING HEART SURGE!*', 'creaking:surge', 1.25, {
+      anchor: this,
+      cooldownMs: 2400
+    });
+    camera?.addShake?.(0.2);
+  }
+
+  resolveResinSurge(player, camera) {
+    this.surgeResolved = true;
+    particles.addShockwave(this.x, this.groundY - 64, 155, '#f97316', 10);
+    particles.addShockwave(0, this.groundY - 110, 120, '#fb923c', 7);
+    particles.createHitSparks(this.x, this.groundY - 68, 12, '#fde047');
+
+    projectiles.spawnSpit?.(this.x + this.facing * 26, this.y - 72, player.x, player.y - 36);
+    if (this.phase === 2) {
+      projectiles.spawnSpit?.(this.x + this.facing * 26, this.y - 96, player.x + this.facing * 90, player.y - 64);
+    }
+
+    if (canHitPlayer(player)) {
+      const inX = Math.abs(player.x - this.x) < 145;
+      const inY = Math.abs(player.y - this.groundY) < 95;
+      const inZ = Math.abs((player.z || 0) - (this.z || 0)) <= 185;
+      if (inX && inY && inZ) {
+        player.takeDamage(this.phase === 2 ? 31 : 25, this.facing, 520);
+        particles.createHitSparks(player.x, player.y - 38, 12, '#f97316');
+      }
+    }
+    audio.playFinisherImpact?.();
+    camera?.addShake?.(0.38);
+  }
+
+  recover(duration) {
+    this.state = 'recovery';
+    this.stateDuration = this.stateTimer = duration;
+    this.actionKind = null;
+    this.isObserved = false;
+    this.vx = 0;
+  }
+
+  applyFreeze(duration = 4) {
+    if (this.isDead) return false;
+    this.freezeTimer = Math.max(this.freezeTimer, Math.min(0.75, duration * 0.18));
+    return true;
+  }
+
+  applyStun(duration = 3) {
+    if (this.isDead) return false;
+    this.stunTimer = Math.max(this.stunTimer, Math.min(0.45, duration * 0.15));
+    return true;
+  }
+
+  takeDamage(amount, knockbackDir = 1, knockbackPower = 200, isCrit = false) {
+    if (this.isDead || !Number.isFinite(amount) || amount <= 0) return 0;
+    const barkScale = this.actionKind === 'creaking_statue' && !isCrit ? 0.65 : 1;
+    const applied = Math.max(1, Math.round(amount * barkScale));
+    this.hp = Math.max(0, this.hp - applied);
+    this.hurtTimer = 0.16;
+    this.isHurt = true;
+    if (this.actionKind !== 'creaking_statue') {
+      this.vx += knockbackDir * Math.min(90, knockbackPower * 0.15);
+    }
+    particles.addDamageText(this.x, this.y - 126, applied, isCrit);
+    particles.createHitSparks(this.x, this.y - 78, isCrit ? 12 : 7, '#f97316');
+    audio.playHit?.(isCrit);
+    if (this.hp <= 0) this.die();
+    return applied;
+  }
+
+  die() {
+    if (this.isDead) return;
+    this.isDead = true;
+    this.hp = 0;
+    this.vx = 0;
+    this.isObserved = false;
+    this.state = 'defeated';
+    combat.registerKill(this);
+    audio.playFinisherImpact?.();
+    speech.triggerBanter([
+      { speaker: 'creaking_boss', text: '*CREAKING HEART... SHATTERED...*', delay: 0, options: { style: 'shout', priority: 5, mood: '💀', anchor: this } },
+      { speaker: 'orange', text: 'NO MORE PEEKABOO TREES!', delay: 0.3, options: { style: 'comic', priority: 3, mood: '★' } }
+    ]);
+    this.camera?.addShake?.(0.75);
+    particles.emitBossExplosion({
+      x: this.x,
+      y: this.y - 68,
+      bodyY: this.y,
+      groundY: this.groundY,
+      color: '#f97316',
+      accent: '#cbd5e1',
+      radius: 225,
+      stickFigure: false,
+      seed: 0xc2ea
+    });
+  }
+
+  draw() {}
+}
+
+// ============================================================================
+// 5. 3D CAMPAIGN EXTENSION (18: The End, 19: Aether, 20: Ancient City, 21: Pale Garden, 22: Rocket Corp, 23: H4C3R)
 // ============================================================================
 export const CAMPAIGN_BEATS_3D = Object.freeze({
   ...CAMPAIGN_BEATS,
@@ -1153,11 +1590,19 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     act: 'VI - DIMENSIONS BEYOND',
     mission: 'SILENCE THE WARDEN',
     clearText: 'ANCIENT CITY SILENCED!',
-    clue: 'SIGNAL LOCKED: ROCKET CORP HQ',
+    clue: 'MISTY GROVE: PALE GARDEN',
     bossLabel: 'THE WARDEN',
     allyReaction: Object.freeze({ ally: 'green', line: 'NO MORE NOTE BLOCKS DOWN HERE!' })
   }),
   21: Object.freeze({
+    act: 'VI - DIMENSIONS BEYOND',
+    mission: 'SHATTER THE CREAKING',
+    clearText: 'CREAKING HEART SHATTERED!',
+    clue: 'SIGNAL LOCKED: ROCKET CORP HQ',
+    bossLabel: 'THE CREAKING',
+    allyReaction: Object.freeze({ ally: 'yellow', line: 'KEEP EYES ON THE TREE!' })
+  }),
+  22: Object.freeze({
     act: 'VII - ROCKET CORP CONTAINMENT',
     mission: 'DEFEAT THE MERCENARIES',
     clearText: 'THE BOX BREACHED!',
@@ -1165,7 +1610,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: 'AGENT · BALLISTA · PRIMAL · HAZARD',
     allyReaction: Object.freeze({ ally: 'chosen', line: 'NOT GOING BACK IN THE BOX.' })
   }),
-  22: Object.freeze({
+  23: Object.freeze({
     act: 'VIII - ZERO-DAY FINALE',
     mission: 'LOG OUT H4C3R',
     clearText: 'SYSTEM RESTORED!',
@@ -1183,7 +1628,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   const origEnterTrophy = stageManager.enterTrophyRoom.bind(stageManager);
   const origGetBeat = stageManager.getCampaignBeat.bind(stageManager);
 
-  stageManager.maxStage = 22;
+  stageManager.maxStage = 23;
   stageManager.lavaHazards = stageManager.currentStage === 7 ? [
     { x: -360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 },
     { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 }
@@ -1201,17 +1646,17 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   }
 
   stageManager.getCampaignBeat = (stageNum = stageManager.currentStage) => {
-    const stage = Math.max(1, Math.min(22, Math.trunc(Number(stageNum)) || 1));
+    const stage = Math.max(1, Math.min(23, Math.trunc(Number(stageNum)) || 1));
     return CAMPAIGN_BEATS_3D[stage] || origGetBeat(stage);
   };
 
   stageManager.loadStage = (stageNum) => {
     const numericStage = Number.isFinite(stageNum) ? Math.trunc(stageNum) : 1;
-    const stage = Math.max(1, Math.min(22, numericStage));
+    const stage = Math.max(1, Math.min(23, numericStage));
 
     if (stage <= 17) {
       origLoadStage(stage);
-      stageManager.maxStage = 22;
+      stageManager.maxStage = 23;
       stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
       if (stage === 7) {
         stageManager.lavaHazards = [
@@ -1224,20 +1669,20 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       return;
     }
 
-    if (stage === 22) {
-      // Stage 22 is Zero-Day Mainframe (H4C3R), built from original stage 18
+    if (stage === 23) {
+      // Stage 23 is Zero-Day Mainframe (H4C3R), built from original stage 18
       origLoadStage(18);
-      stageManager.currentStage = 22;
-      stageManager.maxStage = 22;
-      stageManager.campaignBeat = CAMPAIGN_BEATS_3D[22];
+      stageManager.currentStage = 23;
+      stageManager.maxStage = 23;
+      stageManager.campaignBeat = CAMPAIGN_BEATS_3D[23];
       stageManager.lavaHazards = [];
       return;
     }
 
-    // Reset common state via stage 1 then customize for Stages 18, 19, 20, 21
+    // Reset common state via stage 1 then customize for Stages 18, 19, 20, 21, 22
     origLoadStage(1);
     stageManager.currentStage = stage;
-    stageManager.maxStage = 22;
+    stageManager.maxStage = 23;
     stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
     stageManager.platforms = [];
     stageManager.movingPlatforms = [];
@@ -1321,7 +1766,36 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 800, y: -130, label: 'Soul_Lantern', icon: '🕯', color: '#38bdf8' }
       ];
     } else if (stage === 21) {
-      // STAGE 21: ROCKET CORP HQ (Mercenaries Boss Squad: Agent, Ballista, Primal, Hazard)
+      // STAGE 21: PALE GARDEN (Haunted Monochrome Grove — The Creaking Boss)
+      stageManager.stageName = 'Pale Garden';
+      stageManager.theme = 'pale_garden';
+      stageManager.platforms = [
+        { x: -620, y: -170, width: 250, height: 22, title: 'Pale_Oak_Bough_W', appType: 'minecraft' },
+        { x: 0, y: -285, width: 320, height: 24, title: 'Creaking_Heart_Canopy', appType: 'minecraft' },
+        { x: 620, y: -170, width: 250, height: 22, title: 'Pale_Oak_Bough_E', appType: 'minecraft' }
+      ];
+      stageManager.movingPlatforms = [
+        {
+          x: 0,
+          y: -165,
+          width: 205,
+          height: 20,
+          title: 'Hanging_Moss_Bough',
+          appType: 'minecraft',
+          minX: -295,
+          maxX: 295,
+          speed: 120,
+          dir: 1
+        }
+      ];
+      stageManager.desktopIcons = [
+        { x: -800, y: -130, label: 'Creaking_Heart', icon: '🧡', color: '#f97316' },
+        { x: -310, y: -340, label: 'Open_Eyeblossom', icon: '👁', color: '#fb923c' },
+        { x: 310, y: -340, label: 'Resin_Clump', icon: '❖', color: '#facc15' },
+        { x: 800, y: -130, label: 'Pale_Hanging_Moss', icon: '🌿', color: '#cbd5e1' }
+      ];
+    } else if (stage === 22) {
+      // STAGE 22: ROCKET CORP HQ (Mercenaries Boss Squad: Agent, Ballista, Primal, Hazard)
       stageManager.stageName = 'Rocket Corp HQ';
       stageManager.theme = 'rocket_corp';
       stageManager.platforms = [
@@ -1343,24 +1817,25 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
 
   stageManager.enterTrophyRoom = () => {
     origEnterTrophy();
-    stageManager.maxStage = 22;
-    stageManager.currentStage = 22;
+    stageManager.maxStage = 23;
+    stageManager.currentStage = 23;
     stageManager.lavaHazards = [];
     stageManager.desktopIcons = [
-      { x: -855, y: -105, label: 'TITAN', icon: 'T', color: '#8cff66' },
-      { x: -665, y: -105, label: 'DARK LORD', icon: 'DL', color: '#ff3344' },
-      { x: -475, y: -105, label: 'KING FREED', icon: 'KO', color: '#ff8a22' },
-      { x: -285, y: -105, label: 'CREEPER LORD', icon: 'CL', color: '#9be34b' },
-      { x: -95, y: -105, label: 'GIANT CAT', icon: 'CAT', color: '#ffb15f' },
-      { x: 95, y: -105, label: 'LUCKY ORB', icon: '●', color: '#ffe06b' },
-      { x: 285, y: -105, label: 'ENDER DRAGON', icon: 'ED', color: '#e879f9' },
-      { x: 475, y: -105, label: 'THE WARDEN', icon: 'WD', color: '#22d3ee' },
-      { x: 665, y: -105, label: 'MERCENARIES', icon: 'RC', color: '#ff6b00' },
-      { x: 855, y: -105, label: 'H4C3R', icon: 'H4', color: '#67e8f9' }
+      { x: -900, y: -105, label: 'TITAN', icon: 'T', color: '#8cff66' },
+      { x: -720, y: -105, label: 'DARK LORD', icon: 'DL', color: '#ff3344' },
+      { x: -540, y: -105, label: 'KING FREED', icon: 'KO', color: '#ff8a22' },
+      { x: -360, y: -105, label: 'CREEPER LORD', icon: 'CL', color: '#9be34b' },
+      { x: -180, y: -105, label: 'GIANT CAT', icon: 'CAT', color: '#ffb15f' },
+      { x: 0, y: -105, label: 'LUCKY ORB', icon: '●', color: '#ffe06b' },
+      { x: 180, y: -105, label: 'ENDER DRAGON', icon: 'ED', color: '#e879f9' },
+      { x: 360, y: -105, label: 'THE WARDEN', icon: 'WD', color: '#22d3ee' },
+      { x: 540, y: -105, label: 'THE CREAKING', icon: 'CK', color: '#f97316' },
+      { x: 720, y: -105, label: 'MERCENARIES', icon: 'RC', color: '#ff6b00' },
+      { x: 900, y: -105, label: 'H4C3R', icon: 'H4', color: '#67e8f9' }
     ];
   };
 
-  // Extend WaveDirector for Stages 18, 19, 20, 21, 22
+  // Extend WaveDirector for Stages 18, 19, 20, 21, 22, 23
   activeWaveDirector = waveDirector;
   const origGenerateWaveQueue = waveDirector.generateWaveQueue.bind(waveDirector);
   const origSpawnZombie = waveDirector.spawnZombie.bind(waveDirector);
@@ -1378,7 +1853,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   });
 
   waveDirector.generateWaveQueue = (wave) => {
-    const stage = Math.max(1, Math.min(22, Math.trunc(Number(wave)) || 1));
+    const stage = Math.max(1, Math.min(23, Math.trunc(Number(wave)) || 1));
     if (stage <= 17) {
       origGenerateWaveQueue(stage);
       return;
@@ -1401,7 +1876,13 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       return;
     }
     if (stage === 21) {
-      // Stage 21: Rocket Corp HQ — All 4 Mercenaries from AvA Season 3!
+      // Stage 21: Pale Garden — The Creaking Boss
+      waveDirector.usesAuthoredRecipe = true;
+      waveDirector.spawnQueue.push({ type: 'creaking_boss', delay: 1.1, packIndex: 0, bossHealthGate: null });
+      return;
+    }
+    if (stage === 22) {
+      // Stage 22: Rocket Corp HQ — All 4 Mercenaries from AvA Season 3!
       waveDirector.usesAuthoredRecipe = true;
       const mercs = ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard'];
       mercs.forEach((type, idx) => {
@@ -1414,8 +1895,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       });
       return;
     }
-    if (stage === 22) {
-      // Stage 22: Zero-Day Mainframe — H4C3R
+    if (stage === 23) {
+      // Stage 23: Zero-Day Mainframe — H4C3R
       waveDirector.queueWaveRecipe(WAVE_RECIPES[18]);
     }
   };
@@ -1449,6 +1930,22 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       speech.triggerBanter([
         { speaker: 'warden_boss', text: '*SNIFF... HEARTBEAT DETECTED!*', delay: 0, options: { style: 'shout', priority: 5, mood: '💀', anchor: boss } },
         { speaker: 'orange', text: 'SHHH! NOBODY MAKE A SOUND!', delay: 0.35, options: { style: 'comic', priority: 3, mood: '💧' } }
+      ]);
+      return;
+    }
+
+    if (type === 'creaking_boss') {
+      const spawnX = waveDirector.getSafeSpawnX(player);
+      const boss = new CreakingBoss(spawnX, groundY);
+      waveDirector.zombies.push(boss);
+      waveDirector.bossZombie = boss;
+      audio.playBossRoar?.();
+      camera?.addShake?.(0.86);
+      particles.addShockwave(spawnX, groundY - 35, 265, '#f97316', 12);
+      particles.addTextBanner(spawnX, groundY - 130, '🪵 THE CREAKING // PALE GARDEN 🪵', '#fb923c');
+      speech.triggerBanter([
+        { speaker: 'creaking_boss', text: '*CREEAAAK... DON\'T BLINK...*', delay: 0, options: { style: 'shout', priority: 5, mood: '💀', anchor: boss } },
+        { speaker: 'orange', text: 'EYES ON THE SPOOKY TREE!', delay: 0.35, options: { style: 'comic', priority: 3, mood: '!' } }
       ]);
       return;
     }
@@ -1517,7 +2014,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   waveDirector.update = (dt, player, groundY, sketchBlocks, camera, onWaveComplete, platforms = [], friendlyTargets = []) => {
     origWaveUpdate(dt, player, groundY, sketchBlocks, camera, onWaveComplete, platforms, friendlyTargets);
 
-    // If in Stage 21 (Rocket Corp Mercenaries), synthesize combined squad health on waveDirector.bossZombie
+    // If in Stage 22 (Rocket Corp Mercenaries), synthesize combined squad health on waveDirector.bossZombie
     const aliveMercs = waveDirector.zombies.filter((z) => z.isMercenary && !z.isDead);
     if (aliveMercs.length > 0) {
       const totalHp = aliveMercs.reduce((sum, m) => sum + m.hp, 0);
