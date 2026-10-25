@@ -1674,3 +1674,260 @@ export class EnderDragonRig3D {
   }
 }
 
+export class WardenBossRig3D {
+  constructor() {
+    this.root = new THREE.Group();
+
+    const sculkTex = getVoxelTexture('sculk', 2, 2);
+    sculkTex.isShared = true;
+    const sculkMat = new THREE.MeshStandardMaterial({
+      map: sculkTex,
+      color: 0x0d3344,
+      roughness: 0.55,
+      metalness: 0.15
+    });
+    const darkSculkMat = new THREE.MeshStandardMaterial({
+      color: 0x05131c,
+      roughness: 0.65
+    });
+    const boneMat = new THREE.MeshStandardMaterial({
+      color: 0xd6d3c4,
+      roughness: 0.45,
+      metalness: 0.1
+    });
+    this.soulHeartMat = new THREE.MeshStandardMaterial({
+      color: 0x67e8f9,
+      emissive: new THREE.Color(0x06b6d4),
+      emissiveIntensity: 1.15,
+      roughness: 0.2
+    });
+    this.tendrilTipMat = new THREE.MeshStandardMaterial({
+      color: 0x22d3ee,
+      emissive: new THREE.Color(0x06b6d4),
+      emissiveIntensity: 0.9,
+      roughness: 0.25
+    });
+
+    // 1. ThickSculk Legs (pivots at hip y = 1.45, bottoms flush at y = 0.0)
+    const createLeg = (side) => {
+      const pivot = new THREE.Group();
+      pivot.position.set(side * 0.62, 1.45, 0);
+      const legMesh = new THREE.Mesh(new THREE.BoxGeometry(0.86, 1.45, 0.92), sculkMat);
+      legMesh.position.y = -0.725;
+      legMesh.castShadow = true;
+      const kneeBone = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.28, 0.22), boneMat);
+      kneeBone.position.set(0, -0.58, 0.42);
+      const toeGlow = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.16, 0.18), this.tendrilTipMat);
+      toeGlow.position.set(0, -1.35, 0.44);
+      pivot.add(legMesh, kneeBone, toeGlow);
+      return pivot;
+    };
+    this.legL = createLeg(-1);
+    this.legR = createLeg(1);
+    this.root.add(this.legL, this.legR);
+
+    // 2. Massive Torso, Glowing Cyan Soul Heart & Curved Bone Ribcage
+    this.bodyPivot = new THREE.Group();
+    this.bodyPivot.position.set(0, 1.45, 0);
+    this.root.add(this.bodyPivot);
+
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(2.15, 1.85, 1.32), sculkMat);
+    torso.position.y = 0.92;
+    torso.castShadow = true;
+    this.bodyPivot.add(torso);
+
+    // Recessed chest cavity & pulsing Soul Heart
+    const cavity = new THREE.Mesh(new THREE.BoxGeometry(1.18, 1.1, 0.22), darkSculkMat);
+    cavity.position.set(0, 0.95, 0.58);
+    this.soulHeart = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.88, 0.24), this.soulHeartMat);
+    this.soulHeart.position.set(0, 0.95, 0.62);
+    this.bodyPivot.add(cavity, this.soulHeart);
+
+    // Three bone rib pairs framing the Soul Heart
+    for (let i = 0; i < 3; i++) {
+      const ry = 0.58 + i * 0.36;
+      const ribL = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.16, 0.26), boneMat);
+      ribL.position.set(-0.46, ry, 0.68);
+      const ribR = ribL.clone();
+      ribR.position.x = 0.46;
+      this.bodyPivot.add(ribL, ribR);
+    }
+
+    // Dorsal bone spine plates on back
+    for (let i = 0; i < 3; i++) {
+      const spine = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.34, 0.28), boneMat);
+      spine.position.set(0, 0.55 + i * 0.48, -0.72);
+      this.bodyPivot.add(spine);
+    }
+
+    // 3. Blind Warden Skull, Roaring Jaw & Vibrating Sculk Tendril Ears
+    this.headPivot = new THREE.Group();
+    this.headPivot.position.set(0, 1.88, 0.12);
+    this.bodyPivot.add(this.headPivot);
+
+    const skull = new THREE.Mesh(new THREE.BoxGeometry(1.78, 1.28, 1.32), sculkMat);
+    skull.position.y = 0.64;
+    skull.castShadow = true;
+    this.headPivot.add(skull);
+
+    // Blind swirling dark face plate (no eyes!)
+    const blindHollow = new THREE.Mesh(new THREE.BoxGeometry(1.18, 0.64, 0.16), darkSculkMat);
+    blindHollow.position.set(0, 0.72, 0.64);
+    const browBone = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.18, 0.22), boneMat);
+    browBone.position.set(0, 1.08, 0.64);
+    this.headPivot.add(blindHollow, browBone);
+
+    this.jaw = new THREE.Group();
+    this.jaw.position.set(0, 0.26, 0.48);
+    const lowerJaw = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.28, 0.52), boneMat);
+    const fangL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.18), boneMat);
+    fangL.position.set(-0.44, 0.2, 0.16);
+    const fangR = fangL.clone();
+    fangR.position.x = 0.44;
+    this.jaw.add(lowerJaw, fangL, fangR);
+    this.headPivot.add(this.jaw);
+
+    // Curved Sculk Sensor Tendril "Ears" (Left & Right)
+    const createTendril = (side) => {
+      const earPivot = new THREE.Group();
+      earPivot.position.set(side * 0.88, 0.96, 0.05);
+      const stem = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.26, 0.24), sculkMat);
+      stem.position.set(side * 0.32, 0.12, 0);
+      stem.rotation.z = side * 0.35;
+      const tip = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.56, 0.22), this.tendrilTipMat);
+      tip.position.set(side * 0.72, 0.46, 0);
+      tip.rotation.z = side * 0.22;
+      earPivot.add(stem, tip);
+      return earPivot;
+    };
+    this.tendrilL = createTendril(-1);
+    this.tendrilR = createTendril(1);
+    this.headPivot.add(this.tendrilL, this.tendrilR);
+
+    // 4. Colossal Gorilla-Style Sculk & Bone Arms
+    const createArm = (side) => {
+      const armPivot = new THREE.Group();
+      armPivot.position.set(side * 1.42, 1.62, 0.05);
+      const pauldron = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.52, 0.94), boneMat);
+      pauldron.position.set(0, 0.12, 0);
+      const upperArm = new THREE.Mesh(new THREE.BoxGeometry(0.76, 1.15, 0.84), sculkMat);
+      upperArm.position.set(0, -0.52, 0);
+      upperArm.castShadow = true;
+      const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.86, 1.22, 0.94), sculkMat);
+      forearm.position.set(0, -1.55, 0.14);
+      forearm.castShadow = true;
+      const knuckles = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.32, 0.36), boneMat);
+      knuckles.position.set(0, -2.05, 0.42);
+      const armVein = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.75, 0.98), this.tendrilTipMat);
+      armVein.position.set(0, -1.45, 0.14);
+      armPivot.add(pauldron, upperArm, forearm, knuckles, armVein);
+      return armPivot;
+    };
+    this.armL = createArm(-1);
+    this.armR = createArm(1);
+    this.bodyPivot.add(this.armL, this.armR);
+
+    // 5. 3D Sonic Boom Concentric Rings (projected along +Z forward axis during warden_sonic)
+    this.sonicGroup = new THREE.Group();
+    this.sonicGroup.position.set(0, 0.95, 1.2);
+    this.sonicGroup.visible = false;
+    this.sonicRings = [];
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x67e8f9,
+      transparent: true,
+      opacity: 0.85
+    });
+    for (let i = 0; i < 5; i++) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.55 + i * 0.22, 0.09, 8, 20), ringMat);
+      ring.position.z = i * 2.4;
+      this.sonicGroup.add(ring);
+      this.sonicRings.push(ring);
+    }
+    this.bodyPivot.add(this.sonicGroup);
+  }
+
+  update(state = {}) {
+    const t = state.animTimer || 0;
+    const phase = typeof state.actionPhase === 'number' ? state.actionPhase : 0;
+    const action = state.actionKind || '';
+    const isSonic = action === 'warden_sonic';
+    const isSlam = action === 'warden_slam';
+    const isCharge = action === 'warden_charge';
+    const isAwakened = Boolean(state.isAwakened);
+
+    // Pulsing Soul Heartbeat (faster in Phase 2 or during Sonic Boom)
+    const heartRate = isSonic ? 18.0 : (isAwakened ? 9.5 : 4.8);
+    const beat = 0.5 + 0.5 * Math.sin(t * heartRate);
+    this.soulHeartMat.emissiveIntensity = (isSonic ? 1.8 : 0.75) + beat * 0.95;
+    const heartScale = 0.94 + beat * 0.14;
+    this.soulHeart.scale.set(heartScale, heartScale, 1);
+
+    // Tendril ear vibration when sensing sound / roaring
+    const earBuzz = (isSonic || isSlam || isCharge) ? Math.sin(t * 28.0) * 0.24 : Math.sin(t * 3.5) * 0.07;
+    this.tendrilL.rotation.z = earBuzz;
+    this.tendrilR.rotation.z = -earBuzz;
+    this.tendrilTipMat.emissiveIntensity = isSonic ? 1.7 : (0.75 + beat * 0.55);
+
+    // Heavy lumbering walk / charge stride
+    const strideSpeed = isCharge ? 13.0 : 5.5;
+    const stride = (state.pose === 'zombie_walk' || state.pose === 'run' || isCharge)
+      ? Math.sin(t * strideSpeed) * (isCharge ? 0.62 : 0.36)
+      : Math.sin(t * 2.2) * 0.05;
+    this.legL.rotation.x = stride;
+    this.legR.rotation.x = -stride;
+
+    // Torso, Jaw & Arm combat choreography
+    if (isSonic) {
+      // Throw arms wide back to expose chest Soul Heart & fire Sonic Boom!
+      this.bodyPivot.rotation.x = -0.16 + phase * 0.24;
+      this.armL.rotation.x = 0.65;
+      this.armL.rotation.z = 0.48;
+      this.armR.rotation.x = 0.65;
+      this.armR.rotation.z = -0.48;
+      this.jaw.rotation.x = 0.45 + Math.sin(t * 20) * 0.08;
+      this.headPivot.rotation.z = Math.sin(t * 14) * 0.08;
+    } else if (isSlam) {
+      // Raise both colossal arms high overhead, then smash into the deepslate floor!
+      const slamArc = phase < 0.45 ? -2.25 * (phase / 0.45) : -2.25 + 3.25 * ((phase - 0.45) / 0.55);
+      this.bodyPivot.rotation.x = phase < 0.45 ? -0.18 : 0.42;
+      this.armL.rotation.x = slamArc;
+      this.armR.rotation.x = slamArc;
+      this.armL.rotation.z = 0.12;
+      this.armR.rotation.z = -0.12;
+      this.jaw.rotation.x = 0.38;
+      this.headPivot.rotation.z = 0;
+    } else if (isCharge) {
+      // Hunched bull-rush charge
+      this.bodyPivot.rotation.x = 0.36;
+      this.armL.rotation.x = -0.85 - stride * 0.55;
+      this.armR.rotation.x = -0.85 + stride * 0.55;
+      this.armL.rotation.z = 0.1;
+      this.armR.rotation.z = -0.1;
+      this.jaw.rotation.x = 0.32;
+      this.headPivot.rotation.z = Math.sin(t * 10) * 0.1;
+    } else {
+      // Blind sniffing stalk / idle
+      this.bodyPivot.rotation.x = 0.12 + Math.sin(t * 2.4) * 0.04;
+      this.armL.rotation.x = -stride * 0.85 - 0.18;
+      this.armR.rotation.x = stride * 0.85 - 0.18;
+      this.armL.rotation.z = 0.08;
+      this.armR.rotation.z = -0.08;
+      this.jaw.rotation.x = 0.08 + Math.max(0, Math.sin(t * 3.0)) * 0.12;
+      this.headPivot.rotation.z = Math.sin(t * 2.1) * 0.11;
+    }
+
+    // Animate 3D Sonic Boom expanding wave rings
+    this.sonicGroup.visible = isSonic && phase > 0.25;
+    if (this.sonicGroup.visible) {
+      const waveProg = Math.max(0, (phase - 0.25) / 0.75);
+      for (let i = 0; i < this.sonicRings.length; i++) {
+        const ring = this.sonicRings[i];
+        ring.position.z = 1.0 + i * 3.1 + waveProg * 5.5;
+        const sc = 0.85 + waveProg * 0.65 + i * 0.12;
+        ring.scale.set(sc, sc, 1);
+      }
+    }
+  }
+}
+
+

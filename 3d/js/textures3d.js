@@ -360,6 +360,52 @@ function drawPixelBlock(ctx, kind) {
       }
       break;
     }
+    case 'sculk': {
+      fillNoisyPixels(ctx, '#06141f', 0.18, 260);
+      drawBevelBorder(ctx, '#0d3b4c', '#02080d');
+      const pulseCols = ['#06b6d4', '#22d3ee', '#67e8f9', '#0e7490'];
+      for (let i = 0; i < 16; i++) {
+        ctx.fillStyle = pulseCols[i % pulseCols.length];
+        ctx.fillRect((i * 5 + 2) % 14 + 1, (i * 9 + 3) % 14 + 1, 1, 1);
+      }
+      ctx.fillStyle = '#22d3ee';
+      ctx.fillRect(3, 4, 2, 1);
+      ctx.fillRect(10, 11, 2, 1);
+      break;
+    }
+    case 'deepslate_tiles': {
+      fillNoisyPixels(ctx, '#222831', 0.14, 265);
+      drawBevelBorder(ctx, '#39424e', '#11151a');
+      // Offset dark slate tile mortar lines & subtle fracture
+      ctx.fillStyle = '#11151a';
+      ctx.fillRect(0, 7, 16, 1);
+      ctx.fillRect(7, 0, 1, 8);
+      ctx.fillRect(3, 8, 1, 8);
+      ctx.fillRect(11, 8, 1, 8);
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(2, 2, 3, 1);
+      ctx.fillRect(6, 10, 3, 1);
+      break;
+    }
+    case 'reinforced_deepslate': {
+      fillNoisyPixels(ctx, '#1b222c', 0.12, 270);
+      // Bone-ivory reinforced top & bottom bands + glowing cyan sculk runes
+      ctx.fillStyle = '#d6d3c4';
+      ctx.fillRect(0, 0, 16, 3);
+      ctx.fillRect(0, 13, 16, 3);
+      ctx.fillStyle = '#a8a29e';
+      ctx.fillRect(3, 1, 2, 2);
+      ctx.fillRect(11, 1, 2, 2);
+      ctx.fillRect(3, 13, 2, 2);
+      ctx.fillRect(11, 13, 2, 2);
+      ctx.fillStyle = '#22d3ee';
+      ctx.fillRect(2, 6, 3, 4);
+      ctx.fillRect(11, 6, 3, 4);
+      ctx.fillStyle = '#67e8f9';
+      ctx.fillRect(3, 7, 1, 2);
+      ctx.fillRect(12, 7, 1, 2);
+      break;
+    }
     default: {
       fillNoisyPixels(ctx, '#334155', 0.14, 999);
       drawBevelBorder(ctx, '#64748b', '#1e293b');
@@ -389,6 +435,7 @@ export function getThemeFloorTextureKey(theme, isWhiteVoid = false) {
     case 'lucky_orb': return 'lucky_block';
     case 'the_end': return 'end_stone';
     case 'aether': return 'aether_grass';
+    case 'ancient_city': return 'sculk';
     case 'rocket_corp': return 'rocket_corp_floor';
     case 'zero_day': return 'zero_day_floor';
     case 'trophy': return 'trophy_floor';

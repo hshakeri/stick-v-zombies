@@ -53,6 +53,8 @@ function createHeadlessCanvas2DContext() {
     setLineDash: () => {},
     getLineDash: () => [],
     measureText: (str) => ({ width: str ? Math.max(12, String(str).length * 8) : 12 }),
+    createLinearGradient: () => ({ addColorStop: () => {} }),
+    createRadialGradient: () => ({ addColorStop: () => {} }),
     createImageData: (w, h) => ({ data: new Uint8ClampedArray((w || 64) * (h || 64) * 4) }),
     putImageData: () => {},
     drawImage: () => {},
@@ -117,6 +119,7 @@ const {
   GiantCatRig3D,
   LuckyOrbRig3D,
   EnderDragonRig3D,
+  WardenBossRig3D,
   buildVoxelWeaponMesh,
   createTurretMesh3D,
   createViraBotMesh3D
@@ -135,7 +138,8 @@ import {
   extendCampaignFor3D,
   CAMPAIGN_BEATS_3D,
   EnderDragonBoss,
-  MercenaryBoss
+  MercenaryBoss,
+  WardenBoss
 } from '../3d/js/campaign3d.js?v=10.3';
 import { getVoxelTexture, getThemeFloorTextureKey } from '../3d/js/textures3d.js?v=10.3';
 
@@ -1281,7 +1285,7 @@ test('Tier 4 [Scenario 5] Lucky Orb Mystery Encounter: Spinning Cage & Prize Dro
   assert.equal(orbEntity.rollResolved, true, 'prize drop resolves after telegraph completes');
 });
 
-test('Tier 4 [Scenario 6] Full 21-Stage Campaign Routing & 9-Trophy Victory Room', () => {
+test('Tier 4 [Scenario 6] Full 22-Stage Campaign Routing & 10-Trophy Victory Room', () => {
   const stageManager = {
     stages: [],
     customStages: new Map(),
@@ -1299,27 +1303,27 @@ test('Tier 4 [Scenario 6] Full 21-Stage Campaign Routing & 9-Trophy Victory Room
   };
 
   extendCampaignFor3D(stageManager, waveDirector);
-  assert.equal(stageManager.maxStage, 21, 'extendCampaignFor3D must set maxStage to 21');
+  assert.equal(stageManager.maxStage, 22, 'extendCampaignFor3D must set maxStage to 22');
 
   // Check 3D custom late-game campaign beats are defined
   assert.ok(CAMPAIGN_BEATS_3D[18], 'stage 18 (The End) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[19], 'stage 19 (The Aether) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[20], 'stage 20 (Rocket Corp HQ) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[21], 'stage 21 (Zero-Day Mainframe) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[20], 'stage 20 (Ancient City) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[21], 'stage 21 (Rocket Corp HQ) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[22], 'stage 22 (Zero-Day Mainframe) must exist in CAMPAIGN_BEATS_3D');
 
   assert.equal(CAMPAIGN_BEATS_3D[18].bossLabel, 'ENDER DRAGON');
   assert.equal(CAMPAIGN_BEATS_3D[18].mission, 'SLAY THE ENDER DRAGON');
   assert.equal(CAMPAIGN_BEATS_3D[19].mission, 'CROSS THE AETHER SKYLANDS');
-  assert.equal(CAMPAIGN_BEATS_3D[20].bossLabel, 'AGENT · BALLISTA · PRIMAL · HAZARD');
-  assert.equal(CAMPAIGN_BEATS_3D[21].bossLabel, 'H4C3R');
+  assert.equal(CAMPAIGN_BEATS_3D[20].bossLabel, 'THE WARDEN');
+  assert.equal(CAMPAIGN_BEATS_3D[20].mission, 'SILENCE THE WARDEN');
+  assert.equal(CAMPAIGN_BEATS_3D[21].bossLabel, 'AGENT · BALLISTA · PRIMAL · HAZARD');
+  assert.equal(CAMPAIGN_BEATS_3D[22].bossLabel, 'H4C3R');
 
-  // 9-Trophy victory room roster
-  const requiredTrophies = [
-    'titan', 'dark_lord', 'king_freed',
-    'creeper_lord', 'giant_cat', 'lucky_orb',
-    'ender_dragon', 'mercenaries', 'h4c3r'
-  ];
-  assert.equal(requiredTrophies.length, 9, 'must define exactly 9 campaign trophies');
+  // 10-Trophy victory room roster
+  stageManager.enterTrophyRoom();
+  assert.equal(stageManager.desktopIcons.length, 10, 'must define all 10 campaign trophy pedestals');
+  assert.ok(stageManager.desktopIcons.some((ic) => ic.label === 'THE WARDEN'), 'Trophy Room must include THE WARDEN monument');
 });
 
 
@@ -2300,7 +2304,7 @@ test('Tier 1 [Speech F3.6] Creative Entity Spawning & Nuke Callouts: Boss summon
   const mgr = createSpeechManager();
 
   // 1. Boss Spawning triggers [BOSS SUMMONED!] with shout style and trauma
-  const bossTypes = ['ender_dragon', 'mercenary_squad', 'h4c3r', 'king_orange', 'dark_lord', 'lucky_orb', 'creeper_lord', 'giant_cat', 'titan_boss'];
+  const bossTypes = ['ender_dragon', 'warden_boss', 'mercenary_squad', 'h4c3r', 'king_orange', 'dark_lord', 'lucky_orb', 'creeper_lord', 'giant_cat', 'titan_boss'];
   for (const boss of bossTypes) {
     mgr.reset();
     mgr.onCreativeAction('spawn_entity', { entity: boss });
@@ -4484,3 +4488,186 @@ test('Tier 4 [Scenario 5] Multi-Elevation Platform Gauntlet with Swept CCD & Enc
   assert.equal(player.x, 966, 'player must be stopped at enclosed arena wall');
   assert.equal(player.vx, 0);
 });
+
+// ============================================================================
+// Stage 20: Ancient City & The Warden Boss Suite
+// ============================================================================
+
+test('Ancient City [1] Deep Dark Voxel Textures: sculk, deepslate_tiles, and reinforced_deepslate generate cached CanvasTextures', () => {
+  const sculk = getVoxelTexture('sculk');
+  const deepslate = getVoxelTexture('deepslate_tiles');
+  const reinforced = getVoxelTexture('reinforced_deepslate');
+
+  assert.ok(sculk instanceof THREE.CanvasTexture, 'sculk must be a THREE.CanvasTexture');
+  assert.ok(deepslate instanceof THREE.CanvasTexture, 'deepslate_tiles must be a THREE.CanvasTexture');
+  assert.ok(reinforced instanceof THREE.CanvasTexture, 'reinforced_deepslate must be a THREE.CanvasTexture');
+  assert.equal(getVoxelTexture('sculk'), sculk, 'sculk texture must be singleton-cached');
+  assert.equal(getThemeFloorTextureKey('ancient_city'), 'sculk', 'ancient_city floor must map to sculk');
+});
+
+test('Ancient City [2] Stage 20 Arena3DBuilder: builds Center Reinforced Deepslate Portal Monument, ruins, Deep Dark portal sign, and disposes cleanly', () => {
+  const scene = new THREE.Scene();
+  const stageManager = {
+    currentStage: 1,
+    stageName: 'Main Desktop',
+    theme: 'desktop',
+    stageTime: 0,
+    platforms: [],
+    movingPlatforms: [],
+    desktopIcons: [],
+    laserHazards: [],
+    lavaHazards: [],
+    errorPopups: [],
+    entranceDoor: { x: -900, y: 0, width: 60, height: 110 },
+    exitDoor: { x: 860, y: 0, width: 60, height: 110, isOpen: false },
+    loadStage: () => {},
+    enterTrophyRoom: () => {},
+    getCampaignBeat: (n) => ({ name: `Stage ${n}` })
+  };
+  const waveDirector = {
+    zombies: [],
+    spawnQueue: [],
+    generateWaveQueue: () => {},
+    queueWaveRecipe: () => {},
+    spawnZombie: () => {},
+    getSafeSpawnX: () => 420,
+    update: () => {}
+  };
+
+  extendCampaignFor3D(stageManager, waveDirector);
+  stageManager.loadStage(20);
+
+  assert.equal(stageManager.stageName, 'Ancient City');
+  assert.equal(stageManager.theme, 'ancient_city');
+  assert.equal(stageManager.platforms.length, 3, 'Ancient City must have 3 static deepslate catwalk/altar platforms');
+  assert.equal(stageManager.movingPlatforms.length, 1, 'Ancient City must have 1 moving Soul_Lantern_Bridge');
+  assert.equal(stageManager.movingPlatforms[0].title, 'Soul_Lantern_Bridge');
+  assert.equal(refIsOpenEdgeTheme('ancient_city'), false, 'ancient_city is an enclosed subterranean sanctum');
+
+  const arena = new Arena3DBuilder(scene, stageManager);
+  arena.rebuildForStage();
+
+  assert.ok(arena.ancientCityCenterPortal, 'Ancient City must construct the iconic Center Portal monument');
+  assert.equal(arena.standNeck.visible, false, 'monitor stand neck must be hidden in subterranean Ancient City');
+  arena.update(0.25);
+  assert.ok(arena.ancientCityCenterPortal.veilMat.opacity > 0.2, 'Center Portal cyan soul veil must pulse');
+
+  // Verify clean rebuild transition to Stage 21 (Rocket Corp HQ — right before Stage 22 H4C3R)
+  stageManager.loadStage(21);
+  assert.equal(stageManager.stageName, 'Rocket Corp HQ');
+  arena.rebuildForStage();
+  assert.equal(arena.ancientCityCenterPortal, null, 'Center Portal reference must clear on stage rebuild');
+});
+
+test('Ancient City [3] WardenBossRig3D Anatomy & Animation: flush feet, pulsing Soul Heart, vibrating sculk tendrils, and Sonic Boom concentric rings', () => {
+  const rig = new WardenBossRig3D();
+  assert.ok(rig.root instanceof THREE.Group);
+  assert.equal(rig.sonicGroup.visible, false, 'Sonic Boom rings must start hidden');
+
+  // Idle update: Soul Heart pulses, Sonic Boom stays hidden
+  rig.update({ pose: 'idle', animTimer: 1.2, isGrounded: true, actionKind: null, actionPhase: 0, dt: 0.016 });
+  assert.equal(rig.sonicGroup.visible, false);
+  assert.ok(rig.soulHeart.material.opacity >= 0.45, 'Soul Heart must glow in chest ribcage');
+
+  // Sonic Boom update: concentric cyan rings appear & jaw roars wide
+  rig.update({
+    pose: 'idle',
+    animTimer: 2.0,
+    isGrounded: true,
+    actionKind: 'warden_sonic',
+    actionPhase: 0.65,
+    dt: 0.016
+  });
+  assert.equal(rig.sonicGroup.visible, true, 'Sonic Boom torus rings must activate during warden_sonic');
+  assert.equal(rig.sonicRings.length, 5, 'Sonic Boom must project 5 concentric cyan rings');
+  assert.ok(rig.jaw.rotation.x > 0.35, 'Warden jaw must roar open during Sonic Boom');
+
+  // Awakened Phase 2 overdrive intensifies heart pulse
+  rig.update({ pose: 'zombie_walk', animTimer: 3.1, isGrounded: true, isAwakened: true, actionKind: null, dt: 0.016 });
+  assert.equal(rig.sonicGroup.visible, false, 'Sonic Boom rings must hide once attack completes');
+  assert.ok(Number.isFinite(rig.tendrilL.rotation.z) && Number.isFinite(rig.tendrilR.rotation.z));
+});
+
+test('Ancient City [4] WardenBoss Combat AI Lifecycle: Sonic Boom, Sculk Seismic Slam, Blind Charge, Phase 2 Overdrive, and Defeat', () => {
+  const warden = new WardenBoss(320, 0);
+  assert.equal(warden.type, 'warden_boss', 'Boss type must be warden_boss so regular warden shield-zombies remain distinct');
+  assert.equal(warden.name, 'THE WARDEN');
+  assert.equal(warden.maxHp, 1520);
+  assert.equal(warden.phase, 1);
+
+  let playerHits = 0;
+  let lastDamage = 0;
+  const mockPlayer = {
+    x: 120,
+    y: 0,
+    z: 0,
+    radius: 20,
+    isDead: false,
+    isRolling: false,
+    iFrames: 0,
+    isAwakened: false,
+    takeDamage(dmg) {
+      playerHits++;
+      lastDamage = dmg;
+    }
+  };
+
+  // 1. Trigger Attack 0: Sonic Boom
+  warden.actionCooldown = 0;
+  warden.update(0.05, 0, mockPlayer, [], null);
+  assert.equal(warden.state, 'sonic_windup');
+  assert.equal(warden.actionKind, 'warden_sonic');
+
+  // Advance through windup + active Sonic Boom resolution
+  for (let i = 0; i < 25; i++) {
+    warden.update(0.05, 0, mockPlayer, [], null);
+  }
+  assert.ok(warden.sonicResolved, 'Sonic Boom must resolve');
+  assert.equal(playerHits, 1, 'Player in Sonic Boom beam corridor must take damage');
+  assert.equal(lastDamage, 28);
+
+  // 2. Trigger Attack 1: Sculk Seismic Slam
+  warden.state = 'idle';
+  warden.actionCooldown = 0;
+  warden.update(0.05, 0, mockPlayer, [], null);
+  assert.equal(warden.state, 'slam_windup');
+  for (let i = 0; i < 25; i++) {
+    warden.update(0.05, 0, mockPlayer, [], null);
+  }
+  assert.ok(warden.dropResolved, 'Sculk Seismic Slam must resolve');
+  assert.equal(playerHits, 2, 'Grounded player in Seismic Slam zone must take damage');
+
+  // 3. Trigger Attack 2: Blind Charge
+  warden.state = 'idle';
+  warden.actionCooldown = 0;
+  warden.x = 420;
+  mockPlayer.x = 120;
+  warden.update(0.05, 0, mockPlayer, [], null);
+  assert.equal(warden.state, 'charge_windup');
+  for (let i = 0; i < 28; i++) {
+    warden.update(0.05, 0, mockPlayer, [], null);
+  }
+  assert.equal(playerHits, 3, 'Player in Blind Charge path must take contact damage');
+
+  // 4. Phase 2 Overdrive at <= 50% HP and final defeat
+  warden.takeDamage(800, -1, 300, true);
+  warden.update(0.016, 0, mockPlayer, [], null);
+  assert.equal(warden.phase, 2, 'Warden must enter Phase 2 at <= 50% HP');
+  assert.equal(warden.isAwakened, true);
+
+  warden.takeDamage(1000, -1, 400, true);
+  assert.equal(warden.isDead, true, 'Warden must die when HP reaches 0');
+  assert.equal(warden.state, 'defeated');
+});
+
+test('Ancient City [5] Creative Sandbox & Title Quick-Jump UI: 3d/index.html exposes warden_boss, sculk, deepslate_tiles, and Stage 20 pill', () => {
+  const htmlPath = fileURLToPath(new URL('../3d/index.html', import.meta.url));
+  const html = readFileSync(htmlPath, 'utf8');
+  assert.ok(html.includes('value="warden_boss"'), '3d/index.html must include warden_boss in Creative spawn select');
+  assert.ok(html.includes('value="sculk"'), '3d/index.html must include sculk in Creative block select');
+  assert.ok(html.includes('value="deepslate_tiles"'), '3d/index.html must include deepslate_tiles in Creative block select');
+  assert.ok(html.includes('data-jump-stage="20">🔊 20: Ancient City (The Warden)'), 'Title screen must include Stage 20 Ancient City quick-jump pill');
+  assert.ok(html.includes('data-jump-stage="21">🕶️ 21: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must be Stage 21 right before Stage 22 H4C3R');
+  assert.ok(html.includes('data-jump-stage="22">⌁ 22: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 22');
+});
+

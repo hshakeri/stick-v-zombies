@@ -5,7 +5,8 @@ import {
   CreeperLordRig3D,
   GiantCatRig3D,
   LuckyOrbRig3D,
-  EnderDragonRig3D
+  EnderDragonRig3D,
+  WardenBossRig3D
 } from './models3d.js?v=10.3';
 
 export const WORLD_TO_3D = 1 / 34;
@@ -165,15 +166,16 @@ export class Arena3DBuilder {
     this.lavaSeaMat = null;
     this.floatingProps.length = 0;
     this.trophyKeyGroup = null;
+    this.ancientCityCenterPortal = null;
 
     if (stageManager) this.stageManager = stageManager;
     const sm = stageManager || this.stageManager;
     const theme = themeOverride || sm?.theme || 'desktop';
     const floorKey = getThemeFloorTextureKey(theme, false);
 
-    // Hide PC monitor stand neck when inside Rocket Corp Facility so backdrop is the Observation Window
+    // Hide PC monitor stand neck when inside Rocket Corp Facility or Ancient City Cavern
     if (this.standNeck) {
-      this.standNeck.visible = theme !== 'rocket_corp';
+      this.standNeck.visible = theme !== 'rocket_corp' && theme !== 'ancient_city';
     }
 
     // 1. Voxel Arena Floor (62 x 26 blocks)
@@ -190,10 +192,11 @@ export class Arena3DBuilder {
     floorMesh.receiveShadow = true;
     this.group.add(floorMesh);
 
-    // Sub-floor voxel cliff layers (Minecraft island / Facility foundation)
+    // Sub-floor voxel cliff layers (Minecraft island / Ancient City deepslate / Facility foundation)
     const subTexKey = theme === 'minecraft' || theme === 'dark_core' || theme === 'the_end'
       ? 'obsidian'
-      : (theme === 'aether' ? 'holystone' : (theme === 'rocket_corp' ? 'rocket_corp_wall' : 'anvil_iron'));
+      : (theme === 'ancient_city' ? 'deepslate_tiles'
+      : (theme === 'aether' ? 'holystone' : (theme === 'rocket_corp' ? 'rocket_corp_wall' : 'anvil_iron')));
     const subTex = getVoxelTexture(subTexKey, 31, 2);
     const subMat = new THREE.MeshStandardMaterial({ map: subTex, roughness: 0.7 });
     const subLayer = new THREE.Mesh(new THREE.BoxGeometry(floorW - 1.5, 3.2, floorD - 1.5), subMat);
@@ -340,6 +343,7 @@ export class Arena3DBuilder {
       lucky_orb: 0xfacc15,
       the_end: 0xd946ef,
       aether: 0x38d9a9,
+      ancient_city: 0x22d3ee,
       rocket_corp: 0xff6b00,
       zero_day: 0x00f5ff,
       trophy: 0xffd54a
@@ -404,9 +408,199 @@ export class Arena3DBuilder {
     return { root, slabMesh, slabMat, curbMesh, curbMat, data: hazard };
   }
 
+  buildAncientCityRuins() {
+    const deepslateTex = getVoxelTexture('deepslate_tiles', 4, 4);
+    deepslateTex.isShared = true;
+    const reinforcedTex = getVoxelTexture('reinforced_deepslate', 6, 2);
+    reinforcedTex.isShared = true;
+    const sculkTex = getVoxelTexture('sculk', 3, 3);
+    sculkTex.isShared = true;
+
+    const deepslateMat = new THREE.MeshStandardMaterial({
+      map: deepslateTex,
+      roughness: 0.65,
+      metalness: 0.15
+    });
+    const reinforcedMat = new THREE.MeshStandardMaterial({
+      map: reinforcedTex,
+      roughness: 0.45,
+      metalness: 0.25
+    });
+    const sculkPatchMat = new THREE.MeshStandardMaterial({
+      map: sculkTex,
+      emissive: new THREE.Color(0x0891b2),
+      emissiveIntensity: 0.55,
+      roughness: 0.5
+    });
+    const boneMat = new THREE.MeshStandardMaterial({
+      color: 0xd6d3c4,
+      roughness: 0.45
+    });
+    const soulCyanGlow = new THREE.MeshStandardMaterial({
+      color: 0x67e8f9,
+      emissive: new THREE.Color(0x06b6d4),
+      emissiveIntensity: 0.95,
+      roughness: 0.2
+    });
+
+    // 1. Center Reinforced Deepslate Ancient City Portal Monument (Warden-head silhouette!)
+    const portalMonument = new THREE.Group();
+    portalMonument.name = 'ancientCityCenterPortal';
+    portalMonument.position.set(0, 0, -11.4);
+
+    // Stepped Deepslate Altar Dais
+    const daisLower = new THREE.Mesh(new THREE.BoxGeometry(19.5, 0.75, 3.6), deepslateMat);
+    daisLower.position.y = 0.38;
+    const daisUpper = new THREE.Mesh(new THREE.BoxGeometry(16.8, 0.65, 2.8), deepslateMat);
+    daisUpper.position.y = 1.05;
+    portalMonument.add(daisLower, daisUpper);
+
+    // Wide Rectangular Reinforced Deepslate Frame
+    const frameBottom = new THREE.Mesh(new THREE.BoxGeometry(15.2, 1.15, 1.65), reinforcedMat);
+    frameBottom.position.y = 1.95;
+    const frameTop = new THREE.Mesh(new THREE.BoxGeometry(15.2, 1.25, 1.65), reinforcedMat);
+    frameTop.position.y = 9.35;
+    const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(1.45, 6.25, 1.65), reinforcedMat);
+    frameLeft.position.set(-6.88, 5.65, 0);
+    const frameRight = frameLeft.clone();
+    frameRight.position.set(6.88, 5.65, 0);
+
+    // Iconic Warden-Ear Stone Flanges atop the Center Portal Frame
+    const earFlangeL = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.55, 1.35), deepslateMat);
+    earFlangeL.position.set(-7.6, 10.45, 0);
+    earFlangeL.rotation.z = 0.24;
+    const earTipL = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.95, 1.4), soulCyanGlow);
+    earTipL.position.set(-8.55, 11.15, 0);
+    const earFlangeR = earFlangeL.clone();
+    earFlangeR.position.set(7.6, 10.45, 0);
+    earFlangeR.rotation.z = -0.24;
+    const earTipR = earTipL.clone();
+    earTipR.position.set(8.55, 11.15, 0);
+
+    // Shimmering Deep Dark Soul Veil inside the Giant Portal
+    const veilMat = new THREE.MeshBasicMaterial({
+      color: 0x06b6d4,
+      transparent: true,
+      opacity: 0.24,
+      side: THREE.DoubleSide
+    });
+    const portalVeil = new THREE.Mesh(new THREE.PlaneGeometry(12.2, 6.15), veilMat);
+    portalVeil.position.set(0, 5.65, 0);
+    const portalEdges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(12.3, 6.2, 0.4)),
+      new THREE.LineBasicMaterial({ color: 0x22d3ee })
+    );
+    portalEdges.position.set(0, 5.65, 0);
+
+    const plaqueTex = makeTextSignTexture('ANCIENT CITY // DEEP DARK', 'REINFORCED DEEPSLATE SANCTUM', '#06141f', '#22d3ee', '#67e8f9');
+    const plaque = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.8, 1.05),
+      new THREE.MeshBasicMaterial({ map: plaqueTex })
+    );
+    plaque.position.set(0, 10.45, 0.9);
+
+    portalMonument.add(
+      frameBottom, frameTop, frameLeft, frameRight,
+      earFlangeL, earTipL, earFlangeR, earTipR,
+      portalVeil, portalEdges, plaque
+    );
+    this.ancientCityCenterPortal = { root: portalMonument, veilMat, earTipL, earTipR };
+    this.group.add(portalMonument);
+
+    // 2. Four Ruined Deepslate Watchtowers with Sculk Growth & Soul Fire Braziers
+    const towerXs = [-25.5, -15.5, 15.5, 25.5];
+    towerXs.forEach((tx, idx) => {
+      const h = idx % 2 === 0 ? 9.4 : 8.2;
+      const tower = new THREE.Group();
+      tower.position.set(tx, 0, -11.6);
+
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(2.5, h, 2.5), deepslateMat);
+      shaft.position.y = h / 2;
+      shaft.castShadow = true;
+      tower.add(shaft);
+
+      const sculkWrap = new THREE.Mesh(new THREE.BoxGeometry(2.68, 2.2, 2.68), sculkPatchMat);
+      sculkWrap.position.y = 1.1;
+      tower.add(sculkWrap);
+
+      // Soul Fire Brazier Basin & Cyan Flame atop each tower
+      const basin = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.65, 2.9), reinforcedMat);
+      basin.position.y = h + 0.32;
+      const soulFlame = new THREE.Mesh(new THREE.ConeGeometry(0.88, 1.85, 5), soulCyanGlow);
+      soulFlame.position.y = h + 1.45;
+      tower.add(basin, soulFlame);
+      this.floatingProps.push(soulFlame);
+
+      this.group.add(tower);
+    });
+
+    // 3. Ruined Deepslate Bridges & Hanging Soul Lanterns between Outer & Inner Towers
+    [-20.5, 20.5].forEach((bx) => {
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.85, 1.4), deepslateMat);
+      bridge.position.set(bx, 7.6, -11.6);
+      this.group.add(bridge);
+
+      const lanternGroup = new THREE.Group();
+      lanternGroup.position.set(bx, 5.85, -11.2);
+      const chain = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.4, 0.14), deepslateMat);
+      chain.position.y = 0.95;
+      const lanternCap = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.2, 0.76), deepslateMat);
+      lanternCap.position.y = 0.28;
+      const lanternCore = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.68, 0.58), soulCyanGlow);
+      lanternCore.position.y = -0.15;
+      lanternGroup.add(chain, lanternCap, lanternCore);
+      this.group.add(lanternGroup);
+      this.floatingProps.push(lanternGroup);
+    });
+
+    // 4. Sculk Shriekers & Waving Sculk Sensors along the Cavern Edge
+    [-10.2, -4.6, 4.6, 10.2].forEach((sx, idx) => {
+      const prop = new THREE.Group();
+      prop.position.set(sx, 0, -8.8);
+      const base = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.68, 1.35), sculkPatchMat);
+      base.position.y = 0.34;
+      prop.add(base);
+
+      if (idx % 2 === 0) {
+        // Sculk Shrieker: 4 curved bone jaw-horns + glowing cyan soul ring
+        for (const cx of [-0.46, 0.46]) {
+          for (const cz of [-0.46, 0.46]) {
+            const horn = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.68, 0.24), boneMat);
+            horn.position.set(cx, 0.92, cz);
+            prop.add(horn);
+          }
+        }
+        const soulRing = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.08, 8, 14), soulCyanGlow);
+        soulRing.rotation.x = Math.PI / 2;
+        soulRing.position.y = 0.78;
+        prop.add(soulRing);
+        this.floatingProps.push(soulRing);
+      } else {
+        // Sculk Sensor: 4 waving bioluminescent cyan tendrils
+        const tendrilCluster = new THREE.Group();
+        tendrilCluster.position.y = 0.68;
+        for (const cx of [-0.38, 0.38]) {
+          for (const cz of [-0.38, 0.38]) {
+            const tendril = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.62, 0.16), soulCyanGlow);
+            tendril.position.set(cx, 0.28, cz);
+            tendril.rotation.z = cx > 0 ? -0.25 : 0.25;
+            tendrilCluster.add(tendril);
+          }
+        }
+        prop.add(tendrilCluster);
+        this.floatingProps.push(tendrilCluster);
+      }
+      this.group.add(prop);
+    });
+  }
+
   buildBiomeColumns(theme, accentHex) {
     if (theme === 'rocket_corp') {
       this.buildRocketCorpFacility();
+      return;
+    }
+    if (theme === 'ancient_city') {
+      this.buildAncientCityRuins();
       return;
     }
 
@@ -861,8 +1055,9 @@ export class Arena3DBuilder {
     group.position.set(x3d, 0, z3d);
 
     const isRocketCorp = this.stageManager?.theme === 'rocket_corp';
+    const isAncientCity = this.stageManager?.theme === 'ancient_city';
     const frameMat = new THREE.MeshStandardMaterial({
-      map: getVoxelTexture(isRocketCorp ? 'rocket_corp_wall' : 'obsidian', 1, 2),
+      map: getVoxelTexture(isRocketCorp ? 'rocket_corp_wall' : (isAncientCity ? 'reinforced_deepslate' : 'obsidian'), 1, 2),
       roughness: 0.35,
       metalness: isRocketCorp ? 0.65 : 0.3
     });
@@ -894,9 +1089,9 @@ export class Arena3DBuilder {
 
     const signTex = makeTextSignTexture(
       label,
-      isRocketCorp ? 'ROCKET CORP' : (isExit ? 'PORTAL' : 'SPAWN'),
+      isRocketCorp ? 'ROCKET CORP' : (isAncientCity ? 'DEEP DARK' : (isExit ? 'PORTAL' : 'SPAWN')),
       '#0f172a',
-      isRocketCorp ? '#ff6b00' : (isExit ? '#10b981' : '#38bdf8')
+      isRocketCorp ? '#ff6b00' : (isAncientCity ? '#22d3ee' : (isExit ? '#10b981' : '#38bdf8'))
     );
     const signMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2.4, 0.9),
@@ -924,9 +1119,10 @@ export class Arena3DBuilder {
       : (theme === 'minecraft' ? 'obsidian'
       : (theme === 'the_end' ? 'purpur_block'
       : (theme === 'aether' ? 'holystone'
+      : (theme === 'ancient_city' ? 'deepslate_tiles'
       : (theme === 'rocket_corp' ? 'rocket_corp_wall'
       : (theme === 'lucky_orb' ? 'lucky_block'
-      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))));
+      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron')))))));
 
     const bodyMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(texKey, Math.max(2, Math.round(w / 2)), 2),
@@ -1113,6 +1309,11 @@ export class Arena3DBuilder {
       rig.flightGroup.position.y = 1.65;
       return rig.root;
     }
+    if (label.includes('WARDEN')) {
+      const rig = new WardenBossRig3D();
+      rig.root.scale.setScalar(0.38);
+      return rig.root;
+    }
     if (label.includes('MERCENAR') || label.includes('ROCKET')) {
       const rig = new StickRig3D({ color: '#1e293b', scale: 0.68, zombieType: 'mercenary_agent', weaponType: 'toolbar_staff' });
       return rig.root;
@@ -1123,6 +1324,86 @@ export class Arena3DBuilder {
     }
     const rig = new StickRig3D({ color: '#67e8f9', scale: 0.68, isHollowHead: true, zombieType: 'h4c3r' });
     return rig.root;
+  }
+
+  drawAncientCityCavernBackdrop(ctx, w, h, sm) {
+    // 1. Abyssal Deep Dark Cavern Sky & Sculk Mist
+    const grad = typeof ctx.createLinearGradient === 'function' ? ctx.createLinearGradient(0, 0, 0, h) : null;
+    if (grad && typeof grad.addColorStop === 'function') {
+      grad.addColorStop(0, '#02070c');
+      grad.addColorStop(0.6, '#051520');
+      grad.addColorStop(1, '#082433');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#04121c';
+    }
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Jagged Deepslate Cavern Stalactites along ceiling
+    ctx.fillStyle = '#0e1722';
+    for (let sx = 0; sx < w; sx += 58) {
+      const dropH = 42 + ((sx * 37) % 75);
+      ctx.beginPath();
+      ctx.moveTo(sx, 0);
+      ctx.lineTo(sx + 29, dropH);
+      ctx.lineTo(sx + 58, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 3. Bioluminescent Sculk Stars & Veins across Cavern Wall
+    const starCols = ['#06b6d4', '#22d3ee', '#67e8f9', '#0e7490'];
+    for (let i = 0; i < 68; i++) {
+      ctx.fillStyle = starCols[i % starCols.length];
+      const px = (i * 157 + 23) % (w - 20) + 10;
+      const py = 55 + ((i * 97 + 19) % (h - 140));
+      ctx.fillRect(px, py, i % 3 === 0 ? 4 : 2, i % 3 === 0 ? 4 : 2);
+    }
+
+    // 4. Distant Ruined Deepslate City Silhouettes & Soul Fire Beacons
+    const towers = [90, 220, 760, 890];
+    towers.forEach((tx, idx) => {
+      const tw = 68;
+      const th = idx % 2 === 0 ? 195 : 155;
+      ctx.fillStyle = '#111824';
+      ctx.fillRect(tx, h - 68 - th, tw, th);
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(tx + 14, h - 68 - th + 24, tw - 28, 36);
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.35)';
+      ctx.fillRect(tx + 16, h - 68 - th + 26, tw - 32, 32);
+    });
+
+    // 5. Center Deep Dark Vibration & Warden Heartbeat Telemetry Header
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#67e8f9';
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText('ACT VI // MINECRAFT DEEP DARK — ANCIENT CITY SANCTUM', w / 2, 74);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 34px monospace';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ THE WARDEN SILENCED — PORTAL OPEN' : '⚠ SCULK SHRIEKER TRIGGERED: THE WARDEN',
+      w / 2,
+      122
+    );
+
+    ctx.fillStyle = '#22d3ee';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('VIBRATION RESONANCE: CRITICAL  •  BEWARE SONIC BOOM & SEISMIC SLAM', w / 2, 162);
+
+    // 6. Reinforced Deepslate Footer Bar
+    ctx.fillStyle = '#07131d';
+    ctx.fillRect(0, h - 62, w, 62);
+    ctx.fillStyle = '#d6d3c4';
+    ctx.fillRect(0, h - 62, w, 5);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#67e8f9';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('🔊 DEEP DARK // Y = -51  •  SCULK CATALYST ACTIVE', 32, h - 22);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#22d3ee';
+    ctx.fillText(sm.isObjectiveComplete ? 'HEARTBEAT: SILENT' : 'HEARTBEAT: 180 BPM', w - 32, h - 22);
   }
 
   redrawMonitorScreen(force = false) {
@@ -1151,6 +1432,8 @@ export class Arena3DBuilder {
       ctx.fillRect(48, 100, w - 96, 6);
     } else if (sm.theme === 'rocket_corp') {
       this.drawRocketCorpControlRoom(ctx, w, h, sm);
+    } else if (sm.theme === 'ancient_city') {
+      this.drawAncientCityCavernBackdrop(ctx, w, h, sm);
     } else {
       ctx.fillStyle = sm.theme === 'bsod' ? '#003999'
         : (sm.theme === 'dark_core' ? '#1a0008'
@@ -1459,6 +1742,12 @@ export class Arena3DBuilder {
       if (this.exitSignMesh) {
         this.exitSignMesh.position.y = 4.7 + (isOpen ? Math.sin(sm.stageTime * 6) * 0.22 : 0);
       }
+    }
+
+    // Pulse Ancient City Center Portal soul veil
+    if (this.ancientCityCenterPortal?.veilMat) {
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+      this.ancientCityCenterPortal.veilMat.opacity = 0.28 + Math.sin(t * 3.2) * 0.07;
     }
 
     // Spin Trophy Key if in Trophy Room
