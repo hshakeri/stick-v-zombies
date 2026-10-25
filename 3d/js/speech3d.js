@@ -4,7 +4,6 @@
 // Speaker Avatar Badges, Mood Indicators, and Dynamic Micro-Animations.
 // ============================================================================
 
-import * as THREE from '../lib/three.module.min.js';
 import {
   speech as speech2d,
   SpeechBubbleManager,
@@ -13,7 +12,10 @@ import {
   SPEECH_CORPUS
 } from '../../js/engine/speech.js?v=9.8';
 import { audio } from '../../js/engine/audio.js?v=9.8';
-import { to3DX, to3DY, to3DZ } from './arena3d.js?v=10.3';
+
+const to3DX = (x) => x / 34;
+const to3DY = (y) => -y / 34;
+const to3DZ = (z) => z / 34;
 
 export const MAX_ACTIVE_BUBBLES_3D = 3;
 export const MAX_SPEECH_CHARS_3D = 24;
@@ -581,9 +583,9 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
     this.cooldownWindow = 0.3; // 300ms cooldown per speaker
     this.nextId = 1;
     this.soundTriggered = [];
-    this._scratchPos = new THREE.Vector3();
-    this._camDir = new THREE.Vector3();
-    this._toPoint = new THREE.Vector3();
+    this._scratchPos = null;
+    this._camDir = null;
+    this._toPoint = null;
     this._scratchScreen = { x: 0, y: 0, zDepth: 0, scale: 1, visible: true };
     this.playerRef = null;
   }
@@ -1151,6 +1153,11 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
       out.scale = Number.isFinite(out.scale) ? out.scale : 1.0;
       return out;
     } else if (camera3D) {
+      if (!this._scratchPos && camera3D.position?.clone) {
+        this._scratchPos = camera3D.position.clone();
+        this._camDir = camera3D.position.clone();
+        this._toPoint = camera3D.position.clone();
+      }
       this._scratchPos.set(to3DX(safeWx), to3DY(safeWy), to3DZ(safeWz));
       const camDist = this._scratchPos.distanceTo(camera3D.position);
 

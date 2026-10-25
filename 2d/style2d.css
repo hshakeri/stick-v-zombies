@@ -1,0 +1,367 @@
+/* ==========================================================================
+   Stick vs Zombies — 2D Expansion Styles (Level Selector, Creative Sandbox,
+   and New Campaign Boss Bars). 100% local & asset-free.
+   ========================================================================== */
+
+.stage-select-box {
+  background: #1b2234;
+  border: 2px solid #ffea00;
+  color: #ffffff;
+  font-family: var(--font-pop-art);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 12px rgba(255, 234, 0, 0.3);
+  max-width: 260px;
+}
+
+.stage-select-box:hover {
+  border-color: #38bdf8;
+  background: #243048;
+}
+
+.stage-select-prominent {
+  font-size: 13px;
+  padding: 8px 14px;
+  min-width: 260px;
+  max-width: 100%;
+}
+
+.hud-stage-select {
+  margin-top: 5px;
+  font-size: 11px;
+  padding: 3px 8px;
+  max-width: 230px;
+}
+
+.level-selector-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(700px, 94%);
+  margin: 0 auto 14px;
+  padding: 12px 16px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 2px solid #38bdf8;
+  border-radius: 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+}
+
+.level-selector-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.level-selector-label {
+  font-family: var(--font-pop-art);
+  font-size: 13px;
+  color: #ffea00;
+  letter-spacing: 0.5px;
+}
+
+.quick-stage-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.quick-stage-btn {
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 1.5px solid #38bdf8;
+  color: #e0f2fe;
+  font-family: var(--font-pop-art);
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.quick-stage-btn:hover {
+  border-color: #ffea00;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.pause-stage-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid #38bdf8;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.pause-stage-row label {
+  font-family: var(--font-pop-art);
+  font-size: 11px;
+  color: #ffea00;
+}
+
+.pause-stage-row .stage-select-box {
+  max-width: 100%;
+  width: 100%;
+}
+
+.creative-start-btn {
+  background: linear-gradient(135deg, #0ea5e9, #10b981) !important;
+  border-color: #a7f3d0 !important;
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.5) !important;
+}
+
+.creative-hud-btn.active {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.25) !important;
+  color: #6ee7b7 !important;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+}
+
+.creative-dock {
+  position: absolute;
+  top: 104px;
+  left: 16px;
+  width: min(312px, calc(100vw - 32px));
+  background: rgba(15, 23, 42, 0.93);
+  border: 2px solid #10b981;
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.65), 0 0 16px rgba(16, 185, 129, 0.32);
+  padding: 10px 12px;
+  z-index: 25;
+  pointer-events: auto;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.creative-dock.active {
+  display: flex;
+}
+
+.creative-dock.collapsed .creative-dock-body {
+  display: none;
+}
+
+.creative-dock-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+  padding-bottom: 5px;
+}
+
+.creative-dock-title {
+  font-family: var(--font-pop-art);
+  font-size: 12px;
+  color: #34d399;
+  letter-spacing: 0.5px;
+}
+
+.creative-collapse-btn {
+  background: #1e293b;
+  border: 1px solid #38bdf8;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 1px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.creative-dock-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.creative-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.creative-toggles-row {
+  justify-content: space-between;
+}
+
+.creative-row-label {
+  font-family: var(--font-pop-art);
+  font-size: 10px;
+  color: #ffea00;
+  min-width: 56px;
+}
+
+.creative-select {
+  flex: 1;
+  min-width: 0;
+  background: #1e293b;
+  border: 1.5px solid #38bdf8;
+  color: #f8fafc;
+  font-family: var(--font-pop-art);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.creative-chip {
+  flex: 1;
+  background: #1e293b;
+  border: 1.5px solid #475569;
+  color: #cbd5e1;
+  font-family: var(--font-pop-art);
+  font-size: 10px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.creative-chip.active {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: #10b981;
+  color: #6ee7b7;
+}
+
+.creative-action-btn {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  border: 1.5px solid #38bdf8;
+  color: #ffffff;
+  font-family: var(--font-pop-art);
+  font-size: 10px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.creative-action-btn:hover {
+  border-color: #ffea00;
+  filter: brightness(1.12);
+}
+
+.creative-action-btn.spawn {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  border-color: #facc15;
+}
+
+.creative-action-btn.danger {
+  background: linear-gradient(135deg, #e11d48, #be123c);
+  border-color: #fda4af;
+}
+
+.creative-action-btn.secondary {
+  background: #334155;
+  border-color: #64748b;
+}
+
+.creative-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+/* Boss Health Bar Themes for Stages 18, 20, 21, 22 */
+.boss-health-container.ender-dragon-boss {
+  border-color: #d946ef;
+  box-shadow: 0 0 22px rgba(217, 70, 239, 0.55);
+}
+
+.boss-health-container.ender-dragon-boss .boss-name {
+  color: #f5d0fe;
+  text-shadow: 0 0 10px rgba(217, 70, 239, 0.8);
+}
+
+.boss-health-container.ender-dragon-boss .boss-bar-fill {
+  background: linear-gradient(90deg, #7e22ce, #d946ef, #f5d0fe);
+}
+
+.boss-health-container.warden-boss-boss {
+  border-color: #22d3ee;
+  box-shadow: 0 0 22px rgba(6, 182, 212, 0.55);
+}
+
+.boss-health-container.warden-boss-boss .boss-name {
+  color: #67e8f9;
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.75);
+}
+
+.boss-health-container.warden-boss-boss .boss-bar-fill {
+  background: linear-gradient(90deg, #0891b2, #22d3ee, #a5f3fc);
+}
+
+.boss-health-container.creaking-boss-boss {
+  border-color: #f97316;
+  box-shadow: 0 0 22px rgba(249, 115, 22, 0.55);
+}
+
+.boss-health-container.creaking-boss-boss .boss-name {
+  color: #fdba74;
+  text-shadow: 0 0 10px rgba(249, 115, 22, 0.78);
+}
+
+.boss-health-container.creaking-boss-boss .boss-bar-fill {
+  background: linear-gradient(90deg, #c2410c, #f97316, #fde047);
+}
+
+.boss-health-container.mercenary-agent-boss,
+.boss-health-container.mercenary-ballista-boss,
+.boss-health-container.mercenary-primal-boss,
+.boss-health-container.mercenary-hazard-boss {
+  border-color: #ff6b00;
+  box-shadow: 0 0 22px rgba(255, 107, 0, 0.55);
+}
+
+.boss-health-container.mercenary-agent-boss .boss-name,
+.boss-health-container.mercenary-ballista-boss .boss-name,
+.boss-health-container.mercenary-primal-boss .boss-name,
+.boss-health-container.mercenary-hazard-boss .boss-name {
+  color: #fdba74;
+  text-shadow: 0 0 10px rgba(255, 107, 0, 0.75);
+}
+
+.boss-health-container.mercenary-agent-boss .boss-bar-fill,
+.boss-health-container.mercenary-ballista-boss .boss-bar-fill,
+.boss-health-container.mercenary-primal-boss .boss-bar-fill,
+.boss-health-container.mercenary-hazard-boss .boss-bar-fill {
+  background: linear-gradient(90deg, #ea580c, #fb923c, #38bdf8);
+}
+
+/* Extracted Title, HUD & Modal Layout Rules */
+#ally-cursor-slot { border-color: #00d2ff; }
+#ally-cursor-slot .ally-badge { background: #00d2ff; color: #000; font-size: 14px; }
+#btn-start-game { font-size: 20px; padding: 14px 28px; }
+.creative-start-btn { font-size: 17px; padding: 12px 22px; }
+.btn-3d-link { text-decoration: none; }
+#btn-continue-game { display: none; }
+#btn-close-shop { padding: 6px 14px; }
+#shop-ink-display { color: #44ddff; }
+.shop-sub { font-size: 13px; color: #a4abbc; }
+#pause-modal .modal-box { max-width: 440px; text-align: center; }
+#pause-modal .modal-title { margin-bottom: 20px; }
+.pause-actions { display: flex; flex-direction: column; gap: 14px; }
+#gameover-modal .modal-box { max-width: 500px; text-align: center; }
+#gameover-modal .modal-title { color: #ff3344; margin-bottom: 8px; }
+.go-sub { color: #a0a4be; margin-bottom: 20px; }
+.go-card { background: #14151f; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #33364d; text-align: left; font-family: var(--font-pop-art); }
+.go-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.go-row:last-child { margin-bottom: 0; }
+#gameover-wave { color: #ffea00; }
+#gameover-score { color: #fff; }
+#gameover-kills { color: #44dd66; }
+#gameover-combo { color: var(--orange-glow); }
+#gameover-best { color: #67e8f9; }
+.go-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.ex-cost { font-style: normal; color: #ffb347; }
+#vbtn-attack { background: rgba(255, 119, 0, 0.7); }
+#vbtn-weapon { background: rgba(255, 200, 0, 0.7); }
+#vbtn-super { background: rgba(255, 50, 50, 0.7); }
+

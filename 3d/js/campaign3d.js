@@ -1727,7 +1727,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
           minX: -320,
           maxX: 320,
           speed: 135,
-          dir: 1
+          dir: 1,
+          axis: 'x'
         }
       ];
       stageManager.desktopIcons = [
@@ -1756,7 +1757,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
           minX: -290,
           maxX: 290,
           speed: 115,
-          dir: 1
+          dir: 1,
+          axis: 'x'
         }
       ];
       stageManager.desktopIcons = [
@@ -1785,7 +1787,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
           minX: -295,
           maxX: 295,
           speed: 120,
-          dir: 1
+          dir: 1,
+          axis: 'x'
         }
       ];
       stageManager.desktopIcons = [
