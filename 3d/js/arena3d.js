@@ -11,6 +11,19 @@ import {
 export const WORLD_TO_3D = 1 / 34;
 export const ARENA_HALF_X = 980;
 export const ARENA_HALF_Z = 380;
+export const ISLAND_FLOOR_BOUNDS = Object.freeze({ halfX: 980, halfZ: 380 });
+
+export function isFloatingIslandTheme(theme) {
+  return theme === 'the_end' || theme === 'aether' || theme === 'cloud_cache' || theme === 'lucky_orb';
+}
+
+export function isOpenEdgeTheme(theme) {
+  return isFloatingIslandTheme(theme) || theme === 'minecraft';
+}
+
+export function isLavaSeaTheme(theme) {
+  return theme === 'minecraft';
+}
 
 export function to3DX(x) {
   return x * WORLD_TO_3D;
@@ -84,6 +97,10 @@ export class Arena3DBuilder {
     this.platformMeshes = [];
     this.movingPlatformMeshes = [];
     this.laserMeshes = [];
+    this.lavaHazardMeshes = [];
+    this.lavaSeaMesh = null;
+    this.lavaSeaMat = null;
+    this._lavaTime = 0;
     this.floatingProps = [];
     this.exitPortalCore = null;
     this.exitPortalMat = null;
@@ -107,6 +124,9 @@ export class Arena3DBuilder {
     disposeHierarchy(this.group, false);
     disposeHierarchy(this.monitorGroup, false);
     this.monitorTexture?.dispose?.();
+    this.lavaSeaMesh = null;
+    this.lavaSeaMat = null;
+    this.lavaHazardMeshes.length = 0;
   }
 
   buildPersistentMonitor() {
@@ -131,7 +151,7 @@ export class Arena3DBuilder {
     this.scene.add(this.monitorGroup);
   }
 
-  rebuildForStage() {
+  rebuildForStage(stageManager = this.stageManager, themeOverride = null) {
     disposeHierarchy(this.group, true);
     while (this.group.children.length > 0) {
       const child = this.group.children.pop();
@@ -140,11 +160,15 @@ export class Arena3DBuilder {
     this.platformMeshes.length = 0;
     this.movingPlatformMeshes.length = 0;
     this.laserMeshes.length = 0;
+    this.lavaHazardMeshes.length = 0;
+    this.lavaSeaMesh = null;
+    this.lavaSeaMat = null;
     this.floatingProps.length = 0;
     this.trophyKeyGroup = null;
 
-    const sm = this.stageManager;
-    const theme = sm.theme || 'desktop';
+    if (stageManager) this.stageManager = stageManager;
+    const sm = stageManager || this.stageManager;
+    const theme = themeOverride || sm?.theme || 'desktop';
     const floorKey = getThemeFloorTextureKey(theme, false);
 
     // Hide PC monitor stand neck when inside Rocket Corp Facility so backdrop is the Observation Window
@@ -176,37 +200,53 @@ export class Arena3DBuilder {
     subLayer.position.set(0, -3.1, 0);
     this.group.add(subLayer);
 
+    // 1b. 3D Animated Lava Sea Mesh (Stage 7 Nether Core)
+    if (theme === 'minecraft') {
+      this.buildLavaSea();
+    }
+
     // Glowing Arena Border Rails (or Industrial Yellow/Black Hazard Curbs in Rocket Corp!)
+    // Border rails are omitted on open-edge stages (floating islands & Nether) to permit free passage and void falling
     const accentHex = this.getThemeAccentColor(theme);
-    const railMat = theme === 'rocket_corp'
-      ? new THREE.MeshStandardMaterial({
-          map: getVoxelTexture('rocket_corp_hazard', 24, 1),
-          roughness: 0.4,
-          metalness: 0.2
-        })
-      : new THREE.MeshStandardMaterial({
-          color: accentHex,
-          emissive: accentHex,
-          emissiveIntensity: 0.55,
-          roughness: 0.25
-        });
-    const sideRailMat = theme === 'rocket_corp'
-      ? new THREE.MeshStandardMaterial({
-          map: getVoxelTexture('rocket_corp_hazard', 1, 10),
-          roughness: 0.4,
-          metalness: 0.2
-        })
-      : railMat;
-    const railNorth = new THREE.Mesh(new THREE.BoxGeometry(floorW, 0.35, 0.45), railMat);
-    railNorth.position.set(0, 0.18, -floorD / 2 + 0.25);
-    const railSouth = railNorth.clone();
-    railSouth.position.set(0, 0.18, floorD / 2 - 0.25);
-    const wallX = to3DX(980) + 0.55;
-    const railWest = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, floorD), sideRailMat);
-    railWest.position.set(-wallX, 0.55, 0);
-    const railEast = railWest.clone();
-    railEast.position.set(wallX, 0.55, 0);
-    this.group.add(railNorth, railSouth, railWest, railEast);
+    if (!isOpenEdgeTheme(theme)) {
+      const railMat = theme === 'rocket_corp'
+        ? new THREE.MeshStandardMaterial({
+            map: getVoxelTexture('rocket_corp_hazard', 24, 1),
+            roughness: 0.4,
+            metalness: 0.2
+          })
+        : new THREE.MeshStandardMaterial({
+            color: accentHex,
+            emissive: accentHex,
+            emissiveIntensity: 0.55,
+            roughness: 0.25
+          });
+      const sideRailMat = theme === 'rocket_corp'
+        ? new THREE.MeshStandardMaterial({
+            map: getVoxelTexture('rocket_corp_hazard', 1, 10),
+            roughness: 0.4,
+            metalness: 0.2
+          })
+        : railMat;
+      const railNorth = new THREE.Mesh(new THREE.BoxGeometry(floorW, 0.35, 0.45), railMat);
+      railNorth.name = 'railNorth';
+      railNorth.userData = { isRail: true, side: 'north' };
+      railNorth.position.set(0, 0.18, -floorD / 2 + 0.25);
+      const railSouth = railNorth.clone();
+      railSouth.name = 'railSouth';
+      railSouth.userData = { isRail: true, side: 'south' };
+      railSouth.position.set(0, 0.18, floorD / 2 - 0.25);
+      const wallX = to3DX(980) + 0.55;
+      const railWest = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.1, floorD), sideRailMat);
+      railWest.name = 'railWest';
+      railWest.userData = { isRail: true, side: 'west' };
+      railWest.position.set(-wallX, 0.55, 0);
+      const railEast = railWest.clone();
+      railEast.name = 'railEast';
+      railEast.userData = { isRail: true, side: 'east' };
+      railEast.position.set(wallX, 0.55, 0);
+      this.group.add(railNorth, railSouth, railWest, railEast);
+    }
 
     // 2. Voxel Pillars / Minecraft Biome Props / Rocket Corp Facility Architecture
     this.buildBiomeColumns(theme, accentHex);
@@ -243,6 +283,15 @@ export class Arena3DBuilder {
       this.group.add(laserGroup.root);
       this.laserMeshes.push(laserGroup);
     });
+
+    // 6b. Floor Lava Hazards (Stage 7 Nether Core or authored hazards)
+    if (sm?.lavaHazards && Array.isArray(sm.lavaHazards)) {
+      sm.lavaHazards.forEach((hazard) => {
+        const lavaGroup = this.createLavaHazardMesh(hazard);
+        this.group.add(lavaGroup.root);
+        this.lavaHazardMeshes.push(lavaGroup);
+      });
+    }
 
     // 7. Error Popups (3D Monoliths)
     sm.errorPopups.forEach((pop, idx) => {
@@ -295,6 +344,64 @@ export class Arena3DBuilder {
       zero_day: 0x00f5ff,
       trophy: 0xffd54a
     }[theme] || 0x38bdf8;
+  }
+
+  buildLavaSea() {
+    const lavaGeo = new THREE.PlaneGeometry(140, 90);
+    const lavaTex = getVoxelTexture('lava', 35, 22);
+    this.lavaSeaMat = new THREE.MeshStandardMaterial({
+      map: lavaTex,
+      color: 0xff3300,
+      emissive: new THREE.Color(0xff4400),
+      emissiveIntensity: 0.8,
+      roughness: 0.4,
+      metalness: 0.1
+    });
+    this.lavaSeaMesh = new THREE.Mesh(lavaGeo, this.lavaSeaMat);
+    this.lavaSeaMesh.name = 'lavaSeaMesh';
+    this.lavaSeaMesh.rotation.x = -Math.PI / 2;
+    this.lavaSeaMesh.position.set(0, -8.0, 0);
+    this.lavaSeaMesh.receiveShadow = true;
+    this.group.add(this.lavaSeaMesh);
+  }
+
+  createLavaHazardMesh(hazard) {
+    const root = new THREE.Group();
+    const x3d = to3DX(hazard.x);
+    const y3d = 0.06;
+    const z3d = to3DZ(hazard.z || 0);
+    const w3d = (hazard.width || 160) * WORLD_TO_3D;
+    const h3d = Math.max(0.12, (hazard.height || 10) * WORLD_TO_3D);
+    const d3d = (hazard.depth3d || 220) * WORLD_TO_3D;
+
+    const repX = Math.max(1, Math.round((hazard.width || 160) / 34));
+    const repZ = Math.max(1, Math.round((hazard.depth3d || 220) / 34));
+    const lavaTex = getVoxelTexture('lava', repX, repZ);
+
+    const slabMat = new THREE.MeshStandardMaterial({
+      map: lavaTex,
+      color: 0xff3300,
+      emissive: new THREE.Color(0xff4400),
+      emissiveIntensity: 0.85,
+      roughness: 0.35,
+      metalness: 0.1
+    });
+
+    const slabMesh = new THREE.Mesh(new THREE.BoxGeometry(w3d, h3d, d3d), slabMat);
+    slabMesh.name = 'lavaHazardSlab';
+    slabMesh.position.set(x3d, y3d, z3d);
+    slabMesh.receiveShadow = true;
+
+    const curbMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('obsidian', 1, 1),
+      roughness: 0.8
+    });
+    const curbMesh = new THREE.Mesh(new THREE.BoxGeometry(w3d + 0.35, h3d * 0.85, d3d + 0.35), curbMat);
+    curbMesh.name = 'lavaHazardCurb';
+    curbMesh.position.set(x3d, y3d - 0.02, z3d);
+
+    root.add(curbMesh, slabMesh);
+    return { root, slabMesh, slabMat, curbMesh, curbMat, data: hazard };
   }
 
   buildBiomeColumns(theme, accentHex) {
@@ -809,7 +916,7 @@ export class Arena3DBuilder {
 
   createPlatformMesh(p, theme, isMoving = false) {
     const w = p.width * WORLD_TO_3D;
-    const h = Math.max(0.55, p.height * WORLD_TO_3D);
+    const h = (p.height || 60) * WORLD_TO_3D;
     const d = (p.depth3d || 170) * WORLD_TO_3D;
 
     const group = new THREE.Group();
@@ -826,7 +933,14 @@ export class Arena3DBuilder {
       roughness: 0.45,
       metalness: 0.25
     });
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), bodyMat);
+
+    // Flush Platform Top Alignment (F1):
+    // Highest vertex of platform mesh is at exactly +h / 2 = (p.height * WORLD_TO_3D) / 2.
+    // Entity resting at to3DY(p.y - p.height) makes crisp, flush contact with zero sinking and zero hover gap.
+    const barH = Math.min(0.18, h * 0.35);
+    const slabH = Math.max(0.01, h - barH);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(w, slabH, d), bodyMat);
+    slab.position.y = -barH / 2;
     slab.castShadow = true;
     slab.receiveShadow = true;
     group.add(slab);
@@ -842,10 +956,12 @@ export class Arena3DBuilder {
           emissiveIntensity: 0.35
         });
     const headerBar = new THREE.Mesh(
-      new THREE.BoxGeometry(w + 0.08, 0.22, d + 0.08),
+      new THREE.BoxGeometry(w + 0.04, barH, d + 0.04),
       headerMat
     );
-    headerBar.position.y = h / 2 + 0.05;
+    headerBar.position.y = slabH / 2;
+    headerBar.castShadow = true;
+    headerBar.receiveShadow = true;
     group.add(headerBar);
 
     return group;
@@ -1310,6 +1426,29 @@ export class Arena3DBuilder {
       const isActive = l.data.timer < l.data.activeDuration;
       l.beam.visible = isActive;
       l.crossBeam.visible = isActive;
+    }
+
+    // Sync 3D Animated Lava Sea (Stage 7 Nether Core)
+    if (this.lavaSeaMat && this.lavaSeaMesh) {
+      const tex = this.lavaSeaMat.map;
+      if (tex && tex.offset) {
+        tex.offset.x = (tex.offset.x + dt * 0.05) % 1;
+        tex.offset.y = (tex.offset.y + dt * 0.03) % 1;
+      }
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._lavaTime = (this._lavaTime || 0) + dt);
+      this.lavaSeaMat.emissiveIntensity = 0.8 + Math.sin(t * 3.0) * 0.15;
+    }
+
+    // Sync Floor Lava Hazard Pools
+    for (const item of this.lavaHazardMeshes) {
+      if (item.slabMat) {
+        const tex = item.slabMat.map;
+        if (tex && tex.offset) {
+          tex.offset.x = (tex.offset.x + dt * 0.08) % 1;
+        }
+        const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._lavaTime || 0);
+        item.slabMat.emissiveIntensity = 0.85 + Math.sin(t * 4.0) * 0.15;
+      }
     }
 
     // Sync Exit Portal color & pulse

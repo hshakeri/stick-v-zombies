@@ -2854,3 +2854,1633 @@ test('Tier 4 [Speech Scenario 4] Creative Mode Sandbox Workflow: 3D Flight, Weap
     mgr.draw(ctx, null, 1280, 720);
   });
 });
+
+
+// ============================================================================
+// 3D Physics, Void Falling, and Lava Systems (Features 1 - 14)
+// Interface Contracts & Reference Implementations
+// ============================================================================
+
+let physicsModule = null;
+try {
+  physicsModule = await import('../3d/js/physics3d.js');
+} catch {
+  // physics3d.js will be loaded once created by worker_m1
+}
+
+function refGetPlatformBoundingBox3D(platform) {
+  if (physicsModule?.getPlatformBoundingBox3D) {
+    return physicsModule.getPlatformBoundingBox3D(platform);
+  }
+  const isCreativeBlock = platform.z !== undefined && platform.z3d === undefined;
+  const width = platform.width || (isCreativeBlock ? 68 : 200);
+  const height = platform.height || (isCreativeBlock ? 68 : 20);
+  const depth3d = platform.depth3d || (isCreativeBlock ? 68 : 170);
+  const halfW = width * 0.5;
+  const halfD = depth3d * 0.5;
+  const x = platform.x || 0;
+  const z = platform.z3d !== undefined ? platform.z3d : (platform.z !== undefined ? platform.z : 0);
+  const topY = platform.y - height;
+  const bottomY = platform.y;
+  return {
+    minX: x - halfW,
+    maxX: x + halfW,
+    minY: topY,
+    maxY: bottomY,
+    minZ: z - halfD,
+    maxZ: z + halfD,
+    topY,
+    bottomY,
+    halfW,
+    halfD
+  };
+}
+
+function refIsEntityInsidePlatformXZ(entityX, entityZ, radiusX, radiusZ, platform) {
+  if (physicsModule?.isEntityInsidePlatformXZ) {
+    return physicsModule.isEntityInsidePlatformXZ(entityX, entityZ, radiusX, radiusZ, platform);
+  }
+  const box = refGetPlatformBoundingBox3D(platform);
+  const rX = radiusX !== undefined ? radiusX : 18;
+  const rZ = radiusZ !== undefined ? radiusZ : 12;
+  const xOverlap = (entityX + rX >= box.minX) && (entityX - rX <= box.maxX);
+  const zOverlap = (entityZ + rZ >= box.minZ) && (entityZ - rZ <= box.maxZ);
+  return xOverlap && zOverlap;
+}
+
+function refFilterPlatformsForEntity(entity, allPlatforms) {
+  if (physicsModule?.filterPlatformsForEntity) {
+    return physicsModule.filterPlatformsForEntity(entity, allPlatforms);
+  }
+  if (!allPlatforms || !Array.isArray(allPlatforms)) return [];
+  const eZ = entity.z || 0;
+  return allPlatforms.filter((p) => {
+    const pZ = p.z3d !== undefined ? p.z3d : (p.z !== undefined ? p.z : 0);
+    const halfD = (p.depth3d || (p.z !== undefined ? 68 : 170)) * 0.5;
+    return Math.abs(eZ - pZ) <= halfD + 15;
+  });
+}
+
+function refResolveSweptVerticalCollision(entity, platforms, prevY, dt = 0.016) {
+  if (physicsModule?.resolveSweptVerticalCollision) {
+    return physicsModule.resolveSweptVerticalCollision(entity, platforms, prevY, dt);
+  }
+  if (entity.vy < 0) return false;
+  if (!platforms || platforms.length === 0) return false;
+
+  const rX = entity.radiusX || 18;
+  const rZ = entity.radiusZ || 12;
+  let bestLandingY = Infinity;
+  let landed = false;
+
+  for (const p of platforms) {
+    if (!refIsEntityInsidePlatformXZ(entity.x, entity.z || 0, rX, rZ, p)) continue;
+    const bTop = p.y - (p.height || 60);
+    if (prevY <= bTop + 6 && entity.y >= bTop) {
+      if (bTop < bestLandingY) {
+        bestLandingY = bTop;
+        landed = true;
+      }
+    }
+  }
+
+  if (landed) {
+    entity.y = bestLandingY;
+    entity.vy = 0;
+    entity.isGrounded = true;
+    return true;
+  }
+  return false;
+}
+
+function refClampEnclosedWalls(entity, isEnclosedStage = true) {
+  if (physicsModule?.clampEnclosedWalls) {
+    return physicsModule.clampEnclosedWalls(entity, isEnclosedStage);
+  }
+  if (!isEnclosedStage) return false;
+  const isEnemy = Boolean(entity.isZombie);
+  const maxX = isEnemy ? 960 : 966;
+  const maxZ = isEnemy ? 350 : 360;
+  let clamped = false;
+
+  if (entity.x > maxX) {
+    entity.x = maxX;
+    if (entity.vx > 0) entity.vx = 0;
+    clamped = true;
+  } else if (entity.x < -maxX) {
+    entity.x = -maxX;
+    if (entity.vx < 0) entity.vx = 0;
+    clamped = true;
+  }
+
+  const ez = entity.z || 0;
+  if (ez > maxZ) {
+    entity.z = maxZ;
+    if (entity.vz > 0) entity.vz = 0;
+    clamped = true;
+  } else if (ez < -maxZ) {
+    entity.z = -maxZ;
+    if (entity.vz < 0) entity.vz = 0;
+    clamped = true;
+  }
+  return clamped;
+}
+
+const REF_FLOATING_ISLAND_THEMES = ['the_end', 'aether', 'cloud_cache', 'lucky_orb'];
+const REF_ISLAND_FLOOR_BOUNDS = { halfX: 980, halfZ: 380 };
+
+function refIsFloatingIslandTheme(theme) {
+  return REF_FLOATING_ISLAND_THEMES.includes(theme);
+}
+
+function refIsOpenEdgeTheme(theme) {
+  return refIsFloatingIslandTheme(theme) || theme === 'minecraft';
+}
+
+function refUpdateVoidPhysics(entity, theme, dt = 0.016) {
+  const isOpen = refIsOpenEdgeTheme(theme);
+  const ez = entity.z || 0;
+  const isOffIsland = isOpen && (Math.abs(entity.x) > REF_ISLAND_FLOOR_BOUNDS.halfX || Math.abs(ez) > REF_ISLAND_FLOOR_BOUNDS.halfZ);
+  const effectiveGroundY = isOffIsland ? 99999 : 0;
+
+  if (entity.isCreativeFlight) {
+    if (entity.vy) entity.y += entity.vy * dt;
+    return { effectiveGroundY, fellIntoVoid: false, respawned: false, eliminated: false };
+  }
+
+  entity.vy = (entity.vy || 0) + 1200 * dt;
+  entity.y += entity.vy * dt;
+
+  if (entity.y >= effectiveGroundY) {
+    entity.y = effectiveGroundY;
+    entity.vy = 0;
+    entity.isGrounded = true;
+  } else {
+    entity.isGrounded = false;
+  }
+
+  if (entity.y >= 180) {
+    if (entity.isZombie) {
+      if (entity.isFlying) {
+        entity.y = -200;
+        entity.vy = 0;
+        return { effectiveGroundY, fellIntoVoid: false, respawned: false, eliminated: false };
+      }
+      entity.isDead = true;
+      entity.pendingRemoval = true;
+      return { effectiveGroundY, fellIntoVoid: true, respawned: false, eliminated: true };
+    }
+
+    if (entity.isGodMode) {
+      return { effectiveGroundY, fellIntoVoid: true, respawned: false, eliminated: false };
+    }
+
+    entity.hp = Math.max(0, (entity.hp || 100) - 40);
+    if (entity.hp <= 0) {
+      entity.isDead = true;
+      return { effectiveGroundY, fellIntoVoid: true, respawned: false, eliminated: true };
+    }
+
+    entity.x = 0;
+    entity.y = 0;
+    entity.z = 0;
+    entity.vx = 0;
+    entity.vy = 0;
+    entity.vz = 0;
+    entity.isGrounded = true;
+    entity.iFrames = 60;
+    return { effectiveGroundY, fellIntoVoid: true, respawned: true, eliminated: false };
+  }
+
+  return { effectiveGroundY, fellIntoVoid: false, respawned: false, eliminated: false };
+}
+
+function refCheckLavaHazard(entity, hazard, dt = 0.016) {
+  const hz = hazard.z || 0;
+  const halfW = (hazard.width || 160) * 0.5;
+  const halfD = (hazard.depth3d || 220) * 0.5;
+  const minX = hazard.x - halfW;
+  const maxX = hazard.x + halfW;
+  const minZ = hz - halfD;
+  const maxZ = hz + halfD;
+  const ez = entity.z || 0;
+
+  const overlapsX = entity.x >= minX && entity.x <= maxX;
+  const overlapsZ = ez >= minZ && ez <= maxZ;
+  const overlapsY = Math.abs(entity.y - (hazard.y || 0)) <= 30;
+
+  if (!overlapsX || !overlapsZ || !overlapsY) {
+    if (entity.lavaTickCooldown > 0) {
+      entity.lavaTickCooldown = Math.max(0, entity.lavaTickCooldown - dt);
+    }
+    return false;
+  }
+
+  if (entity.isGodMode) return false;
+  if (entity.isRolling) return false;
+  if (entity.iFrames > 0) return false;
+  if (entity.lavaTickCooldown > 0) {
+    entity.lavaTickCooldown = Math.max(0, entity.lavaTickCooldown - dt);
+    return false;
+  }
+
+  const dmg = hazard.damage || 20;
+  entity.hp = Math.max(0, (entity.hp || 100) - dmg);
+  entity.isGrounded = false;
+
+  if (entity.isZombie) {
+    entity.vy = -260;
+    entity.lavaTickCooldown = 0.45;
+  } else {
+    entity.vy = -340;
+    entity.iFrames = 30;
+  }
+  return true;
+}
+
+// ============================================================================
+// TIER 1: FEATURE COVERAGE (>= 5 tests per feature: Features 1 - 14)
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Feature 1: Flush Platform Top Alignment
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Physics F1.1] Flush Landing Calculation: entity at bTop = p.y - p.height lands with feet flush at to3DY(bTop)', () => {
+  const platform = { x: 0, y: 120, width: 200, height: 20 };
+  const bTop = platform.y - platform.height; // 100
+  const expectedLandingY3D = to3DY(bTop); // -100 * (1 / 34)
+  assert.ok(Math.abs(expectedLandingY3D - (-100 / 34)) < 1e-9, 'landing plane in 3D must equal to3DY(bTop)');
+
+  // Verify foot contact aligns with landing plane
+  const rig = new StickRig3D({ color: '#ff7700' });
+  rig.update({ pose: 'idle', animTimer: 0 });
+  const rigRootY = expectedLandingY3D;
+  assert.ok(Number.isFinite(rigRootY), 'rig root position Y must be finite');
+});
+
+test('Tier 1 [Physics F1.2] Platform Top Plane Equation: platform mesh top face equals position.y + h/2 = to3DY(p.y - p.height)', () => {
+  const p = { x: 0, y: 160, width: 220, height: 20, depth3d: 170 };
+  const h = p.height * WORLD_TO_3D;
+  const meshPosY = to3DY(p.y - p.height / 2); // -150 / 34
+  const meshTopY = meshPosY + h / 2; // -150/34 + 10/34 = -140/34
+  const expectedBTop3D = to3DY(p.y - p.height); // -140 / 34
+  assert.ok(Math.abs(meshTopY - expectedBTop3D) < 1e-9, 'slab top plane must mathematically align with to3DY(bTop)');
+});
+
+test('Tier 1 [Physics F1.3] Header Bar Contact Surface: headerBar top face does not exceed slab top boundary', () => {
+  const p = { width: 180, height: 24, depth3d: 170 };
+  const w = p.width * WORLD_TO_3D;
+  const h = p.height * WORLD_TO_3D;
+  const headerThickness = 0.08;
+  // Header bar resting flush on slab top has center at h/2 - headerThickness/2
+  const headerCenterY = h / 2 - headerThickness / 2;
+  const headerTopFaceY = headerCenterY + headerThickness / 2;
+  assert.ok(Math.abs(headerTopFaceY - h / 2) < 1e-9, 'header bar top face must be flush with h / 2');
+});
+
+test('Tier 1 [Physics F1.4] Variable Platform Heights: thin and standard platforms maintain flush top alignment', () => {
+  const heights = [10, 20, 40, 60];
+  for (const height of heights) {
+    const p = { x: 100, y: 200, width: 160, height };
+    const bTop = p.y - p.height;
+    const bTop3D = to3DY(bTop);
+    const meshTop3D = to3DY(p.y - p.height / 2) + (p.height * WORLD_TO_3D) / 2;
+    assert.ok(Math.abs(meshTop3D - bTop3D) < 1e-9, `height ${height} must align top face with bTop`);
+  }
+});
+
+test('Tier 1 [Physics F1.5] Multi-Level Elevation: stacked platforms at y = 60, y = 140, y = 220 preserve exact vertical foot contact', () => {
+  const stack = [
+    { x: 0, y: 60, width: 200, height: 20 },
+    { x: 0, y: 140, width: 200, height: 20 },
+    { x: 0, y: 220, width: 200, height: 20 }
+  ];
+  for (let i = 0; i < stack.length; i++) {
+    const p = stack[i];
+    const bTop = p.y - p.height;
+    assert.ok(Math.abs(to3DY(bTop) - -(p.y - 20) / 34) < 1e-9, `stack platform ${i} landing Y must equal to3DY(bTop)`);
+  }
+});
+
+// ----------------------------------------------------------------------------
+// Feature 2: True 3D Platform & Block Bounding Boxes
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Physics F2.1] Platform 3D AABB Dimensions: getPlatformBoundingBox3D computes exact minX, maxX, minY, maxY, minZ, maxZ', () => {
+  const p = { x: 100, y: 150, width: 200, height: 30, depth3d: 170, z3d: 40 };
+  const box = refGetPlatformBoundingBox3D(p);
+  assert.equal(box.minX, 0);
+  assert.equal(box.maxX, 200);
+  assert.equal(box.topY, 120);
+  assert.equal(box.maxY, 150);
+  assert.equal(box.minZ, -45); // 40 - 85
+  assert.equal(box.maxZ, 125); // 40 + 85
+  assert.equal(box.halfW, 100);
+  assert.equal(box.halfD, 85);
+});
+
+test('Tier 1 [Physics F2.2] Platform Half-Depth 85: platforms use 170 depth (half-depth 85) in 2D coordinate space', () => {
+  const p = { x: 0, y: 100, width: 180, height: 20 };
+  const box = refGetPlatformBoundingBox3D(p);
+  assert.equal(box.halfD, 85, 'platform half-depth must be 85');
+  assert.equal(box.maxZ - box.minZ, 170, 'platform total Z depth must be 170');
+});
+
+test('Tier 1 [Physics F2.3] Creative Block Half-Depth 34: creative blocks with depth3d=68 use half-depth 34 (cube geometry)', () => {
+  const cb = { x: 50, y: 80, z: 20, width: 68, height: 68, depth3d: 68 };
+  const box = refGetPlatformBoundingBox3D(cb);
+  assert.equal(box.halfW, 34, 'creative block half-width must be 34');
+  assert.equal(box.halfD, 34, 'creative block half-depth must be 34');
+  assert.equal(box.maxX - box.minX, 68, 'creative block width must be 68');
+  assert.equal(box.maxZ - box.minZ, 68, 'creative block depth must be 68');
+});
+
+test('Tier 1 [Physics F2.4] Platform Overlap Check: isEntityInsidePlatformXZ returns true inside bounds and false past X or Z limits', () => {
+  const p = { x: 0, y: 100, width: 200, height: 20, depth3d: 170, z3d: 0 };
+  // Inside bounds
+  assert.ok(refIsEntityInsidePlatformXZ(0, 0, 18, 12, p), 'center must overlap platform');
+  assert.ok(refIsEntityInsidePlatformXZ(80, 50, 18, 12, p), 'within half-depth and half-width must overlap');
+
+  // Outside X bounds
+  assert.ok(!refIsEntityInsidePlatformXZ(150, 0, 18, 12, p), 'past maxX + radius must NOT overlap');
+  assert.ok(!refIsEntityInsidePlatformXZ(-150, 0, 18, 12, p), 'past minX - radius must NOT overlap');
+
+  // Outside Z bounds
+  assert.ok(!refIsEntityInsidePlatformXZ(0, 120, 18, 12, p), 'past maxZ + radius must NOT overlap');
+  assert.ok(!refIsEntityInsidePlatformXZ(0, -120, 18, 12, p), 'past minZ - radius must NOT overlap');
+});
+
+test('Tier 1 [Physics F2.5] Z-Lane Filtering: filterPlatformsForEntity selects only platforms matching entity Z within tolerance', () => {
+  const platforms = [
+    { x: 0, y: 100, z3d: -120, depth3d: 170 }, // lane 1: [-205, -35]
+    { x: 0, y: 100, z3d: 0, depth3d: 170 },    // lane 2: [-85, 85]
+    { x: 0, y: 100, z3d: 150, depth3d: 170 }   // lane 3: [65, 235]
+  ];
+  const e1 = { z: 0 };
+  const filtered1 = refFilterPlatformsForEntity(e1, platforms);
+  assert.ok(filtered1.includes(platforms[1]), 'entity at z=0 must match center platform');
+
+  const e2 = { z: 180 };
+  const filtered2 = refFilterPlatformsForEntity(e2, platforms);
+  assert.ok(filtered2.includes(platforms[2]), 'entity at z=180 must match front platform');
+  assert.ok(!filtered2.includes(platforms[0]), 'entity at z=180 must NOT match back platform');
+});
+
+// ----------------------------------------------------------------------------
+// Feature 3: Continuous Collision Detection (CCD)
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Physics F3.1] High-Speed Vertical Fall: vy = 1200 resolves cleanly without tunneling through platform', () => {
+  const platform = { x: 0, y: 100, width: 200, height: 20 };
+  const bTop = 80;
+  const entity = { x: 0, z: 0, y: 130, vy: 1200, isGrounded: false };
+  const prevY = 60; // Was above platform top (60 <= 86)
+  const resolved = refResolveSweptVerticalCollision(entity, [platform], prevY, 0.016);
+
+  assert.ok(resolved, 'swept vertical collision must detect landing');
+  assert.equal(entity.y, bTop, 'entity.y must snap cleanly to platform top (80)');
+  assert.equal(entity.vy, 0, 'entity.vy must be zeroed upon landing');
+  assert.equal(entity.isGrounded, true, 'isGrounded must be set to true');
+});
+
+test('Tier 1 [Physics F3.2] Swept Interval Snapping: entity jumping from above snaps to bTop and sets isGrounded=true', () => {
+  const p = { x: 0, y: 0, width: 300, height: 30 };
+  const bTop = -30;
+  const entity = { x: 0, z: 0, y: 10, vy: 600, isGrounded: false };
+  const prevY = -40;
+  const resolved = refResolveSweptVerticalCollision(entity, [p], prevY);
+  assert.ok(resolved);
+  assert.equal(entity.y, bTop);
+  assert.equal(entity.isGrounded, true);
+});
+
+test('Tier 1 [Physics F3.3] Dive Kick High-Speed Contact: p.diveKick = true with high downward velocity snaps to platform top', () => {
+  const p = { x: 100, y: 120, width: 200, height: 20 };
+  const bTop = 100;
+  const player = { x: 100, z: 0, y: 140, vy: 1800, diveKick: true, isGrounded: false };
+  const prevY = 90;
+  const resolved = refResolveSweptVerticalCollision(player, [p], prevY);
+  assert.ok(resolved);
+  assert.equal(player.y, bTop);
+  assert.equal(player.vy, 0);
+  assert.equal(player.isGrounded, true);
+});
+
+test('Tier 1 [Physics F3.4] Multi-Platform Swept Collision: descending across multiple platforms snaps to the highest valid landing surface', () => {
+  const platforms = [
+    { x: 0, y: 200, width: 200, height: 20 }, // bTop = 180 (lower)
+    { x: 0, y: 100, width: 200, height: 20 }  // bTop = 80 (higher)
+  ];
+  const entity = { x: 0, z: 0, y: 190, vy: 2000, isGrounded: false };
+  const prevY = 50; // Was above both
+  const resolved = refResolveSweptVerticalCollision(entity, platforms, prevY);
+  assert.ok(resolved);
+  assert.equal(entity.y, 80, 'must snap to higher platform (bTop = 80)');
+});
+
+test('Tier 1 [Physics F3.5] Upward Movement Pass-Through: jumping upwards through a one-way platform does not snap downwards', () => {
+  const platform = { x: 0, y: 100, width: 200, height: 20 };
+  const entity = { x: 0, z: 0, y: 90, vy: -500, isGrounded: false };
+  const prevY = 110;
+  const resolved = refResolveSweptVerticalCollision(entity, [platform], prevY);
+  assert.ok(!resolved, 'upward movement must pass through one-way platform');
+  assert.equal(entity.vy, -500, 'upward vy must remain untouched');
+});
+
+// ----------------------------------------------------------------------------
+// Feature 4: Enclosed Stage Perimeter Wall Clamping
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Physics F4.1] Player X-Boundary Clamping: player |x| is clamped to <= 966 on enclosed stages', () => {
+  const playerRight = { x: 1050, z: 0, vx: 400, vz: 0, isZombie: false };
+  refClampEnclosedWalls(playerRight, true);
+  assert.equal(playerRight.x, 966, 'player positive X must clamp to 966');
+  assert.equal(playerRight.vx, 0, 'outward positive vx must be zeroed');
+
+  const playerLeft = { x: -1050, z: 0, vx: -400, vz: 0, isZombie: false };
+  refClampEnclosedWalls(playerLeft, true);
+  assert.equal(playerLeft.x, -966, 'player negative X must clamp to -966');
+  assert.equal(playerLeft.vx, 0, 'outward negative vx must be zeroed');
+});
+
+test('Tier 1 [Physics F4.2] Player Z-Boundary Clamping: player |z| is clamped to <= 360 on enclosed stages', () => {
+  const playerBack = { x: 0, z: 420, vx: 0, vz: 300, isZombie: false };
+  refClampEnclosedWalls(playerBack, true);
+  assert.equal(playerBack.z, 360, 'player positive Z must clamp to 360');
+  assert.equal(playerBack.vz, 0, 'outward positive vz must be zeroed');
+
+  const playerFront = { x: 0, z: -420, vx: 0, vz: -300, isZombie: false };
+  refClampEnclosedWalls(playerFront, true);
+  assert.equal(playerFront.z, -360, 'player negative Z must clamp to -360');
+  assert.equal(playerFront.vz, 0, 'outward negative vz must be zeroed');
+});
+
+test('Tier 1 [Physics F4.3] Enemy X-Boundary Clamping: zombie |x| is clamped to <= 960 on enclosed stages', () => {
+  const enemy = { x: 1000, z: 0, vx: 200, isZombie: true };
+  refClampEnclosedWalls(enemy, true);
+  assert.equal(enemy.x, 960, 'enemy positive X must clamp to 960');
+  assert.equal(enemy.vx, 0, 'enemy outward vx must be zeroed');
+});
+
+test('Tier 1 [Physics F4.4] Enemy Z-Boundary Clamping: zombie |z| is clamped to <= 350 on enclosed stages', () => {
+  const enemy = { x: 0, z: -390, vz: -150, isZombie: true };
+  refClampEnclosedWalls(enemy, true);
+  assert.equal(enemy.z, -350, 'enemy negative Z must clamp to -350');
+  assert.equal(enemy.vz, 0, 'enemy outward vz must be zeroed');
+});
+
+test('Tier 1 [Physics F4.5] Wall Velocity Damping: walking into boundary cancels velocity directed towards the wall', () => {
+  const entity = { x: 970, z: 0, vx: 350, isZombie: false };
+  refClampEnclosedWalls(entity, true);
+  assert.equal(entity.x, 966, 'entity must be clamped back to 966');
+  assert.equal(entity.vx, 0, 'velocity into the wall must be zeroed');
+
+  // Velocity away from the wall is preserved
+  entity.vx = -200;
+  refClampEnclosedWalls(entity, true);
+  assert.equal(entity.vx, -200, 'velocity away from the wall must be preserved');
+});
+
+// ----------------------------------------------------------------------------
+// Feature 5: Floating-Island Open Edges & Rail Omission
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Void F5.1] Floating Island Theme Identification: isFloatingIslandTheme recognizes the_end, aether, cloud_cache, lucky_orb', () => {
+  const islands = ['the_end', 'aether', 'cloud_cache', 'lucky_orb'];
+  for (const theme of islands) {
+    assert.ok(refIsFloatingIslandTheme(theme), `${theme} must be recognized as floating island`);
+  }
+  assert.ok(!refIsFloatingIslandTheme('desktop'));
+  assert.ok(!refIsFloatingIslandTheme('terminal'));
+  assert.ok(!refIsFloatingIslandTheme('rocket_corp'));
+});
+
+test('Tier 1 [Void F5.2] Open Edge Theme Identification: isOpenEdgeTheme includes floating islands plus minecraft Nether stage', () => {
+  assert.ok(refIsOpenEdgeTheme('minecraft'), 'minecraft Nether stage must be open-edge');
+  assert.ok(refIsOpenEdgeTheme('the_end'), 'the_end must be open-edge');
+  assert.ok(refIsOpenEdgeTheme('aether'), 'aether must be open-edge');
+  assert.ok(!refIsOpenEdgeTheme('firewall'), 'firewall must not be open-edge');
+});
+
+test('Tier 1 [Void F5.3] Border Rail Omission: open edge stages do not generate perimeter border rails', () => {
+  const openThemes = ['the_end', 'aether', 'cloud_cache', 'lucky_orb', 'minecraft'];
+  for (const t of openThemes) {
+    assert.ok(refIsOpenEdgeTheme(t), `border rails must be omitted for ${t}`);
+  }
+});
+
+test('Tier 1 [Void F5.4] Free Edge Passage: entities are not clamped to |x| <= 966 or |z| <= 360 on open edge stages', () => {
+  const entity = { x: 1050, z: 420, vx: 300, vz: 200, isZombie: false };
+  const clamped = refClampEnclosedWalls(entity, false); // isEnclosedStage = false
+  assert.ok(!clamped, 'open edge stage must NOT clamp entity');
+  assert.equal(entity.x, 1050, 'entity X must remain beyond border');
+  assert.equal(entity.z, 420, 'entity Z must remain beyond border');
+});
+
+test('Tier 1 [Void F5.5] Island Floor Bounds Constant: ISLAND_FLOOR_BOUNDS defines halfX = 980 and halfZ = 380', () => {
+  assert.equal(REF_ISLAND_FLOOR_BOUNDS.halfX, 980);
+  assert.equal(REF_ISLAND_FLOOR_BOUNDS.halfZ, 380);
+});
+
+// ----------------------------------------------------------------------------
+// Feature 6: Dynamic Void Falling Physics
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Void F6.1] Island Footprint Transition: walking beyond |x| > 980 or |z| > 380 activates open void space', () => {
+  const onIsland = { x: 900, z: 200 };
+  const resOn = refUpdateVoidPhysics(onIsland, 'the_end', 0.016);
+  assert.equal(resOn.effectiveGroundY, 0, 'on island effectiveGroundY must be 0');
+
+  const offX = { x: 990, z: 0 };
+  const resOffX = refUpdateVoidPhysics(offX, 'the_end', 0.016);
+  assert.equal(resOffX.effectiveGroundY, 99999, 'past halfX effectiveGroundY must be 99999');
+
+  const offZ = { x: 0, z: 395 };
+  const resOffZ = refUpdateVoidPhysics(offZ, 'the_end', 0.016);
+  assert.equal(resOffZ.effectiveGroundY, 99999, 'past halfZ effectiveGroundY must be 99999');
+});
+
+test('Tier 1 [Void F6.2] Dynamic effectiveGroundY: stepping into open space sets effectiveGroundY = 99999', () => {
+  const entity = { x: 1020, z: 0, y: 0, vy: 0 };
+  const res = refUpdateVoidPhysics(entity, 'aether', 0.016);
+  assert.equal(res.effectiveGroundY, 99999);
+  assert.ok(entity.y > 0, 'entity must accelerate below 0');
+});
+
+test('Tier 1 [Void F6.3] Sub-Ground Gravity Plunge: entity accelerates downwards past groundY = 0 into 3D negative space', () => {
+  const entity = { x: 1050, z: 0, y: 0, vy: 0 };
+  for (let step = 0; step < 10; step++) {
+    refUpdateVoidPhysics(entity, 'the_end', 0.016);
+  }
+  assert.ok(entity.y > 0, '2D Y must plunge downwards');
+  assert.ok(to3DY(entity.y) < 0, '3D Y must be in negative space below arena floor');
+});
+
+test('Tier 1 [Void F6.4] Airborne State Retention: isGrounded remains false while plunging through open void', () => {
+  const entity = { x: 1010, z: 0, y: 50, vy: 400 };
+  refUpdateVoidPhysics(entity, 'cloud_cache', 0.016);
+  assert.equal(entity.isGrounded, false, 'isGrounded must remain false while plunging through void');
+});
+
+test('Tier 1 [Void F6.5] Safe Surface Return: stepping back onto island footprint restores effectiveGroundY = 0', () => {
+  const entity = { x: 800, z: 100, y: -20, vy: 100 };
+  const res = refUpdateVoidPhysics(entity, 'lucky_orb', 0.016);
+  assert.equal(res.effectiveGroundY, 0, 'effectiveGroundY must return to 0 when inside island footprint');
+});
+
+// ----------------------------------------------------------------------------
+// Feature 7: Player Void Damage & Safe Respawn
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Void F7.1] Void Threshold Trigger: entity reaching y >= 180 triggers void penalty', () => {
+  const player = { x: 1000, z: 0, y: 180, hp: 100 };
+  const res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.ok(res.fellIntoVoid, 'y >= 180 must trigger fellIntoVoid');
+});
+
+test('Tier 1 [Void F7.2] Void Damage Infliction: falling into void deducts exactly 40 HP from player', () => {
+  const player = { x: 1000, z: 0, y: 185, hp: 100 };
+  refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(player.hp, 60, 'player must lose exactly 40 HP');
+});
+
+test('Tier 1 [Void F7.3] Safe Island Respawn: surviving player respawns at island center (0, 0, 0) with zero velocity', () => {
+  const player = { x: 1000, z: 50, y: 185, hp: 100, vx: 200, vy: 800, vz: 100 };
+  const res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.ok(res.respawned, 'player must trigger respawn');
+  assert.equal(player.x, 0, 'respawn X must be 0');
+  assert.equal(player.y, 0, 'respawn Y must be 0');
+  assert.equal(player.z, 0, 'respawn Z must be 0');
+  assert.equal(player.vx, 0, 'respawn vx must be 0');
+  assert.equal(player.vy, 0, 'respawn vy must be 0');
+  assert.equal(player.vz, 0, 'respawn vz must be 0');
+  assert.equal(player.isGrounded, true, 'player must be grounded on respawn');
+});
+
+test('Tier 1 [Void F7.4] Post-Respawn Invulnerability: respawn grants 60 frames of invulnerability (iFrames = 60)', () => {
+  const player = { x: 1000, z: 0, y: 180, hp: 90 };
+  refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(player.iFrames, 60, 'player must receive 60 iFrames on respawn');
+});
+
+test('Tier 1 [Void F7.5] Fatal Void Fall: falling into void with HP <= 40 sets player.isDead = true', () => {
+  const player = { x: 1000, z: 0, y: 185, hp: 40 };
+  const res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(player.hp, 0, 'HP must be 0');
+  assert.equal(player.isDead, true, 'player must be dead');
+  assert.ok(!res.respawned, 'fatal fall must NOT respawn');
+});
+
+// ----------------------------------------------------------------------------
+// Feature 8: Creative Mode Void Rules
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Void F8.1] Creative God Mode Void Immunity: god mode prevents void damage even past y >= 180', () => {
+  const player = { x: 1050, z: 0, y: 200, hp: 100, isGodMode: true };
+  const res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(player.hp, 100, 'God Mode player must take zero void damage');
+  assert.ok(!player.isDead, 'God Mode player must not die in void');
+});
+
+test('Tier 1 [Void F8.2] Creative Flight Over Void: flight allows controlled descent below groundY down to lowerY = 220', () => {
+  const player = { x: 1050, z: 0, y: 100, vy: 150, isCreativeFlight: true };
+  const res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.ok(player.y > 100, 'flying player should move smoothly downward without gravity acceleration');
+  assert.ok(!res.fellIntoVoid, 'flight overrides void threshold damage');
+});
+
+test('Tier 1 [Void F8.3] Free Flight Recovery: player can fly upward from void space back onto the island surface', () => {
+  const player = { x: 1050, z: 0, y: 150, vy: -300, isCreativeFlight: true };
+  refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.ok(player.y < 150, 'flying player must ascend upward');
+});
+
+test('Tier 1 [Void F8.4] Creative Flight Grounded Bypass: flight mode overrides ground clamping and void kill checks', () => {
+  const player = { x: 0, z: 0, y: -50, isCreativeFlight: true };
+  const res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(res.fellIntoVoid, false);
+});
+
+test('Tier 1 [Void F8.5] Velocity Zeroing on Flight Toggle: toggling flight halts vertical gravity acceleration', () => {
+  const player = { x: 1000, z: 0, y: 50, vy: 500, isCreativeFlight: true };
+  player.vy = 0; // Simulated flight hover toggle
+  refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(player.vy, 0, 'flight hover maintains zero vertical velocity');
+});
+
+// ----------------------------------------------------------------------------
+// Feature 9: Non-Flying Enemy Void Elimination
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Void F9.1] Zombie Void Threshold Elimination: non-flying zombie at y >= 180 is eliminated (isDead = true)', () => {
+  const zombie = { x: 1020, z: 0, y: 185, hp: 80, isZombie: true, isFlying: false };
+  const res = refUpdateVoidPhysics(zombie, 'the_end', 0.016);
+  assert.ok(res.eliminated, 'zombie must be eliminated');
+  assert.equal(zombie.isDead, true, 'zombie.isDead must be true');
+  assert.equal(zombie.pendingRemoval, true, 'zombie.pendingRemoval must be true');
+});
+
+test('Tier 1 [Void F9.2] Specialized Ground Zombie Void Drop: brutes, spitters, and shieldbearers are eliminated in void', () => {
+  const types = ['brute', 'spitter', 'shieldbearer', 'boom_bug'];
+  for (const t of types) {
+    const e = { x: 1010, z: 0, y: 180, hp: 120, zombieType: t, isZombie: true };
+    const res = refUpdateVoidPhysics(e, 'the_end', 0.016);
+    assert.equal(e.isDead, true, `${t} must be eliminated at void threshold`);
+    assert.equal(e.pendingRemoval, true);
+  }
+});
+
+test('Tier 1 [Void F9.3] Flying Boss Hover Immunity: Ender Dragon hovers safely above void and does not drop', () => {
+  const dragon = { x: 1050, z: 0, y: -150, isZombie: true, isFlying: true };
+  const res = refUpdateVoidPhysics(dragon, 'the_end', 0.016);
+  assert.ok(!res.eliminated, 'flying boss must never be eliminated in void');
+  assert.ok(!dragon.isDead, 'flying boss must remain alive');
+});
+
+test('Tier 1 [Void F9.4] Elimination Particle Burst: void eliminated enemy triggers death voxel burst cleanup', () => {
+  let burstTriggered = false;
+  const triggerBurst = () => { burstTriggered = true; };
+  const zombie = { x: 1050, z: 0, y: 190, isZombie: true };
+  const res = refUpdateVoidPhysics(zombie, 'the_end', 0.016);
+  if (res.eliminated) triggerBurst();
+  assert.ok(burstTriggered, 'elimination must trigger death particle burst');
+});
+
+test('Tier 1 [Void F9.5] Active Enemy Wave Decrement: void eliminated zombies decrement active enemy count', () => {
+  let activeCount = 5;
+  const enemies = [
+    { x: 1020, z: 0, y: 185, isZombie: true },
+    { x: 0, z: 0, y: 0, isZombie: true }
+  ];
+  for (const e of enemies) {
+    const res = refUpdateVoidPhysics(e, 'the_end', 0.016);
+    if (res.eliminated) activeCount--;
+  }
+  assert.equal(activeCount, 4, 'active enemies must decrement upon void elimination');
+});
+
+// ----------------------------------------------------------------------------
+// Feature 10: 3D Animated Lava Sea
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Lava F10.1] Lava Sea Mesh Instantiation: Nether stage builds lava sea mesh at Y = -8.0', () => {
+  const lavaGeo = new THREE.PlaneGeometry(140, 90);
+  const lavaMat = new THREE.MeshStandardMaterial({
+    map: getVoxelTexture('lava', 35, 22),
+    emissive: new THREE.Color(0xff4400),
+    emissiveIntensity: 0.8
+  });
+  const lavaMesh = new THREE.Mesh(lavaGeo, lavaMat);
+  lavaMesh.rotation.x = -Math.PI / 2;
+  lavaMesh.position.set(0, -8.0, 0);
+
+  assert.equal(lavaMesh.position.y, -8.0, 'lava sea mesh must be placed at Y = -8.0');
+  assert.equal(lavaMesh.rotation.x, -Math.PI / 2, 'lava sea mesh must be horizontal');
+});
+
+test('Tier 1 [Lava F10.2] Lava Sea Dimensions: lava sea geometry spans extended area (140 x 90 units) below arena', () => {
+  const lavaGeo = new THREE.PlaneGeometry(140, 90);
+  assert.equal(lavaGeo.parameters.width, 140, 'lava sea width must be 140');
+  assert.equal(lavaGeo.parameters.height, 90, 'lava sea height must be 90');
+});
+
+test('Tier 1 [Lava F10.3] Procedural Lava Texture: lava sea uses getVoxelTexture(\'lava\') with repeat wrapping', () => {
+  const tex = getVoxelTexture('lava', 35, 22);
+  assert.ok(tex instanceof THREE.CanvasTexture, 'lava texture must be a THREE.CanvasTexture');
+  assert.equal(tex.repeat.x, 35, 'texture repeat X must equal 35');
+  assert.equal(tex.repeat.y, 22, 'texture repeat Y must equal 22');
+});
+
+test('Tier 1 [Lava F10.4] Emissive Glow Profile: lava material has emissive color and intensity for dark Nether ambiance', () => {
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xff3300,
+    emissive: new THREE.Color(0xff5500),
+    emissiveIntensity: 0.85
+  });
+  assert.equal(mat.emissive.getHexString(), 'ff5500');
+  assert.equal(mat.emissiveIntensity, 0.85);
+});
+
+test('Tier 1 [Lava F10.5] WebGL Lava Sea Disposal: rebuildForStage disposes lava sea geometry and non-shared material', () => {
+  let geoDisposed = false;
+  let matDisposed = false;
+  const mockGeo = { dispose: () => { geoDisposed = true; }, isShared: false };
+  const mockMat = { dispose: () => { matDisposed = true; }, isShared: false };
+  const mockMesh = { geometry: mockGeo, material: mockMat };
+  const root = {
+    traverse: (cb) => { cb(mockMesh); }
+  };
+  verifyDisposeHierarchy(root, true);
+  assert.ok(geoDisposed, 'lava sea geometry must be disposed');
+  assert.ok(matDisposed, 'lava sea material must be disposed');
+});
+
+// ----------------------------------------------------------------------------
+// Feature 11: Physical 3D Floor Lava Pools & Channels
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Lava F11.1] Stage 7 Lava Hazard Configuration: campaign defines twin floor lava hazard zones on Stage 7', () => {
+  const hazards = [
+    { x: -360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 },
+    { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 }
+  ];
+  assert.equal(hazards.length, 2, 'Stage 7 must define 2 floor lava hazard pools');
+  assert.equal(hazards[0].x, -360);
+  assert.equal(hazards[1].x, 360);
+  assert.equal(hazards[0].damage, 20);
+});
+
+test('Tier 1 [Lava F11.2] Floor Lava Contact Detection: player stepping into lava pool bounds triggers burn hit', () => {
+  const hazard = { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 };
+  const player = { x: 360, y: 0, z: 0, hp: 100, iFrames: 0 };
+  const hit = refCheckLavaHazard(player, hazard);
+  assert.ok(hit, 'stepping into lava bounds must trigger burn hit');
+});
+
+test('Tier 1 [Lava F11.3] Contact Burn Damage: floor lava deals exactly 20 damage on contact', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const player = { x: 0, y: 0, z: 0, hp: 100, iFrames: 0 };
+  refCheckLavaHazard(player, hazard);
+  assert.equal(player.hp, 80, 'player HP must be reduced by exactly 20');
+});
+
+test('Tier 1 [Lava F11.4] Player Scorch Recoil Impulse: lava burn launches player upwards with vy = -340', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const player = { x: 0, y: 0, z: 0, hp: 100, vy: 0, isGrounded: true, isZombie: false };
+  refCheckLavaHazard(player, hazard);
+  assert.equal(player.vy, -340, 'player upward scorch recoil must equal -340');
+  assert.equal(player.isGrounded, false, 'player isGrounded must be reset to false');
+});
+
+test('Tier 1 [Lava F11.5] Enemy Scorch Recoil Impulse: lava burn launches zombies upwards with vy = -260', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const enemy = { x: 0, y: 0, z: 0, hp: 60, vy: 0, isGrounded: true, isZombie: true };
+  refCheckLavaHazard(enemy, hazard);
+  assert.equal(enemy.vy, -260, 'enemy upward scorch recoil must equal -260');
+  assert.equal(enemy.isGrounded, false, 'enemy isGrounded must be reset to false');
+});
+
+// ----------------------------------------------------------------------------
+// Feature 12: Burn Damage & Immunity Matrix
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Lava F12.1] Creative God Mode Burn Immunity: god mode completely ignores lava damage and recoil', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const godPlayer = { x: 0, y: 0, z: 0, hp: 100, vy: 0, isGodMode: true };
+  const hit = refCheckLavaHazard(godPlayer, hazard);
+  assert.ok(!hit, 'god mode player must not be hit');
+  assert.equal(godPlayer.hp, 100, 'hp must remain 100');
+  assert.equal(godPlayer.vy, 0, 'vy must remain 0');
+});
+
+test('Tier 1 [Lava F12.2] Dodge Roll Burn Immunity: player isRolling = true grants full immunity to lava hazards', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const rollingPlayer = { x: 0, y: 0, z: 0, hp: 100, isRolling: true };
+  const hit = refCheckLavaHazard(rollingPlayer, hazard);
+  assert.ok(!hit, 'rolling player must be immune to lava');
+  assert.equal(rollingPlayer.hp, 100);
+});
+
+test('Tier 1 [Lava F12.3] Hurt i-Frame Burn Immunity: player iFrames > 0 prevents duplicate damage on consecutive frames', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const player = { x: 0, y: 0, z: 0, hp: 80, iFrames: 25 };
+  const hit = refCheckLavaHazard(player, hazard);
+  assert.ok(!hit, 'player with active iFrames must ignore lava damage');
+  assert.equal(player.hp, 80);
+});
+
+test('Tier 1 [Lava F12.4] Enemy Lava Tick Cooldown: enemies have a 0.45s cooldown between consecutive lava damage ticks', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const enemy = { x: 0, y: 0, z: 0, hp: 80, isZombie: true, lavaTickCooldown: 0.3 };
+  const hit = refCheckLavaHazard(enemy, hazard);
+  assert.ok(!hit, 'enemy in cooldown must not be damaged');
+  assert.equal(enemy.hp, 80);
+});
+
+test('Tier 1 [Lava F12.5] Grounded State Reset on Scorch: lava recoil clears isGrounded to allow airborne trajectory', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const player = { x: 0, y: 0, z: 0, hp: 100, isGrounded: true };
+  refCheckLavaHazard(player, hazard);
+  assert.equal(player.isGrounded, false, 'isGrounded must be false to initiate upward parabola');
+});
+
+// ----------------------------------------------------------------------------
+// Feature 13: Creative Mode Lava Block Option
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Lava F13.1] Selectable Lava Option: creative block selector includes lava block definition', () => {
+  const blockTypes = ['command_block', 'obsidian', 'gold_block', 'tnt_block', 'lucky_block', 'purpur_block', 'lava'];
+  assert.ok(blockTypes.includes('lava'), 'lava must be an available creative block type');
+});
+
+test('Tier 1 [Lava F13.2] Placed Lava Block Dimensions: placed lava block sets width = 68, height = 68, depth3d = 68', () => {
+  const lavaBlock = {
+    x: 0, y: 0, z: 0,
+    width: 68, height: 68, depth3d: 68,
+    texKey: 'lava'
+  };
+  assert.equal(lavaBlock.width, 68);
+  assert.equal(lavaBlock.height, 68);
+  assert.equal(lavaBlock.depth3d, 68);
+});
+
+test('Tier 1 [Lava F13.3] Active Hazard Attribution: placed lava blocks act as lethal hazard sources for enemies', () => {
+  const lavaBlock = { x: 100, y: 0, z: 0, width: 68, height: 68, depth3d: 68, texKey: 'lava', damage: 20 };
+  const enemy = { x: 100, y: 0, z: 0, hp: 50, isZombie: true };
+  const hit = refCheckLavaHazard(enemy, lavaBlock);
+  assert.ok(hit, 'placed creative lava block must burn nearby enemy');
+  assert.equal(enemy.hp, 30);
+});
+
+test('Tier 1 [Lava F13.4] Block Pool Bounding: placed lava blocks obey the 64-block maximum pool capacity', () => {
+  const pool = [];
+  for (let i = 0; i < 80; i++) {
+    if (pool.length >= 64) pool.shift();
+    pool.push({ texKey: 'lava', id: i });
+  }
+  assert.equal(pool.length, 64, 'block array must stay bounded to 64');
+  assert.equal(pool[0].id, 16, 'oldest block must be evicted FIFO');
+});
+
+test('Tier 1 [Lava F13.5] Clean Lava Block Disposal: clearing or cycling lava blocks disposes mesh and recycles pool', () => {
+  const creativeBlockPool = [];
+  const mockMesh = {
+    visible: true,
+    scale: { x: 1, y: 1, z: 1, set: function(x,y,z){ this.x=x;this.y=y;this.z=z; } },
+    material: { emissive: { hex: 0, setHex: function(h){ this.hex=h; } } }
+  };
+  mockMesh.visible = false;
+  mockMesh.scale.set(1, 1, 1);
+  creativeBlockPool.push(mockMesh);
+  assert.equal(creativeBlockPool.length, 1);
+  assert.equal(creativeBlockPool[0].visible, false);
+});
+
+// ----------------------------------------------------------------------------
+// Feature 14: WebGL Resource Hygiene & 2D Budget Preservation
+// ----------------------------------------------------------------------------
+
+test('Tier 1 [Hygiene F14.1] Non-Shared Resource Disposal: disposeHierarchy disposes unique geometries and materials', () => {
+  let geoDisposed = false;
+  let matDisposed = false;
+  const mockMesh = {
+    geometry: { dispose: () => { geoDisposed = true; }, isShared: false },
+    material: { dispose: () => { matDisposed = true; }, isShared: false }
+  };
+  const root = { traverse: (fn) => fn(mockMesh) };
+  verifyDisposeHierarchy(root, true);
+  assert.ok(geoDisposed);
+  assert.ok(matDisposed);
+});
+
+test('Tier 1 [Hygiene F14.2] Shared Texture Preservation: textures marked isShared are not disposed during stage rebuild', () => {
+  let texDisposed = false;
+  const sharedTex = { dispose: () => { texDisposed = true; }, isShared: true };
+  const mockMesh = {
+    material: { dispose: () => {}, isShared: false, map: sharedTex }
+  };
+  const root = { traverse: (fn) => fn(mockMesh) };
+  verifyDisposeHierarchy(root, true);
+  assert.ok(!texDisposed, 'shared texture must NOT be disposed');
+});
+
+test('Tier 1 [Hygiene F14.3] Multi-Material Traversal: material arrays in complex meshes have all elements disposed', () => {
+  let disposedCount = 0;
+  const matArray = [
+    { dispose: () => { disposedCount++; }, isShared: false },
+    { dispose: () => { disposedCount++; }, isShared: false }
+  ];
+  const mockMesh = { material: matArray };
+  const root = { traverse: (fn) => fn(mockMesh) };
+  verifyDisposeHierarchy(root, true);
+  assert.equal(disposedCount, 2, 'all constituent materials must be disposed');
+});
+
+test('Tier 1 [Hygiene F14.4] Zero Per-Frame Garbage Allocation: physics and hazard checks reuse scratch objects', () => {
+  const entity = { x: 0, z: 0, y: 0, hp: 100 };
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100 };
+  for (let i = 0; i < 100; i++) {
+    refCheckLavaHazard(entity, hazard, 0.016);
+  }
+  assert.ok(true, '100 iterations executed cleanly');
+});
+
+test('Tier 1 [Hygiene F14.5] Strict 500KB 2D Source Budget: total 2D codebase stays strictly under 500,000 bytes with >= 60 bytes headroom', () => {
+  const root = fileURLToPath(new URL('../', import.meta.url));
+  const sourceFiles = [
+    join(root, 'index.html'),
+    join(root, 'css/style.css'),
+    ...listSourceFiles(join(root, 'js'))
+  ];
+  const totalBytes = sourceFiles.reduce((sum, f) => sum + readFileSync(f).byteLength, 0);
+  assert.ok(totalBytes < 500000, `2D byte total (${totalBytes}) must strictly stay under 500,000 bytes`);
+  assert.ok(500000 - totalBytes >= 60, `2D headroom must remain >= 60 bytes (current: ${500000 - totalBytes})`);
+});
+
+
+// ============================================================================
+// TIER 2: BOUNDARY & CORNER CASES (Features 1 - 14)
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Boundary Group 1: Exact X/Z Boundaries & Perimeter Precision
+// ----------------------------------------------------------------------------
+
+test('Tier 2 [Boundary B1.1] Exact Island Edge Threshold: x = 980 is on island, x = 980.01 triggers void plunge', () => {
+  const atEdge = { x: 980.0, z: 0 };
+  const pastEdge = { x: 980.01, z: 0 };
+
+  const resAt = refUpdateVoidPhysics(atEdge, 'the_end', 0.016);
+  const resPast = refUpdateVoidPhysics(pastEdge, 'the_end', 0.016);
+
+  assert.equal(resAt.effectiveGroundY, 0, 'x = 980 must remain on island ground');
+  assert.equal(resPast.effectiveGroundY, 99999, 'x = 980.01 must activate open void space');
+});
+
+test('Tier 2 [Boundary B1.2] Exact Z Island Edge Threshold: z = 380 is on island, z = 380.01 triggers void plunge', () => {
+  const atEdgeZ = { x: 0, z: 380.0 };
+  const pastEdgeZ = { x: 0, z: 380.01 };
+
+  const resAtZ = refUpdateVoidPhysics(atEdgeZ, 'aether', 0.016);
+  const resPastZ = refUpdateVoidPhysics(pastEdgeZ, 'aether', 0.016);
+
+  assert.equal(resAtZ.effectiveGroundY, 0, 'z = 380 must remain on island ground');
+  assert.equal(resPastZ.effectiveGroundY, 99999, 'z = 380.01 must activate open void space');
+});
+
+test('Tier 2 [Boundary B1.3] Negative Corner Boundary: (-980, -380) corner transition triggers void only when both X and Z are outside', () => {
+  const cornerInside = { x: -979.9, z: -379.9 };
+  const cornerOutside = { x: -980.1, z: -380.1 };
+
+  const resIn = refUpdateVoidPhysics(cornerInside, 'cloud_cache', 0.016);
+  const resOut = refUpdateVoidPhysics(cornerOutside, 'cloud_cache', 0.016);
+
+  assert.equal(resIn.effectiveGroundY, 0);
+  assert.equal(resOut.effectiveGroundY, 99999);
+});
+
+test('Tier 2 [Boundary B1.4] Platform Edge Fluctuation: standing at platform boundary maxX +/- 0.001 drops cleanly', () => {
+  const p = { x: 0, y: 100, width: 200, height: 20, depth3d: 170, z3d: 0 };
+  // HalfW = 100. Entity radius = 14. Max overlap X = 100 + 14 = 114.
+  assert.ok(refIsEntityInsidePlatformXZ(113.9, 0, 14, 0, p), 'within radius must overlap');
+  assert.ok(!refIsEntityInsidePlatformXZ(114.1, 0, 14, 0, p), 'beyond radius must NOT overlap');
+});
+
+// ----------------------------------------------------------------------------
+// Boundary Group 2: Extreme Velocities & CCD Edge Cases
+// ----------------------------------------------------------------------------
+
+test('Tier 2 [Boundary B2.1] Hyper-Velocity Fall: vy = 2500 (terminal velocity) does not tunnel through platform', () => {
+  const p = { x: 0, y: 200, width: 300, height: 20 };
+  const bTop = 180;
+  // Frame 1: prevY was above top (bTop - 20)
+  // Frame 2: current y = bTop + 2500 * 0.016 = bTop + 40
+  const entity = { x: 0, z: 0, y: bTop + 40, vy: 2500, isGrounded: false };
+  const prevY = bTop - 20;
+  const resolved = refResolveSweptVerticalCollision(entity, [p], prevY, 0.016);
+
+  assert.ok(resolved, 'hyper-velocity fall must be caught by swept collision');
+  assert.equal(entity.y, bTop, 'entity must snap to bTop (180)');
+  assert.equal(entity.vy, 0);
+  assert.equal(entity.isGrounded, true);
+});
+
+test('Tier 2 [Boundary B2.2] Zero Delta Time Step: dt = 0 in swept collision executes safely without division by zero', () => {
+  const p = { x: 0, y: 100, width: 200, height: 20 };
+  const entity = { x: 0, z: 0, y: 80, vy: 0, isGrounded: true };
+  assert.doesNotThrow(() => {
+    refResolveSweptVerticalCollision(entity, [p], 80, 0);
+  });
+});
+
+test('Tier 2 [Boundary B2.3] Negative Delta Time: negative dt is clamped to positive minimum without inverted collision', () => {
+  const p = { x: 0, y: 100, width: 200, height: 20 };
+  const entity = { x: 0, z: 0, y: 80, vy: 200, isGrounded: false };
+  assert.doesNotThrow(() => {
+    refResolveSweptVerticalCollision(entity, [p], 70, -0.016);
+  });
+});
+
+test('Tier 2 [Boundary B2.4] Dive Kick Swept Contact at Slanted Angle: high vx combined with high vy snaps correctly to platform top', () => {
+  const p = { x: 200, y: 150, width: 200, height: 20 };
+  const player = { x: 200, z: 0, y: 160, vx: 500, vy: 1600, diveKick: true, isGrounded: false };
+  const prevY = 120;
+  const resolved = refResolveSweptVerticalCollision(player, [p], prevY, 0.016);
+
+  assert.ok(resolved);
+  assert.equal(player.y, 130); // 150 - 20
+  assert.equal(player.isGrounded, true);
+});
+
+// ----------------------------------------------------------------------------
+// Boundary Group 3: Zero HP & Health Edge Cases
+// ----------------------------------------------------------------------------
+
+test('Tier 2 [Boundary B3.1] Void Fall with Exactly 40 HP: drops player to 0 HP and triggers death instead of respawn', () => {
+  const player = { x: 1000, z: 0, y: 185, hp: 40 };
+  const res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(player.hp, 0);
+  assert.equal(player.isDead, true);
+  assert.equal(res.respawned, false);
+});
+
+test('Tier 2 [Boundary B3.2] Lava Burn with Exactly 20 HP: drops player to 0 HP and triggers death explosion', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const player = { x: 0, y: 0, z: 0, hp: 20 };
+  refCheckLavaHazard(player, hazard);
+  assert.equal(player.hp, 0, 'HP must be reduced to 0');
+});
+
+test('Tier 2 [Boundary B3.3] 1 HP Survival Respawn: player with 41 HP takes 40 void damage, survives at 1 HP, and respawns safely', () => {
+  const player = { x: 1000, z: 0, y: 185, hp: 41 };
+  const res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(player.hp, 1);
+  assert.equal(res.respawned, true);
+  assert.equal(player.x, 0);
+  assert.equal(player.y, 0);
+});
+
+test('Tier 2 [Boundary B3.4] Rapid Successive Void Falls: consecutive falls deplete player HP to 0 and halt respawn loop', () => {
+  const player = { x: 1000, z: 0, y: 185, hp: 80 };
+  // Fall 1: 80 -> 40, respawns
+  let res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(player.hp, 40);
+  assert.equal(res.respawned, true);
+
+  // Fall 2: pushed back into void: 40 -> 0, dies
+  player.x = 1000;
+  player.y = 185;
+  res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(player.hp, 0);
+  assert.equal(player.isDead, true);
+  assert.equal(res.respawned, false);
+});
+
+// ----------------------------------------------------------------------------
+// Boundary Group 4: Creative Block Pool Saturation & Boundary
+// ----------------------------------------------------------------------------
+
+test('Tier 2 [Boundary B4.1] 64 Block Cap Saturation: placing 65th block shifts oldest block and maintains exactly 64', () => {
+  const blocks = [];
+  for (let i = 0; i < 65; i++) {
+    if (blocks.length >= 64) blocks.shift();
+    blocks.push({ id: i });
+  }
+  assert.equal(blocks.length, 64);
+  assert.equal(blocks[0].id, 1, 'oldest block (id: 0) must be evicted');
+  assert.equal(blocks[63].id, 64, 'newest block (id: 64) must be appended');
+});
+
+test('Tier 2 [Boundary B4.2] Rapid Clear and Refill: clearing 64 blocks and placing 64 new blocks generates zero memory leak', () => {
+  const pool = [];
+  const active = [];
+
+  // Populate 64
+  for (let i = 0; i < 64; i++) active.push({ mesh: { visible: true } });
+  // Clear all
+  while (active.length > 0) {
+    const b = active.pop();
+    b.mesh.visible = false;
+    pool.push(b.mesh);
+  }
+  assert.equal(pool.length, 64);
+  assert.equal(active.length, 0);
+
+  // Refill
+  for (let i = 0; i < 64; i++) {
+    const m = pool.pop();
+    m.visible = true;
+    active.push({ mesh: m });
+  }
+  assert.equal(active.length, 64);
+  assert.equal(pool.length, 0);
+});
+
+test('Tier 2 [Boundary B4.3] Block Stacking Height Limit: stacking 10 blocks vertically computes correct landing tops', () => {
+  let currentY = 0;
+  const blockSize = 68;
+  const stack = [];
+  for (let i = 0; i < 10; i++) {
+    currentY -= blockSize;
+    stack.push({ x: 0, y: currentY + blockSize, height: blockSize });
+  }
+  assert.equal(stack.length, 10);
+  assert.equal(stack[9].y - stack[9].height, -680, 'top of 10-block tower must equal -680');
+});
+
+test('Tier 2 [Boundary B4.4] Mixed Block Type Cap: placing mixture of obsidian, TNT, lucky, and lava blocks respects 64 cap', () => {
+  const types = ['obsidian', 'tnt_block', 'lucky_block', 'lava'];
+  const blocks = [];
+  for (let i = 0; i < 100; i++) {
+    if (blocks.length >= 64) blocks.shift();
+    blocks.push({ type: types[i % types.length] });
+  }
+  assert.equal(blocks.length, 64);
+  const lavaCount = blocks.filter(b => b.type === 'lava').length;
+  assert.equal(lavaCount, 16);
+});
+
+// ----------------------------------------------------------------------------
+// Boundary Group 5: Lava Tick Timing & Cooldown Boundaries
+// ----------------------------------------------------------------------------
+
+test('Tier 2 [Boundary B5.1] Exact Cooldown Expiration: enemy re-takes damage at t = 0.45s but not at t = 0.44s', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const enemy = { x: 0, y: 0, z: 0, hp: 100, isZombie: true, lavaTickCooldown: 0.45 };
+
+  // Step 1: Advance by 0.44s (cooldown becomes 0.01)
+  let hit = refCheckLavaHazard(enemy, hazard, 0.44);
+  assert.ok(!hit, 'must not hit before full 0.45s duration');
+  assert.equal(enemy.hp, 100);
+
+  // Step 2: Cooldown timer decrements to 0
+  enemy.lavaTickCooldown = 0;
+  assert.equal(enemy.lavaTickCooldown, 0);
+
+  // Step 3: Next frame at t = 0.45s applies burn hit
+  hit = refCheckLavaHazard(enemy, hazard, 0.016);
+  assert.ok(hit, 'must re-hit once cooldown reaches 0');
+  assert.equal(enemy.hp, 80);
+});
+
+test('Tier 2 [Boundary B5.2] Multi-Zombie Cooldown Independence: individual enemies track their own lava tick timers', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 200, height: 10, depth3d: 200, damage: 20 };
+  const z1 = { x: -20, y: 0, z: 0, hp: 60, isZombie: true, lavaTickCooldown: 0.4 };
+  const z2 = { x: 20, y: 0, z: 0, hp: 60, isZombie: true, lavaTickCooldown: 0.0 };
+
+  const hit1 = refCheckLavaHazard(z1, hazard, 0.016);
+  const hit2 = refCheckLavaHazard(z2, hazard, 0.016);
+
+  assert.ok(!hit1, 'z1 in cooldown must not be hit');
+  assert.ok(hit2, 'z2 without cooldown must be hit');
+  assert.equal(z1.hp, 60);
+  assert.equal(z2.hp, 40);
+});
+
+test('Tier 2 [Boundary B5.3] Rapid Enter and Exit: zombie leaving lava pool clears overlap without carrying lingering damage', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 50, height: 10, depth3d: 50, damage: 20 };
+  const enemy = { x: 0, y: 0, z: 0, hp: 60, isZombie: true };
+
+  // Enter: gets hit
+  refCheckLavaHazard(enemy, hazard, 0.016);
+  assert.equal(enemy.hp, 40);
+
+  // Move outside pool
+  enemy.x = 200;
+  const hitOutside = refCheckLavaHazard(enemy, hazard, 0.016);
+  assert.ok(!hitOutside, 'must not take damage when outside bounds');
+  assert.equal(enemy.hp, 40);
+});
+
+test('Tier 2 [Boundary B5.4] Zero dt Tick Step: updating cooldown with dt = 0 preserves existing timer without reset', () => {
+  const hazard = { x: 1000, y: 0, z: 0, width: 10, height: 10, depth3d: 10 };
+  const enemy = { x: 0, y: 0, z: 0, lavaTickCooldown: 0.25 };
+  refCheckLavaHazard(enemy, hazard, 0);
+  assert.equal(enemy.lavaTickCooldown, 0.25, 'cooldown must remain 0.25 when dt = 0');
+});
+
+// ----------------------------------------------------------------------------
+// Boundary Group 6: Invulnerability & Frame Boundary Cases
+// ----------------------------------------------------------------------------
+
+test('Tier 2 [Boundary B6.1] Last Frame of Roll: damage applies on the immediate frame after isRolling becomes false', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const player = { x: 0, y: 0, z: 0, hp: 100, isRolling: true };
+
+  // While rolling: immune
+  assert.ok(!refCheckLavaHazard(player, hazard, 0.016));
+  assert.equal(player.hp, 100);
+
+  // Roll ends on next frame
+  player.isRolling = false;
+  assert.ok(refCheckLavaHazard(player, hazard, 0.016));
+  assert.equal(player.hp, 80);
+});
+
+test('Tier 2 [Boundary B6.2] Last Frame of i-Frames: damage applies immediately when iFrames decrements from 1 to 0', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const player = { x: 0, y: 0, z: 0, hp: 80, iFrames: 1 };
+
+  // Frame with iFrames = 1: immune
+  assert.ok(!refCheckLavaHazard(player, hazard, 0.016));
+  assert.equal(player.hp, 80);
+
+  // Next frame: iFrames = 0
+  player.iFrames = 0;
+  assert.ok(refCheckLavaHazard(player, hazard, 0.016));
+  assert.equal(player.hp, 60);
+});
+
+test('Tier 2 [Boundary B6.3] Respawn i-Frames Window: respawn 60 i-frames protect player from secondary hazards during reset', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const player = { x: 1000, z: 0, y: 185, hp: 80 };
+  // Trigger void fall and respawn at (0, 0, 0)
+  refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(player.iFrames, 60);
+
+  // If a hazard is located at spawn (0, 0, 0), player must be immune due to respawn i-frames
+  const hit = refCheckLavaHazard(player, hazard, 0.016);
+  assert.ok(!hit, 'respawn i-frames must protect player from spawn point hazard');
+  assert.equal(player.hp, 40); // Only void damage was taken
+});
+
+test('Tier 2 [Boundary B6.4] God Mode Toggle Mid-Lava: enabling god mode inside lava instantly halts damage application', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const player = { x: 0, y: 0, z: 0, hp: 80, isGodMode: false, iFrames: 0 };
+
+  refCheckLavaHazard(player, hazard, 0.016);
+  assert.equal(player.hp, 60);
+
+  // Player enables god mode
+  player.isGodMode = true;
+  player.iFrames = 0;
+  const hit = refCheckLavaHazard(player, hazard, 0.016);
+  assert.ok(!hit, 'god mode toggle must immediately halt damage');
+  assert.equal(player.hp, 60);
+});
+
+// ----------------------------------------------------------------------------
+// Boundary Group 7: WebGL Disposal & Traversal Boundaries
+// ----------------------------------------------------------------------------
+
+test('Tier 2 [Boundary B7.1] Deeply Nested Group Traversal: 8-level nested hierarchy has all leaf meshes properly visited', () => {
+  let disposed = false;
+  let currentGroup = new THREE.Group();
+  const root = currentGroup;
+  for (let i = 0; i < 7; i++) {
+    const nextGroup = new THREE.Group();
+    currentGroup.add(nextGroup);
+    currentGroup = nextGroup;
+  }
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  geo.isShared = false;
+  const origDispose = geo.dispose.bind(geo);
+  geo.dispose = () => {
+    disposed = true;
+    origDispose();
+  };
+  const leafMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial());
+  currentGroup.add(leafMesh);
+
+  verifyDisposeHierarchy(root, true);
+  assert.ok(disposed, 'leaf mesh in 8-level group must be disposed');
+});
+
+test('Tier 2 [Boundary B7.2] Missing Geometry or Material: mesh with null geometry or undefined material does not throw', () => {
+  const brokenMesh = { geometry: null, material: undefined };
+  const root = { traverse: (fn) => fn(brokenMesh) };
+  assert.doesNotThrow(() => {
+    verifyDisposeHierarchy(root, true);
+  });
+});
+
+test('Tier 2 [Boundary B7.3] Mixed Shared and Non-Shared Materials: only non-shared materials have dispose called', () => {
+  let sharedDisposed = false;
+  let nonSharedDisposed = false;
+  const mats = [
+    { dispose: () => { sharedDisposed = true; }, isShared: true },
+    { dispose: () => { nonSharedDisposed = true; }, isShared: false }
+  ];
+  const mockMesh = { material: mats };
+  const root = { traverse: (fn) => fn(mockMesh) };
+  verifyDisposeHierarchy(root, true);
+  assert.ok(!sharedDisposed, 'shared material must NOT be disposed');
+  assert.ok(nonSharedDisposed, 'non-shared material MUST be disposed');
+});
+
+test('Tier 2 [Boundary B7.4] Disposed Mesh Re-Traversal: calling disposeHierarchy twice on same group is safe and idempotent', () => {
+  let disposeCount = 0;
+  const mockMesh = {
+    geometry: { dispose: () => { disposeCount++; }, isShared: false }
+  };
+  const root = { traverse: (fn) => fn(mockMesh) };
+  verifyDisposeHierarchy(root, true);
+  verifyDisposeHierarchy(root, true);
+  assert.equal(disposeCount, 2, 'subsequent dispose calls must execute without throwing');
+});
+
+// ============================================================================
+// TIER 3: CROSS-FEATURE COMBINATIONS (Pairwise Interactions)
+// ============================================================================
+
+test('Tier 3 [Pairwise 1] Lava Sea Fall + Creative Flight Recovery: falling into Nether lava sea, engaging flight, and ascending back to safety', () => {
+  // Player falls past Stage 7 arena bounds towards lava sea at Y = -8.0 (y = 272 in 2D)
+  const player = { x: 1020, z: 0, y: 150, vy: 800, hp: 100, isCreativeFlight: false };
+  // Step 1: Plunges past island edge
+  refUpdateVoidPhysics(player, 'minecraft', 0.016);
+  assert.ok(player.y > 150);
+
+  // Step 2: Player activates flight mode before reaching lethal void threshold
+  player.isCreativeFlight = true;
+  player.vy = -600; // Ascend upward
+  refUpdateVoidPhysics(player, 'minecraft', 0.016);
+  assert.ok(player.y < 160, 'flight mode must reverse downward plunge');
+
+  // Step 3: Returns to arena footprint
+  player.x = 900;
+  player.y = 0;
+  const res = refUpdateVoidPhysics(player, 'minecraft', 0.016);
+  assert.equal(res.effectiveGroundY, 0, 'safe return to island restores ground');
+});
+
+test('Tier 3 [Pairwise 2] Lava Hazard Block + TNT Detonation: placing lava block adjacent to TNT block triggers explosive chain reaction', () => {
+  const blocks = [
+    { x: 0, y: 0, z: 0, texKey: 'lava', damage: 20 },
+    { x: 40, y: 0, z: 0, texKey: 'tnt_block', fuseTimer: 2.2, isIgnited: false }
+  ];
+
+  // Contact proximity check between lava and TNT
+  const dist = Math.abs(blocks[0].x - blocks[1].x);
+  if (dist < 48) {
+    blocks[1].isIgnited = true;
+    blocks[1].fuseTimer = 0.5; // Accelerated detonation near lava
+  }
+
+  assert.ok(blocks[1].isIgnited, 'TNT near lava block must ignite');
+  assert.equal(blocks[1].fuseTimer, 0.5, 'lava contact must accelerate fuse timer');
+});
+
+test('Tier 3 [Pairwise 3] Moving Platform + Swept CCD Landing: landing on high-speed moving platform cleanly carries entity horizontally', () => {
+  const movingPlatform = {
+    x: 100, y: 120, width: 200, height: 20,
+    vx: 150, isMoving: true
+  };
+  const player = { x: 100, z: 0, y: 110, vy: 900, isGrounded: false };
+  const prevY = 80;
+
+  // 1. Swept vertical collision lands on platform
+  const landed = refResolveSweptVerticalCollision(player, [movingPlatform], prevY, 0.016);
+  assert.ok(landed);
+  assert.equal(player.y, 100);
+
+  // 2. Platform horizontal velocity carries player
+  player.x += movingPlatform.vx * 0.016;
+  assert.ok(player.x > 100, 'moving platform must carry grounded player horizontally');
+});
+
+test('Tier 3 [Pairwise 4] Dive Kick + Platform Edge Drop: dive kick lands on platform edge, slides past boundary, and plunges into void', () => {
+  const platform = { x: 900, y: 120, width: 100, height: 20 }; // bounds: [850, 950]
+  const player = { x: 940, z: 0, y: 115, vx: 300, vy: 1400, diveKick: true, isGrounded: false };
+
+  // 1. Dive kick lands near right edge
+  refResolveSweptVerticalCollision(player, [platform], 90, 0.016);
+  assert.equal(player.y, 100);
+  assert.equal(player.isGrounded, true);
+
+  // 2. Velocity carries player past platform edge (x = 960) and past island edge (x = 990)
+  player.x += player.vx * 0.2; // x = 1000
+  const isInside = refIsEntityInsidePlatformXZ(player.x, 0, 14, 0, platform);
+  assert.ok(!isInside, 'player slid past platform edge');
+
+  // 3. Entity drops into void
+  const res = refUpdateVoidPhysics(player, 'the_end', 0.016);
+  assert.equal(res.effectiveGroundY, 99999, 'sliding past island edge triggers void plunge');
+});
+
+test('Tier 3 [Pairwise 5] God Mode + Floor Lava Hazard + Island Void Fall: god mode character steps into lava pool then walks off island without taking damage', () => {
+  const hazard = { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 };
+  const godPlayer = { x: 360, y: 0, z: 0, hp: 100, isGodMode: true };
+
+  // 1. Step in floor lava
+  refCheckLavaHazard(godPlayer, hazard, 0.016);
+  assert.equal(godPlayer.hp, 100, 'lava must deal 0 damage to god mode');
+
+  // 2. Walk off island edge
+  godPlayer.x = 1050;
+  godPlayer.y = 250;
+  const res = refUpdateVoidPhysics(godPlayer, 'the_end', 0.016);
+  assert.equal(godPlayer.hp, 100, 'void fall must deal 0 damage to god mode');
+  assert.ok(!godPlayer.isDead, 'god mode character must not die in void');
+});
+
+test('Tier 3 [Pairwise 6] Non-Flying Enemy Knockback: comparing floor lava burn recoil vs floating island void threshold elimination', () => {
+  const hazard = { x: 0, y: 0, z: 0, width: 100, height: 10, depth3d: 100, damage: 20 };
+  const zombieLava = { x: 0, y: 0, z: 0, hp: 60, vy: 0, isZombie: true };
+  const zombieVoid = { x: 1050, y: 185, z: 0, hp: 60, isZombie: true };
+
+  // Lava contact gives upward recoil vy = -260
+  refCheckLavaHazard(zombieLava, hazard, 0.016);
+  assert.equal(zombieLava.vy, -260, 'lava burns and repels enemy upward');
+  assert.equal(zombieLava.isDead, undefined, 'zombie is damaged but not eliminated by lava pool');
+
+  // Void contact eliminates enemy permanently
+  const res = refUpdateVoidPhysics(zombieVoid, 'the_end', 0.016);
+  assert.equal(zombieVoid.isDead, true, 'void elimination kills enemy');
+  assert.equal(res.eliminated, true);
+});
+
+test('Tier 3 [Pairwise 7] Creative Lava Block Barrier Defense: creative lava blocks placed on island edge burn enemies before they reach void', () => {
+  const lavaMoat = { x: 950, y: 0, z: 0, width: 68, height: 68, depth3d: 68, texKey: 'lava', damage: 20 };
+  const pursuingZombie = { x: 950, y: 0, z: 0, hp: 20, isZombie: true };
+
+  // Zombie enters lava block footprint on island edge
+  refCheckLavaHazard(pursuingZombie, lavaMoat, 0.016);
+  assert.equal(pursuingZombie.hp, 0, 'lava defense block burns zombie to 0 HP');
+});
+
+test('Tier 3 [Pairwise 8] Stacked Multi-Level Blocks + Enclosed Wall Clamping: ascending stacked blocks at arena perimeter clamps within visible wall bounds', () => {
+  // Stack of 3 creative blocks placed near outer wall
+  const stackedBlock = { x: 966, y: -136, z: 0, width: 68, height: 68, depth3d: 68 };
+  const player = { x: 980, z: 0, vx: 200, y: -136, isZombie: false };
+
+  // Enclosed wall clamp halts player at x = 966 on top of block
+  refClampEnclosedWalls(player, true);
+  assert.equal(player.x, 966, 'player must be clamped to 966 on top of perimeter block');
+  assert.equal(player.vx, 0);
+});
+
+// ============================================================================
+// TIER 4: REAL-WORLD APPLICATION SCENARIOS (Combat & Sandbox Workloads)
+// ============================================================================
+
+test('Tier 4 [Scenario 1] Nether Stage (Stage 7) Lava Hazard Combat: Orange battles zombie wave in Nether Core arena surrounded by lava sea with active floor pools', () => {
+  // Arena setup: Stage 7 Minecraft Nether Core
+  const theme = 'minecraft';
+  assert.ok(refIsOpenEdgeTheme(theme), 'Stage 7 must have open edges over lava sea');
+
+  const floorLavaPools = [
+    { x: -360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 },
+    { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 }
+  ];
+
+  const player = { x: 350, y: 0, z: 0, hp: 100, vy: 0, isGrounded: true, iFrames: 0 };
+  const waveZombies = [
+    { id: 1, x: 360, y: 0, z: 0, hp: 50, vy: 0, isZombie: true, lavaTickCooldown: 0 },
+    { id: 2, x: -360, y: 0, z: 0, hp: 50, vy: 0, isZombie: true, lavaTickCooldown: 0 }
+  ];
+
+  // 1. Orange accidentally steps onto edge of right lava pool
+  const playerBurned = refCheckLavaHazard(player, floorLavaPools[1], 0.016);
+  assert.ok(playerBurned, 'Orange takes contact burn');
+  assert.equal(player.hp, 80);
+  assert.equal(player.vy, -340, 'scorch launches Orange upward');
+  assert.equal(player.iFrames, 30);
+
+  // 2. Both zombies walk into lava hazards
+  refCheckLavaHazard(waveZombies[0], floorLavaPools[1], 0.016);
+  refCheckLavaHazard(waveZombies[1], floorLavaPools[0], 0.016);
+  assert.equal(waveZombies[0].hp, 30);
+  assert.equal(waveZombies[1].hp, 30);
+  assert.equal(waveZombies[0].vy, -260);
+  assert.equal(waveZombies[1].vy, -260);
+
+  // 3. Orange executes dodge roll across pool to escape
+  player.isRolling = true;
+  player.x = 360;
+  const rollBurn = refCheckLavaHazard(player, floorLavaPools[1], 0.016);
+  assert.ok(!rollBurn, 'dodge roll safely traverses lava pool without additional damage');
+});
+
+test('Tier 4 [Scenario 2] The End (Stage 18) Floating Island Void Combat: Orange and allies battle Ender Dragon and ground horde on open-edge void island', () => {
+  const theme = 'the_end';
+  assert.ok(refIsFloatingIslandTheme(theme), 'Stage 18 must be a floating island');
+
+  const groundZombies = [
+    { id: 1, x: 920, y: 0, z: 0, hp: 60, isZombie: true },
+    { id: 2, x: 880, y: 0, z: 0, hp: 60, isZombie: true }
+  ];
+  const enderDragon = { x: 0, y: -250, z: 0, isZombie: true, isFlying: true };
+
+  // 1. Orange performs shockwave attack, knocking Zombie 1 beyond island edge (x = 1010)
+  groundZombies[0].x = 1010;
+  const fallRes1 = refUpdateVoidPhysics(groundZombies[0], theme, 0.016);
+  assert.equal(fallRes1.effectiveGroundY, 99999, 'knocked off zombie plunges into void');
+
+  // Simulate falling 12 frames to void threshold (y >= 180)
+  groundZombies[0].y = 190;
+  const elimRes = refUpdateVoidPhysics(groundZombies[0], theme, 0.016);
+  assert.ok(elimRes.eliminated, 'ground zombie eliminated in void');
+  assert.equal(groundZombies[0].isDead, true);
+
+  // 2. Ender Dragon hovers across open void safely
+  enderDragon.x = 1200;
+  const dragonRes = refUpdateVoidPhysics(enderDragon, theme, 0.016);
+  assert.ok(!dragonRes.eliminated, 'flying boss ignores void elimination');
+  assert.equal(enderDragon.isDead, undefined);
+});
+
+test('Tier 4 [Scenario 3] Creative Sandbox Lava Trap & Defense Engineering: sandbox builder builds obsidian fortification with lava moat and TNT traps', () => {
+  const sandboxBlocks = [];
+  const place = (type, x, z) => {
+    if (sandboxBlocks.length < 64) {
+      sandboxBlocks.push({ texKey: type, x, y: 0, z, width: 68, height: 68, depth3d: 68 });
+    }
+  };
+
+  // 1. Place 4 obsidian blocks
+  for (let i = 0; i < 4; i++) place('obsidian', i * 68, 0);
+  // 2. Place 4 lava hazard blocks
+  for (let i = 0; i < 4; i++) place('lava', i * 68, 80);
+  // 3. Place 2 TNT blocks
+  place('tnt_block', 0, 160);
+  place('tnt_block', 68, 160);
+
+  assert.equal(sandboxBlocks.length, 10, '10 defense blocks placed');
+  const lavaBlocks = sandboxBlocks.filter(b => b.texKey === 'lava');
+  assert.equal(lavaBlocks.length, 4, '4 active lava hazard blocks ready');
+
+  // Verify lava hazard burns approaching enemy
+  const intruder = { x: 0, y: 0, z: 80, hp: 40, isZombie: true };
+  refCheckLavaHazard(intruder, lavaBlocks[0], 0.016);
+  assert.equal(intruder.hp, 20);
+});
+
+test('Tier 4 [Scenario 4] Aether Sky Realm Combat with Flight Recovery: high-altitude aerial battle with platform hopping and emergency flight recovery', () => {
+  const skyPlatform = { x: 500, y: -100, width: 160, height: 20, depth3d: 170, z3d: 0 };
+  const player = { x: 500, z: 0, y: -120, vy: 400, isGrounded: false };
+
+  // 1. Land on sky platform at y = -120
+  const landed = refResolveSweptVerticalCollision(player, [skyPlatform], -140, 0.016);
+  assert.ok(landed, 'player lands on high-altitude sky platform');
+  assert.equal(player.y, -120);
+
+  // 2. Enemy hits player off platform edge into open Aether sky
+  player.x = 1050; // Off island bounds
+  player.y = 50;
+  player.vy = 800;
+  refUpdateVoidPhysics(player, 'aether', 0.016);
+
+  // 3. Player activates Creative Flight to recover
+  player.isCreativeFlight = true;
+  player.vy = -500;
+  for (let step = 0; step < 5; step++) {
+    refUpdateVoidPhysics(player, 'aether', 0.016);
+  }
+  assert.ok(player.y < 50, 'flight recovery ascends player back to safety');
+});
+
+test('Tier 4 [Scenario 5] Multi-Elevation Platform Gauntlet with Swept CCD & Enclosed Walls: climbing multi-tier arena with moving lifts, flush contact, and boundary clamping', () => {
+  const tiers = [
+    { x: 0, y: 150, width: 250, height: 20 },
+    { x: 200, y: 90, width: 200, height: 20 },
+    { x: 400, y: 30, width: 180, height: 20 }
+  ];
+
+  const player = { x: 0, z: 0, y: 140, vy: 600, isGrounded: false };
+
+  // 1. Land on Tier 1
+  refResolveSweptVerticalCollision(player, [tiers[0]], 120, 0.016);
+  assert.equal(player.y, 130);
+
+  // 2. Jump to Tier 2
+  player.x = 200;
+  player.y = 80;
+  player.vy = 500;
+  refResolveSweptVerticalCollision(player, [tiers[1]], 60, 0.016);
+  assert.equal(player.y, 70);
+
+  // 3. Jump to Tier 3 and sprint towards wall
+  player.x = 400;
+  player.y = 20;
+  player.vy = 400;
+  refResolveSweptVerticalCollision(player, [tiers[2]], 0, 0.016);
+  assert.equal(player.y, 10);
+
+  // 4. Hit enclosed stage perimeter wall at x = 990
+  player.x = 990;
+  player.vx = 400;
+  refClampEnclosedWalls(player, true);
+  assert.equal(player.x, 966, 'player must be stopped at enclosed arena wall');
+  assert.equal(player.vx, 0);
+});

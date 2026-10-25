@@ -779,6 +779,21 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   const origGetBeat = stageManager.getCampaignBeat.bind(stageManager);
 
   stageManager.maxStage = 21;
+  stageManager.lavaHazards = stageManager.currentStage === 7 ? [
+    { x: -360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 },
+    { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 }
+  ] : [];
+
+  const origBuildStage7 = stageManager.buildStage7Minecraft?.bind(stageManager);
+  if (origBuildStage7) {
+    stageManager.buildStage7Minecraft = () => {
+      origBuildStage7();
+      stageManager.lavaHazards = [
+        { x: -360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 },
+        { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 }
+      ];
+    };
+  }
 
   stageManager.getCampaignBeat = (stageNum = stageManager.currentStage) => {
     const stage = Math.max(1, Math.min(21, Math.trunc(Number(stageNum)) || 1));
@@ -793,6 +808,14 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       origLoadStage(stage);
       stageManager.maxStage = 21;
       stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
+      if (stage === 7) {
+        stageManager.lavaHazards = [
+          { x: -360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 },
+          { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 }
+        ];
+      } else {
+        stageManager.lavaHazards = [];
+      }
       return;
     }
 
@@ -802,6 +825,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       stageManager.currentStage = 21;
       stageManager.maxStage = 21;
       stageManager.campaignBeat = CAMPAIGN_BEATS_3D[21];
+      stageManager.lavaHazards = [];
       return;
     }
 
@@ -814,6 +838,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
     stageManager.movingPlatforms = [];
     stageManager.desktopIcons = [];
     stageManager.laserHazards = [];
+    stageManager.lavaHazards = [];
     stageManager.errorPopups = [];
 
     if (stage === 18) {
@@ -886,6 +911,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
     origEnterTrophy();
     stageManager.maxStage = 21;
     stageManager.currentStage = 21;
+    stageManager.lavaHazards = [];
     stageManager.desktopIcons = [
       { x: -840, y: -105, label: 'TITAN', icon: 'T', color: '#8cff66' },
       { x: -630, y: -105, label: 'DARK LORD', icon: 'DL', color: '#ff3344' },
