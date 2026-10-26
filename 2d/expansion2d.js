@@ -28,7 +28,7 @@ import { save } from '../js/systems/save.js?v=9.8';
 import {
   CAMPAIGN_BEATS_3D,
   extendCampaignFor3D
-} from '../3d/js/campaign3d.js?v=10.3';
+} from '../3d/js/campaign3d.js?v=10.4';
 import {
   ISLAND_FLOOR_BOUNDS,
   VOID_FALL_THRESHOLD,
@@ -50,9 +50,9 @@ import {
   drawExpandedTrophyIcons2D,
   drawBossFloorTelegraphs2D,
   drawCustomStagePlatforms2D
-} from './arenas2d.js?v=9.9';
-import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=9.9';
-import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=9.9';
+} from './arenas2d.js?v=10.0';
+import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=10.0';
+import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=10.0';
 
 export const STAGE_OPTIONS_2D = Object.freeze([
   { value: 1, label: '1: Main Desktop' },
@@ -691,24 +691,88 @@ export function install2DExpansion(game) {
   // --------------------------------------------------------------------------
   // Creative Sandbox Actions (Spawner, Allies, Nuke, Max Stats, Exit, Toggle)
   // --------------------------------------------------------------------------
-  function spawnCreativeEntity(type = sandbox.selectedSpawn) {
-    const normalized = type === 'basic'
+  function computeCreativeSpawnX(baseDist = 205, extraOffset = 0) {
+    const px = Number.isFinite(game.player?.x) ? game.player.x : 0;
+    let dir = (game.player?.facing || 1) >= 0 ? 1 : -1;
+    if (px + dir * (baseDist + extraOffset) > 870) dir = -1;
+    else if (px + dir * (baseDist + extraOffset) < -870) dir = 1;
+    return clamp(px + dir * (baseDist + extraOffset), -870, 870);
+  }
+
+  function spawnCreativeEntity(type) {
+    let requested = type;
+    if (!requested && typeof document !== 'undefined') {
+      const sel = document.getElementById('creative-spawn-select');
+      if (sel?.value) sandbox.selectedSpawn = sel.value;
+    }
+    requested = requested || sandbox.selectedSpawn || 'creaking_boss';
+    const normalized = requested === 'basic'
       ? 'walker'
-      : (type === 'necromancer' ? 'stalker' : (type === 'creeking' ? 'creaking_boss' : type));
+      : (requested === 'necromancer' ? 'stalker' : (requested === 'creeking' ? 'creaking_boss' : requested));
+    sandbox.selectedSpawn = normalized;
 
     waves.isWaveActive = true;
     waves.isWaveClearing = false;
 
-    if (normalized === 'mercenary_squad') {
-      const mercs = ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard'];
-      for (const m of mercs) {
-        waves.spawnZombie(m, game.player, game.groundY, game.camera);
-      }
-      return waves.zombies.slice(-4);
+    // Keep Creative arena silky-smooth if dozens of mobs are spawned back-to-back
+    while (waves.zombies.length >= 28) {
+      const idx = waves.zombies.findIndex((z) => z && !z.isBoss);
+      waves.zombies.splice(idx >= 0 ? idx : 0, 1);
     }
 
-    waves.spawnZombie(normalized, game.player, game.groundY, game.camera);
-    return waves.zombies[waves.zombies.length - 1] || null;
+    const origGetSafeSpawnX = waves.getSafeSpawnX.bind(waves);
+
+    if (normalized === 'mercenary_squad') {
+      const mercs = ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard'];
+      const beforeLen = waves.zombies.length;
+      for (let i = 0; i < mercs.length; i++) {
+        const targetX = computeCreativeSpawnX(155, i * 68);
+        try {
+          waves.getSafeSpawnX = () => targetX;
+          waves._creativeSpawnX = targetX;
+          waves.spawnZombie(mercs[i], game.player, game.groundY, game.camera);
+        } finally {
+          waves.getSafeSpawnX = origGetSafeSpawnX;
+          waves._creativeSpawnX = undefined;
+        }
+        const spawnedMerc = waves.zombies[waves.zombies.length - 1];
+        if (spawnedMerc) {
+          spawnedMerc.x = targetX;
+          spawnedMerc.facing = targetX >= (game.player?.x || 0) ? -1 : 1;
+        }
+      }
+      const lead = waves.zombies[beforeLen];
+      if (lead) {
+        particles.addDamageText(lead.x, lead.y - 96, '⚡ SPAWNED: MERCENARY SQUAD', false, '#facc15');
+      }
+      return waves.zombies.slice(beforeLen);
+    }
+
+    const stagger = ((sandbox.spawnSerial = ((sandbox.spawnSerial || 0) + 1) % 4)) * 42;
+    const targetX = computeCreativeSpawnX(205, stagger);
+    try {
+      waves.getSafeSpawnX = () => targetX;
+      waves._creativeSpawnX = targetX;
+      waves.spawnZombie(normalized, game.player, game.groundY, game.camera);
+    } finally {
+      waves.getSafeSpawnX = origGetSafeSpawnX;
+      waves._creativeSpawnX = undefined;
+    }
+
+    const spawned = waves.zombies[waves.zombies.length - 1] || null;
+    if (spawned) {
+      spawned.x = targetX;
+      spawned.facing = targetX >= (game.player?.x || 0) ? -1 : 1;
+      const label = (spawned.name || normalized.replaceAll('_', ' ')).toUpperCase();
+      particles.addDamageText(
+        spawned.x,
+        spawned.y - (spawned.height || 64) - 18,
+        `⚡ SPAWNED: ${label}`,
+        false,
+        '#facc15'
+      );
+    }
+    return spawned;
   }
 
   function summonAllAllies() {
@@ -1547,6 +1611,7 @@ export function install2DExpansion(game) {
       if (sel) {
         sel.addEventListener('change', () => {
           const val = Number(sel.value);
+          sel.blur?.();
           if (!Number.isFinite(val)) return;
           if (id === 'title-stage-select' && game.state === 'TITLE') {
             jumpToStage(val, { freshStart: true });
@@ -1600,29 +1665,35 @@ export function install2DExpansion(game) {
 
     document.getElementById('creative-weapon-select')?.addEventListener('change', (e) => {
       equipCreativeWeapon(e.target.value);
+      e.target?.blur?.();
     });
 
     document.getElementById('creative-block-select')?.addEventListener('change', (e) => {
       sandbox.selectedBlock = e.target.value;
+      e.target?.blur?.();
     });
 
-    document.getElementById('creative-place-block-btn')?.addEventListener('click', () => {
+    document.getElementById('creative-place-block-btn')?.addEventListener('click', (e) => {
+      e.currentTarget?.blur?.();
       const sel = document.getElementById('creative-block-select');
-      if (sel) sandbox.selectedBlock = sel.value;
+      if (sel?.value) sandbox.selectedBlock = sel.value;
       placeCreativeBlock(sandbox.selectedBlock);
     });
 
-    document.getElementById('creative-clear-blocks-btn')?.addEventListener('click', () => {
+    document.getElementById('creative-clear-blocks-btn')?.addEventListener('click', (e) => {
+      e.currentTarget?.blur?.();
       clearCreativeBlocks();
     });
 
     document.getElementById('creative-spawn-select')?.addEventListener('change', (e) => {
       sandbox.selectedSpawn = e.target.value;
+      e.target?.blur?.();
     });
 
-    document.getElementById('creative-spawn-btn')?.addEventListener('click', () => {
+    document.getElementById('creative-spawn-btn')?.addEventListener('click', (e) => {
+      e.currentTarget?.blur?.();
       const sel = document.getElementById('creative-spawn-select');
-      if (sel) sandbox.selectedSpawn = sel.value;
+      if (sel?.value) sandbox.selectedSpawn = sel.value;
       spawnCreativeEntity(sandbox.selectedSpawn);
     });
 
@@ -1631,25 +1702,47 @@ export function install2DExpansion(game) {
     document.getElementById('creative-max-shop-btn')?.addEventListener('click', () => maxAllStats());
     document.getElementById('creative-portal-btn')?.addEventListener('click', () => unlockStageExit());
 
+    game.canvas?.addEventListener?.('mousedown', () => {
+      if (document.activeElement?.tagName === 'SELECT') {
+        document.activeElement.blur?.();
+      }
+    });
+
     if (typeof window !== 'undefined' && !window._bound2DCreativeKeys) {
       window._bound2DCreativeKeys = true;
       window.addEventListener('keydown', (e) => {
         if (e.repeat) return;
         const tag = e.target?.tagName;
-        if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
         if (game.state !== 'PLAYING') return;
 
         if (e.code === 'KeyC') {
+          if (tag === 'SELECT') {
+            e.preventDefault();
+            e.target?.blur?.();
+          }
           setCreativeMode(!sandbox.enabled);
         } else if (sandbox.enabled && e.code === 'KeyV') {
+          if (tag === 'SELECT') {
+            e.preventDefault();
+            e.target?.blur?.();
+          }
           const sel = document.getElementById('creative-block-select');
           if (sel?.value) sandbox.selectedBlock = sel.value;
           placeCreativeBlock(sandbox.selectedBlock);
         } else if (sandbox.enabled && e.code === 'KeyN') {
+          if (tag === 'SELECT') {
+            e.preventDefault();
+            e.target?.blur?.();
+          }
           const sel = document.getElementById('creative-spawn-select');
           if (sel?.value) sandbox.selectedSpawn = sel.value;
           spawnCreativeEntity(sandbox.selectedSpawn);
         } else if (sandbox.enabled && e.code === 'Space') {
+          if (tag === 'SELECT') {
+            e.preventDefault();
+            e.target?.blur?.();
+          }
           const now = performance.now();
           if (now - sandbox.lastSpaceTapTime < 280) {
             sandbox.flight = !sandbox.flight;

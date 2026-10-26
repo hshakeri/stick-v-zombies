@@ -23,23 +23,23 @@ import {
   WardenBoss,
   CreakingBoss,
   MercenaryBoss
-} from '../3d/js/campaign3d.js?v=10.3';
+} from '../3d/js/campaign3d.js?v=10.4';
 import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 
 import {
   CREATIVE_BLOCK_TYPES_2D,
   drawCreativeBlocks2D,
   getCreativeBlockSprite2D
-} from '../2d/arenas2d.js?v=9.9';
+} from '../2d/arenas2d.js?v=10.0';
 import {
   DEPTH_PARALLAX,
   Depth2DRenderer,
   getDepthProfile2D
-} from '../2d/depth2d.js?v=9.9';
+} from '../2d/depth2d.js?v=10.0';
 import {
   STAGE_OPTIONS_2D,
   install2DExpansion
-} from '../2d/expansion2d.js?v=9.9';
+} from '../2d/expansion2d.js?v=10.0';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -153,8 +153,8 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
 
 test('2D Expansion [2] Prominent Level Selector & Title UI: index.html exposes Creative Mode, Stage Select, and Stages 18–23 pills', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-  assert.match(html, /href="2d\/style2d\.css\?v=9\.9"/);
-  assert.match(html, /src="2d\/expansion2d\.js\?v=9\.9"/);
+  assert.match(html, /href="2d\/style2d\.css\?v=10\.0"/);
+  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.0"/);
   assert.match(html, /id="btn-start-creative"/);
   assert.match(html, /id="title-stage-select"/);
   for (const stage of [18, 19, 20, 21, 22, 23]) {
@@ -720,4 +720,76 @@ test('2D Expansion [9] Crisp 16x16 Voxel Block Pixel-Art Textures & Selector Syn
   resetGlobalSystems();
 });
 
+test('2D Expansion [10] Creative Mob & Boss Spawner On-Screen Visibility Across All 24 Roster Types & Trophy Room', () => {
+  resetGlobalSystems();
+  const { game, controller } = create2DGameHarness();
+  game.startGame({ stage: 1, creative: true });
+  controller.nukeAllEnemies();
 
+  // 1. Default no-arg spawn at Stage 1 entrance (x = -870, facing right) must place CreakingBoss visibly in front of Orange!
+  assert.ok(game.player.x < -700, 'player starts near left entrance on Stage 1');
+  game.player.facing = 1;
+  const defaultBoss = controller.spawnCreativeEntity();
+  assert.ok(defaultBoss instanceof CreakingBoss, 'default Creative spawn must create CreakingBoss');
+  const distDefault = Math.abs(defaultBoss.x - game.player.x);
+  assert.ok(
+    defaultBoss.x > game.player.x && distDefault >= 140 && distDefault <= 420,
+    `default Creative boss must spawn visibly in front of Orange instead of off-screen (player=${game.player.x}, boss=${defaultBoss.x})`
+  );
+  const screenPt = game.camera.worldToScreen(defaultBoss.x, defaultBoss.y - 40);
+  assert.ok(
+    screenPt.x >= 40 && screenPt.x <= 1240,
+    `spawned default boss must be immediately inside the 1280px camera viewport (screenX=${screenPt.x})`
+  );
+
+  // 2. Every single Creative spawn roster option + legacy aliases spawns visibly near Orange and updates/renders cleanly
+  const allSpawnTypes = [
+    'creaking_boss', 'warden_boss', 'ender_dragon', 'mercenary_squad',
+    'mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard',
+    'h4c3r', 'king_orange', 'dark_lord', 'lucky_orb', 'creeper_lord', 'giant_cat', 'titan_boss',
+    'walker', 'runner', 'brute', 'shieldbearer', 'crawler', 'boom_bug', 'spitter', 'stalker', 'warden',
+    'basic', 'necromancer', 'creeking'
+  ];
+
+  for (const spawnType of allSpawnTypes) {
+    controller.nukeAllEnemies();
+    game.player.x = -620;
+    game.player.facing = 1;
+    controller.sandbox.selectedSpawn = spawnType;
+    const result = controller.spawnCreativeEntity();
+    const list = Array.isArray(result) ? result : [result];
+    assert.ok(list.length >= 1 && list.every(Boolean), `${spawnType} must spawn at least one live entity`);
+    if (spawnType === 'mercenary_squad') {
+      assert.equal(list.length, 4, 'mercenary_squad must spawn all 4 Rocket Corp mercenaries');
+    }
+    for (const ent of list) {
+      const dist = Math.abs(ent.x - game.player.x);
+      assert.ok(dist <= 480, `${spawnType} entity must spawn within visible range of Orange (dist=${dist})`);
+      assert.equal(ent.facing, -1, `${spawnType} spawned to the right of Orange must face toward Orange`);
+    }
+    game.update(1 / 60);
+    game.render();
+    assert.equal(game.reportedLayerErrors.size, 0, `${spawnType} must render with zero 2D layer errors`);
+  }
+
+  // 3. Spawning near the right wall flips inward so mobs never spawn off-stage or off an island cliff
+  controller.nukeAllEnemies();
+  game.player.x = 840;
+  game.player.facing = 1;
+  const inwardMob = controller.spawnCreativeEntity('walker');
+  assert.ok(inwardMob.x < game.player.x && inwardMob.x >= -870, 'spawning near right arena boundary must flip inward onto safe floor');
+  assert.equal(inwardMob.facing, 1, 'mob spawned to the left of Orange must face right toward Orange');
+
+  // 4. Spawning inside Stage 24 (Trophy Room, where waves start inactive) activates waves and updates spawned mobs
+  controller.jumpToStage(24, { creative: true });
+  assert.equal(waves.isWaveActive, false, 'Trophy Room starts with waves inactive');
+  game.player.x = 0;
+  game.player.facing = 1;
+  const trophyRunner = controller.spawnCreativeEntity('runner');
+  assert.equal(waves.isWaveActive, true, 'Creative spawn in Trophy Room must activate waves so spawned mobs update');
+  const startRunnerX = trophyRunner.x;
+  game.update(0.1);
+  assert.notEqual(trophyRunner.x, startRunnerX, 'spawned Runner in Trophy Room must actively chase Orange when AI is unfrozen');
+
+  resetGlobalSystems();
+});

@@ -142,7 +142,7 @@ import {
   MercenaryBoss,
   WardenBoss,
   CreakingBoss
-} from '../3d/js/campaign3d.js?v=10.3';
+} from '../3d/js/campaign3d.js?v=10.4';
 import { getVoxelTexture, getThemeFloorTextureKey } from '../3d/js/textures3d.js?v=10.3';
 
 // ----------------------------------------------------------------------------

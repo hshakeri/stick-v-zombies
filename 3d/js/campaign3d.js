@@ -1957,7 +1957,9 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       const mercOrder = ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard'];
       const idx = Math.max(0, mercOrder.indexOf(type));
       const offsets = [-520, -240, 260, 540];
-      const spawnX = clamp(offsets[idx] || waveDirector.getSafeSpawnX(player), LEFT + 60, RIGHT - 60);
+      const spawnX = Number.isFinite(waveDirector._creativeSpawnX)
+        ? waveDirector._creativeSpawnX
+        : clamp(offsets[idx] || waveDirector.getSafeSpawnX(player), LEFT + 60, RIGHT - 60);
       const merc = new MercenaryBoss(spawnX, groundY, type, idx);
       waveDirector.zombies.push(merc);
       waveDirector.bossZombie = merc;

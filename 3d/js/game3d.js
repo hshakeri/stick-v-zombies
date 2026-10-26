@@ -46,7 +46,7 @@ import {
   createViraBotMesh3D
 } from './models3d.js?v=10.3';
 import { getVoxelTexture } from './textures3d.js?v=10.3';
-import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.3';
+import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.4';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
 const CAMERA_LABELS = {
@@ -449,21 +449,29 @@ export class Game3D {
 
   setup3DExtraInputs() {
     window.addEventListener('keydown', (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       this.keys3D[e.code] = true;
       if ((e.code === 'Tab' || e.code === 'KeyM') && !e.repeat) {
         e.preventDefault();
+        if (tag === 'SELECT') e.target?.blur?.();
         this.cycleCameraMode();
       }
       if (this.state === 'PLAYING' && !e.repeat) {
         if (e.code === 'KeyC') {
+          if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
           this.toggleCreativeMode();
         } else if (this.creativeMode && e.code === 'KeyV') {
+          if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
           this.placeCreativeBlock();
         } else if (this.creativeMode && e.code === 'KeyN') {
+          if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
           this.spawnCreativeEntity();
         } else if (this.creativeMode && e.code === 'KeyG') {
+          if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
           this.toggleCreativeGod();
         } else if (this.creativeMode && e.code === 'Space') {
+          if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
           const now = performance.now();
           if (now - this.lastSpaceTapTime < 320) {
             this.toggleCreativeFly();
@@ -735,12 +743,20 @@ export class Game3D {
         selCreativeWeapon.blur();
       });
     }
+    const selCreativeBlock = document.getElementById('creative-block-select');
+    if (selCreativeBlock) {
+      selCreativeBlock.addEventListener('change', () => selCreativeBlock.blur());
+    }
+    const selCreativeSpawn = document.getElementById('creative-spawn-select');
+    if (selCreativeSpawn) {
+      selCreativeSpawn.addEventListener('change', () => selCreativeSpawn.blur());
+    }
     const btnPlaceBlock = document.getElementById('creative-place-block-btn');
-    if (btnPlaceBlock) btnPlaceBlock.addEventListener('click', () => this.placeCreativeBlock());
+    if (btnPlaceBlock) btnPlaceBlock.addEventListener('click', () => { btnPlaceBlock.blur(); this.placeCreativeBlock(); });
     const btnClearBlocks = document.getElementById('creative-clear-blocks-btn');
-    if (btnClearBlocks) btnClearBlocks.addEventListener('click', () => this.clearCreativeBlocks());
+    if (btnClearBlocks) btnClearBlocks.addEventListener('click', () => { btnClearBlocks.blur(); this.clearCreativeBlocks(); });
     const btnSpawnEntity = document.getElementById('creative-spawn-btn');
-    if (btnSpawnEntity) btnSpawnEntity.addEventListener('click', () => this.spawnCreativeEntity());
+    if (btnSpawnEntity) btnSpawnEntity.addEventListener('click', () => { btnSpawnEntity.blur(); this.spawnCreativeEntity(); });
     const btnAllAllies = document.getElementById('creative-allies-btn');
     if (btnAllAllies) btnAllAllies.addEventListener('click', () => this.summonAllCreativeAllies());
     const btnNuke = document.getElementById('creative-nuke-btn');
@@ -1228,18 +1244,86 @@ export class Game3D {
     speech.onCreativeAction?.('weapon_switch', { weapon: w, anchor: this.player });
   }
 
-  spawnCreativeEntity() {
-    if (this.state !== 'PLAYING') return;
-    const type = this.getHudElement('creative-spawn-select')?.value || 'ender_dragon';
-    if (type === 'mercenary_squad') {
-      for (const m of ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard']) {
-        waves.spawnZombie(m, this.player, this.groundY, this.camera2D);
-      }
-      speech.onCreativeAction?.('spawn_entity', { entity: 'mercenary_squad', anchor: this.player });
-      return;
+  spawnCreativeEntity(explicitType) {
+    if (this.state !== 'PLAYING') return null;
+    const rawType = explicitType || this.getHudElement('creative-spawn-select')?.value || 'creaking_boss';
+    const type = rawType === 'basic'
+      ? 'walker'
+      : (rawType === 'necromancer' ? 'stalker' : (rawType === 'creeking' ? 'creaking_boss' : rawType));
+
+    waves.isWaveActive = true;
+    waves.isWaveClearing = false;
+
+    while (waves.zombies.length >= 28) {
+      const idx = waves.zombies.findIndex((z) => z && !z.isBoss);
+      waves.zombies.splice(idx >= 0 ? idx : 0, 1);
     }
-    waves.spawnZombie(type, this.player, this.groundY, this.camera2D);
+
+    const px = Number.isFinite(this.player?.x) ? this.player.x : 0;
+    const pz = Number.isFinite(this.player?.z) ? this.player.z : 0;
+    const computeSpawnX = (baseDist, extraOffset = 0) => {
+      let dir = (this.player?.facing || 1) >= 0 ? 1 : -1;
+      if (px + dir * (baseDist + extraOffset) > 870) dir = -1;
+      else if (px + dir * (baseDist + extraOffset) < -870) dir = 1;
+      return Math.max(-870, Math.min(870, px + dir * (baseDist + extraOffset)));
+    };
+
+    const origGetSafeSpawnX = waves.getSafeSpawnX.bind(waves);
+
+    if (type === 'mercenary_squad') {
+      const mercs = ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard'];
+      const beforeLen = waves.zombies.length;
+      for (let i = 0; i < mercs.length; i++) {
+        const targetX = computeSpawnX(155, i * 68);
+        try {
+          waves.getSafeSpawnX = () => targetX;
+          waves._creativeSpawnX = targetX;
+          waves.spawnZombie(mercs[i], this.player, this.groundY, this.camera2D);
+        } finally {
+          waves.getSafeSpawnX = origGetSafeSpawnX;
+          waves._creativeSpawnX = undefined;
+        }
+        const merc = waves.zombies[waves.zombies.length - 1];
+        if (merc) {
+          merc.x = targetX;
+          merc.z = Math.max(-260, Math.min(260, pz + (i - 1.5) * 42));
+          merc.facing = targetX >= px ? -1 : 1;
+          wrapEnemyUpdate3D(merc, this);
+        }
+      }
+      particles.addDamageText?.(computeSpawnX(185, 0), this.groundY - 96, '⚡ SPAWNED: MERCENARY SQUAD', false, '#facc15');
+      speech.onCreativeAction?.('spawn_entity', { entity: 'mercenary_squad', anchor: this.player });
+      return waves.zombies.slice(beforeLen);
+    }
+
+    const serial = (this._creativeSpawnSerial = ((this._creativeSpawnSerial || 0) + 1) % 4);
+    const targetX = computeSpawnX(205, serial * 42);
+    try {
+      waves.getSafeSpawnX = () => targetX;
+      waves._creativeSpawnX = targetX;
+      waves.spawnZombie(type, this.player, this.groundY, this.camera2D);
+    } finally {
+      waves.getSafeSpawnX = origGetSafeSpawnX;
+      waves._creativeSpawnX = undefined;
+    }
+
+    const spawned = waves.zombies[waves.zombies.length - 1] || null;
+    if (spawned) {
+      spawned.x = targetX;
+      spawned.z = Math.max(-260, Math.min(260, pz + ((serial % 3) - 1) * 28));
+      spawned.facing = targetX >= px ? -1 : 1;
+      wrapEnemyUpdate3D(spawned, this);
+      const label = (spawned.name || type.replaceAll('_', ' ')).toUpperCase();
+      particles.addDamageText?.(
+        spawned.x,
+        spawned.y - (spawned.height || 64) - 18,
+        `⚡ SPAWNED: ${label}`,
+        false,
+        '#facc15'
+      );
+    }
     speech.onCreativeAction?.('spawn_entity', { entity: type, anchor: this.player });
+    return spawned;
   }
 
   summonAllCreativeAllies() {
