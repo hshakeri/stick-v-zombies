@@ -147,11 +147,18 @@ function drawPixelBlock(ctx, kind) {
       break;
     }
     case 'dark_core_floor': {
-      fillNoisyPixels(ctx, '#1f030b', 0.18, 100);
-      drawBevelBorder(ctx, '#ff0033', '#0a0003');
-      ctx.fillStyle = '#ff1744';
+      // AvA 8 Outernet Lakeshore: Wet Canyon Slate Cobbles, Moss Tufts & Shallow Water Seams
+      fillNoisyPixels(ctx, '#334155', 0.14, 100);
+      drawBevelBorder(ctx, '#475569', '#1e293b');
+      ctx.fillStyle = '#0284c7';
       ctx.fillRect(0, 7, 16, 2);
       ctx.fillRect(7, 0, 2, 16);
+      ctx.fillStyle = '#7dd3fc';
+      ctx.fillRect(3, 7, 3, 1);
+      ctx.fillRect(11, 8, 3, 1);
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(2, 2, 2, 2);
+      ctx.fillRect(11, 12, 3, 2);
       break;
     }
     case 'command_block': {

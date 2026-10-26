@@ -23,23 +23,23 @@ import {
   WardenBoss,
   CreakingBoss,
   MercenaryBoss
-} from '../3d/js/campaign3d.js?v=10.4';
+} from '../3d/js/campaign3d.js?v=10.5';
 import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 
 import {
   CREATIVE_BLOCK_TYPES_2D,
   drawCreativeBlocks2D,
   getCreativeBlockSprite2D
-} from '../2d/arenas2d.js?v=10.0';
+} from '../2d/arenas2d.js?v=10.1';
 import {
   DEPTH_PARALLAX,
   Depth2DRenderer,
   getDepthProfile2D
-} from '../2d/depth2d.js?v=10.0';
+} from '../2d/depth2d.js?v=10.1';
 import {
   STAGE_OPTIONS_2D,
   install2DExpansion
-} from '../2d/expansion2d.js?v=10.0';
+} from '../2d/expansion2d.js?v=10.1';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -153,8 +153,8 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
 
 test('2D Expansion [2] Prominent Level Selector & Title UI: index.html exposes Creative Mode, Stage Select, and Stages 18–23 pills', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-  assert.match(html, /href="2d\/style2d\.css\?v=10\.0"/);
-  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.0"/);
+  assert.match(html, /href="2d\/style2d\.css\?v=10\.1"/);
+  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.1"/);
   assert.match(html, /id="btn-start-creative"/);
   assert.match(html, /id="title-stage-select"/);
   for (const stage of [18, 19, 20, 21, 22, 23]) {
@@ -793,3 +793,77 @@ test('2D Expansion [10] Creative Mob & Boss Spawner On-Screen Visibility Across 
 
   resetGlobalSystems();
 });
+
+test('2D Expansion [11] Stage 10 AvA 8 Showdown Lake Arena: Outernet Lake, Waterfall Cliff, Wrecked Shack, ViraBot Bunker, Depth Motif & Taskbar Suppression', () => {
+  resetGlobalSystems();
+  const { game, controller, calls } = create2DGameHarness();
+
+  // 1. Selector exposes Showdown Lake label for Stage 10
+  const stage10Opt = STAGE_OPTIONS_2D.find((s) => s.value === 10);
+  assert.ok(stage10Opt, 'Stage 10 must exist in STAGE_OPTIONS_2D');
+  assert.match(stage10Opt.label, /Showdown Lake/i, 'Stage 10 selector label must reference Showdown Lake');
+
+  // 2. Depth-of-field profile for dark_core uses Outernet ava8_lake motif and bakes cached blurred planes cleanly
+  const profile = getDepthProfile2D('dark_core');
+  assert.equal(profile.motif, 'ava8_lake', 'dark_core depth profile must use the ava8_lake Outernet mountain/cascade motif');
+  let bakedPlanes = 0;
+  const depthRenderer = new Depth2DRenderer({
+    createCanvas: (w, h) => ({
+      width: w,
+      height: h,
+      getContext: () => {
+        bakedPlanes += 1;
+        return createCanvasMock().ctx;
+      }
+    })
+  });
+  depthRenderer.drawBackgroundDepthPlanes(
+    createCanvasMock().ctx,
+    { currentStage: 10, theme: 'dark_core', isTrophyRoom: false, bounds: { minX: -1200, maxX: 1200, minY: -620 } },
+    { x: 0, y: -140 },
+    0,
+    false
+  );
+  assert.equal(bakedPlanes, 2, 'ava8_lake offscreen Far + Mid depth planes must bake cleanly');
+
+  // 3. Jump to Stage 10 and verify stage metadata, cliff/boulder platform names, and The Dark Lord boss spawn
+  controller.jumpToStage(10, { freshStart: true });
+  advanceWaveSpawns(game, 2.0);
+  assert.equal(game.stageManager.currentStage, 10);
+  assert.equal(game.stageManager.theme, 'dark_core');
+  assert.equal(game.stageManager.stageName, 'Outernet Lake (AvA 8 Showdown)');
+  assert.equal(game.stageManager.campaignBeat?.act, 'II - THE SHOWDOWN (AVA 8)');
+  assert.equal(game.stageManager.platforms[0]?.title, 'Waterfall_Cliff_Ledge');
+  assert.equal(game.stageManager.platforms[1]?.title, 'Shack_Bluff_Overlook');
+  assert.equal(game.stageManager.platforms[2]?.title, 'Showdown_Canyon_Crag');
+  assert.equal(game.stageManager.movingPlatforms[0]?.title, 'Ruptured_Boulder_W');
+  assert.equal(game.stageManager.movingPlatforms[1]?.title, 'Ruptured_Boulder_E');
+  assert.ok(
+    waves.zombies.some((z) => z.type === 'dark_lord' && !z.isDead),
+    'Stage 10 Showdown Lake must spawn The Dark Lord boss'
+  );
+
+  // 4. Render Stage 10 and verify AvA 8 Lake header paints while legacy red cyber grid & Windows taskbar are suppressed
+  calls.save = 0;
+  calls.restore = 0;
+  calls.fillText.length = 0;
+  game.render();
+
+  assert.equal(calls.save, calls.restore, 'ctx.save and ctx.restore must stay balanced on Stage 10 Showdown Lake');
+  assert.equal(game.reportedLayerErrors.size, 0, 'Stage 10 Showdown Lake must render with zero 2D layer errors');
+  assert.ok(
+    calls.fillText.some((t) => t.includes('OUTERNET://THE_SHOWDOWN_LAKE')),
+    'Stage 10 2D arena must paint the AvA 8 Showdown Lake banner'
+  );
+  assert.ok(
+    !calls.fillText.some((t) => t.includes('CRITICAL THREAT: THE_DARK_LORD.EXE')),
+    'Legacy cyber-grid Dark Core text must be suppressed on AvA 8 Showdown Lake'
+  );
+  assert.ok(
+    !calls.fillText.some((t) => t.includes('🪟 START') || t.includes('Stick_vs_Zombies.exe')),
+    'Windows desktop taskbar must be suppressed so the Outernet Lake shore remains visible'
+  );
+
+  resetGlobalSystems();
+});
+

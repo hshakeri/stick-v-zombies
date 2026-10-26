@@ -175,9 +175,9 @@ export class Arena3DBuilder {
     const theme = themeOverride || sm?.theme || 'desktop';
     const floorKey = getThemeFloorTextureKey(theme, false);
 
-    // Hide PC monitor stand neck when inside Rocket Corp Facility, Ancient City Cavern, or Pale Garden Grove
+    // Hide PC monitor stand neck when inside Rocket Corp Facility, Ancient City, Pale Garden, or AvA 8 Lake
     if (this.standNeck) {
-      this.standNeck.visible = theme !== 'rocket_corp' && theme !== 'ancient_city' && theme !== 'pale_garden';
+      this.standNeck.visible = theme !== 'rocket_corp' && theme !== 'ancient_city' && theme !== 'pale_garden' && theme !== 'dark_core';
     }
 
     // 1. Voxel Arena Floor (62 x 26 blocks)
@@ -194,10 +194,10 @@ export class Arena3DBuilder {
     floorMesh.receiveShadow = true;
     this.group.add(floorMesh);
 
-    // Sub-floor voxel cliff layers (Minecraft island / Ancient City deepslate / Pale Garden oak / Facility foundation)
-    const subTexKey = theme === 'minecraft' || theme === 'dark_core' || theme === 'the_end'
+    // Sub-floor voxel cliff layers (Minecraft island / Ancient City & AvA 8 Lake canyon stone / Pale Garden oak / Facility foundation)
+    const subTexKey = theme === 'minecraft' || theme === 'the_end'
       ? 'obsidian'
-      : (theme === 'ancient_city' ? 'deepslate_tiles'
+      : (theme === 'ancient_city' || theme === 'dark_core' ? 'deepslate_tiles'
       : (theme === 'pale_garden' ? 'pale_oak_log'
       : (theme === 'aether' ? 'holystone' : (theme === 'rocket_corp' ? 'rocket_corp_wall' : 'anvil_iron'))));
     const subTex = getVoxelTexture(subTexKey, 31, 2);
@@ -337,7 +337,7 @@ export class Arena3DBuilder {
       minecraft: 0xff682c,
       terminal: 0x4ade80,
       virabot: 0xf43f5e,
-      dark_core: 0xff0033,
+      dark_core: 0x38bdf8,
       command_realm: 0xffb340,
       browser_glitch: 0x38bdf8,
       cloud_cache: 0x7dd3fc,
@@ -761,6 +761,88 @@ export class Arena3DBuilder {
     });
   }
 
+  buildAvA8ShowdownLake() {
+    const slateTex = getVoxelTexture('deepslate_tiles', 4, 4);
+    slateTex.isShared = true;
+    const slateMat = new THREE.MeshStandardMaterial({ map: slateTex, roughness: 0.78 });
+    const grassMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.72 });
+    const waterMat = new THREE.MeshStandardMaterial({
+      color: 0x0ea5e9,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.32,
+      roughness: 0.18,
+      metalness: 0.15,
+      transparent: true,
+      opacity: 0.86
+    });
+    const foamMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.85 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.82 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.85 });
+    const viraGlowMat = new THREE.MeshStandardMaterial({
+      color: 0xff1744,
+      emissive: 0xff1744,
+      emissiveIntensity: 0.9,
+      roughness: 0.25
+    });
+
+    // 1. Shimmering Outernet Lake Basin surrounding the rocky lakeshore arena
+    const lakeSea = new THREE.Mesh(new THREE.PlaneGeometry(148, 96), waterMat);
+    lakeSea.rotation.x = -Math.PI / 2;
+    lakeSea.position.set(0, -1.15, 0);
+    lakeSea.receiveShadow = true;
+    this.group.add(lakeSea);
+
+    // 2. Left High Waterfall Bluff + Cascading 3D Waterfall Curtain + Plunge Foam Pool
+    const leftBluff = new THREE.Group();
+    leftBluff.position.set(-14.5, 0, -11.4);
+    const cliffBodyL = new THREE.Mesh(new THREE.BoxGeometry(16.5, 9.6, 3.6), slateMat);
+    cliffBodyL.position.y = 4.8;
+    const turfCapL = new THREE.Mesh(new THREE.BoxGeometry(16.8, 0.55, 3.8), grassMat);
+    turfCapL.position.y = 9.75;
+    const waterfallSheet = new THREE.Mesh(new THREE.BoxGeometry(3.2, 9.5, 0.55), waterMat);
+    waterfallSheet.position.set(3.4, 4.75, 1.9);
+    const waterfallCore = new THREE.Mesh(new THREE.BoxGeometry(1.7, 9.55, 0.62), foamMat);
+    waterfallCore.position.set(3.4, 4.75, 1.95);
+    const plungePoolFoam = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.9, 0.28, 16), foamMat);
+    plungePoolFoam.position.set(3.4, 0.14, 2.2);
+    // Scorched TCO vs. TDL impact crater fissure on left cliff
+    const craterVein = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.28, 0.3), viraGlowMat);
+    craterVein.rotation.z = -0.35;
+    craterVein.position.set(-3.2, 4.6, 1.85);
+    leftBluff.add(cliffBodyL, turfCapL, waterfallSheet, waterfallCore, plungePoolFoam, craterVein);
+    this.group.add(leftBluff);
+
+    // 3. Right Cliff Bluff + Wrecked Dark Lord Cabin Shack + Subterranean ViraBot Bunker
+    const rightBluff = new THREE.Group();
+    rightBluff.position.set(14.5, 0, -11.4);
+    const cliffBodyR = new THREE.Mesh(new THREE.BoxGeometry(16.5, 8.6, 3.6), slateMat);
+    cliffBodyR.position.y = 4.3;
+    const turfCapR = new THREE.Mesh(new THREE.BoxGeometry(16.8, 0.55, 3.8), grassMat);
+    turfCapR.position.y = 8.75;
+
+    // Wrecked wooden shack perched on the right cliff bluff
+    const shackWalls = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.2, 2.6), woodMat);
+    shackWalls.position.set(-0.6, 10.0, 0.1);
+    const roofHalfL = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.35, 2.9), roofMat);
+    roofHalfL.rotation.z = 0.42;
+    roofHalfL.position.set(-1.65, 11.35, 0.1);
+    const roofHalfR = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.35, 2.9), roofMat);
+    roofHalfR.rotation.z = -0.48;
+    roofHalfR.position.set(0.55, 11.2, 0.1);
+    const shackMonitor = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.65, 0.2), viraGlowMat);
+    shackMonitor.position.set(0.3, 10.0, 1.35);
+
+    // Subterranean ViraBot Canister Pods recessed into the cliff rock below the shack
+    for (let c = -1; c <= 1; c++) {
+      const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.9, 12), viraGlowMat);
+      pod.position.set(-0.6 + c * 1.45, 3.4, 1.85);
+      rightBluff.add(pod);
+    }
+
+    rightBluff.add(cliffBodyR, turfCapR, shackWalls, roofHalfL, roofHalfR, shackMonitor);
+    this.group.add(rightBluff);
+  }
+
   buildBiomeColumns(theme, accentHex) {
     if (theme === 'rocket_corp') {
       this.buildRocketCorpFacility();
@@ -772,6 +854,10 @@ export class Arena3DBuilder {
     }
     if (theme === 'pale_garden') {
       this.buildPaleGardenGrove();
+      return;
+    }
+    if (theme === 'dark_core') {
+      this.buildAvA8ShowdownLake();
       return;
     }
 
@@ -1676,6 +1762,76 @@ export class Arena3DBuilder {
     ctx.fillText(sm.isObjectiveComplete ? 'HEART TETHER: SEVERED' : 'HEART TETHER: LINKED', w - 32, h - 22);
   }
 
+  drawAvA8LakeBackdrop(ctx, w, h, sm) {
+    // 1. Outernet Daylight-to-Mist Sky Gradient
+    const grad = typeof ctx.createLinearGradient === 'function' ? ctx.createLinearGradient(0, 0, 0, h) : null;
+    if (grad && typeof grad.addColorStop === 'function') {
+      grad.addColorStop(0, '#082f49');
+      grad.addColorStop(0.45, '#0284c7');
+      grad.addColorStop(0.76, '#7dd3fc');
+      grad.addColorStop(1, '#0369a1');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#0284c7';
+    }
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Crimson ViraBot Launch Spire piercing the Outernet clouds on the right
+    ctx.fillStyle = 'rgba(255, 23, 68, 0.25)';
+    ctx.fillRect(w * 0.7 - 36, 0, 72, h);
+    ctx.fillStyle = 'rgba(255, 59, 92, 0.52)';
+    ctx.fillRect(w * 0.7 - 10, 0, 20, h);
+
+    // 3. Distant Outernet Canyon Peaks & Waterfall Cove Silhouette
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.moveTo(0, h - 120);
+    ctx.lineTo(0, h - 320);
+    ctx.lineTo(w * 0.34, h - 340);
+    ctx.lineTo(w * 0.44, h - 120);
+    ctx.moveTo(w * 0.56, h - 120);
+    ctx.lineTo(w * 0.64, h - 310);
+    ctx.lineTo(w, h - 330);
+    ctx.lineTo(w, h - 120);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#16a34a';
+    ctx.fillRect(0, h - 332, w * 0.34, 12);
+    ctx.fillRect(w * 0.64, h - 320, w * 0.36, 12);
+
+    // Distant Plunging Waterfall + Shimmering Lake Band
+    ctx.fillStyle = '#e0f2fe';
+    ctx.fillRect(w * 0.28 - 22, h - 328, 44, 212);
+    ctx.fillStyle = '#0ea5e9';
+    ctx.fillRect(0, h - 122, w, 64);
+
+    // 4. Showdown Header
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#e0f2fe';
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText('ACT II // OUTERNET COVE — THE SHOWDOWN LAKE (AVA 8)', w / 2, 70);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 34px monospace';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ THE DARK LORD DEFEATED — PORTAL OPEN' : '⚠ THE DARK LORD // VIRABOT LAUNCH DETECTED',
+      w / 2,
+      118
+    );
+
+    // 5. Lakeshore Status Footer
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, h - 58, w, 58);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(0, h - 58, w, 4);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#bae6fd';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('🌊 OUTERNET LAKE // WATERFALL CLIFF & WRECKED SHACK', 32, h - 21);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ff4d6d';
+    ctx.fillText(sm.isObjectiveComplete ? 'VIRABOTS: NEUTRALIZED' : 'VIRABOT CANISTERS: ARMED', w - 32, h - 21);
+  }
+
   redrawMonitorScreen(force = false) {
     const sm = this.stageManager;
     const beat = sm.campaignBeat || {};
@@ -1706,6 +1862,8 @@ export class Arena3DBuilder {
       this.drawAncientCityCavernBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'pale_garden') {
       this.drawPaleGardenBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'dark_core') {
+      this.drawAvA8LakeBackdrop(ctx, w, h, sm);
     } else {
       ctx.fillStyle = sm.theme === 'bsod' ? '#003999'
         : (sm.theme === 'dark_core' ? '#1a0008'

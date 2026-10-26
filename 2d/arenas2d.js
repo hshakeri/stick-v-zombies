@@ -1091,6 +1091,260 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY, onSkyP
     return true;
   }
 
+  if (theme === 'dark_core') {
+    ctx.save();
+
+    // 1. AvA 8 Outernet Sky Gradient (Cerulean Daylight -> Sunlit Horizon Mist)
+    const skyGrad = ctx.createLinearGradient(0, backdropMinY, 0, groundY - 105);
+    skyGrad.addColorStop(0, '#082f49');
+    skyGrad.addColorStop(0.32, '#0284c7');
+    skyGrad.addColorStop(0.72, '#38bdf8');
+    skyGrad.addColorStop(1, '#bae6fd');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(backdropMinX, backdropMinY, backdropMaxX - backdropMinX, (groundY - 100) - backdropMinY);
+
+    // Drifting Outernet Cumulus Clouds
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.52)';
+    for (let i = 0; i < 7; i++) {
+      const cx = -980 + (((i * 330 + t * (10 + (i % 3) * 4)) % 2100) + 2100) % 2100;
+      const cy = minY + 85 + (i % 3) * 62;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 88 + (i % 2) * 26, 22 + (i % 3) * 5, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx - 42, cy + 6, 52, 16, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + 46, cy + 5, 58, 17, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Crimson ViraBot Launch Spire / Sky-Rift rising behind TDL's Cliffside Base
+    const beamPulse = 0.2 + Math.sin(t * 5.2) * 0.06;
+    ctx.fillStyle = `rgba(255, 23, 68, ${beamPulse})`;
+    ctx.fillRect(418, backdropMinY, 64, groundY - backdropMinY);
+    ctx.fillStyle = 'rgba(255, 59, 92, 0.42)';
+    ctx.fillRect(442, backdropMinY, 16, groundY - backdropMinY);
+
+    // Blit cached blurred Far & Mid Outernet bay mountains + lake mist haze
+    onSkyPainted?.();
+
+    // 2. Left Towering Waterfall Bluff & Battle-Scarred Canyon Rock (x: -1020 .. -180)
+    const leftCliffTop = groundY - 435;
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.moveTo(minX - 60, groundY - 96);
+    ctx.lineTo(minX - 60, leftCliffTop + 34);
+    ctx.lineTo(-760, leftCliffTop);
+    ctx.lineTo(-235, leftCliffTop + 14);
+    ctx.lineTo(-175, groundY - 96);
+    ctx.closePath();
+    ctx.fill();
+
+    // Sunlit slate facets & stratified canyon ledges on Left Cliff
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(-940, leftCliffTop + 38, 290, 92);
+    ctx.fillRect(-610, leftCliffTop + 56, 195, 130);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-820, leftCliffTop + 150, 360, 18);
+    ctx.fillRect(-590, leftCliffTop + 245, 210, 16);
+
+    // Lush Emerald Outernet Grass Cap + Pine Trees atop Left Bluff
+    ctx.fillStyle = '#15803d';
+    ctx.fillRect(minX - 40, leftCliffTop + 4, 795, 22);
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(minX - 40, leftCliffTop, 785, 10);
+    for (const px of [-835, -705, -535]) {
+      ctx.fillStyle = '#14532d';
+      ctx.beginPath();
+      ctx.moveTo(px, leftCliffTop - 68);
+      ctx.lineTo(px + 28, leftCliffTop + 2);
+      ctx.lineTo(px - 28, leftCliffTop + 2);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Scorched TCO vs. TDL Impact Crater punched into Left Cliff Wall
+    const craterX = -665;
+    const craterY = groundY - 225;
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.ellipse(craterX, craterY, 56, 44, -0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ff1744';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(craterX - 48, craterY - 12);
+    ctx.lineTo(craterX, craterY);
+    ctx.lineTo(craterX + 52, craterY + 18);
+    ctx.moveTo(craterX - 18, craterY - 38);
+    ctx.lineTo(craterX + 8, craterY + 36);
+    ctx.stroke();
+
+    // 3. Right Cliff Bluff, Wrecked Dark Lord Shack & Subterranean ViraBot Bunker (x: +185 .. +1020)
+    const rightCliffTop = groundY - 392;
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.moveTo(185, groundY - 96);
+    ctx.lineTo(245, rightCliffTop + 18);
+    ctx.lineTo(790, rightCliffTop);
+    ctx.lineTo(maxX + 60, rightCliffTop + 28);
+    ctx.lineTo(maxX + 60, groundY - 96);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(265, rightCliffTop + 42, 220, 96);
+    ctx.fillRect(610, rightCliffTop + 52, 285, 118);
+    ctx.fillStyle = '#15803d';
+    ctx.fillRect(240, rightCliffTop + 4, 780, 20);
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(245, rightCliffTop, 775, 10);
+
+    // The Dark Lord's Wrecked Wooden Cliffside Shack (from AvA 8 Opening Clash!)
+    const shackX = 450;
+    const shackBaseY = rightCliffTop + 2;
+    ctx.fillStyle = '#78350f';
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = 2.5;
+    ctx.fillRect(shackX - 66, shackBaseY - 64, 132, 64);
+    ctx.strokeRect(shackX - 66, shackBaseY - 64, 132, 64);
+    // Horizontal timber planks
+    ctx.strokeStyle = '#92400e';
+    ctx.lineWidth = 1.5;
+    for (let py = shackBaseY - 48; py < shackBaseY - 8; py += 16) {
+      ctx.beginPath();
+      ctx.moveTo(shackX - 64, py);
+      ctx.lineTo(shackX + 64, py);
+      ctx.stroke();
+    }
+    // Broken pitched roof with TCO crash breach in center rafters
+    ctx.fillStyle = '#451a03';
+    ctx.beginPath();
+    ctx.moveTo(shackX - 78, shackBaseY - 62);
+    ctx.lineTo(shackX - 18, shackBaseY - 98);
+    ctx.lineTo(shackX - 6, shackBaseY - 74);
+    ctx.lineTo(shackX + 16, shackBaseY - 94);
+    ctx.lineTo(shackX + 78, shackBaseY - 62);
+    ctx.closePath();
+    ctx.fill();
+    // Glowing red ViraBot lab monitor visible inside broken shack window & doorway
+    ctx.fillStyle = '#18181b';
+    ctx.fillRect(shackX - 16, shackBaseY - 44, 26, 44);
+    ctx.fillStyle = '#ff1744';
+    ctx.fillRect(shackX + 22, shackBaseY - 46, 26, 22);
+
+    // Exposed Subterranean ViraBot Bunker Bay & Glowing Red Canister Pods inside Right Cliff
+    const bayX = 450;
+    const bayTop = groundY - 222;
+    ctx.fillStyle = '#0f172a';
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 3;
+    ctx.fillRect(bayX - 96, bayTop, 192, 92);
+    ctx.strokeRect(bayX - 96, bayTop, 192, 92);
+    for (let c = -1; c <= 1; c++) {
+      const podX = bayX + c * 54;
+      const podGlow = 0.62 + Math.sin(t * 6 + c * 1.4) * 0.25;
+      ctx.fillStyle = `rgba(255, 23, 68, ${podGlow})`;
+      ctx.fillRect(podX - 15, bayTop + 16, 30, 60);
+      ctx.strokeStyle = '#fda4af';
+      ctx.lineWidth = 1.8;
+      ctx.strokeRect(podX - 15, bayTop + 16, 30, 60);
+      // Dormant ViraBot spider core silhouette inside canister
+      ctx.fillStyle = '#18181b';
+      ctx.fillRect(podX - 6, bayTop + 40, 12, 12);
+    }
+
+    // 4. Shimmering Outernet Lake Cove (groundY - 102 down to foreground)
+    const lakeTop = groundY - 102;
+    const lakeGrad = ctx.createLinearGradient(0, lakeTop, 0, groundY + 260);
+    lakeGrad.addColorStop(0, '#0284c7');
+    lakeGrad.addColorStop(0.28, '#0ea5e9');
+    lakeGrad.addColorStop(0.55, '#0369a1');
+    lakeGrad.addColorStop(1, '#082f49');
+    ctx.fillStyle = lakeGrad;
+    ctx.fillRect(backdropMinX, lakeTop, backdropMaxX - backdropMinX, backdropMaxY - lakeTop);
+
+    // Crimson ViraBot reflection shimmer on right side of lake water
+    ctx.fillStyle = 'rgba(255, 23, 68, 0.16)';
+    ctx.fillRect(320, lakeTop + 8, 260, 88);
+
+    // 5. Roaring Plunging Waterfall & Billowing Plunge-Pool Mist (x = -360)
+    const fallX = -360;
+    const fallTop = leftCliffTop + 16;
+    const fallH = (lakeTop + 14) - fallTop;
+    ctx.fillStyle = 'rgba(125, 211, 252, 0.84)';
+    ctx.fillRect(fallX - 48, fallTop, 96, fallH);
+    ctx.fillStyle = 'rgba(224, 242, 254, 0.92)';
+    ctx.fillRect(fallX - 28, fallTop, 56, fallH);
+
+    // Animated rushing vertical waterfall streaks
+    ctx.fillStyle = '#ffffff';
+    for (let s = 0; s < 9; s++) {
+      const sx = fallX - 38 + s * 9.5;
+      const sy = fallTop + ((t * 270 + s * 53) % Math.max(1, fallH - 42));
+      ctx.fillRect(sx, sy, 3.5, 36);
+    }
+
+    // Churning whitewater plunge foam & mist clouds where waterfall hits the lake
+    for (let m = -2; m <= 2; m++) {
+      const mx = fallX + m * 28 + Math.sin(t * 3.8 + m) * 6;
+      const mr = 22 + (2 - Math.abs(m)) * 8 + Math.cos(t * 4.5 + m) * 3;
+      ctx.fillStyle = 'rgba(240, 249, 255, 0.78)';
+      ctx.beginPath();
+      ctx.arc(mx, lakeTop + 8, mr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Animated horizontal sunlit water ripples across the lake cove
+    ctx.fillStyle = 'rgba(224, 242, 254, 0.52)';
+    for (let r = 0; r < 18; r++) {
+      const rx = -880 + (r * 108) + Math.sin(t * 2.4 + r * 0.9) * 18;
+      const ry = lakeTop + 16 + (r % 5) * 17;
+      ctx.fillRect(rx, ry, 54 + (r % 3) * 18, 3);
+    }
+
+    // 6. Rocky Lakeshore Causeway & Stepping Boulders along groundY (Combat Floor!)
+    // White shoreline surf foam lapping against the stones
+    const surfShift = Math.sin(t * 3.2) * 4;
+    ctx.fillStyle = 'rgba(224, 242, 254, 0.82)';
+    ctx.fillRect(minX, groundY - 5 + surfShift * 0.3, maxX - minX, 8);
+
+    // Wet slate shoreline bank + mossy stepping stones spanning [minX, maxX]
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(minX, groundY, maxX - minX, 24);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(minX, groundY + 16, maxX - minX, 12);
+    for (let bx = minX + 20; bx < maxX - 30; bx += 92) {
+      ctx.fillStyle = ((bx / 92) & 1) === 0 ? '#475569' : '#64748b';
+      ctx.beginPath();
+      ctx.ellipse(bx + 36, groundY + 8, 42, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(bx + 14, groundY - 2, 44, 5);
+    }
+
+    //Foreground shimmering lake water ripples below the rocky bank
+    ctx.fillStyle = 'rgba(186, 230, 253, 0.36)';
+    for (let f = -8; f <= 8; f++) {
+      const fx = f * 120 + Math.cos(t * 2.1 + f) * 22;
+      ctx.fillRect(fx - 38, groundY + 42 + (Math.abs(f) % 3) * 18, 76, 3.5);
+    }
+
+    // Natural framing canyon cliff borders at minX and maxX
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(minX - 24, minY, 28, groundY - minY + 28);
+    ctx.fillRect(maxX - 4, minY, 28, groundY - minY + 28);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(minX, groundY);
+    ctx.lineTo(maxX, groundY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('OUTERNET://THE_SHOWDOWN_LAKE — DEFEAT THE DARK LORD', minX + 60, minY + 58);
+    ctx.restore();
+    return true;
+  }
+
   return false;
 }
 
@@ -1241,7 +1495,8 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
     theme !== 'aether' &&
     theme !== 'ancient_city' &&
     theme !== 'pale_garden' &&
-    theme !== 'rocket_corp'
+    theme !== 'rocket_corp' &&
+    theme !== 'dark_core'
   ) {
     return false;
   }
@@ -1308,6 +1563,41 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
       ctx.fillStyle = '#ff6b00';
       for (let cx = p.x - halfW + 8; cx < p.x + halfW - 14; cx += 24) {
         ctx.fillRect(cx, topY + 3, 12, 4);
+      }
+    } else if (theme === 'dark_core') {
+      // AvA 8 Showdown Lake: Craggy Outernet Canyon Ledges & Vira-Ruptured Floating Boulders
+      const isRupturedSlab = Boolean(p.axis);
+      ctx.fillStyle = isRupturedSlab ? '#1e293b' : '#334155';
+      ctx.strokeStyle = isRupturedSlab ? '#ff1744' : '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+      ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+
+      // Tapered rocky underside crag
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath();
+      ctx.moveTo(p.x - halfW + 12, p.y);
+      ctx.lineTo(p.x - halfW * 0.45, p.y + 12);
+      ctx.lineTo(p.x + halfW * 0.48, p.y + 10);
+      ctx.lineTo(p.x + halfW - 12, p.y);
+      ctx.closePath();
+      ctx.fill();
+
+      if (isRupturedSlab) {
+        // Pulsing crimson ViraBot energy veins under levitating canyon rock
+        const glow = 0.55 + Math.sin(t * 6 + p.x * 0.02) * 0.3;
+        ctx.fillStyle = `rgba(255, 23, 68, ${glow})`;
+        ctx.fillRect(p.x - halfW + 10, topY + 3, p.width - 20, 4);
+      } else {
+        // Lush emerald Outernet grass turf cap + battle scorch scar on center crag
+        ctx.fillStyle = '#15803d';
+        ctx.fillRect(p.x - halfW + 1, topY + 1, p.width - 2, 7);
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(p.x - halfW + 2, topY + 1, p.width - 4, 4);
+        if (Math.abs(p.x) < 40) {
+          ctx.fillStyle = '#ff1744';
+          ctx.fillRect(p.x - 26, topY + 3, 52, 3);
+        }
       }
     }
     ctx.restore();

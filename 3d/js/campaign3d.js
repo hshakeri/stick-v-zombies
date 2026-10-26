@@ -1562,6 +1562,14 @@ export class CreakingBoss {
 // ============================================================================
 export const CAMPAIGN_BEATS_3D = Object.freeze({
   ...CAMPAIGN_BEATS,
+  10: Object.freeze({
+    act: 'II - THE SHOWDOWN (AVA 8)',
+    mission: 'DEFEAT THE DARK LORD AT THE LAKE',
+    clearText: 'SHOWDOWN WON!',
+    clue: 'VIRABOT LAB SECURED',
+    bossLabel: 'THE DARK LORD',
+    allyReaction: Object.freeze({ ally: 'chosen', line: 'THE SHOWDOWN IS OVER.' })
+  }),
   17: Object.freeze({
     act: 'V - ROOT OF LUCK',
     mission: 'OUTLUCK THE LUCKY ORB',
@@ -1665,6 +1673,14 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         ];
       } else {
         stageManager.lavaHazards = [];
+      }
+      if (stage === 10) {
+        stageManager.stageName = 'Outernet Lake (AvA 8 Showdown)';
+        if (stageManager.platforms?.[0]) stageManager.platforms[0].title = 'Waterfall_Cliff_Ledge';
+        if (stageManager.platforms?.[1]) stageManager.platforms[1].title = 'Shack_Bluff_Overlook';
+        if (stageManager.platforms?.[2]) stageManager.platforms[2].title = 'Showdown_Canyon_Crag';
+        if (stageManager.movingPlatforms?.[0]) stageManager.movingPlatforms[0].title = 'Ruptured_Boulder_W';
+        if (stageManager.movingPlatforms?.[1]) stageManager.movingPlatforms[1].title = 'Ruptured_Boulder_E';
       }
       return;
     }

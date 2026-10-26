@@ -28,7 +28,7 @@ import { save } from '../js/systems/save.js?v=9.8';
 import {
   CAMPAIGN_BEATS_3D,
   extendCampaignFor3D
-} from '../3d/js/campaign3d.js?v=10.4';
+} from '../3d/js/campaign3d.js?v=10.5';
 import {
   ISLAND_FLOOR_BOUNDS,
   VOID_FALL_THRESHOLD,
@@ -50,9 +50,9 @@ import {
   drawExpandedTrophyIcons2D,
   drawBossFloorTelegraphs2D,
   drawCustomStagePlatforms2D
-} from './arenas2d.js?v=10.0';
-import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=10.0';
-import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=10.0';
+} from './arenas2d.js?v=10.1';
+import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=10.1';
+import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=10.1';
 
 export const STAGE_OPTIONS_2D = Object.freeze([
   { value: 1, label: '1: Main Desktop' },
@@ -64,7 +64,7 @@ export const STAGE_OPTIONS_2D = Object.freeze([
   { value: 7, label: '7: 🔥 Minecraft Nether Core (Lava)' },
   { value: 8, label: '8: Linux Terminal Purge' },
   { value: 9, label: '9: Virabot Nexus' },
-  { value: 10, label: '10: ⚔️ Dark Core — The Dark Lord' },
+  { value: 10, label: '10: 🌊 Showdown Lake — The Dark Lord' },
   { value: 11, label: '11: 👑 Command Realm — King Orange' },
   { value: 12, label: '12: Glitch Browser Tabs' },
   { value: 13, label: '13: ☁️ Cloud Cache Island' },
@@ -140,6 +140,17 @@ function inferStyleForSpeaker(speakerKey, priority = 1) {
 
 function ensure2DExpansionDOM() {
   if (typeof document === 'undefined') return;
+
+  // 0. Title Quick-Jump Pill for Stage 10 (AvA 8 Showdown Lake — The Dark Lord)
+  const quickPills = document.querySelector('.quick-stage-pills');
+  if (quickPills && !quickPills.querySelector('[data-jump-stage="10"]')) {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'quick-stage-btn';
+    pill.setAttribute('data-jump-stage', '10');
+    pill.textContent = '🌊 10: Showdown Lake (Dark Lord)';
+    quickPills.prepend(pill);
+  }
 
   // 1. HUD Stage Selector inside .wave-badge
   const waveBadge = document.querySelector('.wave-badge');
@@ -412,9 +423,13 @@ export function install2DExpansion(game) {
 
     const handledCustom = drawExpandedStageBackground2D(stageManager, ctx, groundY, renderDepthPlanes);
     if (handledCustom) {
-      stageManager.drawEnvironmentMotifs(ctx, 0);
+      if (stageManager.theme !== 'dark_core') {
+        stageManager.drawEnvironmentMotifs(ctx, 0);
+      }
       stageManager.drawCampaignSignal(ctx, stageManager.bounds.minX, stageManager.bounds.minY);
-      stageManager.drawEnvironmentMotifs(ctx, 1);
+      if (stageManager.theme !== 'dark_core') {
+        stageManager.drawEnvironmentMotifs(ctx, 1);
+      }
       return;
     }
 
@@ -483,6 +498,7 @@ export function install2DExpansion(game) {
   const origDrawTaskbar = stageManager.drawTaskbar.bind(stageManager);
   stageManager.drawTaskbar = (ctx, groundY) => {
     const nonDesktop = isOpenEdgeTheme(stageManager.theme) ||
+      stageManager.theme === 'dark_core' ||
       stageManager.theme === 'ancient_city' ||
       stageManager.theme === 'pale_garden' ||
       stageManager.theme === 'rocket_corp';

@@ -46,7 +46,7 @@ import {
   createViraBotMesh3D
 } from './models3d.js?v=10.3';
 import { getVoxelTexture } from './textures3d.js?v=10.3';
-import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.4';
+import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.5';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
 const CAMERA_LABELS = {
@@ -508,7 +508,7 @@ export class Game3D {
       '7: Minecraft Nether',
       '8: Terminal Matrix',
       '9: ViraBot Nexus',
-      '10: Dark Core (Dark Lord)',
+      '10: Showdown Lake (Dark Lord)',
       '11: Command Throne (King Orange)',
       '12: Glitch Browser',
       '13: Cloud Cache',
@@ -2707,7 +2707,7 @@ export class Game3D {
       const bgHex = {
         bsod: 0x002b7a,
         minecraft: 0x220c12,
-        dark_core: 0x140005,
+        dark_core: 0x0c4a6e,
         command_realm: 0x1f1105,
         the_end: 0x0c0517,
         aether: 0x1a4b75,

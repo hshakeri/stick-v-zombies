@@ -142,7 +142,7 @@ import {
   MercenaryBoss,
   WardenBoss,
   CreakingBoss
-} from '../3d/js/campaign3d.js?v=10.4';
+} from '../3d/js/campaign3d.js?v=10.5';
 import { getVoxelTexture, getThemeFloorTextureKey } from '../3d/js/textures3d.js?v=10.3';
 
 // ----------------------------------------------------------------------------
@@ -4897,5 +4897,79 @@ test('Pale Garden [5] Creative Sandbox, Title Quick-Jump UI & Speech Aliases: 3d
     assert.ok(speech3dModule.BANTER_CHAINS.boss_creaking_intro, 'BANTER_CHAINS must define boss_creaking_intro');
   }
 });
+
+test('AvA 8 Showdown Lake [1] Stage 10 Arena3DBuilder & Title Pill: builds Outernet Lake, Waterfall Bluff, Wrecked Shack, and ViraBot Canisters cleanly', () => {
+  const scene = new THREE.Scene();
+  const stageManager = {
+    currentStage: 1,
+    stageName: 'Main Desktop',
+    theme: 'desktop',
+    stageTime: 0,
+    platforms: [],
+    movingPlatforms: [],
+    desktopIcons: [],
+    laserHazards: [],
+    lavaHazards: [],
+    errorPopups: [],
+    entranceDoor: { x: -900, y: 0, width: 60, height: 110 },
+    exitDoor: { x: 860, y: 0, width: 60, height: 110, isOpen: false },
+    loadStage: (n) => {
+      stageManager.currentStage = n;
+      if (n === 10) {
+        stageManager.stageName = 'The Dark Core';
+        stageManager.theme = 'dark_core';
+        stageManager.platforms = [
+          { x: -580, y: -155, width: 220, height: 22, title: 'Old_Ledge_1', appType: 'cmd' },
+          { x: 580, y: -155, width: 220, height: 22, title: 'Old_Ledge_2', appType: 'cmd' },
+          { x: 0, y: -275, width: 260, height: 22, title: 'Old_Center', appType: 'cmd' }
+        ];
+        stageManager.movingPlatforms = [
+          { x: -290, y: -215, width: 170, height: 20, title: 'Old_Move_1', axis: 'y', minY: -280, maxY: -130, speed: 95, dir: 1 },
+          { x: 290, y: -215, width: 170, height: 20, title: 'Old_Move_2', axis: 'y', minY: -280, maxY: -130, speed: 95, dir: -1 }
+        ];
+      }
+    },
+    enterTrophyRoom: () => {},
+    getCampaignBeat: (n) => ({ name: `Stage ${n}` })
+  };
+  const waveDirector = {
+    zombies: [],
+    spawnQueue: [],
+    generateWaveQueue: () => {},
+    queueWaveRecipe: () => {},
+    spawnZombie: () => {},
+    getSafeSpawnX: () => 420,
+    update: () => {}
+  };
+
+  extendCampaignFor3D(stageManager, waveDirector);
+  stageManager.loadStage(10);
+
+  assert.equal(stageManager.stageName, 'Outernet Lake (AvA 8 Showdown)');
+  assert.equal(stageManager.theme, 'dark_core');
+  assert.equal(CAMPAIGN_BEATS_3D[10].act, 'II - THE SHOWDOWN (AVA 8)');
+  assert.equal(stageManager.platforms[0].title, 'Waterfall_Cliff_Ledge');
+  assert.equal(stageManager.platforms[1].title, 'Shack_Bluff_Overlook');
+  assert.equal(stageManager.platforms[2].title, 'Showdown_Canyon_Crag');
+  assert.equal(stageManager.movingPlatforms[0].title, 'Ruptured_Boulder_W');
+  assert.equal(stageManager.movingPlatforms[1].title, 'Ruptured_Boulder_E');
+
+  const arena = new Arena3DBuilder(scene, stageManager);
+  arena.rebuildForStage();
+  assert.equal(arena.standNeck.visible, false, 'monitor stand neck must be hidden on Stage 10 Outernet Lake');
+  assert.ok(arena.group.children.length >= 10, 'Stage 10 must populate 3D Outernet Lake, waterfall bluff, shack, and canister props');
+
+  stageManager.stageTime = 0.75;
+  arena.update(0.16);
+  verifyDisposeHierarchy(arena.group, true);
+
+  const htmlPath = fileURLToPath(new URL('../3d/index.html', import.meta.url));
+  const html = readFileSync(htmlPath, 'utf8');
+  assert.ok(
+    html.includes('data-jump-stage="10">🌊 10: Showdown Lake (Dark Lord)'),
+    '3d/index.html must include Stage 10 Showdown Lake quick-jump pill'
+  );
+});
+
 
 

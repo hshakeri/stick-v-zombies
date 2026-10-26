@@ -14,7 +14,7 @@ import {
   WardenBoss,
   CreakingBoss,
   MercenaryBoss
-} from '../3d/js/campaign3d.js?v=10.4';
+} from '../3d/js/campaign3d.js?v=10.5';
 
 const EXTRA_WEAPON_STATS = Object.freeze({
   toolbar_staff: {

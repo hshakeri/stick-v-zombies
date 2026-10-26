@@ -86,13 +86,13 @@ const THEME_DEPTH_PROFILES = Object.freeze({
     motif: 'nether'
   },
   dark_core: {
-    farTint: '#fb7185',
-    midTint: '#e11d48',
-    hazeTop: 'rgba(24, 0, 8, 0)',
-    hazeMid: 'rgba(136, 19, 55, 0.2)',
-    hazeBottom: 'rgba(76, 5, 25, 0.38)',
-    bokehTint: '#fda4af',
-    motif: 'spires'
+    farTint: '#7dd3fc',
+    midTint: '#38bdf8',
+    hazeTop: 'rgba(12, 74, 110, 0)',
+    hazeMid: 'rgba(56, 189, 248, 0.16)',
+    hazeBottom: 'rgba(186, 230, 253, 0.28)',
+    bokehTint: '#e0f2fe',
+    motif: 'ava8_lake'
   },
   cloud_cache: {
     farTint: '#e0f2fe',
@@ -288,6 +288,24 @@ function paintDepthMotifSilhouettes(ctx, motif, profile, stageSeed, isMidLayer) 
         // Distant glowing lavafall ribbon
         ctx.fillStyle = '#fb923c';
         ctx.fillRect(cx + w * 0.25, 40, 14, WORLD_SPAN_H - 80);
+      }
+    } else if (motif === 'ava8_lake') {
+      // Distant blurred Outernet mountain peaks, bay bluffs & secondary misty waterfalls
+      ctx.fillStyle = isMidLayer ? '#334155' : '#475569';
+      ctx.beginPath();
+      ctx.moveTo(cx - w * 0.72, groundLocalY + 25);
+      ctx.lineTo(cx - w * 0.18, groundLocalY - h * 0.85);
+      ctx.lineTo(cx + w * 0.24, groundLocalY - h * 0.78);
+      ctx.lineTo(cx + w * 0.72, groundLocalY + 25);
+      ctx.closePath();
+      ctx.fill();
+      // Emerald bluff turf crown
+      ctx.fillStyle = isMidLayer ? '#15803d' : '#16a34a';
+      ctx.fillRect(cx - w * 0.2, groundLocalY - h * 0.84, w * 0.44, 14);
+      if (i % 3 === 1) {
+        // Distant misty cascade ribbon plunging into the bay
+        ctx.fillStyle = tint;
+        ctx.fillRect(cx - 7, groundLocalY - h * 0.8, 14, h * 0.82);
       }
     } else if (motif === 'facility') {
       // Distant Rocket Corp industrial testing bays & glowing cyan conduits
