@@ -108,6 +108,11 @@ export class Arena3DBuilder {
     this.exitPortalMat = null;
     this.exitSignMesh = null;
     this.trophyKeyGroup = null;
+    this.floorGroup = null;
+    this.groundHoles = [];
+    this.currentTheme = 'desktop';
+    this.currentFloorKey = 'desktop';
+    this.currentSubTexKey = 'anvil_iron';
 
     // Giant 3D Desktop Monitor Backdrop
     this.monitorCanvas = document.createElement('canvas');
@@ -128,6 +133,8 @@ export class Arena3DBuilder {
     this.monitorTexture?.dispose?.();
     this.lavaSeaMesh = null;
     this.lavaSeaMat = null;
+    this.floorGroup = null;
+    this.groundHoles.length = 0;
     this.lavaHazardMeshes.length = 0;
   }
 
@@ -153,6 +160,198 @@ export class Arena3DBuilder {
     this.scene.add(this.monitorGroup);
   }
 
+  setGroundHoles(groundHoles = []) {
+    this.groundHoles = Array.isArray(groundHoles) ? groundHoles.slice() : [];
+    this.rebuildFloorMeshes();
+  }
+
+  rebuildFloorMeshes() {
+    if (!this.floorGroup) return;
+    disposeHierarchy(this.floorGroup, true);
+    while (this.floorGroup.children.length > 0) {
+      const child = this.floorGroup.children.pop();
+      this.floorGroup.remove(child);
+    }
+
+    const floorW = 62;
+    const floorD = 26;
+    const subHalfX = (floorW - 1.5) * 0.5;
+    const subHalfZ = (floorD - 1.5) * 0.5;
+    const theme = this.currentTheme || 'desktop';
+    const floorKey = this.currentFloorKey || getThemeFloorTextureKey(theme, false);
+    const subTexKey = this.currentSubTexKey || 'anvil_iron';
+
+    const holes3D = [];
+    for (let i = 0; i < this.groundHoles.length; i++) {
+      const h = this.groundHoles[i];
+      if (!h) continue;
+      const hx0 = Math.max(-floorW * 0.5 + 0.5, to3DX(h.minX));
+      const hx1 = Math.min(floorW * 0.5 - 0.5, to3DX(h.maxX));
+      const hz0 = Math.max(-floorD * 0.5 + 0.5, to3DZ(h.minZ));
+      const hz1 = Math.min(floorD * 0.5 - 0.5, to3DZ(h.maxZ));
+      if (hx1 - hx0 > 0.25 && hz1 - hz0 > 0.25) {
+        holes3D.push({ hx0, hx1, hz0, hz1 });
+      }
+    }
+
+    if (holes3D.length === 0) {
+      const floorTex = getVoxelTexture(floorKey, 31, 13);
+      this.floorMat = new THREE.MeshStandardMaterial({
+        map: floorTex,
+        roughness: theme === 'rocket_corp' ? 0.35 : 0.55,
+        metalness: theme === 'rocket_corp' ? 0.22 : 0.1
+      });
+      const floorMesh = new THREE.Mesh(new THREE.BoxGeometry(floorW, 1.5, floorD), this.floorMat);
+      floorMesh.name = 'arenaFloorMesh';
+      floorMesh.position.set(0, -0.75, 0);
+      floorMesh.receiveShadow = true;
+      this.floorGroup.add(floorMesh);
+
+      const subTex = getVoxelTexture(subTexKey, 31, 2);
+      const subMat = new THREE.MeshStandardMaterial({ map: subTex, roughness: 0.7 });
+      const subLayer = new THREE.Mesh(new THREE.BoxGeometry(floorW - 1.5, 3.2, floorD - 1.5), subMat);
+      subLayer.name = 'arenaSubFloorMesh';
+      subLayer.position.set(0, -3.1, 0);
+      this.floorGroup.add(subLayer);
+      return;
+    }
+
+    const collectSplits = (minBound, maxBound, vals) => {
+      const raw = [minBound, maxBound, ...vals].sort((a, b) => a - b);
+      const out = [raw[0]];
+      for (let i = 1; i < raw.length; i++) {
+        if (raw[i] - out[out.length - 1] > 0.02) out.push(raw[i]);
+      }
+      out[out.length - 1] = maxBound;
+      return out;
+    };
+
+    const xs = collectSplits(-floorW * 0.5, floorW * 0.5, holes3D.flatMap((h) => [h.hx0, h.hx1]));
+    const zs = collectSplits(-floorD * 0.5, floorD * 0.5, holes3D.flatMap((h) => [h.hz0, h.hz1]));
+    const isInHole = (mx, mz) => holes3D.some(
+      (h) => mx > h.hx0 + 0.01 && mx < h.hx1 - 0.01 && mz > h.hz0 + 0.01 && mz < h.hz1 - 0.01
+    );
+
+    const subMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture(subTexKey, 16, 2),
+      roughness: 0.7
+    });
+
+    // Slice intact floor & sub-floor into row-merged voxel box slabs leaving genuine 3D chasms!
+    for (let iz = 0; iz < zs.length - 1; iz++) {
+      const z0 = zs[iz];
+      const z1 = zs[iz + 1];
+      const d = z1 - z0;
+      if (d <= 0.02) continue;
+      const mz = (z0 + z1) * 0.5;
+
+      let runStart = null;
+      for (let ix = 0; ix < xs.length - 1; ix++) {
+        const x0 = xs[ix];
+        const x1 = xs[ix + 1];
+        const intact = !isInHole((x0 + x1) * 0.5, mz);
+        if (intact && runStart === null) {
+          runStart = x0;
+        }
+        const isLast = ix === xs.length - 2;
+        const nextIntact = !isLast && !isInHole((xs[ix + 1] + xs[ix + 2]) * 0.5, mz);
+        if (runStart !== null && (!intact || !nextIntact)) {
+          const rx0 = runStart;
+          const rx1 = intact ? x1 : x0;
+          const w = rx1 - rx0;
+          if (w > 0.02) {
+            const mx = (rx0 + rx1) * 0.5;
+            const slabMat = new THREE.MeshStandardMaterial({
+              map: getVoxelTexture(floorKey, Math.max(1, Math.round(w * 0.5)), Math.max(1, Math.round(d * 0.5))),
+              roughness: theme === 'rocket_corp' ? 0.35 : 0.55,
+              metalness: theme === 'rocket_corp' ? 0.22 : 0.1
+            });
+            this.floorMat = slabMat;
+            const slabMesh = new THREE.Mesh(new THREE.BoxGeometry(w, 1.5, d), slabMat);
+            slabMesh.name = 'arenaFloorSlab';
+            slabMesh.position.set(mx, -0.75, mz);
+            slabMesh.receiveShadow = true;
+            this.floorGroup.add(slabMesh);
+
+            const sx0 = Math.max(-subHalfX, rx0);
+            const sx1 = Math.min(subHalfX, rx1);
+            const sz0 = Math.max(-subHalfZ, z0);
+            const sz1 = Math.min(subHalfZ, z1);
+            if (sx1 - sx0 > 0.05 && sz1 - sz0 > 0.05) {
+              const subSlab = new THREE.Mesh(
+                new THREE.BoxGeometry(sx1 - sx0, 3.2, sz1 - sz0),
+                subMat
+              );
+              subSlab.name = 'arenaSubFloorSlab';
+              subSlab.position.set((sx0 + sx1) * 0.5, -3.1, (sz0 + sz1) * 0.5);
+              this.floorGroup.add(subSlab);
+            }
+          }
+          runStart = null;
+        }
+      }
+    }
+
+    // Build 3D Voxel Crater Shaft Walls, Scorched Corner Rubble & Subterranean Abyss Bottom
+    const isFloating = isFloatingIslandTheme(theme);
+    const isLava = isLavaSeaTheme(theme);
+    const shaftH = isFloating ? 4.7 : 6.4;
+    const wallThick = 0.24;
+    const shaftWallMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture(subTexKey, 3, 3),
+      roughness: 0.78
+    });
+    const rubbleMat = new THREE.MeshStandardMaterial({
+      color: theme === 'overworld' ? 0x57534e : 0x1e293b,
+      roughness: 0.85
+    });
+    const abyssMat = (!isFloating && !isLava)
+      ? new THREE.MeshBasicMaterial({ color: 0x03050a })
+      : null;
+
+    for (let i = 0; i < holes3D.length; i++) {
+      const h = holes3D[i];
+      const hw = h.hx1 - h.hx0;
+      const hd = h.hz1 - h.hz0;
+      const hmx = (h.hx0 + h.hx1) * 0.5;
+      const hmz = (h.hz0 + h.hz1) * 0.5;
+
+      const northWall = new THREE.Mesh(new THREE.BoxGeometry(hw + wallThick * 2, shaftH, wallThick), shaftWallMat);
+      northWall.name = 'craterShaftWall';
+      northWall.position.set(hmx, -shaftH * 0.5, h.hz0 - wallThick * 0.5);
+      const southWall = new THREE.Mesh(new THREE.BoxGeometry(hw + wallThick * 2, shaftH, wallThick), shaftWallMat);
+      southWall.name = 'craterShaftWall';
+      southWall.position.set(hmx, -shaftH * 0.5, h.hz1 + wallThick * 0.5);
+      const westWall = new THREE.Mesh(new THREE.BoxGeometry(wallThick, shaftH, hd), shaftWallMat);
+      westWall.name = 'craterShaftWall';
+      westWall.position.set(h.hx0 - wallThick * 0.5, -shaftH * 0.5, hmz);
+      const eastWall = new THREE.Mesh(new THREE.BoxGeometry(wallThick, shaftH, hd), shaftWallMat);
+      eastWall.name = 'craterShaftWall';
+      eastWall.position.set(h.hx1 + wallThick * 0.5, -shaftH * 0.5, hmz);
+      this.floorGroup.add(northWall, southWall, westWall, eastWall);
+
+      if (abyssMat) {
+        const pitBottom = new THREE.Mesh(new THREE.BoxGeometry(hw + wallThick * 2, 0.25, hd + wallThick * 2), abyssMat);
+        pitBottom.name = 'craterAbyssFloor';
+        pitBottom.position.set(hmx, -shaftH, hmz);
+        this.floorGroup.add(pitBottom);
+      }
+
+      const corners = [
+        [h.hx0 - 0.16, h.hz0 - 0.16],
+        [h.hx1 + 0.16, h.hz0 - 0.16],
+        [h.hx0 - 0.16, h.hz1 + 0.16],
+        [h.hx1 + 0.16, h.hz1 + 0.16]
+      ];
+      for (let c = 0; c < corners.length; c++) {
+        const chunk = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.22, 0.4), rubbleMat);
+        chunk.name = 'craterRimRubble';
+        chunk.position.set(corners[c][0], 0.08, corners[c][1]);
+        this.floorGroup.add(chunk);
+      }
+    }
+  }
+
   rebuildForStage(stageManager = this.stageManager, themeOverride = null) {
     disposeHierarchy(this.group, true);
     while (this.group.children.length > 0) {
@@ -176,43 +375,34 @@ export class Arena3DBuilder {
     this.slidesChartBars = [];
     this.overworldClouds = [];
     this.overworldWaterMesh = null;
+    this.groundHoles = [];
 
     if (stageManager) this.stageManager = stageManager;
     const sm = stageManager || this.stageManager;
     const theme = themeOverride || sm?.theme || 'desktop';
     const floorKey = getThemeFloorTextureKey(theme, false);
+    const floorW = 62;
+    const floorD = 26;
 
     // Hide PC monitor stand neck when inside Rocket Corp Facility, Ancient City, Pale Garden, Overworld, or AvA 8 Lake
     if (this.standNeck) {
       this.standNeck.visible = theme !== 'rocket_corp' && theme !== 'ancient_city' && theme !== 'pale_garden' && theme !== 'overworld' && theme !== 'dark_core';
     }
 
-    // 1. Voxel Arena Floor (62 x 26 blocks)
-    const floorW = 62;
-    const floorD = 26;
-    const floorTex = getVoxelTexture(floorKey, 31, 13);
-    this.floorMat = new THREE.MeshStandardMaterial({
-      map: floorTex,
-      roughness: theme === 'rocket_corp' ? 0.35 : 0.55,
-      metalness: theme === 'rocket_corp' ? 0.22 : 0.1
-    });
-    const floorMesh = new THREE.Mesh(new THREE.BoxGeometry(floorW, 1.5, floorD), this.floorMat);
-    floorMesh.position.set(0, -0.75, 0);
-    floorMesh.receiveShadow = true;
-    this.group.add(floorMesh);
-
-    // Sub-floor voxel cliff layers (Minecraft island / Overworld cobblestone strata / Ancient City & AvA 8 Lake canyon stone / Pale Garden oak / Facility foundation)
+    // 1. Voxel Arena Floor + Sub-floor Strata (dynamically sliceable for TNT craters!)
     const subTexKey = theme === 'minecraft' || theme === 'the_end'
       ? 'obsidian'
       : (theme === 'overworld' ? 'cobblestone'
       : (theme === 'ancient_city' || theme === 'dark_core' ? 'deepslate_tiles'
       : (theme === 'pale_garden' ? 'pale_oak_log'
       : (theme === 'aether' ? 'holystone' : (theme === 'rocket_corp' ? 'rocket_corp_wall' : 'anvil_iron')))));
-    const subTex = getVoxelTexture(subTexKey, 31, 2);
-    const subMat = new THREE.MeshStandardMaterial({ map: subTex, roughness: 0.7 });
-    const subLayer = new THREE.Mesh(new THREE.BoxGeometry(floorW - 1.5, 3.2, floorD - 1.5), subMat);
-    subLayer.position.set(0, -3.1, 0);
-    this.group.add(subLayer);
+    this.currentTheme = theme;
+    this.currentFloorKey = floorKey;
+    this.currentSubTexKey = subTexKey;
+    this.floorGroup = new THREE.Group();
+    this.floorGroup.name = 'arenaFloorGroup';
+    this.group.add(this.floorGroup);
+    this.rebuildFloorMeshes();
 
     // 1b. 3D Animated Lava Sea Mesh (Stage 7 Nether Core)
     if (theme === 'minecraft') {

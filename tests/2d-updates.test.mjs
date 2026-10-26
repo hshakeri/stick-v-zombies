@@ -33,10 +33,11 @@ import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 import {
   CREATIVE_BLOCK_TYPES_2D,
   drawCreativeBlocks2D,
+  drawGroundCraters2D,
   drawSketchBlocksVoxel2D,
   getCreativeBlockSprite2D,
   paintVoxelBlockPixels2D
-} from '../2d/arenas2d.js?v=10.4';
+} from '../2d/arenas2d.js?v=10.5';
 import {
   DEPTH_PARALLAX,
   Depth2DRenderer,
@@ -45,7 +46,7 @@ import {
 import {
   STAGE_OPTIONS_2D,
   install2DExpansion
-} from '../2d/expansion2d.js?v=10.4';
+} from '../2d/expansion2d.js?v=10.5';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -160,7 +161,7 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
 test('2D Expansion [2] Prominent Level Selector & Title UI: index.html + expansion2d expose Creative Mode, Stage Select, and Stages 18–28 pills', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
   assert.match(html, /href="2d\/style2d\.css\?v=10\.4"/);
-  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.4"/);
+  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.5"/);
   assert.match(html, /id="btn-start-creative"/);
   assert.match(html, /id="title-stage-select"/);
   for (const stage of [18, 19, 20, 21, 27, 28]) {
@@ -1424,6 +1425,129 @@ test('2D Expansion [16] TNT Blows Up Blocks: Destroys Creative & Sketch Blocks, 
 
   resetGlobalSystems();
 });
+
+test('2D Expansion [17] TNT Blows Up The Ground: Ground TNT carves 2D craters, spares sky/portals, renders cleanly, drops zombies & players into void/lava, respawns safely, and repairs on clear/stage reset', () => {
+  resetGlobalSystems();
+  const { game, controller, ctx, calls } = create2DGameHarness();
+
+  // 1. Stage 22 (Minecraft Overworld): ground-level TNT carves a crater, sky TNT does not, and entrance/exit portals stay protected!
+  controller.jumpToStage(22, { freshStart: true, creative: false });
+  controller.nukeAllEnemies();
+  controller.clearCreativeBlocks();
+  assert.equal(controller.sandbox.groundHoles.length, 0);
+
+  // Sky TNT (y = -320) must NOT carve the floor below
+  const skyTNT = { x: -240, y: -320, width: 68, height: 68, texKey: 'tnt_block', broken: false };
+  controller.sandbox.blocks.push(skyTNT);
+  controller.detonateTNTBlock(skyTNT);
+  assert.equal(controller.sandbox.groundHoles.length, 0, 'High-altitude sky TNT must not carve a crater into groundY = 0');
+
+  // Portal-adjacent TNT right on top of entranceDoor must NOT carve into the protected portal zone
+  const portalX = game.stageManager.entranceDoor.x;
+  const portalTNT = { x: portalX, y: 0, width: 68, height: 68, texKey: 'tnt_block', broken: false };
+  controller.sandbox.blocks.push(portalTNT);
+  assert.equal(controller.isOverGroundHole2D(portalX), false, 'Entrance portal ground must stay intact');
+  controller.detonateTNTBlock(portalTNT);
+  assert.equal(controller.isOverGroundHole2D(portalX), false, 'TNT at entrance portal must never blow out portal ground');
+
+  // Ground-level TNT at x = 120 carves a genuine crater hole in the arena floor!
+  controller.clearCreativeBlocks();
+  game.player.x = -520;
+  game.player.y = 0;
+  const groundTNT = { x: 120, y: 0, width: 68, height: 68, texKey: 'tnt_block', broken: false };
+  controller.sandbox.blocks.push(groundTNT);
+  controller.detonateTNTBlock(groundTNT);
+
+  assert.equal(controller.sandbox.groundHoles.length, 1, 'Ground-level TNT must carve a crater in sandbox.groundHoles');
+  assert.equal(controller.isOverGroundHole2D(120), true, 'Center of blasted ground crater must report as an open hole');
+
+  // 2. Verify 2D rendering of ground craters on both enclosed (overworld) and lava-sea (minecraft) themes with balanced save/restore
+  calls.save = 0;
+  calls.restore = 0;
+  drawGroundCraters2D(ctx, controller.sandbox.groundHoles, 0, 'overworld', 1.25);
+  drawGroundCraters2D(ctx, controller.sandbox.groundHoles, 0, 'minecraft', 2.5);
+  assert.equal(calls.save, calls.restore, 'drawGroundCraters2D must strictly balance ctx.save() and ctx.restore()');
+
+  game.reportedLayerErrors.clear();
+  game.render();
+  assert.equal(game.reportedLayerErrors.size, 0, 'game.render() with active ground craters must produce 0 layer errors');
+
+  // 3. Non-flying zombie positioned over the blasted crater plunges below groundY = 0 and gets eliminated (VOID KO!)
+  const craterZombie = controller.spawnCreativeEntity('walker');
+  craterZombie.x = 120;
+  craterZombie.y = 0;
+  craterZombie.isGrounded = true;
+  const killsBefore = combat.totalKills;
+
+  for (let step = 0; step < 30 && !craterZombie.isDead && waves.zombies.includes(craterZombie); step++) {
+    game.update(0.05);
+  }
+  assert.equal(waves.zombies.includes(craterZombie), false, 'Zombie dropping into a blown-up ground crater must be eliminated at void threshold');
+  assert.ok(combat.totalKills > killsBefore, 'Zombie void elimination in a TNT crater must credit combat kill count');
+
+  // 4. Mortal player stepping into the blasted crater plunges, takes 40 HP void damage, and respawns on guaranteed hole-free ground!
+  //    Even if lastSafeIslandX was somehow pointing at 120 (inside the crater), findSafeGroundPoint relocates Orange onto solid ground.
+  controller.sandbox.lastSafeIslandX = 120;
+  game.player.x = 120;
+  game.player.y = 0;
+  game.player.vx = 0;
+  game.player.vy = 0;
+  game.player.hp = 100;
+  game.player.iFrames = 0;
+  game.player.isGodMode = false;
+
+  for (let step = 0; step < 25 && game.player.hp === 100; step++) {
+    game.update(0.05);
+  }
+  assert.equal(game.player.hp, 60, 'Mortal player plunging into an Overworld TNT crater must take 40 void plunge damage');
+  assert.equal(game.player.isDead, false, 'Player with 100 HP must survive the first 40 HP crater plunge and respawn');
+  assert.equal(game.player.y, 0, 'Respawned player must be placed back at groundY = 0');
+  assert.equal(controller.isOverGroundHole2D(game.player.x), false, 'Respawned player must land on hole-free solid ground');
+
+  // 5. Lethal crater plunge at <= 40 HP records exact "How You Died" cause on Overworld AND on Stage 7 Nether Lava Sea!
+  game.player.x = 120;
+  game.player.y = 0;
+  game.player.hp = 30;
+  game.player.iFrames = 0;
+  for (let step = 0; step < 25 && !game.player.isDead; step++) {
+    game.update(0.05);
+  }
+  assert.equal(game.player.isDead, true, 'Mortal player at 30 HP plunging into a TNT crater must die');
+  assert.equal(
+    controller.getLastDeathReason(),
+    'The Second Coming fell out of the world',
+    'Lethal plunge into an Overworld TNT crater must attribute death to falling out of the world'
+  );
+
+  // Stage 7 Nether Fortress crater plunge -> lava death message!
+  controller.jumpToStage(7, { freshStart: true, creative: false });
+  controller.nukeAllEnemies();
+  assert.equal(controller.sandbox.groundHoles.length, 0, 'Stage transition must automatically clear previous stage craters');
+
+  controller.carveGroundCrater2D(0, 0);
+  assert.equal(controller.sandbox.groundHoles.length, 1);
+  game.player.x = 0;
+  game.player.y = 0;
+  game.player.hp = 30;
+  game.player.iFrames = 0;
+  game.player.isGodMode = false;
+  for (let step = 0; step < 25 && !game.player.isDead; step++) {
+    game.update(0.05);
+  }
+  assert.equal(game.player.isDead, true);
+  assert.equal(
+    controller.getLastDeathReason(),
+    'The Second Coming tried to swim in lava',
+    'Lethal plunge into a Stage 7 Nether TNT crater must attribute death to trying to swim in lava'
+  );
+
+  // 6. clearCreativeBlocks() repairs all blasted ground holes immediately
+  controller.clearCreativeBlocks();
+  assert.equal(controller.sandbox.groundHoles.length, 0, 'clearCreativeBlocks() must repair all ground craters');
+
+  resetGlobalSystems();
+});
+
 
 
 

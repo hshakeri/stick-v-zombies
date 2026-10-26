@@ -134,7 +134,7 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from '../3d/js/arena3d.js?v=10.6';
+} from '../3d/js/arena3d.js?v=10.7';
 import {
   extendCampaignFor3D,
   CAMPAIGN_BEATS_3D,
@@ -148,7 +148,7 @@ import {
   CreakingBoss
 } from '../3d/js/campaign3d.js?v=10.7';
 import { getVoxelTexture, getThemeFloorTextureKey, drawPixelBlock } from '../3d/js/textures3d.js?v=10.6';
-import { Game3D } from '../3d/js/game3d.js?v=11.4';
+import { Game3D } from '../3d/js/game3d.js?v=11.5';
 import { Player } from '../js/entities/player.js?v=9.8';
 import { projectiles } from '../js/entities/projectiles.js?v=9.8';
 import { waves } from '../js/systems/waves.js?v=9.8';
@@ -5204,7 +5204,7 @@ test('App Gauntlet [3] 3D HTML Quick-Jump Pills & Game3D Integration: 3d/index.h
   assert.ok(html.includes('data-jump-stage="26">📊 26: Slides'), '3d/index.html must include Stage 26 Slides pill');
   assert.ok(html.includes('data-jump-stage="27">🕶️ 27: Rocket Corp (Mercenaries)'), '3d/index.html must include Stage 27 Rocket Corp pill');
   assert.ok(html.includes('data-jump-stage="28">⌁ 28: Zero-Day (H4C3R)'), '3d/index.html must include Stage 28 Zero-Day pill');
-  assert.ok(html.includes('src="js/game3d.js?v=11.4"'), '3d/index.html must load game3d.js?v=11.4');
+  assert.ok(html.includes('src="js/game3d.js?v=11.5"'), '3d/index.html must load game3d.js?v=11.5');
   assert.ok(html.includes('id="gameover-death-reason"'), '3d/index.html must include #gameover-death-reason banner');
   assert.ok(html.includes('id="gameover-death-text"'), '3d/index.html must include #gameover-death-text span');
   for (const key of ['grass_block', 'cobblestone', 'oak_planks', 'crafting_table']) {
@@ -5541,3 +5541,173 @@ test('TNT Block Destruction 3D [3]: Stage 22 Outpost spawns voxel blocks, strike
     projectiles.reset();
   }
 });
+
+test('TNT Ground Crater Destruction 3D [4]: Ground TNT slices genuine 3D open chasms into Arena3DBuilder floor, spares sky/portals, plunges 3D enemies & players into void/lava, respawns safely, and repairs cleanly', () => {
+  const origGetElementById = globalThis.document.getElementById;
+  const origQuerySelectorAll = globalThis.document.querySelectorAll;
+  const { game, getOrMakeNode } = createHeadlessGame3DHarness('overworld');
+  globalThis.document.getElementById = (id) => getOrMakeNode(id);
+  globalThis.document.querySelectorAll = () => [];
+
+  const scene = new THREE.Scene();
+  game.camera2D.update = () => {};
+  game.stageManager.stageName = 'Overworld Plains & Village';
+  game.stageManager.platforms = [];
+  game.stageManager.movingPlatforms = [];
+  game.stageManager.errorPopups = [];
+  game.stageManager.desktopIcons = [];
+  game.stageManager.exitDoor = { x: 900, y: 0, isOpen: false };
+  game.stageManager.update = () => {};
+  game.pickupGroup3D = new THREE.Group();
+  game.hostileTargets = [];
+  game.keys3D = {};
+  game.zInput = 0;
+  game.missionStripTimer = 0;
+  game.hudSyncTimer = 0;
+  game.resetCombatSpeechState();
+
+  const arena3D = new Arena3DBuilder(scene, game.stageManager);
+  arena3D.rebuildForStage(game.stageManager, 'overworld');
+  game.arena3D = arena3D;
+
+  try {
+    waves.zombies.length = 0;
+    projectiles.reset();
+
+    // 1. Intact 3D floor starts with single arenaFloorMesh + arenaSubFloorMesh and 0 craters
+    assert.equal(game.groundHoles?.length || 0, 0);
+    assert.ok(arena3D.floorGroup, 'Arena3DBuilder must create dedicated floorGroup');
+    assert.equal(
+      arena3D.floorGroup.children.some((m) => m.name === 'arenaFloorMesh'),
+      true,
+      'Intact 3D floor must use single arenaFloorMesh before any TNT ground blast'
+    );
+
+    // High-altitude sky TNT (y = -320) must NOT carve the floor below
+    const skyTnt = game.placeCreativeBlock('tnt_block', { x: -240, y: -320, z: 0, silent: true });
+    game.detonateCreativeTNT(skyTnt);
+    assert.equal(game.groundHoles?.length || 0, 0, 'High-altitude sky TNT must not carve a 3D ground crater');
+
+    // Portal-adjacent TNT right on top of entranceDoor must NOT blow out the entrance portal floor
+    const portalTnt = game.placeCreativeBlock('tnt_block', { x: -900, y: 0, z: 0, silent: true });
+    game.detonateCreativeTNT(portalTnt);
+    assert.equal(game.isPointInGroundHole3D(-900, 0, 0), false, 'Entrance portal floor must never be carved out by TNT');
+
+    // 2. Ground-level TNT at (100, 0, 0) carves a 3D crater and slices floorGroup into open-chasm slabs + shaft walls!
+    game.clearCreativeBlocks();
+    game.player.x = -520;
+    game.player.y = 0;
+    game.player.z = 0;
+    const groundTnt = game.placeCreativeBlock('tnt_block', { x: 100, y: 0, z: 0, silent: true });
+    game.detonateCreativeTNT(groundTnt);
+
+    assert.equal(game.groundHoles.length, 1, 'Ground TNT must carve a 3D crater into game.groundHoles');
+    assert.equal(game.isPointInGroundHole3D(100, 0, 12), true, 'Blast center (100, 0) must be inside the 3D ground hole');
+
+    const floorSlabs = arena3D.floorGroup.children.filter((m) => m.name === 'arenaFloorSlab');
+    const shaftWalls = arena3D.floorGroup.children.filter((m) => m.name === 'craterShaftWall');
+    const abyssFloors = arena3D.floorGroup.children.filter((m) => m.name === 'craterAbyssFloor');
+    const rimRubble = arena3D.floorGroup.children.filter((m) => m.name === 'craterRimRubble');
+    assert.ok(floorSlabs.length >= 4, `Sliced 3D floor must comprise >= 4 box slabs around crater (got ${floorSlabs.length})`);
+    assert.equal(shaftWalls.length, 4, '3D crater must build 4 vertical voxel shaft walls');
+    assert.equal(abyssFloors.length, 1, 'Enclosed Overworld crater must build subterranean abyss floor');
+    assert.equal(rimRubble.length, 4, '3D crater must place 4 scorched corner rubble chunks');
+
+    // Verify no floor slab covers the 3D crater center (to3DX(100), -0.75, 0)
+    const craterX3D = to3DX(100);
+    const coversCraterCenter = floorSlabs.some((slab) => {
+      const halfW = slab.geometry.parameters.width * 0.5;
+      const halfD = slab.geometry.parameters.depth * 0.5;
+      return (
+        craterX3D > slab.position.x - halfW + 0.02 &&
+        craterX3D < slab.position.x + halfW - 0.02 &&
+        0 > slab.position.z - halfD + 0.02 &&
+        0 < slab.position.z + halfD - 0.02
+      );
+    });
+    assert.equal(coversCraterCenter, false, 'Sliced 3D floor slabs must leave a genuine open chasm at crater center');
+
+    // 3. Non-flying 3D enemy on enclosed Overworld stage plunges down the crater shaft and is eliminated!
+    const spawnedEnemy = game.spawnCreativeEntity('walker');
+    assert.ok(spawnedEnemy, 'spawnCreativeEntity must create a wrapped 3D walker');
+    spawnedEnemy.x = 100;
+    spawnedEnemy.y = 0;
+    spawnedEnemy.z = 0;
+    spawnedEnemy.isGrounded = true;
+
+    for (let step = 0; step < 30 && waves.zombies.includes(spawnedEnemy); step++) {
+      spawnedEnemy.update(0.05, 0, game.player, [], game.camera2D, [], waves.zombies, []);
+      game.updateEnemies3DMovement(0.05);
+    }
+    assert.equal(waves.zombies.includes(spawnedEnemy), false, '3D enemy over a TNT ground crater must plunge and be eliminated');
+    assert.equal(spawnedEnemy.isDead, true);
+
+    // 4. Mortal 3D player stepping into the Overworld crater plunges, takes 40 void damage, and respawns on hole-free ground!
+    game.lastSafeIslandPos = { x: 100, y: 0, z: 0 }; // Intentionally inside crater to test findSafeGroundPoint fallback!
+    game.player.x = 100;
+    game.player.y = 0;
+    game.player.z = 0;
+    game.player.vx = 0;
+    game.player.vy = 0;
+    game.player.vz = 0;
+    game.player.hp = 100;
+    game.player.iFrames = 0;
+
+    for (let step = 0; step < 25 && game.player.hp === 100; step++) {
+      game.update(0.05);
+    }
+    assert.equal(game.player.hp, 60, 'Mortal 3D player plunging into Overworld crater must take 40 void damage');
+    assert.equal(game.player.isDead, false, '100 HP player must survive first 40 HP crater plunge and respawn');
+    assert.equal(game.player.y, 0, 'Respawned 3D player must be back at groundY = 0');
+    assert.equal(
+      game.isPointInGroundHole3D(game.player.x, game.player.z || 0, 0),
+      false,
+      'Respawned 3D player must land on guaranteed hole-free ground'
+    );
+
+    // 5. Lethal 3D crater plunge at 30 HP records exact "How You Died" attribution on Overworld & Stage 7 Nether!
+    game.player.x = 100;
+    game.player.y = 0;
+    game.player.z = 0;
+    game.player.hp = 30;
+    game.player.iFrames = 0;
+    for (let step = 0; step < 25 && !game.player.isDead; step++) {
+      game.update(0.05);
+    }
+    assert.equal(game.player.isDead, true, '30 HP 3D player plunging into crater must die');
+    assert.equal(game.lastDeathReason, 'The Second Coming fell out of the world');
+
+    // Stage 7 Nether crater plunge -> lava death attribution
+    game.player = new Player(100, 0);
+    game.player.z = 0;
+    game.player.hp = 30;
+    game.decoratePlayer3D(game.player);
+    game.stageManager.theme = 'minecraft';
+    arena3D.rebuildForStage(game.stageManager, 'minecraft');
+    game.clearGroundHoles3D();
+    game.carveGroundCrater3D(100, 0, 0);
+    for (let step = 0; step < 25 && !game.player.isDead; step++) {
+      game.update(0.05);
+    }
+    assert.equal(game.player.isDead, true);
+    assert.equal(game.lastDeathReason, 'The Second Coming tried to swim in lava');
+
+    // 6. clearCreativeBlocks() repairs all 3D ground holes and restores intact arenaFloorMesh!
+    game.clearCreativeBlocks();
+    assert.equal(game.groundHoles.length, 0, 'clearCreativeBlocks() must clear 3D groundHoles');
+    assert.equal(
+      arena3D.floorGroup.children.some((m) => m.name === 'arenaFloorMesh'),
+      true,
+      'clearCreativeBlocks() must restore intact arenaFloorMesh'
+    );
+  } finally {
+    arena3D.dispose();
+    verifyDisposeHierarchy(scene, false);
+    verifyDisposeHierarchy(game.dynamicGroup, false);
+    globalThis.document.getElementById = origGetElementById;
+    globalThis.document.querySelectorAll = origQuerySelectorAll;
+    waves.zombies.length = 0;
+    projectiles.reset();
+  }
+});
+

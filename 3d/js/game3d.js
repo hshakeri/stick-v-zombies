@@ -20,7 +20,7 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from './arena3d.js?v=10.6';
+} from './arena3d.js?v=10.7';
 import {
   filterPlatformsForEntity,
   resolveSweptVerticalCollision,
@@ -29,11 +29,17 @@ import {
   isOpenEdgeTheme,
   isLavaSeaTheme,
   CREATIVE_BLOCK_SIZE_2D,
+  GROUND_CRATER_MAX_Y_DIST,
   ISLAND_FLOOR_BOUNDS,
   VOID_FALL_THRESHOLD,
   isEntityOverIsland,
-  checkLavaHazard
-} from './physics3d.js?v=10.3';
+  checkLavaHazard,
+  computeSafeGroundCraterBounds,
+  mergeOrAppendGroundCrater,
+  findContainingGroundHole,
+  isPointInGroundHole,
+  findSafeGroundPoint
+} from './physics3d.js?v=10.4';
 import {
   StickRig3D,
   CreeperLordRig3D,
@@ -178,15 +184,20 @@ function wrapEnemyUpdate3D(e, game) {
     const isOpenStage = isOpenEdgeTheme(game.stageManager?.theme);
     const isFlyingBoss = this.type === 'ender_dragon' || Boolean(this.isFlying);
 
-    if (isOpenStage && !isFlyingBoss) {
-      const isOverIsland = isEntityOverIsland(this);
+    if (!isFlyingBoss) {
       const isOnPlatform = zFiltered.some(p => {
         const halfW = (p.width || 60) * 0.5;
         const pTop = p.y - (p.height || 60);
         return this.x >= p.x - halfW && this.x <= p.x + halfW && this.y >= pTop - 10 && this.y <= pTop + 24;
       });
+      const offIsland = isOpenStage && !isEntityOverIsland(this);
+      const hole = !isOnPlatform
+        ? (game.getContainingGroundHole3D?.(this.x, this.z || 0, 12) || (this.y > groundY + 18 ? this._fallingHole3D : null))
+        : null;
+      if (hole) this._fallingHole3D = hole;
+      else if (this.y <= groundY + 18) this._fallingHole3D = null;
 
-      if (!isOverIsland && !isOnPlatform) {
+      if ((offIsland || hole) && !isOnPlatform) {
         effectiveGroundY = 99999;
       }
     }
@@ -199,7 +210,19 @@ function wrapEnemyUpdate3D(e, game) {
     } finally {
       if (player) player._activeAttacker = prevAttacker;
     }
-    resolveSweptVerticalCollision(this, zFiltered, prevY, dt);
+    if (effectiveGroundY === 99999 && this.y > prevY + 120) {
+      const safeDt = Math.max(0, Number(dt) || 0.016);
+      this.vy = (this.vy || 0) + 1200 * safeDt;
+      this.y = prevY + this.vy * safeDt;
+      this.isGrounded = false;
+    }
+    if (this._fallingHole3D && this.y > groundY + 18) {
+      const fh = this._fallingHole3D;
+      this.x = Math.max(fh.minX + 14, Math.min(fh.maxX - 14, this.x));
+      this.z = Math.max(fh.minZ + 14, Math.min(fh.maxZ - 14, this.z || 0));
+    } else if (this.y <= groundY + 18) {
+      resolveSweptVerticalCollision(this, zFiltered, prevY, dt);
+    }
     checkPlatformStepOff(this);
     return res;
   };
@@ -267,6 +290,7 @@ export class Game3D {
     this.creativeFreezeAI = false;
     this.creativeWeaponOverride = null;
     this.creativeBlocks = [];
+    this.groundHoles = [];
     this._activeLavaHazards = [];
     this.lastSpaceTapTime = 0;
 
@@ -784,6 +808,8 @@ export class Game3D {
     this.player.y = this.groundY;
     this.player.z = 0;
     this.player.vz = 0;
+    this.player._fallingHole3D = null;
+    this.lastSafeIslandPos = { x: this.player.x, y: this.groundY, z: 0 };
     this.player.isGrounded = true;
     this.player.weaponType = 'pencil';
     this.player.temporaryWeaponTimer = 0;
@@ -1379,12 +1405,65 @@ export class Game3D {
     }
   }
 
+  clearGroundHoles3D() {
+    if (!this.groundHoles) this.groundHoles = [];
+    const hadHoles = this.groundHoles.length > 0;
+    this.groundHoles.length = 0;
+    if (this.player) this.player._fallingHole3D = null;
+    if (hadHoles) {
+      this.arena3D?.setGroundHoles?.([]);
+    }
+  }
+
+  getContainingGroundHole3D(x, z = 0, margin = 12) {
+    if (this.stageManager?.isTrophyRoom || !this.groundHoles || this.groundHoles.length === 0) {
+      return null;
+    }
+    return findContainingGroundHole(x, z, this.groundHoles, margin, false);
+  }
+
+  isPointInGroundHole3D(x, z = 0, margin = 12) {
+    return this.getContainingGroundHole3D(x, z, margin) !== null;
+  }
+
+  carveGroundCrater3D(cx, cy, cz = 0, options = {}) {
+    if (this.stageManager?.isTrophyRoom) return null;
+    if (cy < this.groundY - GROUND_CRATER_MAX_Y_DIST || cy > this.groundY + 120) return null;
+    if (!this.groundHoles) this.groundHoles = [];
+
+    const crater = computeSafeGroundCraterBounds(cx, cz, {
+      entranceX: this.stageManager?.entranceDoor?.x ?? -900,
+      exitX: this.stageManager?.exitDoor?.x ?? 900,
+      ...options
+    });
+    if (!crater) return null;
+
+    const merged = mergeOrAppendGroundCrater(this.groundHoles, crater, false);
+    this.arena3D?.setGroundHoles?.(this.groundHoles);
+
+    if (this.player && !this.player.standingPlatform && this.isPointInGroundHole3D(this.player.x, this.player.z || 0)) {
+      this.player.isGrounded = false;
+    }
+    for (let i = 0; i < waves.zombies.length; i++) {
+      const e = waves.zombies[i];
+      if (e && !e.isDead && !e.standingPlatform && !e.isFlying && e.type !== 'ender_dragon') {
+        if (this.isPointInGroundHole3D(e.x, e.z || 0)) {
+          e.isGrounded = false;
+        }
+      }
+    }
+
+    this.spawnVoxelBurst(merged.cx, this.groundY - 8, merged.cz, '#78716c', 12);
+    return merged;
+  }
+
   clearCreativeBlocks() {
     for (const cb of this.creativeBlocks) {
       this.detachEntitiesStandingOn3D(cb);
       this.recycleCreativeBlockMesh(cb);
     }
     this.creativeBlocks.length = 0;
+    this.clearGroundHoles3D();
     particles.addTextBanner(this.player.x, this.player.y - 80, '🗑️ BLOCKS CLEARED', '#94a3b8');
   }
 
@@ -1484,6 +1563,9 @@ export class Game3D {
 
     // Blow up surrounding 3D voxel blocks & SketchBlocks + chain-ignite neighboring TNT!
     this.blastBlocksInRadius3D(cb.x, centerY, cz, 245, cb);
+
+    // Carve a genuine 3D voxel crater through the arena floor if TNT exploded near groundY!
+    this.carveGroundCrater3D(cb.x, centerY, cz);
 
     for (const enemy of waves.zombies) {
       if (!enemy || enemy.isDead) continue;
@@ -1853,6 +1935,8 @@ export class Game3D {
     this.projectileMeshes.clear();
     this.hazardMeshes.clear();
     this.inkMeshes.clear();
+    if (this.groundHoles) this.groundHoles.length = 0;
+    if (this.player) this.player._fallingHole3D = null;
     this.currentLookTarget = null;
     this.lastHudValues = Object.create(null);
   }
@@ -2464,13 +2548,25 @@ export class Game3D {
       isPlayerOverFloor = isInsideX && isInsideZ;
     }
 
-    // Track safe interior coordinates when grounded on the island floor
+    const activePlayerHole = !this.stageManager?.isTrophyRoom && !this.player.standingPlatform
+      ? (this.getContainingGroundHole3D(this.player.x, this.player.z || 0, 12)
+        || (this.player.y > this.groundY + 18 ? this.player._fallingHole3D : null))
+      : null;
+    if (activePlayerHole && !(this.creativeMode && this.creativeFlyMode)) {
+      this.player._fallingHole3D = activePlayerHole;
+      isPlayerOverFloor = false;
+    } else if (this.player.y <= this.groundY + 18 || (this.creativeMode && this.creativeFlyMode)) {
+      this.player._fallingHole3D = null;
+    }
+
+    // Track safe interior coordinates when grounded on solid floor (away from craters & island edges)
     if (
       isPlayerOverFloor &&
       this.player.isGrounded &&
       !this.player.isDead &&
       Math.abs(this.player.y - this.groundY) < 4 &&
-      !this.player.standingPlatform
+      !this.player.standingPlatform &&
+      !this.isPointInGroundHole3D(this.player.x, this.player.z || 0, -24)
     ) {
       const safeMarginX = 80;
       const safeMarginZ = 60;
@@ -2495,7 +2591,9 @@ export class Game3D {
     this.player.update(simDt, input, effectiveGroundY, projectiles.sketchBlocks, hostileTargets, this.camera2D, zAlignedPlatforms);
 
     // Continuous Collision Detection (CCD) & Vertical Tunneling Prevention (F3)
-    resolveSweptVerticalCollision(this.player, zAlignedPlatforms, prevPlayerY, simDt);
+    if (prevPlayerY <= this.groundY + 18) {
+      resolveSweptVerticalCollision(this.player, zAlignedPlatforms, prevPlayerY, simDt);
+    }
     checkPlatformStepOff(this.player);
 
     if (this.creativeMode && this.creativeGodMode) {
@@ -2505,6 +2603,15 @@ export class Game3D {
 
     // Update Player 3D Z-axis movement & Creative 3D Flight
     this.updatePlayer3DMovement(simDt, hostileTargets);
+    if (this.player._fallingHole3D && this.player.y > this.groundY + 18 && !(this.creativeMode && this.creativeFlyMode)) {
+      const fh = this.player._fallingHole3D;
+      const minX = fh.minX + 14;
+      const maxX = fh.maxX - 14;
+      if (minX <= maxX) this.player.x = Math.max(minX, Math.min(maxX, this.player.x));
+      const minZ = fh.minZ + 14;
+      const maxZ = fh.maxZ - 14;
+      if (minZ <= maxZ) this.player.z = Math.max(minZ, Math.min(maxZ, this.player.z || 0));
+    }
     checkPlatformStepOff(this.player);
     this.updateCreativeBlocks(simDt);
 
@@ -2837,7 +2944,7 @@ export class Game3D {
       const flyDir = (flyDown ? 1 : 0) - (flyUp ? 1 : 0);
       this.player.vy = flyDir * 390;
       const isOpenStage = isOpenEdgeTheme(this.stageManager?.theme);
-      const lowerY = isOpenStage ? 220 : this.groundY;
+      const lowerY = (isOpenStage || this.isPointInGroundHole3D(this.player.x, this.player.z || 0, 0)) ? 220 : this.groundY;
       this.player.y = Math.max(-520, Math.min(lowerY, this.player.y + this.player.vy * dt));
       this.player.isGrounded = true;
     }
@@ -2894,6 +3001,7 @@ export class Game3D {
     const enemies = waves.zombies;
     const isOpenStage = isOpenEdgeTheme(this.stageManager?.theme);
     const isEnclosed = !isOpenStage;
+    const hasGroundHoles = Boolean(this.groundHoles && this.groundHoles.length > 0);
     const allPlatforms = this.getAllActivePlatforms();
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
@@ -2936,13 +3044,23 @@ export class Game3D {
       if (isEnclosed) {
         clampEnclosedWalls(e, true);
       }
+      if (e._fallingHole3D && e.y > this.groundY + 18) {
+        const fh = e._fallingHole3D;
+        const minX = fh.minX + 14;
+        const maxX = fh.maxX - 14;
+        if (minX <= maxX) e.x = Math.max(minX, Math.min(maxX, e.x));
+        const minZ = fh.minZ + 14;
+        const maxZ = fh.maxZ - 14;
+        if (minZ <= maxZ) e.z = Math.max(minZ, Math.min(maxZ, e.z || 0));
+      }
       checkPlatformStepOff(e);
 
-      // Feature 9: Non-Flying Enemy Void Elimination
-      if (isOpenStage) {
+      // Feature 9: Non-Flying Enemy Void & TNT Crater Elimination
+      if (isOpenStage || hasGroundHoles) {
         const isFlyingBoss = e.type === 'ender_dragon' || Boolean(e.isFlying);
         if (!isFlyingBoss) {
-          const isOverIsland = isEntityOverIsland(e);
+          const offIsland = isOpenStage && !isEntityOverIsland(e);
+          const inGroundHole = Boolean(e._fallingHole3D) || this.isPointInGroundHole3D(e.x, e.z || 0, 12);
           const zPlatforms = filterPlatformsForEntity(e, allPlatforms, 0);
           const isOnPlatform = zPlatforms.some(p => {
             const halfW = (p.width || 60) * 0.5;
@@ -2950,13 +3068,14 @@ export class Game3D {
             return e.x >= p.x - halfW && e.x <= p.x + halfW && e.y >= pTop - 10 && e.y <= pTop + 24;
           });
 
-          if (!isOverIsland && !isOnPlatform) {
+          if ((offIsland || inGroundHole) && !isOnPlatform) {
             e.isGrounded = false;
             if (e.y >= VOID_FALL_THRESHOLD) {
               e.hp = 0;
               e.isDead = true;
               e.pendingRemoval = true;
               combat.registerKill(e);
+              particles.addDamageText?.(e.x, this.groundY - 24, 'VOID KO!', true, '#38bdf8');
               this.spawnVoxelBurst(e.x, e.y, e.z || 0, e.color || '#4ade80', 16);
               audio.playZombieDeath?.();
               enemies.splice(i, 1);
@@ -2969,7 +3088,8 @@ export class Game3D {
 
   checkPlayerVoidFall() {
     const isOpenStage = isOpenEdgeTheme(this.stageManager?.theme);
-    if (!isOpenStage) return;
+    const hasGroundHoles = Boolean(this.groundHoles && this.groundHoles.length > 0);
+    if (!isOpenStage && !hasGroundHoles) return;
 
     if (this.player.y >= VOID_FALL_THRESHOLD) {
       if (this.creativeMode && this.creativeGodMode) {
@@ -3008,6 +3128,11 @@ export class Game3D {
       this.spawnVoxelBurst(this.player.x, this.groundY, this.player.z || 0, isLavaSea ? '#ff6600' : '#ff3344', 16);
 
       if (this.player.hp <= 0) {
+        this.player._fallingHole3D = null;
+        if (!this.player._decorated3D) {
+          this.player.lastDeathReason = voidCause;
+          this.lastDeathReason = voidCause;
+        }
         this.player.die();
       } else {
         this.player._pendingDamageCause = null;
@@ -3026,6 +3151,16 @@ export class Game3D {
     targetX = Math.max(-(bounds.halfX - safeMarginX), Math.min(bounds.halfX - safeMarginX, targetX));
     targetZ = Math.max(-(bounds.halfZ - safeMarginZ), Math.min(bounds.halfZ - safeMarginZ, targetZ));
 
+    if (this.groundHoles && this.groundHoles.length > 0) {
+      const safePt = findSafeGroundPoint(targetX, targetZ, this.groundHoles, {
+        ignoreZ: false,
+        entranceX: this.stageManager?.entranceDoor?.x ?? -900,
+        exitX: this.stageManager?.exitDoor?.x ?? 900
+      });
+      targetX = safePt.x;
+      targetZ = safePt.z;
+    }
+
     this.player.x = targetX;
     this.player.y = this.groundY;
     this.player.z = targetZ;
@@ -3034,6 +3169,7 @@ export class Game3D {
     this.player.vz = 0;
     this.player.isGrounded = true;
     this.player.standingPlatform = null;
+    this.player._fallingHole3D = null;
     this.player.iFrames = 1.6;
     this.player.isHurt = false;
     this.player.pose = 'idle';
@@ -3221,7 +3357,9 @@ export class Game3D {
     });
 
     const isEnclosedStage = !isOpenEdgeTheme(this.stageManager?.theme);
-    const isOverFloor = isEnclosedStage || isEntityOverIsland(this.player);
+    const inGroundHole = !this.player.standingPlatform
+      && (Boolean(this.player._fallingHole3D) || this.isPointInGroundHole3D(this.player.x, this.player.z || 0, 0));
+    const isOverFloor = (isEnclosedStage || isEntityOverIsland(this.player)) && !inGroundHole;
     this.playerShadowBlob.visible = isOverFloor && this.player.y < 120 && !this.player.isDead;
     this.playerShadowBlob.position.set(px, 0.04, pz);
     this.playerLight.position.set(px, py + 2.5, pz + 1.2);

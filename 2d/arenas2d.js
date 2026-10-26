@@ -2839,3 +2839,161 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
   return true;
 }
 
+/**
+ * Renders destructible TNT ground craters cutting through the 2D arena floor into the void/lava below.
+ */
+export function drawGroundCraters2D(ctx, groundHoles, groundY = 0, theme = 'desktop', stageTime = 0) {
+  if (!ctx || !Array.isArray(groundHoles) || groundHoles.length === 0) return false;
+  const t = Number(stageTime) || 0;
+  const isFloating = theme === 'the_end' || theme === 'aether' || theme === 'cloud_cache' || theme === 'lucky_orb';
+  const shaftH = isFloating ? 196 : 336;
+
+  let voidTop = '#0b1120';
+  let voidDeep = '#03050b';
+  let lipCol = '#38bdf8';
+  let strataUpper = '#475569';
+  let strataMid = '#334155';
+  let strataDeep = '#1e293b';
+
+  if (theme === 'overworld') {
+    voidTop = '#111827';
+    voidDeep = '#030712';
+    lipCol = '#4ade80';
+    strataUpper = '#92400e';
+    strataMid = '#64748b';
+    strataDeep = '#1e293b';
+  } else if (theme === 'minecraft') {
+    voidTop = '#2a080c';
+    voidDeep = '#120307';
+    lipCol = '#f97316';
+    strataUpper = '#991b1b';
+    strataMid = '#7f1d1d';
+    strataDeep = '#31102f';
+  } else if (theme === 'the_end') {
+    voidTop = '#090414';
+    voidDeep = '#05020b';
+    lipCol = '#e879f9';
+    strataUpper = '#fef08a';
+    strataMid = '#d4d4aa';
+    strataDeep = '#312e81';
+  } else if (theme === 'aether' || theme === 'cloud_cache') {
+    voidTop = '#0f2942';
+    voidDeep = '#081a2c';
+    lipCol = '#facc15';
+    strataUpper = '#e2e8f0';
+    strataMid = '#94a3b8';
+    strataDeep = '#475569';
+  } else if (theme === 'lucky_orb') {
+    voidTop = '#1f1605';
+    voidDeep = '#0c0802';
+    lipCol = '#facc15';
+    strataUpper = '#eab308';
+    strataMid = '#a16207';
+    strataDeep = '#422006';
+  } else if (theme === 'ancient_city') {
+    voidTop = '#041019';
+    voidDeep = '#02060c';
+    lipCol = '#22d3ee';
+    strataUpper = '#0e7490';
+    strataMid = '#1e293b';
+    strataDeep = '#0f172a';
+  } else if (theme === 'pale_garden') {
+    voidTop = '#0c0f14';
+    voidDeep = '#040609';
+    lipCol = '#cbd5e1';
+    strataUpper = '#94a3b8';
+    strataMid = '#475569';
+    strataDeep = '#1e293b';
+  } else if (theme === 'youtube') {
+    lipCol = '#ff0033';
+  } else if (theme === 'spotify') {
+    lipCol = '#1db954';
+  } else if (theme === 'chrome') {
+    lipCol = '#4285f4';
+  } else if (theme === 'slides') {
+    lipCol = '#fbbc04';
+  } else if (theme === 'rocket_corp') {
+    lipCol = '#ff6b00';
+  }
+
+  ctx.save();
+  for (let i = 0; i < groundHoles.length; i++) {
+    const hole = groundHoles[i];
+    if (!hole) continue;
+    const x0 = hole.minX;
+    const x1 = hole.maxX;
+    const w = x1 - x0;
+    if (!(w > 16)) continue;
+
+    // 1. Cut deep void / subterranean chasm through the floor
+    ctx.fillStyle = voidTop;
+    ctx.fillRect(x0, groundY - 2, w, shaftH);
+    if (w > 24) {
+      ctx.fillStyle = voidDeep;
+      ctx.fillRect(x0 + 10, groundY + 18, w - 20, shaftH - 18);
+    }
+
+    // Subtle subterranean bedrock strata lines inside the shaft
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.08)';
+    for (let sy = groundY + 38; sy < groundY + shaftH - 28; sy += 36) {
+      ctx.fillRect(x0 + 12, sy, Math.max(8, w - 24), 3);
+    }
+
+    // 2. Stage 7 Nether Lava Sea glowing at the bottom of the blasted breach
+    if (theme === 'minecraft') {
+      const lavaY = groundY + 148 + Math.sin(t * 4.2 + i) * 3;
+      const lavaH = Math.max(24, groundY + shaftH - lavaY);
+      ctx.fillStyle = '#ea580c';
+      ctx.fillRect(x0 + 6, lavaY, Math.max(8, w - 12), lavaH);
+      ctx.fillStyle = '#f97316';
+      ctx.fillRect(x0 + 8, lavaY, Math.max(6, w - 16), 10);
+      ctx.fillStyle = '#fde047';
+      const crestStep = 28;
+      for (let lx = x0 + 12; lx < x1 - 18; lx += crestStep) {
+        const bob = Math.sin(t * 6 + lx * 0.05) * 2;
+        ctx.fillRect(lx, lavaY + 2 + bob, 14, 4);
+      }
+    }
+
+    // 3. Exposed Voxel Crater Walls on Left & Right Rims
+    const wallW = 10;
+    const drawRimWall = (wx, inwardSign) => {
+      // Top surface turf / accent lip
+      ctx.fillStyle = lipCol;
+      ctx.fillRect(wx, groundY - 2, wallW, 8);
+      // Upper dirt / hull layer
+      ctx.fillStyle = strataUpper;
+      ctx.fillRect(wx, groundY + 6, wallW, 42);
+      // Mid cobblestone / slate layer
+      ctx.fillStyle = strataMid;
+      ctx.fillRect(wx, groundY + 48, wallW, 84);
+      // Deep bedrock layer
+      ctx.fillStyle = strataDeep;
+      ctx.fillRect(wx, groundY + 132, wallW, shaftH - 134);
+
+      // Jagged 8px voxel teeth jutting into the crater opening
+      for (let row = 0; row < 7; row++) {
+        const toothY = groundY + 10 + row * 24;
+        const jut = ((row + i) % 2 === 0) ? 5 : 3;
+        ctx.fillStyle = row < 2 ? strataUpper : (row < 5 ? strataMid : strataDeep);
+        const tx = inwardSign > 0 ? wx + wallW : wx - jut;
+        ctx.fillRect(tx, toothY, jut, 12);
+      }
+    };
+
+    drawRimWall(x0, 1);
+    drawRimWall(x1 - wallW, -1);
+
+    // 4. Scorched TNT blast lip rubble on the surface edges
+    ctx.fillStyle = '#18181b';
+    ctx.fillRect(x0 - 8, groundY - 4, 12, 5);
+    ctx.fillRect(x1 - 4, groundY - 4, 12, 5);
+    ctx.fillStyle = lipCol;
+    ctx.fillRect(x0 - 6, groundY - 6, 6, 3);
+    ctx.fillRect(x1, groundY - 6, 6, 3);
+  }
+  ctx.restore();
+  return true;
+}
+
+

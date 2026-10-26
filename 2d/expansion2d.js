@@ -39,12 +39,18 @@ import {
   ISLAND_FLOOR_BOUNDS,
   VOID_FALL_THRESHOLD,
   CREATIVE_BLOCK_SIZE_2D,
+  GROUND_CRATER_MAX_Y_DIST,
   isOpenEdgeTheme,
   isLavaSeaTheme,
   resolveSweptVerticalCollision,
   checkPlatformStepOff,
-  checkLavaHazard
-} from '../3d/js/physics3d.js?v=10.3';
+  checkLavaHazard,
+  computeSafeGroundCraterBounds,
+  mergeOrAppendGroundCrater,
+  findContainingGroundHole,
+  isPointInGroundHole,
+  findSafeGroundPoint
+} from '../3d/js/physics3d.js?v=10.4';
 import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 
 import {
@@ -57,8 +63,9 @@ import {
   drawExpandedStageBackground2D,
   drawExpandedTrophyIcons2D,
   drawBossFloorTelegraphs2D,
-  drawCustomStagePlatforms2D
-} from './arenas2d.js?v=10.4';
+  drawCustomStagePlatforms2D,
+  drawGroundCraters2D
+} from './arenas2d.js?v=10.5';
 import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=10.4';
 import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=10.4';
 
@@ -377,6 +384,7 @@ export function install2DExpansion(game) {
     selectedBlock: 'command_block',
     selectedSpawn: 'creaking_boss',
     blocks: [],
+    groundHoles: [],
     lastSpaceTapTime: 0,
     lastSafeIslandX: -650,
     lastComboMilestone: 0,
@@ -818,10 +826,48 @@ export function install2DExpansion(game) {
 
   function clearCreativeBlocks() {
     sandbox.blocks.length = 0;
-    if (game.player?.standingPlatform?.appType === 'creative') {
-      game.player.standingPlatform = null;
+    sandbox.groundHoles.length = 0;
+    if (game.player) {
+      game.player._fallingHole2D = null;
+      if (game.player.standingPlatform?.appType === 'creative') {
+        game.player.standingPlatform = null;
+        game.player.isGrounded = false;
+      }
+    }
+  }
+
+  function isOverGroundHole2D(x, margin = 12) {
+    if (stageManager.isTrophyRoom || sandbox.groundHoles.length === 0) return false;
+    return isPointInGroundHole(x, 0, sandbox.groundHoles, margin, true);
+  }
+
+  function carveGroundCrater2D(cx, cy, options = {}) {
+    if (stageManager.isTrophyRoom) return null;
+    if (cy < game.groundY - GROUND_CRATER_MAX_Y_DIST || cy > game.groundY + 120) return null;
+
+    const crater = computeSafeGroundCraterBounds(cx, 0, {
+      entranceX: stageManager.entranceDoor?.x ?? -900,
+      exitX: stageManager.exitDoor?.x ?? 900,
+      ...options
+    });
+    if (!crater) return null;
+
+    const merged = mergeOrAppendGroundCrater(sandbox.groundHoles, crater, true);
+
+    // Immediately drop grounded entities whose floor support was just blown open!
+    if (game.player && !game.player.standingPlatform && isOverGroundHole2D(game.player.x)) {
       game.player.isGrounded = false;
     }
+    for (let i = 0; i < waves.zombies.length; i++) {
+      const z = waves.zombies[i];
+      if (z && !z.isDead && !z.standingPlatform && !z.isFlying && z.type !== 'ender_dragon' && isOverGroundHole2D(z.x)) {
+        z.isGrounded = false;
+      }
+    }
+
+    particles.createHitSparks(merged.cx, game.groundY - 4, 14, '#a16207');
+    particles.createDust(merged.cx, game.groundY, 12);
+    return merged;
   }
 
   // Stamp voxel texKey onto E-key SketchBlocks so they render crisp 16x16 pixel art
@@ -918,6 +964,9 @@ export function install2DExpansion(game) {
 
     // Blow up surrounding voxel blocks & SketchBlocks + chain-ignite neighboring TNT!
     blastBlocksInRadius2D(block.x, centerY, 240, block);
+
+    // Carve a destructible crater into the arena ground if TNT detonated near floor level!
+    carveGroundCrater2D(block.x, centerY);
 
     // Damage enemies in blast radius
     for (const z of waves.zombies) {
@@ -1500,12 +1549,31 @@ export function install2DExpansion(game) {
         const p = game.player;
         const prevAttacker = p ? p._activeAttacker : null;
         if (p) p._activeAttacker = z;
+        const prevZY = z.y;
         try {
-          const off = isOpenEdgeTheme(stageManager.theme) &&
-            !z.isFlying &&
-            z.type !== 'ender_dragon' &&
+          const isFlyingEnemy = Boolean(z.isFlying) || z.type === 'ender_dragon';
+          const hole = !isFlyingEnemy && !z.standingPlatform && !stageManager.isTrophyRoom
+            ? (findContainingGroundHole(z.x, 0, sandbox.groundHoles, 12, true) || (z.y > zGroundY + 18 ? z._fallingHole2D : null))
+            : null;
+          const offIsland = isOpenEdgeTheme(stageManager.theme) &&
+            !isFlyingEnemy &&
             Math.abs(z.x) > ISLAND_FLOOR_BOUNDS.halfX;
-          return origZUpdate(zDt, off ? 99999 : zGroundY, ...rest);
+          const offFloor = Boolean(offIsland || hole);
+          if (hole) z._fallingHole2D = hole;
+          else if (z.y <= zGroundY + 18) z._fallingHole2D = null;
+
+          const res = origZUpdate(zDt, offFloor ? 99999 : zGroundY, ...rest);
+
+          if (offFloor && z.y > prevZY + 120) {
+            const safeDt = Math.max(0, Number(zDt) || 0.016);
+            z.vy = (z.vy || 0) + 1200 * safeDt;
+            z.y = prevZY + z.vy * safeDt;
+            z.isGrounded = false;
+          }
+          if (z._fallingHole2D && z.y > zGroundY + 18) {
+            z.x = clamp(z.x, z._fallingHole2D.minX + 14, z._fallingHole2D.maxX - 14);
+          }
+          return res;
         } finally {
           if (p) p._activeAttacker = prevAttacker;
         }
@@ -1619,12 +1687,19 @@ export function install2DExpansion(game) {
     const currentPlatforms = stageManager.getAllSolidPlatforms();
     const hostileTargets = game.collectHostileTargets();
 
-    // 3. Player Step-Off, Open-Edge Void Grounding & Swept Vertical CCD
+    // 3. Player Step-Off, Open-Edge + TNT Ground-Crater Void Grounding & Swept Vertical CCD
     const prevPlayerY = player.y;
     checkPlatformStepOff(player);
 
     const playerOffIsland = openEdge && Math.abs(player.x) > ISLAND_FLOOR_BOUNDS.halfX;
-    const effectivePlayerGroundY = playerOffIsland ? 99999 : game.groundY;
+    const activePlayerHole = !stageManager.isTrophyRoom && !player.standingPlatform
+      ? (findContainingGroundHole(player.x, 0, sandbox.groundHoles, 12, true) || (player.y > game.groundY + 18 ? player._fallingHole2D : null))
+      : null;
+    if (activePlayerHole) player._fallingHole2D = activePlayerHole;
+    else if (player.y <= game.groundY + 18) player._fallingHole2D = null;
+
+    const playerOffFloor = playerOffIsland || Boolean(activePlayerHole);
+    const effectivePlayerGroundY = playerOffFloor ? 99999 : game.groundY;
 
     // Suppress KeyV -> SketchBlock double-spawn when Creative Mode is active ([V] places Creative voxel blocks)
     if (sandbox.enabled && (input.keys?.['KeyV'] || input.keysPressed?.['KeyV'])) {
@@ -1662,18 +1737,25 @@ export function install2DExpansion(game) {
         player.vy *= 0.82;
         player.y = prevPlayerY + player.vy * simDt;
       }
-      player.y = clamp(player.y, stageManager.bounds.minY + 70, playerOffIsland ? 140 : game.groundY);
-      player.isGrounded = !playerOffIsland && player.y >= game.groundY - 1;
+      player.y = clamp(player.y, stageManager.bounds.minY + 70, playerOffFloor ? 140 : game.groundY);
+      player.isGrounded = !playerOffFloor && player.y >= game.groundY - 1;
       player.canDoubleJump = true;
+      player._fallingHole2D = null;
       if (Math.random() < 0.35) {
         particles.createHitSparks(player.x, player.y - 4, 1, '#38bdf8');
       }
     } else {
-      // Swept Vertical Collision against all platforms + Creative blocks + Sketch blocks
-      const allPlayerSurfaces = projectiles.sketchBlocks?.length
-        ? currentPlatforms.concat(projectiles.sketchBlocks)
-        : currentPlatforms;
-      resolveSweptVerticalCollision(player, allPlayerSurfaces, prevPlayerY, simDt);
+      if (player._fallingHole2D && player.y > game.groundY + 18) {
+        player.x = clamp(player.x, player._fallingHole2D.minX + 14, player._fallingHole2D.maxX - 14);
+        player.isWallSliding = false;
+      }
+      if (prevPlayerY <= game.groundY + 18) {
+        // Swept Vertical Collision against all platforms + Creative blocks + Sketch blocks
+        const allPlayerSurfaces = projectiles.sketchBlocks?.length
+          ? currentPlatforms.concat(projectiles.sketchBlocks)
+          : currentPlatforms;
+        resolveSweptVerticalCollision(player, allPlayerSurfaces, prevPlayerY, simDt);
+      }
     }
 
     // Prevent fake desktop wall-sliding out in empty air on open-edge islands
@@ -1681,13 +1763,13 @@ export function install2DExpansion(game) {
       player.isWallSliding = false;
     }
 
-    // Record safe respawn spot whenever Orange is safely grounded on the island
-    if (!playerOffIsland && player.isGrounded && Math.abs(player.x) <= ISLAND_FLOOR_BOUNDS.halfX - 40) {
+    // Record safe respawn spot whenever Orange is safely grounded on solid intact floor
+    if (!playerOffFloor && player.isGrounded && !player.standingPlatform && Math.abs(player.x) <= ISLAND_FLOOR_BOUNDS.halfX - 40) {
       sandbox.lastSafeIslandX = clamp(player.x, -860, 860);
     }
 
-    // Resolve Player Void / Lava Sea Plunge
-    if (playerOffIsland && player.y >= VOID_FALL_THRESHOLD && !(sandbox.enabled && sandbox.flight)) {
+    // Resolve Player Void / Lava Sea / TNT Crater Plunge
+    if ((playerOffFloor || player.y > game.groundY + 40) && player.y >= VOID_FALL_THRESHOLD && !(sandbox.enabled && sandbox.flight)) {
       const inLavaSea = isLavaSeaTheme(theme);
       const plungeCause = inLavaSea
         ? 'The Second Coming tried to swim in lava'
@@ -1713,8 +1795,14 @@ export function install2DExpansion(game) {
       if (player.hp <= 0 && !player.isGodMode) {
         player.die();
       } else {
+        const safePt = findSafeGroundPoint(sandbox.lastSafeIslandX, 0, sandbox.groundHoles, {
+          ignoreZ: true,
+          entranceX: stageManager.entranceDoor?.x ?? -900,
+          exitX: stageManager.exitDoor?.x ?? 900
+        });
         player._pendingDamageCause = null;
-        player.x = sandbox.lastSafeIslandX || 0;
+        player._fallingHole2D = null;
+        player.x = safePt.x;
         player.y = game.groundY;
         player.vx = 0;
         player.vy = 0;
@@ -1794,13 +1882,15 @@ export function install2DExpansion(game) {
           sandbox.activeDamagePhase = null;
         }
 
-        // Post-step Enemy Swept Platform Contact, Void Elimination & Lava Burn
+        // Post-step Enemy Swept Platform Contact, Void/Crater Elimination & Lava Burn
         for (let i = waves.zombies.length - 1; i >= 0; i--) {
           const z = waves.zombies[i];
           if (!z || z.isDead) continue;
 
           const prevZY = sandbox.prevEnemyYs.get(z);
-          if (!openEdge || Math.abs(z.x) <= ISLAND_FLOOR_BOUNDS.halfX) {
+          const zOffIsland = openEdge && Math.abs(z.x) > ISLAND_FLOOR_BOUNDS.halfX;
+          const zInHole = Boolean(z._fallingHole2D) || isOverGroundHole2D(z.x);
+          if (!zOffIsland && !zInHole && z.y <= game.groundY + 18) {
             resolveSweptVerticalCollision(z, currentPlatforms, prevZY, simDt);
           } else if (z.y >= VOID_FALL_THRESHOLD && z.type !== 'ender_dragon' && !z.isFlying) {
             particles.addShockwave(clamp(z.x, -990, 990), game.groundY + 35, 85, '#38bdf8', 6);
@@ -1984,6 +2074,15 @@ export function install2DExpansion(game) {
     try {
       const crowded = waves.zombies.length >= 8;
       game.renderLayer('background', (layerCtx) => stageManager.draw(layerCtx, game.groundY, crowded));
+      if (sandbox.groundHoles.length > 0 && !stageManager.isTrophyRoom) {
+        game.renderLayer('ground-craters', (layerCtx) => drawGroundCraters2D(
+          layerCtx,
+          sandbox.groundHoles,
+          game.groundY,
+          stageManager.theme,
+          stageManager.stageTime
+        ));
+      }
       game.renderLayer('creative-blocks', (layerCtx) => {
         depth2d.drawPlatformDepthShadows(layerCtx, sandbox.blocks);
         drawCreativeBlocks2D(layerCtx, sandbox.blocks, stageManager.stageTime);
@@ -2249,6 +2348,8 @@ export function install2DExpansion(game) {
     clearCreativeBlocks,
     detonateTNTBlock,
     blastBlocksInRadius2D,
+    carveGroundCrater2D,
+    isOverGroundHole2D,
     spawnStageVoxelProps,
     crackLuckyBlock,
     spawnCreativeEntity,

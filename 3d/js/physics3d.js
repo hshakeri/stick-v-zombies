@@ -86,11 +86,12 @@ export function isEnemyEntity(entity) {
  * @param {number} dt
  * @returns {Object} { effectiveGroundY, fellIntoVoid, respawned, eliminated }
  */
-export function updateVoidPhysics(entity, theme, dt = 0.016) {
+export function updateVoidPhysics(entity, theme, dt = 0.016, groundHoles = null) {
   const isOpen = isOpenEdgeTheme(theme);
   const ez = entity.z !== undefined ? entity.z : (entity.z3d || 0);
   const isOffIsland = isOpen && (Math.abs(entity.x || 0) > ISLAND_FLOOR_BOUNDS.halfX || Math.abs(ez) > ISLAND_FLOOR_BOUNDS.halfZ);
-  const effectiveGroundY = isOffIsland ? 99999 : 0;
+  const inHole = Array.isArray(groundHoles) && groundHoles.length > 0 && isPointInGroundHole(entity.x || 0, ez, groundHoles, 12, false);
+  const effectiveGroundY = (isOffIsland || inHole) ? 99999 : 0;
 
   if (entity.isCreativeFlight) {
     if (entity.vy) entity.y += entity.vy * dt;
@@ -453,3 +454,146 @@ export function checkLavaHazard(entity, hazard, dt = 0.016) {
   }
   return true;
 }
+
+// =============================================================================
+// Destructible TNT Ground Crater Helpers (Shared 2D & 3D)
+// =============================================================================
+export const GROUND_CRATER_HALF_X = 102;
+export const GROUND_CRATER_HALF_Z = 102;
+export const GROUND_CRATER_MAX_Y_DIST = 155;
+
+function trimForbiddenSpan(minV, maxV, fMin, fMax) {
+  if (maxV <= fMin || minV >= fMax) return [minV, maxV];
+  if (minV >= fMin && maxV <= fMax) return null;
+  if (minV < fMin && maxV > fMax) {
+    return (fMin - minV) >= (maxV - fMax) ? [minV, fMin] : [fMax, maxV];
+  }
+  if (minV < fMin) return [minV, fMin];
+  return [fMax, maxV];
+}
+
+/**
+ * Computes safe X/Z bounds for a TNT ground crater while protecting entrance/exit portals
+ * and perimeter walls/riverbanks so stages can never soft-lock.
+ */
+export function computeSafeGroundCraterBounds(cx, cz = 0, options = {}) {
+  const halfX = Number.isFinite(options.halfX) ? options.halfX : GROUND_CRATER_HALF_X;
+  const halfZ = Number.isFinite(options.halfZ) ? options.halfZ : GROUND_CRATER_HALF_Z;
+  const arenaMaxX = Number.isFinite(options.arenaMaxX) ? options.arenaMaxX : 830;
+  const arenaMinZ = Number.isFinite(options.arenaMinZ) ? options.arenaMinZ : -230;
+  const arenaMaxZ = Number.isFinite(options.arenaMaxZ) ? options.arenaMaxZ : 306;
+  const entranceX = Number.isFinite(options.entranceX) ? options.entranceX : -900;
+  const exitX = Number.isFinite(options.exitX) ? options.exitX : 900;
+  const portalSafe = Number.isFinite(options.portalSafeRadius) ? options.portalSafeRadius : 105;
+
+  let minX = Math.max(-arenaMaxX, (cx || 0) - halfX);
+  let maxX = Math.min(arenaMaxX, (cx || 0) + halfX);
+
+  const afterEntrance = trimForbiddenSpan(minX, maxX, entranceX - portalSafe, entranceX + portalSafe);
+  if (!afterEntrance) return null;
+  const afterExit = trimForbiddenSpan(afterEntrance[0], afterEntrance[1], exitX - portalSafe, exitX + portalSafe);
+  if (!afterExit) return null;
+
+  minX = Math.round(afterExit[0] / 4) * 4;
+  maxX = Math.round(afterExit[1] / 4) * 4;
+  if (maxX - minX < 56) return null;
+
+  const minZ = Math.round(Math.max(arenaMinZ, (cz || 0) - halfZ) / 4) * 4;
+  const maxZ = Math.round(Math.min(arenaMaxZ, (cz || 0) + halfZ) / 4) * 4;
+  if (maxZ - minZ < 56) return null;
+
+  return {
+    cx: (minX + maxX) * 0.5,
+    cz: (minZ + maxZ) * 0.5,
+    minX,
+    maxX,
+    minZ,
+    maxZ
+  };
+}
+
+/**
+ * Merges overlapping craters (up to 480px width) or appends to groundHoles (max 16).
+ */
+export function mergeOrAppendGroundCrater(groundHoles, crater, ignoreZ = false) {
+  if (!Array.isArray(groundHoles) || !crater) return null;
+  for (let i = 0; i < groundHoles.length; i++) {
+    const existing = groundHoles[i];
+    if (!existing) continue;
+    const overlapX = crater.minX <= existing.maxX + 8 && crater.maxX >= existing.minX - 8;
+    const overlapZ = ignoreZ || (Math.abs(crater.minZ - existing.minZ) <= 28 && Math.abs(crater.maxZ - existing.maxZ) <= 28);
+    if (overlapX && overlapZ) {
+      const mergedMinX = Math.min(existing.minX, crater.minX);
+      const mergedMaxX = Math.max(existing.maxX, crater.maxX);
+      if (mergedMaxX - mergedMinX <= 480) {
+        existing.minX = mergedMinX;
+        existing.maxX = mergedMaxX;
+        existing.minZ = Math.min(existing.minZ, crater.minZ);
+        existing.maxZ = Math.max(existing.maxZ, crater.maxZ);
+        existing.cx = (existing.minX + existing.maxX) * 0.5;
+        existing.cz = (existing.minZ + existing.maxZ) * 0.5;
+        return existing;
+      }
+    }
+  }
+  if (groundHoles.length >= 16) {
+    groundHoles.shift();
+  }
+  groundHoles.push(crater);
+  return crater;
+}
+
+/**
+ * Returns the ground hole containing (x, z), or null if over solid floor.
+ */
+export function findContainingGroundHole(x, z = 0, groundHoles = null, margin = 12, ignoreZ = false) {
+  if (!Array.isArray(groundHoles) || groundHoles.length === 0) return null;
+  const px = Number(x) || 0;
+  const pz = Number(z) || 0;
+  for (let i = 0; i < groundHoles.length; i++) {
+    const h = groundHoles[i];
+    if (!h) continue;
+    if (px > h.minX + margin && px < h.maxX - margin) {
+      if (ignoreZ || (pz > h.minZ + margin && pz < h.maxZ - margin)) {
+        return h;
+      }
+    }
+  }
+  return null;
+}
+
+export function isPointInGroundHole(x, z = 0, groundHoles = null, margin = 12, ignoreZ = false) {
+  return findContainingGroundHole(x, z, groundHoles, margin, ignoreZ) !== null;
+}
+
+/**
+ * Finds a guaranteed hole-free respawn coordinate on the arena floor.
+ */
+export function findSafeGroundPoint(preferredX, preferredZ = 0, groundHoles = null, options = {}) {
+  const ignoreZ = Boolean(options.ignoreZ);
+  const entranceX = Number.isFinite(options.entranceX) ? options.entranceX : -900;
+  const exitX = Number.isFinite(options.exitX) ? options.exitX : 900;
+  const safeMaxX = ISLAND_FLOOR_BOUNDS.halfX - 90;
+  const safeMaxZ = ISLAND_FLOOR_BOUNDS.halfZ - 80;
+  const clampX = (v) => Math.max(-safeMaxX, Math.min(safeMaxX, v));
+  const clampZ = (v) => Math.max(-safeMaxZ, Math.min(safeMaxZ, v));
+
+  const candidates = [
+    [clampX(Number.isFinite(preferredX) ? preferredX : 0), clampZ(Number.isFinite(preferredZ) ? preferredZ : 0)],
+    [clampX(entranceX + 42), 0],
+    [0, 0],
+    [-440, 0],
+    [440, 0],
+    [-680, 0],
+    [680, 0],
+    [clampX(exitX - 48), 0]
+  ];
+  for (let i = 0; i < candidates.length; i++) {
+    const [cx, cz] = candidates[i];
+    if (!isPointInGroundHole(cx, cz, groundHoles, -18, ignoreZ)) {
+      return { x: cx, z: cz };
+    }
+  }
+  return { x: clampX(entranceX + 42), z: 0 };
+}
+
