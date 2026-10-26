@@ -1,5 +1,5 @@
 import * as THREE from '../lib/three.module.min.js';
-import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.4';
+import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.5';
 import {
   StickRig3D,
   CreeperLordRig3D,
@@ -8,7 +8,7 @@ import {
   EnderDragonRig3D,
   WardenBossRig3D,
   CreakingBossRig3D
-} from './models3d.js?v=10.4';
+} from './models3d.js?v=10.5';
 
 export const WORLD_TO_3D = 1 / 34;
 export const ARENA_HALF_X = 980;
@@ -169,6 +169,11 @@ export class Arena3DBuilder {
     this.trophyKeyGroup = null;
     this.ancientCityCenterPortal = null;
     this.paleGardenHeartShrine = null;
+    this.youtubePlayMonument = null;
+    this.chromeLogoGroup = null;
+    this.spotifyEqualizerBars = [];
+    this.spotifyVinylDisc = null;
+    this.slidesChartBars = [];
 
     if (stageManager) this.stageManager = stageManager;
     const sm = stageManager || this.stageManager;
@@ -348,6 +353,10 @@ export class Arena3DBuilder {
       aether: 0x38d9a9,
       ancient_city: 0x22d3ee,
       pale_garden: 0xf97316,
+      youtube: 0xff0033,
+      chrome: 0x4285f4,
+      spotify: 0x1db954,
+      slides: 0xfbbc04,
       rocket_corp: 0xff6b00,
       zero_day: 0x00f5ff,
       trophy: 0xffd54a
@@ -843,6 +852,271 @@ export class Arena3DBuilder {
     this.group.add(rightBluff);
   }
 
+  buildYouTubeStudioArena() {
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.42, metalness: 0.35 });
+    const redGlow = new THREE.MeshStandardMaterial({
+      color: 0xff0033,
+      emissive: 0xff0033,
+      emissiveIntensity: 0.72,
+      roughness: 0.28
+    });
+    const whiteMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xf8fafc,
+      emissiveIntensity: 0.35,
+      roughness: 0.2
+    });
+
+    // 1. Center Monumental 3D YouTube Play Button Sculpture
+    const monument = new THREE.Group();
+    monument.position.set(0, 0, -10.8);
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.85, 2.4), darkMat);
+    plinth.position.y = 0.42;
+    const playBlock = new THREE.Mesh(new THREE.BoxGeometry(6.4, 4.2, 1.15), redGlow);
+    playBlock.position.y = 3.2;
+    playBlock.castShadow = true;
+
+    const triangleGeo = new THREE.CylinderGeometry(1.15, 1.15, 0.42, 3);
+    const playPrism = new THREE.Mesh(triangleGeo, whiteMat);
+    playPrism.rotation.x = Math.PI / 2;
+    playPrism.rotation.y = Math.PI / 2;
+    playPrism.position.set(0.15, 3.2, 0.55);
+
+    const subSignTex = makeTextSignTexture('SUBSCRIBE // 10M', 'YOUTUBE STUDIO ARENA', '#09090b', '#ff0033', '#ffffff');
+    const subSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.4, 1.05),
+      new THREE.MeshBasicMaterial({ map: subSignTex })
+    );
+    subSign.position.set(0, 5.95, 0.2);
+
+    monument.add(plinth, playBlock, playPrism, subSign);
+    this.youtubePlayMonument = { root: monument, playPrism };
+    this.group.add(monument);
+
+    // 2. Creator Award Columns (Silver, Gold, Diamond Play Plaques)
+    const awardSpecs = [
+      { x: -23.5, col: 0xcbd5e1, h: 6.2 },
+      { x: -13.5, col: 0xfacc15, h: 7.4 },
+      { x: 13.5, col: 0x38bdf8, h: 7.4 },
+      { x: 23.5, col: 0xff0033, h: 6.2 }
+    ];
+    for (let i = 0; i < awardSpecs.length; i++) {
+      const sp = awardSpecs[i];
+      const colGroup = new THREE.Group();
+      colGroup.position.set(sp.x, 0, -11.6);
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(2.1, sp.h, 1.8), darkMat);
+      pillar.position.y = sp.h * 0.5;
+      pillar.castShadow = true;
+      const plaqueMat = new THREE.MeshStandardMaterial({
+        color: sp.col,
+        emissive: sp.col,
+        emissiveIntensity: 0.45,
+        metalness: 0.65,
+        roughness: 0.22
+      });
+      const plaque = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.5, 0.35), plaqueMat);
+      plaque.position.set(0, sp.h - 1.2, 0.9);
+      colGroup.add(pillar, plaque);
+      this.group.add(colGroup);
+    }
+  }
+
+  buildChromeBrowserArena() {
+    const slateMat = new THREE.MeshStandardMaterial({ color: 0x292a2d, roughness: 0.45, metalness: 0.3 });
+    const dinoMat = new THREE.MeshStandardMaterial({ color: 0xbdc1c6, roughness: 0.55 });
+    const cactusMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.6 });
+    const googleHex = [0x4285f4, 0xea4335, 0xfbbc05, 0x34a853];
+
+    // 1. Center Spinning 4-Color Google Chrome Ring Sculpture
+    const logoGroup = new THREE.Group();
+    logoGroup.position.set(0, 4.6, -10.8);
+    const outerArcs = [0xea4335, 0xfbbc05, 0x34a853];
+    for (let s = 0; s < 3; s++) {
+      const arcMat = new THREE.MeshStandardMaterial({
+        color: outerArcs[s],
+        emissive: outerArcs[s],
+        emissiveIntensity: 0.45,
+        roughness: 0.28
+      });
+      const arcMesh = new THREE.Mesh(
+        new THREE.TorusGeometry(2.55, 0.52, 12, 24, (Math.PI * 2) / 3 - 0.08),
+        arcMat
+      );
+      arcMesh.rotation.z = (s * Math.PI * 2) / 3;
+      logoGroup.add(arcMesh);
+    }
+    const whiteRing = new THREE.Mesh(
+      new THREE.TorusGeometry(1.48, 0.22, 10, 24),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 })
+    );
+    const blueCore = new THREE.Mesh(
+      new THREE.SphereGeometry(1.22, 18, 18),
+      new THREE.MeshStandardMaterial({ color: 0x4285f4, emissive: 0x4285f4, emissiveIntensity: 0.55, roughness: 0.25 })
+    );
+    logoGroup.add(whiteRing, blueCore);
+    this.chromeLogoGroup = logoGroup;
+    this.group.add(logoGroup);
+
+    // 2. Iconic 3D Voxel Chrome Offline T-Rex Dino + Desert Cacti
+    const dino = new THREE.Group();
+    dino.position.set(-18.5, 0, -9.8);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.1, 0.9), dinoMat);
+    head.position.set(0.45, 2.75, 0);
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(1.35, 1.45, 0.85), dinoMat);
+    torso.position.set(0, 1.55, 0);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.65, 0.65), dinoMat);
+    tail.position.set(-0.95, 1.65, 0);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.25, 0.45), dinoMat);
+    arm.position.set(0.82, 1.85, 0);
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.85, 0.38), dinoMat);
+    legL.position.set(-0.28, 0.42, 0.18);
+    const legR = legL.clone();
+    legR.position.set(0.32, 0.42, -0.18);
+    dino.add(head, torso, tail, arm, legL, legR);
+    this.group.add(dino);
+
+    for (const cx of [-11.5, 13.5, 20.5]) {
+      const cactus = new THREE.Group();
+      cactus.position.set(cx, 0, -9.8);
+      const stem = new THREE.Mesh(new THREE.BoxGeometry(0.48, 2.3, 0.48), cactusMat);
+      stem.position.y = 1.15;
+      const armL = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.36, 0.36), cactusMat);
+      armL.position.set(-0.5, 1.35, 0);
+      const tipL = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.75, 0.36), cactusMat);
+      tipL.position.set(-0.78, 1.72, 0);
+      const armR = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.36, 0.36), cactusMat);
+      armR.position.set(0.5, 1.1, 0);
+      const tipR = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.75, 0.36), cactusMat);
+      tipR.position.set(0.78, 1.48, 0);
+      cactus.add(stem, armL, tipL, armR, tipR);
+      this.group.add(cactus);
+    }
+
+    // 3. Four Google-Colored Browser Tab Pillars
+    const tabXs = [-25.5, -8.5, 8.5, 25.5];
+    for (let i = 0; i < 4; i++) {
+      const col = new THREE.Mesh(new THREE.BoxGeometry(2.0, 5.8, 1.6), slateMat);
+      col.position.set(tabXs[i], 2.9, -11.8);
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(2.15, 0.42, 1.75),
+        new THREE.MeshStandardMaterial({ color: googleHex[i], emissive: googleHex[i], emissiveIntensity: 0.65 })
+      );
+      cap.position.set(tabXs[i], 6.0, -11.8);
+      this.group.add(col, cap);
+    }
+  }
+
+  buildSpotifyPlayerArena() {
+    const matteDark = new THREE.MeshStandardMaterial({ color: 0x121212, roughness: 0.5, metalness: 0.3 });
+    const greenGlow = new THREE.MeshStandardMaterial({
+      color: 0x1db954,
+      emissive: 0x1db954,
+      emissiveIntensity: 0.78,
+      roughness: 0.25
+    });
+    const peakGlow = new THREE.MeshStandardMaterial({
+      color: 0x86efac,
+      emissive: 0x4ade80,
+      emissiveIntensity: 0.85,
+      roughness: 0.2
+    });
+
+    // 1. Live Animated 12-Bar 3D Audio Spectrum Equalizer Wall
+    this.spotifyEqualizerBars = [];
+    for (let i = 0; i < 12; i++) {
+      const bx = -22 + i * 4.0;
+      const barRoot = new THREE.Group();
+      barRoot.position.set(bx, 0.1, -11.6);
+      const pedestal = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.4, 1.5), matteDark);
+      pedestal.position.y = 0.2;
+      const barMesh = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.0, 1.2), greenGlow);
+      barMesh.position.y = 0.9;
+      const capMesh = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.28, 1.3), peakGlow);
+      capMesh.position.y = 1.65;
+      barRoot.add(pedestal, barMesh, capMesh);
+      this.group.add(barRoot);
+      this.spotifyEqualizerBars.push({ barMesh, capMesh, index: i });
+    }
+
+    // 2. Center Spinning 3D Vinyl Turntable Plinth
+    const deck = new THREE.Group();
+    deck.position.set(0, 0, -8.6);
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.65, 5.2), matteDark);
+    plinth.position.y = 0.32;
+    const vinylGroup = new THREE.Group();
+    vinylGroup.position.set(0, 0.74, 0);
+    const vinylDisc = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.25, 2.25, 0.14, 28),
+      new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.22, metalness: 0.6 })
+    );
+    const vinylLabel = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.82, 0.17, 20), greenGlow);
+    const grooveMarker = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.19, 1.9), peakGlow);
+    grooveMarker.position.z = 0.95;
+    vinylGroup.add(vinylDisc, vinylLabel, grooveMarker);
+    deck.add(plinth, vinylGroup);
+    this.spotifyVinylDisc = vinylGroup;
+    this.group.add(deck);
+  }
+
+  buildSlidesPresentationArena() {
+    const whiteCardMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.08 });
+    const goldMat = new THREE.MeshStandardMaterial({
+      color: 0xfbbc04,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.38,
+      roughness: 0.3
+    });
+    const handleBlueMat = new THREE.MeshStandardMaterial({
+      color: 0x4285f4,
+      emissive: 0x4285f4,
+      emissiveIntensity: 0.55
+    });
+
+    // 1. Left 3D Presentation Slide Easel with Free-Transform Handles (□)
+    const easel = new THREE.Group();
+    easel.position.set(-15.5, 0, -10.8);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(10.5, 6.2, 0.65), whiteCardMat);
+    board.position.y = 3.8;
+    board.castShadow = true;
+    const header = new THREE.Mesh(new THREE.BoxGeometry(10.6, 0.85, 0.72), goldMat);
+    header.position.y = 6.5;
+    easel.add(board, header);
+
+    for (const [hx, hy] of [[-5.25, 0.7], [5.25, 0.7], [-5.25, 6.9], [5.25, 6.9]]) {
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.85), handleBlueMat);
+      handle.position.set(hx, hy, 0);
+      easel.add(handle);
+    }
+    this.group.add(easel);
+
+    // 2. Right 3D Live Rising 4-Color Google Bar-Chart Monument
+    const chartPlinth = new THREE.Group();
+    chartPlinth.position.set(14.5, 0, -10.8);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.6, 2.4), whiteCardMat);
+    base.position.y = 0.3;
+    chartPlinth.add(base);
+
+    const chartColors = [0x4285f4, 0xea4335, 0xfbbc04, 0x34a853];
+    const baseHeights = [3.6, 5.2, 4.4, 6.4];
+    this.slidesChartBars = [];
+    for (let i = 0; i < 4; i++) {
+      const colMat = new THREE.MeshStandardMaterial({
+        color: chartColors[i],
+        emissive: chartColors[i],
+        emissiveIntensity: 0.28,
+        roughness: 0.32
+      });
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.0, 1.6), colMat);
+      const bx = -4.2 + i * 2.8;
+      bar.scale.y = baseHeights[i];
+      bar.position.set(bx, 0.6 + baseHeights[i] * 0.5, 0);
+      bar.castShadow = true;
+      chartPlinth.add(bar);
+      this.slidesChartBars.push({ bar, baseH: baseHeights[i], index: i });
+    }
+    this.group.add(chartPlinth);
+  }
+
   buildBiomeColumns(theme, accentHex) {
     if (theme === 'rocket_corp') {
       this.buildRocketCorpFacility();
@@ -858,6 +1132,22 @@ export class Arena3DBuilder {
     }
     if (theme === 'dark_core') {
       this.buildAvA8ShowdownLake();
+      return;
+    }
+    if (theme === 'youtube') {
+      this.buildYouTubeStudioArena();
+      return;
+    }
+    if (theme === 'chrome') {
+      this.buildChromeBrowserArena();
+      return;
+    }
+    if (theme === 'spotify') {
+      this.buildSpotifyPlayerArena();
+      return;
+    }
+    if (theme === 'slides') {
+      this.buildSlidesPresentationArena();
       return;
     }
 
@@ -1389,9 +1679,13 @@ export class Arena3DBuilder {
       : (theme === 'aether' ? 'holystone'
       : (theme === 'ancient_city' ? 'deepslate_tiles'
       : (theme === 'pale_garden' ? 'pale_oak_log'
+      : (theme === 'youtube' ? 'youtube_floor'
+      : (theme === 'chrome' ? 'chrome_floor'
+      : (theme === 'spotify' ? 'spotify_floor'
+      : (theme === 'slides' ? 'slides_floor'
       : (theme === 'rocket_corp' ? 'rocket_corp_wall'
       : (theme === 'lucky_orb' ? 'lucky_block'
-      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))))));
+      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))))))))));
 
     const bodyMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(texKey, Math.max(2, Math.round(w / 2)), 2),
@@ -1410,15 +1704,20 @@ export class Arena3DBuilder {
     slab.receiveShadow = true;
     group.add(slab);
 
+    const isAppTheme = theme === 'youtube' || theme === 'chrome' || theme === 'spotify' || theme === 'slides';
+    const accentHex = p.accent
+      ? new THREE.Color(p.accent).getHex()
+      : (isMoving && !isAppTheme ? 0x38bdf8 : this.getThemeAccentColor(theme));
+
     const headerMat = theme === 'rocket_corp' && !isMoving
       ? new THREE.MeshStandardMaterial({
           map: getVoxelTexture('rocket_corp_hazard', Math.max(4, Math.round(w)), 1),
           roughness: 0.35
         })
       : new THREE.MeshStandardMaterial({
-          color: isMoving ? 0x38bdf8 : this.getThemeAccentColor(theme),
-          emissive: isMoving ? 0x38bdf8 : this.getThemeAccentColor(theme),
-          emissiveIntensity: 0.35
+          color: accentHex,
+          emissive: accentHex,
+          emissiveIntensity: 0.38
         });
     const headerBar = new THREE.Mesh(
       new THREE.BoxGeometry(w + 0.04, barH, d + 0.04),
@@ -1832,6 +2131,348 @@ export class Arena3DBuilder {
     ctx.fillText(sm.isObjectiveComplete ? 'VIRABOTS: NEUTRALIZED' : 'VIRABOT CANISTERS: ARMED', w - 32, h - 21);
   }
 
+  drawYouTubeMonitorBackdrop(ctx, w, h, sm) {
+    // 1. Dark Mode YouTube Chrome
+    ctx.fillStyle = '#0f0f0f';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#181818';
+    ctx.fillRect(0, 0, w, 58);
+
+    // YouTube Red Logo Pill + Title + Search Bar
+    ctx.fillStyle = '#ff0033';
+    ctx.fillRect(28, 13, 52, 32);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(48, 20);
+    ctx.lineTo(48, 38);
+    ctx.lineTo(66, 29);
+    ctx.closePath();
+    ctx.fill();
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('YouTube Studio', 90, 37);
+
+    ctx.fillStyle = '#121212';
+    ctx.fillRect(320, 12, 420, 34);
+    ctx.strokeStyle = '#303030';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(320, 12, 420, 34);
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('🔍 stickman vs zombies — live stream', 336, 35);
+
+    // 2. Central 16:9 Video Frame + Up Next Sidebar
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(28, 72, 668, 292);
+    ctx.strokeStyle = '#272727';
+    ctx.strokeRect(28, 72, 668, 292);
+
+    // Red Progress Bar & Playhead
+    ctx.fillStyle = '#3f3f3f';
+    ctx.fillRect(42, 344, 640, 6);
+    ctx.fillStyle = '#ff0033';
+    ctx.fillRect(42, 344, sm.isObjectiveComplete ? 640 : 410, 6);
+    ctx.beginPath();
+    ctx.arc(42 + (sm.isObjectiveComplete ? 640 : 410), 347, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff0033';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('● LIVE PREMIERE // 1080p60 HD', 362, 138);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 30px monospace';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ STREAM STABILIZED — PORTAL OPEN' : '▶ STICKMAN VS VIRAL UPLOAD HORDE',
+      362,
+      192
+    );
+    ctx.fillStyle = '#facc15';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('WATCH OUT FOR SKIP-AD LASER & BUFFERING SCRUBBER!', 362, 236);
+
+    // Up Next Sidebar Cards
+    const cards = [
+      { title: 'Animation vs. YouTube', views: '48M views', col: '#ff0033' },
+      { title: 'Orange Combo Guide', views: '12M views', col: '#f97316' },
+      { title: 'Next App: Chrome ➔', views: 'Autoplay ON', col: '#38bdf8' }
+    ];
+    cards.forEach((c, idx) => {
+      const cy = 72 + idx * 98;
+      ctx.fillStyle = '#1f1f1f';
+      ctx.fillRect(714, cy, 282, 86);
+      ctx.fillStyle = c.col;
+      ctx.fillRect(722, cy + 10, 88, 66);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillText(c.title, 820, cy + 36);
+      ctx.fillStyle = '#aaaaaa';
+      ctx.font = '13px monospace';
+      ctx.fillText(c.views, 820, cy + 58);
+    });
+
+    // 3. Subscribe & Like Bar Footer
+    ctx.fillStyle = '#181818';
+    ctx.fillRect(0, h - 60, w, 60);
+    ctx.fillStyle = '#ff0033';
+    ctx.fillRect(28, h - 46, 178, 34);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 17px sans-serif';
+    ctx.fillText('🔔 SUBSCRIBED 10M', 117, h - 23);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#34d399';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('👍 998K  •  AUTOPLAY: CHROME.EXE', w - 28, h - 23);
+  }
+
+  drawChromeMonitorBackdrop(ctx, w, h, sm) {
+    // 1. Chrome Tab Strip + Omnibox Toolbar
+    ctx.fillStyle = '#202124';
+    ctx.fillRect(0, 0, w, 46);
+    const tabs = [
+      { label: '🔵 New Tab', col: '#4285f4', active: true },
+      { label: '🔴 YouTube', col: '#ea4335', active: false },
+      { label: '🟡 Extensions', col: '#fbbc05', active: false },
+      { label: '🟢 Downloads', col: '#34a853', active: false }
+    ];
+    tabs.forEach((t, idx) => {
+      const tx = 18 + idx * 212;
+      ctx.fillStyle = t.active ? '#35363a' : '#292a2d';
+      ctx.fillRect(tx, 8, 202, 38);
+      ctx.fillStyle = t.col;
+      ctx.fillRect(tx, 8, 202, 4);
+      ctx.fillStyle = '#e8eaed';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillText(t.label, tx + 14, 33);
+    });
+
+    ctx.fillStyle = '#35363a';
+    ctx.fillRect(0, 46, w, 48);
+    ctx.fillStyle = '#202124';
+    ctx.fillRect(126, 54, w - 210, 32);
+    ctx.fillStyle = '#9aa0a6';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillText('←  →  ↻', 24, 77);
+    ctx.fillStyle = '#8ab4f8';
+    ctx.font = '16px monospace';
+    ctx.fillText('🔒 https://chrome.google.com/stick-vs-zombies/arena', 144, 76);
+
+    // 2. Browser Viewport + 4-Color Google Emblem + Offline Dino Horizon
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 94, w, h - 144);
+
+    const gColors = ['#4285f4', '#ea4335', '#fbbc05', '#34a853'];
+    gColors.forEach((col, i) => {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 14;
+      ctx.beginPath();
+      ctx.arc(w / 2, 178, 44, (i * Math.PI) / 2, ((i + 1) * Math.PI) / 2);
+      ctx.stroke();
+    });
+    ctx.fillStyle = '#4285f4';
+    ctx.beginPath();
+    ctx.arc(w / 2, 178, 19, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#202124';
+    ctx.font = 'bold 30px sans-serif';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ ALL ROGUE TABS CLOSED — PORTAL OPEN' : '🌐 GOOGLE CHROME // MULTI-TAB SANDBOX',
+      w / 2,
+      264
+    );
+    ctx.fillStyle = '#5f6368';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('ERR_ZOMBIE_OVERFLOW  •  DINO RUNNER ACTIVE  •  RIDE THE DOWNLOAD BAR', w / 2, 298);
+
+    // Pixel Desert Ground Line + T-Rex Silhouette
+    ctx.fillStyle = '#535353';
+    ctx.fillRect(60, h - 78, w - 120, 3);
+    ctx.fillRect(140, h - 110, 22, 32);
+    ctx.fillRect(148, h - 122, 24, 16);
+    ctx.fillRect(830, h - 106, 12, 28);
+    ctx.fillRect(862, h - 114, 14, 36);
+
+    // 3. Chrome Downloads Shelf Footer
+    ctx.fillStyle = '#202124';
+    ctx.fillRect(0, h - 50, w, 50);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#8ab4f8';
+    ctx.font = 'bold 17px monospace';
+    ctx.fillText('⬇ spotify_setup.exe — Complete', 28, h - 19);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#34a853';
+    ctx.fillText('SANDBOX: PROTECTED', w - 28, h - 19);
+  }
+
+  drawSpotifyMonitorBackdrop(ctx, w, h, sm) {
+    // 1. Matte Black & Electric Green Spotify Desktop App
+    ctx.fillStyle = '#121212';
+    ctx.fillRect(0, 0, w, h);
+
+    // Left Library Sidebar
+    ctx.fillStyle = '#090909';
+    ctx.fillRect(0, 0, 236, h - 68);
+    ctx.fillStyle = '#1db954';
+    ctx.beginPath();
+    ctx.arc(42, 38, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('Spotify', 70, 46);
+
+    const playlists = ['🏠 Home', '🔍 Search', '📚 Your Library', '🔥 Stickman Beats', '⚡ Boss Fight Mix', '🎧 AvM Lo-Fi'];
+    playlists.forEach((pl, idx) => {
+      ctx.fillStyle = idx === 3 ? '#1db954' : '#b3b3b3';
+      ctx.font = idx === 3 ? 'bold 16px sans-serif' : '15px sans-serif';
+      ctx.fillText(pl, 24, 96 + idx * 38);
+    });
+
+    // 2. Main Playlist Header + 20-Bar Green Spectrum Equalizer
+    const grad = typeof ctx.createLinearGradient === 'function' ? ctx.createLinearGradient(236, 0, 236, 220) : null;
+    if (grad && typeof grad.addColorStop === 'function') {
+      grad.addColorStop(0, '#1db954');
+      grad.addColorStop(1, '#121212');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#15803d';
+    }
+    ctx.fillRect(236, 0, w - 236, 178);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText('VERIFIED PLAYLIST • 27 TRACKS', 268, 46);
+    ctx.font = 'bold 34px sans-serif';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ TRACK CLEARED — PORTAL OPEN' : '🎧 STICKMAN BASS DROP MIX',
+      268,
+      94
+    );
+    ctx.fillStyle = '#dcfce7';
+    ctx.font = 'bold 17px monospace';
+    ctx.fillText('RIDE THE GREEN EQUALIZER LIFTS  •  DROP THE BEAT ON ZOMBIES', 268, 132);
+
+    // Spectrum Visualizer Bars
+    for (let i = 0; i < 20; i++) {
+      const bx = 268 + i * 36;
+      const bh = 36 + ((i * 43 + 19) % 130);
+      ctx.fillStyle = i % 3 === 0 ? '#4ade80' : '#1db954';
+      ctx.fillRect(bx, h - 84 - bh, 24, bh);
+    }
+
+    // 3. Bottom Now-Playing Transport Bar
+    ctx.fillStyle = '#181818';
+    ctx.fillRect(0, h - 68, w, 68);
+    ctx.fillStyle = '#1db954';
+    ctx.fillRect(0, h - 68, w, 3);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillText('♫ Orange Stickman — Bassline Brawl (140 BPM)', 28, h - 34);
+    ctx.fillStyle = '#1db954';
+    ctx.font = 'bold 15px monospace';
+    ctx.fillText('⏮   ⏸   ⏭   🔀   🔁', 28, h - 12);
+    ctx.textAlign = 'right';
+    ctx.fillText('🔊 100%  •  NEXT: GOOGLE SLIDES', w - 28, h - 24);
+  }
+
+  drawSlidesMonitorBackdrop(ctx, w, h, sm) {
+    // 1. Google Slides Gold Header & Workspace Toolbar
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fbbc04';
+    ctx.fillRect(0, 0, w, 52);
+
+    ctx.fillStyle = '#202124';
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 23px sans-serif';
+    ctx.fillText('📊 Stickman_vs_Zombies_Q4_Deck.slides', 24, 34);
+
+    // Slideshow Button Pill
+    ctx.fillStyle = '#202124';
+    ctx.fillRect(w - 208, 10, 182, 32);
+    ctx.fillStyle = '#fbbc04';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillText('▶ SLIDESHOW', w - 117, 32);
+
+    // Secondary Editor Ribbon
+    ctx.fillStyle = '#edf2fa';
+    ctx.fillRect(0, 52, w, 34);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#444746';
+    ctx.font = 'bold 15px monospace';
+    ctx.fillText('File  Edit  View  Insert  Slide  Arrange  Tools   |   B  I  U  ⊞  🎨  Transition: Slide', 24, 74);
+
+    // 2. Left Filmstrip Thumbnails
+    ctx.fillStyle = '#e8eaed';
+    ctx.fillRect(0, 86, 178, h - 86);
+    for (let i = 0; i < 4; i++) {
+      const ty = 100 + i * 82;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(26, ty, 132, 68);
+      ctx.strokeStyle = i === 1 ? '#fbbc04' : '#bdc1c6';
+      ctx.lineWidth = i === 1 ? 4 : 2;
+      ctx.strokeRect(26, ty, 132, 68);
+      ctx.fillStyle = '#3c4043';
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText(`${i + 1}`, 10, ty + 38);
+    }
+
+    // 3. Central 16:9 Presentation Canvas with Selection Handles & 4-Color Chart
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(212, 104, 774, 314);
+    ctx.strokeStyle = '#dadce0';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(212, 104, 774, 314);
+
+    // Blue Free-Transform Title Box
+    ctx.strokeStyle = '#1a73e8';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(244, 124, 710, 74);
+    [244, 599, 954].forEach((hx) => {
+      [124, 198].forEach((hy) => {
+        ctx.fillStyle = '#1a73e8';
+        ctx.fillRect(hx - 4, hy - 4, 8, 8);
+      });
+    });
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#202124';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ PRESENTATION COMPLETE — PORTAL OPEN' : 'SLIDE 02: HOW TO ERASE ZOMBIES',
+      264,
+      170
+    );
+
+    const bullets = [
+      '• Grab the Giant Pink Eraser pickup!',
+      '• Jump across Text Boxes & Chart Bars',
+      '• Next Stop: Rocket Corp HQ ("The Box")'
+    ];
+    bullets.forEach((b, idx) => {
+      ctx.fillStyle = '#3c4043';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText(b, 256, 242 + idx * 42);
+    });
+
+    // 4-Color Bar Chart on Right Side of Slide
+    const chartCols = ['#4285f4', '#ea4335', '#fbbc04', '#34a853'];
+    const chartHeights = [88, 128, 104, 162];
+    chartCols.forEach((col, idx) => {
+      const bx = 742 + idx * 52;
+      const bh = chartHeights[idx];
+      ctx.fillStyle = col;
+      ctx.fillRect(bx, 392 - bh, 36, bh);
+    });
+  }
+
   redrawMonitorScreen(force = false) {
     const sm = this.stageManager;
     const beat = sm.campaignBeat || {};
@@ -1864,6 +2505,14 @@ export class Arena3DBuilder {
       this.drawPaleGardenBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'dark_core') {
       this.drawAvA8LakeBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'youtube') {
+      this.drawYouTubeMonitorBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'chrome') {
+      this.drawChromeMonitorBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'spotify') {
+      this.drawSpotifyMonitorBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'slides') {
+      this.drawSlidesMonitorBackdrop(ctx, w, h, sm);
     } else {
       ctx.fillStyle = sm.theme === 'bsod' ? '#003999'
         : (sm.theme === 'dark_core' ? '#1a0008'
@@ -2188,6 +2837,37 @@ export class Arena3DBuilder {
       }
       if (this.paleGardenHeartShrine.resinRing) {
         this.paleGardenHeartShrine.resinRing.rotation.z = t * 0.9;
+      }
+    }
+
+    // Animate App Gauntlet 3D Props (YouTube, Chrome, Spotify, Slides)
+    const appTime = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+    if (this.youtubePlayMonument?.playPrism) {
+      const pulse = 1 + Math.sin(appTime * 4.5) * 0.08;
+      this.youtubePlayMonument.playPrism.scale.set(pulse, 1, pulse);
+    }
+    if (this.chromeLogoGroup) {
+      this.chromeLogoGroup.rotation.z -= dt * 1.15;
+    }
+    if (this.spotifyVinylDisc) {
+      this.spotifyVinylDisc.rotation.y += dt * 2.4;
+    }
+    if (this.spotifyEqualizerBars && this.spotifyEqualizerBars.length > 0) {
+      for (let i = 0; i < this.spotifyEqualizerBars.length; i++) {
+        const entry = this.spotifyEqualizerBars[i];
+        const wave = 0.5 + 0.5 * Math.sin(appTime * 7.5 + entry.index * 0.72) * Math.cos(appTime * 3.1 + entry.index * 0.35);
+        const h = 1.1 + wave * 5.2;
+        entry.barMesh.scale.y = h;
+        entry.barMesh.position.y = 0.4 + h * 0.5;
+        entry.capMesh.position.y = 0.58 + h;
+      }
+    }
+    if (this.slidesChartBars && this.slidesChartBars.length > 0) {
+      for (let i = 0; i < this.slidesChartBars.length; i++) {
+        const entry = this.slidesChartBars[i];
+        const dynH = Math.max(1.2, entry.baseH + Math.sin(appTime * 2.8 + entry.index * 1.1) * 0.45);
+        entry.bar.scale.y = dynH;
+        entry.bar.position.y = 0.6 + dynH * 0.5;
       }
     }
 

@@ -1,8 +1,9 @@
 // ============================================================================
 // Stick vs Zombies — 2D Full Campaign, Creative Sandbox, Physics & Speech
 // Expansion Module (2d/expansion2d.js)
-//   - 23-Stage Campaign + 11-Boss Trophy Room (Stages 18–23: The End, Aether,
-//     Ancient City + Warden, Pale Garden + Creaking, Rocket Corp + Mercenaries,
+//   - 27-Stage Campaign + 11-Boss Trophy Room (Stages 18–27: The End, Aether,
+//     Ancient City + Warden, Pale Garden + Creaking, YouTube Studio, Google
+//     Chrome, Spotify Player, Google Slides, Rocket Corp + Mercenaries,
 //     Zero-Day + H4C3R)
 //   - Prominent Level Selector (Title Screen, Top HUD & Pause Menu)
 //   - Full 2D Creative Sandbox Mode (God Mode, 2D Flight, Freeze AI, 8 Weapons,
@@ -28,7 +29,7 @@ import { save } from '../js/systems/save.js?v=9.8';
 import {
   CAMPAIGN_BEATS_3D,
   extendCampaignFor3D
-} from '../3d/js/campaign3d.js?v=10.5';
+} from '../3d/js/campaign3d.js?v=10.6';
 import {
   ISLAND_FLOOR_BOUNDS,
   VOID_FALL_THRESHOLD,
@@ -51,9 +52,9 @@ import {
   drawExpandedTrophyIcons2D,
   drawBossFloorTelegraphs2D,
   drawCustomStagePlatforms2D
-} from './arenas2d.js?v=10.2';
-import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=10.2';
-import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=10.2';
+} from './arenas2d.js?v=10.3';
+import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=10.3';
+import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=10.3';
 
 export const STAGE_OPTIONS_2D = Object.freeze([
   { value: 1, label: '1: Main Desktop' },
@@ -77,12 +78,16 @@ export const STAGE_OPTIONS_2D = Object.freeze([
   { value: 19, label: '19: ☁️ The Aether — Golden Skylands' },
   { value: 20, label: '20: 🔊 Ancient City — The Warden' },
   { value: 21, label: '21: 🪵 Pale Garden — The Creaking' },
-  { value: 22, label: '22: 🕶️ Rocket Corp HQ — The Mercenaries' },
-  { value: 23, label: '23: ⌁ Zero-Day Mainframe — H4C3R' },
-  { value: 24, label: '24: 🏆 Trophy Room Epilogue (11 Bosses)' }
+  { value: 22, label: '22: ▶️ YouTube Studio' },
+  { value: 23, label: '23: 🌐 Google Chrome' },
+  { value: 24, label: '24: 🎧 Spotify Player' },
+  { value: 25, label: '25: 📊 Google Slides' },
+  { value: 26, label: '26: 🕶️ Rocket Corp HQ — The Mercenaries' },
+  { value: 27, label: '27: ⌁ Zero-Day Mainframe — H4C3R' },
+  { value: 28, label: '28: 🏆 Trophy Room Epilogue (11 Bosses)' }
 ]);
 
-const BOSS_STAGES_2D = new Set([5, 10, 11, 15, 16, 17, 18, 20, 21, 22, 23]);
+const BOSS_STAGES_2D = new Set([5, 10, 11, 15, 16, 17, 18, 20, 21, 26, 27]);
 
 const EXPANDED_LESSONS_2D = Object.freeze({
   1: 'MOVE · JUMP · Q COMBO · ROLL',
@@ -102,8 +107,12 @@ const EXPANDED_LESSONS_2D = Object.freeze({
   19: 'FLOATING SKY ISLAND · MIND THE CLIFFS!',
   20: 'SONIC BOOM PIERCES · ROLL PAST THE WARDEN',
   21: 'FACE THE CREAKING TO FREEZE IT · WATCH ROOTS',
-  22: '4 MERCENARIES · DIVIDE AND CONQUER',
-  23: 'FINAL ROOT PATCH · UNLEASH R AWAKENING!'
+  22: 'RIDE TIMELINE SCRUBBER · LEAP RED BUFFER BEAM',
+  23: 'HOP BROWSER TABS · CLEAR THE OMNIBOX',
+  24: 'RIDE VERTICAL EQUALIZER LIFTS · DROP THE BASS',
+  25: 'GRAB GIANT PINK ERASER · CRASH THE SLIDE DECK',
+  26: '4 MERCENARIES · DIVIDE AND CONQUER',
+  27: 'FINAL ROOT PATCH · UNLEASH R AWAKENING!'
 });
 
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -142,15 +151,35 @@ function inferStyleForSpeaker(speakerKey, priority = 1) {
 function ensure2DExpansionDOM() {
   if (typeof document === 'undefined') return;
 
-  // 0. Title Quick-Jump Pill for Stage 10 (AvA 8 Showdown Lake — The Dark Lord)
+  // 0. Title Quick-Jump Pills for Stage 10 (Showdown Lake) + App Levels (Stages 22..25)
   const quickPills = document.querySelector('.quick-stage-pills');
-  if (quickPills && !quickPills.querySelector('[data-jump-stage="10"]')) {
-    const pill = document.createElement('button');
-    pill.type = 'button';
-    pill.className = 'quick-stage-btn';
-    pill.setAttribute('data-jump-stage', '10');
-    pill.textContent = '🌊 10: Showdown Lake (Dark Lord)';
-    quickPills.prepend(pill);
+  if (quickPills) {
+    if (!quickPills.querySelector('[data-jump-stage="10"]')) {
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = 'quick-stage-btn';
+      pill.setAttribute('data-jump-stage', '10');
+      pill.textContent = '🌊 10: Showdown Lake (Dark Lord)';
+      quickPills.prepend(pill);
+    }
+    const anchor26 = quickPills.querySelector('[data-jump-stage="26"]');
+    const appPills = [
+      { stage: '22', label: '▶️ 22: YouTube' },
+      { stage: '23', label: '🌐 23: Chrome' },
+      { stage: '24', label: '🎧 24: Spotify' },
+      { stage: '25', label: '📊 25: Slides' }
+    ];
+    for (const entry of appPills) {
+      if (!quickPills.querySelector(`[data-jump-stage="${entry.stage}"]`)) {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.className = 'quick-stage-btn';
+        pill.setAttribute('data-jump-stage', entry.stage);
+        pill.textContent = entry.label;
+        if (anchor26) quickPills.insertBefore(pill, anchor26);
+        else quickPills.appendChild(pill);
+      }
+    }
   }
 
   // 1. HUD Stage Selector inside .wave-badge
@@ -424,11 +453,16 @@ export function install2DExpansion(game) {
 
     const handledCustom = drawExpandedStageBackground2D(stageManager, ctx, groundY, renderDepthPlanes);
     if (handledCustom) {
-      if (stageManager.theme !== 'dark_core') {
+      const suppressLegacyMotifs = stageManager.theme === 'dark_core' ||
+        stageManager.theme === 'youtube' ||
+        stageManager.theme === 'chrome' ||
+        stageManager.theme === 'spotify' ||
+        stageManager.theme === 'slides';
+      if (!suppressLegacyMotifs) {
         stageManager.drawEnvironmentMotifs(ctx, 0);
       }
       stageManager.drawCampaignSignal(ctx, stageManager.bounds.minX, stageManager.bounds.minY);
-      if (stageManager.theme !== 'dark_core') {
+      if (!suppressLegacyMotifs) {
         stageManager.drawEnvironmentMotifs(ctx, 1);
       }
       return;
@@ -502,6 +536,10 @@ export function install2DExpansion(game) {
       stageManager.theme === 'dark_core' ||
       stageManager.theme === 'ancient_city' ||
       stageManager.theme === 'pale_garden' ||
+      stageManager.theme === 'youtube' ||
+      stageManager.theme === 'chrome' ||
+      stageManager.theme === 'spotify' ||
+      stageManager.theme === 'slides' ||
       stageManager.theme === 'rocket_corp';
     if (nonDesktop) return;
     origDrawTaskbar(ctx, groundY);
@@ -956,7 +994,7 @@ export function install2DExpansion(game) {
   // --------------------------------------------------------------------------
   function syncStageSelectors() {
     if (typeof document === 'undefined') return;
-    const currentVal = String(stageManager.isTrophyRoom ? 24 : stageManager.currentStage);
+    const currentVal = String(stageManager.isTrophyRoom ? 28 : stageManager.currentStage);
     for (const id of ['title-stage-select', 'hud-stage-select', 'pause-stage-select']) {
       const sel = document.getElementById(id);
       if (!sel) continue;
@@ -984,7 +1022,7 @@ export function install2DExpansion(game) {
 
     clearCreativeBlocks();
 
-    if (requested === 24) {
+    if (requested === 28) {
       stageManager.isTrophyRoom = false;
       game.enterTrophyRoom();
       decoratePlayerInstance(game.player);
@@ -993,7 +1031,7 @@ export function install2DExpansion(game) {
       return;
     }
 
-    const targetStage = clamp(Math.trunc(requested), 1, 23);
+    const targetStage = clamp(Math.trunc(requested), 1, 27);
     if (game.state === 'TITLE' || options.freshStart) {
       game.startGame({ stage: targetStage, creative: sandbox.enabled });
     } else {
@@ -1005,6 +1043,11 @@ export function install2DExpansion(game) {
   // --------------------------------------------------------------------------
   // Wrap Game Lifecycle Methods (startGame, retryStage, advanceStage, etc.)
   // --------------------------------------------------------------------------
+  const origPrepareWeaponPickup = game.prepareWeaponPickup.bind(game);
+  game.prepareWeaponPickup = (stage) => {
+    origPrepareWeaponPickup(stage === 25 ? 12 : stage);
+  };
+
   game.getStageLesson = (stage) => EXPANDED_LESSONS_2D[stage] || 'CHAIN MOVES · WATCH RINGS';
 
   game.showMissionStrip = (stage, prefix = '') => {
@@ -1039,7 +1082,7 @@ export function install2DExpansion(game) {
     const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
     const requestedStage = Number.isFinite(Number(options.stage)) ? Math.trunc(Number(options.stage)) : null;
 
-    if (requestedStage === 24) {
+    if (requestedStage === 28) {
       stageManager.isTrophyRoom = false;
       game.enterTrophyRoom();
       if (options.creative) setCreativeMode(true);
@@ -1048,8 +1091,8 @@ export function install2DExpansion(game) {
     }
 
     const stage = requestedStage
-      ? clamp(requestedStage, 1, 23)
-      : (checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 23 ? checkpoint.stage : 1);
+      ? clamp(requestedStage, 1, 27)
+      : (checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 27 ? checkpoint.stage : 1);
 
     clearCreativeBlocks();
     sandbox.lastComboMilestone = 0;
@@ -1116,7 +1159,7 @@ export function install2DExpansion(game) {
   };
 
   game.advanceStage = (nextStage) => {
-    const clampedNext = clamp(Math.trunc(Number(nextStage) || 1), 1, 23);
+    const clampedNext = clamp(Math.trunc(Number(nextStage) || 1), 1, 27);
     clearCreativeBlocks();
     game.hideAllModals();
     game.state = 'PLAYING';
@@ -1182,7 +1225,7 @@ export function install2DExpansion(game) {
     clearCreativeBlocks();
     origEnterTrophyRoom();
     decoratePlayerInstance(game.player);
-    game.showMissionStrip(23, 'EPILOGUE');
+    game.showMissionStrip(27, 'EPILOGUE');
     syncStageSelectors();
   };
 

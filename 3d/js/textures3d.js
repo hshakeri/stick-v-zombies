@@ -751,6 +751,56 @@ export function drawPixelBlock(ctx, kind) {
       ctx.fillRect(4, 4, 2, 1);
       break;
     }
+    case 'youtube_floor': {
+      fillNoisyPixels(ctx, '#18181b', 0.08, 305);
+      drawBevelBorder(ctx, '#27272a', '#09090b');
+      ctx.fillStyle = '#ff0033';
+      ctx.fillRect(1, 14, 10, 1);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(11, 14, 2, 1);
+      ctx.fillStyle = '#3f3f46';
+      ctx.fillRect(13, 14, 2, 1);
+      break;
+    }
+    case 'chrome_floor': {
+      fillNoisyPixels(ctx, '#292a2d', 0.06, 315);
+      drawBevelBorder(ctx, '#3c4043', '#171717');
+      ctx.fillStyle = '#4285f4';
+      ctx.fillRect(2, 2, 2, 2);
+      ctx.fillStyle = '#ea4335';
+      ctx.fillRect(12, 2, 2, 2);
+      ctx.fillStyle = '#fbbc05';
+      ctx.fillRect(12, 12, 2, 2);
+      ctx.fillStyle = '#34a853';
+      ctx.fillRect(2, 12, 2, 2);
+      break;
+    }
+    case 'spotify_floor': {
+      fillNoisyPixels(ctx, '#121212', 0.07, 325);
+      drawBevelBorder(ctx, '#27272a', '#09090b');
+      const eqHeights = [4, 9, 6, 11];
+      for (let i = 0; i < 4; i++) {
+        const bx = 2 + i * 3;
+        const bh = eqHeights[i];
+        ctx.fillStyle = '#1db954';
+        ctx.fillRect(bx, 14 - bh, 2, bh);
+        ctx.fillStyle = '#86efac';
+        ctx.fillRect(bx, 13 - bh, 2, 1);
+      }
+      break;
+    }
+    case 'slides_floor': {
+      fillNoisyPixels(ctx, '#f8f9fa', 0.03, 335);
+      drawBevelBorder(ctx, '#ffffff', '#dadce0');
+      ctx.fillStyle = '#e8eaed';
+      ctx.fillRect(0, 7, 16, 1);
+      ctx.fillRect(7, 0, 1, 16);
+      ctx.fillStyle = '#fbbc04';
+      ctx.fillRect(2, 2, 3, 2);
+      ctx.fillStyle = '#4285f4';
+      ctx.fillRect(12, 12, 2, 2);
+      break;
+    }
     default: {
       fillNoisyPixels(ctx, '#334155', 0.14, 999);
       drawBevelBorder(ctx, '#64748b', '#1e293b');
@@ -782,6 +832,10 @@ export function getThemeFloorTextureKey(theme, isWhiteVoid = false) {
     case 'aether': return 'aether_grass';
     case 'ancient_city': return 'sculk';
     case 'pale_garden': return 'pale_moss';
+    case 'youtube': return 'youtube_floor';
+    case 'chrome': return 'chrome_floor';
+    case 'spotify': return 'spotify_floor';
+    case 'slides': return 'slides_floor';
     case 'rocket_corp': return 'rocket_corp_floor';
     case 'zero_day': return 'zero_day_floor';
     case 'trophy': return 'trophy_floor';

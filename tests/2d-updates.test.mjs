@@ -23,7 +23,7 @@ import {
   WardenBoss,
   CreakingBoss,
   MercenaryBoss
-} from '../3d/js/campaign3d.js?v=10.5';
+} from '../3d/js/campaign3d.js?v=10.6';
 import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 
 import {
@@ -32,16 +32,16 @@ import {
   drawSketchBlocksVoxel2D,
   getCreativeBlockSprite2D,
   paintVoxelBlockPixels2D
-} from '../2d/arenas2d.js?v=10.2';
+} from '../2d/arenas2d.js?v=10.3';
 import {
   DEPTH_PARALLAX,
   Depth2DRenderer,
   getDepthProfile2D
-} from '../2d/depth2d.js?v=10.2';
+} from '../2d/depth2d.js?v=10.3';
 import {
   STAGE_OPTIONS_2D,
   install2DExpansion
-} from '../2d/expansion2d.js?v=10.2';
+} from '../2d/expansion2d.js?v=10.3';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -153,23 +153,27 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
   );
 });
 
-test('2D Expansion [2] Prominent Level Selector & Title UI: index.html exposes Creative Mode, Stage Select, and Stages 18–23 pills', () => {
+test('2D Expansion [2] Prominent Level Selector & Title UI: index.html + expansion2d expose Creative Mode, Stage Select, and Stages 18–27 pills', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-  assert.match(html, /href="2d\/style2d\.css\?v=10\.2"/);
-  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.2"/);
+  assert.match(html, /href="2d\/style2d\.css\?v=10\.3"/);
+  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.3"/);
   assert.match(html, /id="btn-start-creative"/);
   assert.match(html, /id="title-stage-select"/);
-  for (const stage of [18, 19, 20, 21, 22, 23]) {
+  for (const stage of [18, 19, 20, 21, 26, 27]) {
     assert.match(html, new RegExp(`data-jump-stage="${stage}"`), `missing quick-jump pill for stage ${stage}`);
   }
-  assert.equal(STAGE_OPTIONS_2D.length, 24, 'selector must expose Stages 1–23 plus Stage 24 Trophy Room');
+  const expansionSrc = readFileSync(join(ROOT, '2d/expansion2d.js'), 'utf8');
+  for (const stage of [22, 23, 24, 25]) {
+    assert.match(expansionSrc, new RegExp(`stage:\\s*['"]?${stage}['"]?`), `expansion2d.js must inject quick-jump pill for App Stage ${stage}`);
+  }
+  assert.equal(STAGE_OPTIONS_2D.length, 28, 'selector must expose Stages 1–27 plus Stage 28 Trophy Room');
 });
 
-test('2D Expansion [3] 23-Stage Campaign + 11-Boss Trophy Room: Rocket Corp precedes Zero-Day and all new stages load cleanly', () => {
+test('2D Expansion [3] 27-Stage Campaign + 11-Boss Trophy Room: App Gauntlet (22–25) & Rocket Corp (26) precede Zero-Day (27)', () => {
   resetGlobalSystems();
   const { game, controller } = create2DGameHarness();
 
-  assert.equal(game.stageManager.maxStage, 23);
+  assert.equal(game.stageManager.maxStage, 27);
 
   // Verify Stage 18: The End + Ender Dragon
   controller.jumpToStage(18, { freshStart: true });
@@ -200,22 +204,22 @@ test('2D Expansion [3] 23-Stage Campaign + 11-Boss Trophy Room: Rocket Corp prec
   assert.equal(game.stageManager.movingPlatforms[0]?.axis, 'x', 'Hanging_Moss_Bough must move horizontally in 2D');
   assert.ok(waves.zombies.some((z) => z instanceof CreakingBoss), 'Stage 21 must spawn CreakingBoss');
 
-  // Verify Stage 22: Rocket Corp HQ (4 Mercenaries) immediately precedes Stage 23: Zero-Day (H4C3R)
-  controller.jumpToStage(22);
+  // Verify Stage 26: Rocket Corp HQ (4 Mercenaries) immediately precedes Stage 27: Zero-Day (H4C3R)
+  controller.jumpToStage(26);
   advanceWaveSpawns(game, 4.0);
-  assert.equal(game.stageManager.currentStage, 22);
+  assert.equal(game.stageManager.currentStage, 26);
   assert.equal(game.stageManager.theme, 'rocket_corp');
   const mercs = waves.zombies.filter((z) => z instanceof MercenaryBoss);
-  assert.equal(mercs.length, 4, 'Stage 22 must spawn Agent, Ballista, Primal, and Hazard');
+  assert.equal(mercs.length, 4, 'Stage 26 must spawn Agent, Ballista, Primal, and Hazard');
 
-  controller.jumpToStage(23);
+  controller.jumpToStage(27);
   advanceWaveSpawns(game, 2.0);
-  assert.equal(game.stageManager.currentStage, 23);
+  assert.equal(game.stageManager.currentStage, 27);
   assert.equal(game.stageManager.theme, 'zero_day');
-  assert.ok(waves.zombies.some((z) => z.type === 'h4c3r'), 'Stage 23 must spawn H4C3R');
+  assert.ok(waves.zombies.some((z) => z.type === 'h4c3r'), 'Stage 27 must spawn H4C3R');
 
-  // Verify Stage 24: Trophy Room Epilogue with all 11 Boss Monuments
-  controller.jumpToStage(24);
+  // Verify Stage 28: Trophy Room Epilogue with all 11 Boss Monuments
+  controller.jumpToStage(28);
   assert.equal(game.stageManager.isTrophyRoom, true);
   assert.equal(game.stageManager.desktopIcons.length, 11, 'Trophy Room must honor all 11 campaign bosses');
 
@@ -226,10 +230,10 @@ test('2D Expansion [4] Pure 2D Canvas Rendering & Gaze-Freeze: all new arenas, v
   resetGlobalSystems();
   const { game, controller, ctx, calls } = create2DGameHarness();
 
-  // Render Stages 7, 18, 19, 20, 21, 22, 23, and 24 through full game.render()
-  for (const stage of [7, 18, 19, 20, 21, 22, 23, 24]) {
+  // Render Stages 7, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, and 28 through full game.render()
+  for (const stage of [7, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]) {
     controller.jumpToStage(stage, { freshStart: stage === 7 });
-    if (stage < 24) advanceWaveSpawns(game, 2.5);
+    if (stage < 28) advanceWaveSpawns(game, 2.5);
     calls.save = 0;
     calls.restore = 0;
     game.update(1 / 60);
@@ -502,8 +506,8 @@ test('2D Expansion [7] Expressive 2D Comic Speech Bubbles: banter bridge, boss i
 test('2D Expansion [8] Depth-of-Field, Cached Offscreen Far/Mid Blur, Parallax, Contact Shadows & Foreground Bokeh', () => {
   resetGlobalSystems();
 
-  // 1. Theme depth profiles cover classic, open-edge, and expanded biomes cleanly
-  for (const theme of ['desktop', 'minecraft', 'the_end', 'aether', 'ancient_city', 'pale_garden', 'rocket_corp', 'zero_day', 'trophy']) {
+  // 1. Theme depth profiles cover classic, open-edge, App Gauntlet, and expanded biomes cleanly
+  for (const theme of ['desktop', 'minecraft', 'the_end', 'aether', 'ancient_city', 'pale_garden', 'youtube', 'chrome', 'spotify', 'slides', 'rocket_corp', 'zero_day', 'trophy']) {
     const profile = getDepthProfile2D(theme);
     assert.ok(profile.farTint && profile.midTint && profile.bokehTint, `theme ${theme} must provide full depth palette`);
   }
@@ -789,8 +793,8 @@ test('2D Expansion [10] Creative Mob & Boss Spawner On-Screen Visibility Across 
   assert.ok(inwardMob.x < game.player.x && inwardMob.x >= -870, 'spawning near right arena boundary must flip inward onto safe floor');
   assert.equal(inwardMob.facing, 1, 'mob spawned to the left of Orange must face right toward Orange');
 
-  // 4. Spawning inside Stage 24 (Trophy Room, where waves start inactive) activates waves and updates spawned mobs
-  controller.jumpToStage(24, { creative: true });
+  // 4. Spawning inside Stage 28 (Trophy Room, where waves start inactive) activates waves and updates spawned mobs
+  controller.jumpToStage(28, { creative: true });
   assert.equal(waves.isWaveActive, false, 'Trophy Room starts with waves inactive');
   game.player.x = 0;
   game.player.facing = 1;
@@ -996,4 +1000,156 @@ test('2D Expansion [12] All 15 Placed Block Voxel Textures, KeyV Isolation & E-K
 
   resetGlobalSystems();
 });
+
+test('2D Expansion [13] Dedicated App Levels (Stages 22–25): YouTube, Chrome, Spotify & Slides Arenas, Vertical Equalizer Lifts, Eraser Pickup & Depth Motifs', () => {
+  resetGlobalSystems();
+  const { game, controller, calls } = create2DGameHarness();
+
+  const expectedApps = [
+    {
+      stage: 22,
+      theme: 'youtube',
+      stageName: 'YouTube Studio',
+      motif: 'youtube_ui',
+      staticCount: 3,
+      movingCount: 1,
+      movingAxis: 'x',
+      waveTotal: 16,
+      uiSnippet: 'YouTube'
+    },
+    {
+      stage: 23,
+      theme: 'chrome',
+      stageName: 'Google Chrome',
+      motif: 'chrome_tabs',
+      staticCount: 4,
+      movingCount: 1,
+      movingAxis: 'x',
+      waveTotal: 16,
+      uiSnippet: 'chrome.google.com/stick-vs-zombies/arena'
+    },
+    {
+      stage: 24,
+      theme: 'spotify',
+      stageName: 'Spotify Player',
+      motif: 'spotify_eq',
+      staticCount: 3,
+      movingCount: 2,
+      movingAxis: 'y',
+      waveTotal: 16,
+      uiSnippet: 'Spotify'
+    },
+    {
+      stage: 25,
+      theme: 'slides',
+      stageName: 'Google Slides',
+      motif: 'slides_deck',
+      staticCount: 4,
+      movingCount: 1,
+      movingAxis: 'x',
+      waveTotal: 17,
+      uiSnippet: 'SLIDE 02'
+    }
+  ];
+
+  // 1. Verify STAGE_OPTIONS_2D labels & depth-of-field blurred motif baking for all 4 apps
+  for (const app of expectedApps) {
+    const opt = STAGE_OPTIONS_2D.find((o) => o.value === app.stage);
+    assert.ok(opt, `Stage ${app.stage} must be present in STAGE_OPTIONS_2D`);
+    assert.ok(opt.label.includes(app.stageName.split(' ')[0]), `Stage ${app.stage} option label must name ${app.stageName}`);
+
+    const profile = getDepthProfile2D(app.theme);
+    assert.equal(profile.motif, app.motif, `${app.theme} depth profile must map to ${app.motif}`);
+
+    let bakedCount = 0;
+    const depth = new Depth2DRenderer({
+      createCanvas: (w, h) => ({
+        width: w,
+        height: h,
+        getContext: () => {
+          bakedCount += 1;
+          return createCanvasMock().ctx;
+        }
+      })
+    });
+    depth.drawBackgroundDepthPlanes(
+      createCanvasMock().ctx,
+      { currentStage: app.stage, theme: app.theme, isTrophyRoom: false, bounds: { minX: -1200, maxX: 1200, minY: -620 } },
+      { x: 0, y: -140 },
+      0,
+      false
+    );
+    assert.equal(bakedCount, 2, `${app.theme} (${app.motif}) must bake both Far and Mid blurred depth planes cleanly`);
+  }
+
+  // 2. Jump to each App Stage (22..25), verify layouts, wave counts, UI rendering, and taskbar suppression
+  for (const app of expectedApps) {
+    controller.jumpToStage(app.stage, { freshStart: app.stage === 22 });
+    assert.equal(game.stageManager.currentStage, app.stage);
+    assert.equal(game.stageManager.theme, app.theme);
+    assert.equal(game.stageManager.stageName, app.stageName);
+    assert.equal(game.stageManager.platforms.length, app.staticCount, `${app.stageName} static platform count`);
+    assert.equal(game.stageManager.movingPlatforms.length, app.movingCount, `${app.stageName} moving platform count`);
+    assert.equal(game.stageManager.movingPlatforms[0]?.axis, app.movingAxis, `${app.stageName} moving platform axis`);
+
+    const totalQueuedAndActive = waves.zombies.length + waves.spawnQueue.length;
+    assert.equal(totalQueuedAndActive, app.waveTotal, `${app.stageName} must queue ${app.waveTotal} enemies`);
+
+    if (app.stage === 22) {
+      assert.equal(game.stageManager.laserHazards.length, 1, 'Stage 22 YouTube must feature the red skip-ad/buffering laser hazard');
+    }
+    if (app.stage === 25) {
+      assert.ok(game.weaponPickup && game.weaponPickup.type === 'eraser', 'Stage 25 Google Slides must spawn the Giant Pink Eraser pickup');
+    }
+
+    calls.save = 0;
+    calls.restore = 0;
+    calls.fillText.length = 0;
+    game.update(1 / 60);
+    game.render();
+
+    assert.equal(calls.save, calls.restore, `Stage ${app.stage} (${app.theme}) must balance ctx.save and ctx.restore`);
+    assert.equal(game.reportedLayerErrors.size, 0, `Stage ${app.stage} (${app.theme}) must render with zero 2D layer errors`);
+    assert.ok(
+      calls.fillText.some((t) => t.includes(app.uiSnippet)),
+      `Stage ${app.stage} (${app.theme}) must render authentic ${app.uiSnippet} app chrome`
+    );
+    assert.ok(
+      !calls.fillText.some((t) => t.includes('🪟 START') || t.includes('Stick_vs_Zombies.exe')),
+      `Stage ${app.stage} (${app.theme}) must suppress the Windows desktop taskbar so full-screen app UI fills the viewport`
+    );
+  }
+
+  // 3. Verify Stage 24 Spotify's vertical bouncing equalizer lift (`axis: 'y'`) carries Orange smoothly upward & downward
+  controller.jumpToStage(24);
+  const bassLift = game.stageManager.movingPlatforms[0];
+  assert.equal(bassLift.title, 'Equalizer_Bass_W');
+  assert.equal(bassLift.axis, 'y');
+
+  game.player.x = bassLift.x;
+  game.player.y = bassLift.y - bassLift.height;
+  game.player.vy = 0;
+  game.player.isGrounded = true;
+  game.player.standingPlatform = bassLift;
+  game.player.standingPlatformX = bassLift.x;
+  game.player.standingPlatformY = bassLift.y;
+
+  const startLiftY = bassLift.y;
+  for (let step = 0; step < 6; step++) {
+    game.update(1 / 60);
+  }
+  assert.notEqual(bassLift.y, startLiftY, 'Equalizer_Bass_W must oscillate vertically on axis y');
+  assert.equal(
+    game.player.standingPlatform,
+    bassLift,
+    'Orange must stay grounded on the vertically bouncing Spotify equalizer lift'
+  );
+  assert.ok(
+    Math.abs(game.player.y - (bassLift.y - bassLift.height)) <= 6,
+    'Orange y position must ride flush with the moving Spotify equalizer lift top'
+  );
+
+  resetGlobalSystems();
+});
+
 

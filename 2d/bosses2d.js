@@ -3,7 +3,7 @@
 //   - EnderDragonBoss (Stage 18: The End)
 //   - WardenBoss      (Stage 20: Ancient City)
 //   - CreakingBoss    (Stage 21: Pale Garden — Gaze-Freeze & Resin Heart-Tether)
-//   - MercenaryBoss   (Stage 22: Rocket Corp — Agent, Ballista, Primal, Hazard)
+//   - MercenaryBoss   (Stage 26: Rocket Corp — Agent, Ballista, Primal, Hazard)
 //   - 8-Weapon Armory stats & 2D StickFigureRenderer weapon visuals
 // ============================================================================
 
@@ -14,7 +14,7 @@ import {
   WardenBoss,
   CreakingBoss,
   MercenaryBoss
-} from '../3d/js/campaign3d.js?v=10.5';
+} from '../3d/js/campaign3d.js?v=10.6';
 
 const EXTRA_WEAPON_STATS = Object.freeze({
   toolbar_staff: {

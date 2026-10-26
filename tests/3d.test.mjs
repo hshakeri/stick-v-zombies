@@ -112,7 +112,7 @@ if (typeof globalThis.window === 'undefined') {
 // 3D Module Imports
 // ----------------------------------------------------------------------------
 import * as THREE from '../3d/lib/three.module.min.js';
-import * as models3d from '../3d/js/models3d.js?v=10.4';
+import * as models3d from '../3d/js/models3d.js?v=10.5';
 const {
   StickRig3D,
   CreeperLordRig3D,
@@ -134,7 +134,7 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from '../3d/js/arena3d.js?v=10.4';
+} from '../3d/js/arena3d.js?v=10.5';
 import {
   extendCampaignFor3D,
   CAMPAIGN_BEATS_3D,
@@ -142,8 +142,8 @@ import {
   MercenaryBoss,
   WardenBoss,
   CreakingBoss
-} from '../3d/js/campaign3d.js?v=10.5';
-import { getVoxelTexture, getThemeFloorTextureKey, drawPixelBlock } from '../3d/js/textures3d.js?v=10.4';
+} from '../3d/js/campaign3d.js?v=10.6';
+import { getVoxelTexture, getThemeFloorTextureKey, drawPixelBlock } from '../3d/js/textures3d.js?v=10.5';
 
 // ----------------------------------------------------------------------------
 // Local Verification Helpers for Resource Disposal Protocol
@@ -1305,15 +1305,19 @@ test('Tier 4 [Scenario 6] Full 23-Stage Campaign Routing & 11-Trophy Victory Roo
   };
 
   extendCampaignFor3D(stageManager, waveDirector);
-  assert.equal(stageManager.maxStage, 23, 'extendCampaignFor3D must set maxStage to 23');
+  assert.equal(stageManager.maxStage, 27, 'extendCampaignFor3D must set maxStage to 27');
 
-  // Check 3D custom late-game campaign beats are defined
+  // Check 3D custom late-game & App Gauntlet campaign beats are defined
   assert.ok(CAMPAIGN_BEATS_3D[18], 'stage 18 (The End) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[19], 'stage 19 (The Aether) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[20], 'stage 20 (Ancient City) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[21], 'stage 21 (Pale Garden) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[22], 'stage 22 (Rocket Corp HQ) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[23], 'stage 23 (Zero-Day Mainframe) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[22], 'stage 22 (YouTube Studio) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[23], 'stage 23 (Google Chrome) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[24], 'stage 24 (Spotify Player) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[25], 'stage 25 (Google Slides) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[26], 'stage 26 (Rocket Corp HQ) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[27], 'stage 27 (Zero-Day Mainframe) must exist in CAMPAIGN_BEATS_3D');
 
   assert.equal(CAMPAIGN_BEATS_3D[18].bossLabel, 'ENDER DRAGON');
   assert.equal(CAMPAIGN_BEATS_3D[18].mission, 'SLAY THE ENDER DRAGON');
@@ -1322,8 +1326,12 @@ test('Tier 4 [Scenario 6] Full 23-Stage Campaign Routing & 11-Trophy Victory Roo
   assert.equal(CAMPAIGN_BEATS_3D[20].mission, 'SILENCE THE WARDEN');
   assert.equal(CAMPAIGN_BEATS_3D[21].bossLabel, 'THE CREAKING');
   assert.equal(CAMPAIGN_BEATS_3D[21].mission, 'SHATTER THE CREAKING');
-  assert.equal(CAMPAIGN_BEATS_3D[22].bossLabel, 'AGENT · BALLISTA · PRIMAL · HAZARD');
-  assert.equal(CAMPAIGN_BEATS_3D[23].bossLabel, 'H4C3R');
+  assert.equal(CAMPAIGN_BEATS_3D[22].mission, 'SURVIVE THE VIRAL STREAM');
+  assert.equal(CAMPAIGN_BEATS_3D[23].mission, 'CLEAR THE BROWSER TABS');
+  assert.equal(CAMPAIGN_BEATS_3D[24].mission, 'RIDE THE BASS DROP');
+  assert.equal(CAMPAIGN_BEATS_3D[25].mission, 'CRASH THE PRESENTATION');
+  assert.equal(CAMPAIGN_BEATS_3D[26].bossLabel, 'AGENT · BALLISTA · PRIMAL · HAZARD');
+  assert.equal(CAMPAIGN_BEATS_3D[27].bossLabel, 'H4C3R');
 
   // 11-Trophy victory room roster
   stageManager.enterTrophyRoom();
@@ -4673,8 +4681,8 @@ test('Ancient City [5] Creative Sandbox & Title Quick-Jump UI: 3d/index.html exp
   assert.ok(html.includes('value="sculk"'), '3d/index.html must include sculk in Creative block select');
   assert.ok(html.includes('value="deepslate_tiles"'), '3d/index.html must include deepslate_tiles in Creative block select');
   assert.ok(html.includes('data-jump-stage="20">🔊 20: Ancient City (The Warden)'), 'Title screen must include Stage 20 Ancient City quick-jump pill');
-  assert.ok(html.includes('data-jump-stage="22">🕶️ 22: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must be Stage 22 right before Stage 23 H4C3R');
-  assert.ok(html.includes('data-jump-stage="23">⌁ 23: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 23');
+  assert.ok(html.includes('data-jump-stage="26">🕶️ 26: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must be Stage 26 right before Stage 27 H4C3R');
+  assert.ok(html.includes('data-jump-stage="27">⌁ 27: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 27');
 });
 
 // ============================================================================
@@ -4747,11 +4755,13 @@ test('Pale Garden [2] Stage 21 Arena3DBuilder: builds Center Ancient Pale Oak & 
   assert.ok(arena.paleGardenHeartShrine.heartMat.emissiveIntensity >= 0.4, 'Creaking Heart emissive must pulse');
   assert.notEqual(arena.paleGardenHeartShrine.resinRing.rotation.z, prevRingRot, 'Resin ring around Creaking Heart must rotate');
 
-  // Verify clean rebuild transition to Stage 22 (Rocket Corp HQ — right before Stage 23 H4C3R)
+  // Verify clean rebuild transition to Stage 22 (YouTube Studio) and Stage 26 (Rocket Corp HQ)
   stageManager.loadStage(22);
-  assert.equal(stageManager.stageName, 'Rocket Corp HQ');
+  assert.equal(stageManager.stageName, 'YouTube Studio');
   arena.rebuildForStage();
   assert.equal(arena.paleGardenHeartShrine, null, 'Creaking Heart Shrine reference must clear on stage rebuild');
+  stageManager.loadStage(26);
+  assert.equal(stageManager.stageName, 'Rocket Corp HQ');
 });
 
 test('Pale Garden [3] CreakingBossRig3D Anatomy & Animation: 3 asymmetrical glowing eyes, flush stilts, frozen statue pose, and Resin Heart-Tether motes', () => {
@@ -4888,8 +4898,8 @@ test('Pale Garden [5] Creative Sandbox, Title Quick-Jump UI & Speech Aliases: 3d
   assert.ok(html.includes('value="pale_oak_log"'), '3d/index.html must include pale_oak_log in Creative block select');
   assert.ok(html.includes('value="creaking_heart"'), '3d/index.html must include creaking_heart in Creative block select');
   assert.ok(html.includes('data-jump-stage="21">🪵 21: Pale Garden (The Creaking)'), 'Title screen must include Stage 21 Pale Garden quick-jump pill');
-  assert.ok(html.includes('data-jump-stage="22">🕶️ 22: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must remain immediately before Zero-Day H4C3R');
-  assert.ok(html.includes('data-jump-stage="23">⌁ 23: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 23');
+  assert.ok(html.includes('data-jump-stage="26">🕶️ 26: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must remain immediately before Zero-Day H4C3R');
+  assert.ok(html.includes('data-jump-stage="27">⌁ 27: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 27');
 
   if (speech3dModule) {
     assert.ok(speech3dModule.SPEAKER_BADGES.creaking_boss, 'SPEAKER_BADGES must define creaking_boss');
@@ -5029,3 +5039,162 @@ test('Voxel Block Parity [1] All 15 Creative Placed Blocks Render Distinct 16x16
   }
   assert.equal(signatures.size, 15);
 });
+
+// ============================================================================
+// Stages 22–25: App Gauntlet 3D Suite (YouTube, Chrome, Spotify, Slides)
+// ============================================================================
+
+test('App Gauntlet [1] Floor Textures: youtube_floor, chrome_floor, spotify_floor, and slides_floor generate distinct cached 16x16 CanvasTextures', () => {
+  const mappings = [
+    ['youtube', 'youtube_floor'],
+    ['chrome', 'chrome_floor'],
+    ['spotify', 'spotify_floor'],
+    ['slides', 'slides_floor']
+  ];
+
+  const sigs = new Set();
+  for (const [theme, texKey] of mappings) {
+    assert.equal(getThemeFloorTextureKey(theme), texKey, `${theme} must map to ${texKey}`);
+    const tex = getVoxelTexture(texKey);
+    assert.ok(tex instanceof THREE.CanvasTexture, `${texKey} must be a THREE.CanvasTexture`);
+    assert.equal(getVoxelTexture(texKey), tex, `${texKey} must be singleton-cached`);
+
+    const grid = new Array(256).fill('');
+    const ctx = {
+      fillStyle: '#000000',
+      fillRect(rx, ry, rw, rh) {
+        const c0 = Math.max(0, Math.floor(rx));
+        const r0 = Math.max(0, Math.floor(ry));
+        const c1 = Math.min(16, Math.ceil(rx + rw));
+        const r1 = Math.min(16, Math.ceil(ry + rh));
+        for (let r = r0; r < r1; r++) {
+          for (let c = c0; c < c1; c++) {
+            grid[r * 16 + c] = String(this.fillStyle).toLowerCase();
+          }
+        }
+      }
+    };
+    drawPixelBlock(ctx, texKey);
+    assert.ok(grid.every((p) => p.length > 0), `${texKey} must paint all 256 texels`);
+    sigs.add(grid.join('|'));
+  }
+  assert.equal(sigs.size, 4, 'All 4 App Gauntlet floor textures must be visually distinct');
+});
+
+test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop Animations (YouTube, Chrome, Spotify, Slides)', () => {
+  const scene = new THREE.Scene();
+  const stageManager = {
+    currentStage: 1,
+    stageName: 'Main Desktop',
+    theme: 'desktop',
+    stageTime: 0,
+    platforms: [],
+    movingPlatforms: [],
+    desktopIcons: [],
+    laserHazards: [],
+    lavaHazards: [],
+    errorPopups: [],
+    entranceDoor: { x: -900, y: 0, width: 60, height: 110 },
+    exitDoor: { x: 860, y: 0, width: 60, height: 110, isOpen: false },
+    loadStage: () => {},
+    enterTrophyRoom: () => {},
+    getCampaignBeat: (n) => ({ name: `Stage ${n}` })
+  };
+  let queuedTotal = 0;
+  const waveDirector = {
+    zombies: [],
+    spawnQueue: [],
+    generateWaveQueue: () => {},
+    queueWaveRecipe: (recipe) => {
+      queuedTotal = recipe.packs.reduce((sum, pack) => sum + pack.enemies.length, 0);
+      assert.equal(queuedTotal, recipe.total, 'Wave recipe total must match sum of pack enemy counts');
+    },
+    spawnZombie: () => {},
+    getSafeSpawnX: () => 420,
+    update: () => {}
+  };
+
+  extendCampaignFor3D(stageManager, waveDirector);
+  const arena = new Arena3DBuilder(scene, stageManager);
+
+  // 1. Stage 22: YouTube Studio
+  stageManager.loadStage(22);
+  waveDirector.generateWaveQueue(22);
+  assert.equal(stageManager.stageName, 'YouTube Studio');
+  assert.equal(stageManager.theme, 'youtube');
+  assert.equal(stageManager.laserHazards.length, 1, 'YouTube Studio must spawn 1 red skip-ad/buffering laser');
+  assert.equal(queuedTotal, 16, 'YouTube Studio wave recipe must queue 16 enemies');
+  arena.rebuildForStage();
+  assert.ok(arena.youtubePlayMonument?.playPrism, 'YouTube 3D arena must build Play Button monument');
+  stageManager.stageTime = 0.6;
+  arena.update(0.2);
+  assert.notEqual(arena.youtubePlayMonument.playPrism.scale.x, 1, 'YouTube Play Button prism must pulse during update');
+
+  // 2. Stage 23: Google Chrome
+  stageManager.loadStage(23);
+  waveDirector.generateWaveQueue(23);
+  assert.equal(stageManager.stageName, 'Google Chrome');
+  assert.equal(stageManager.theme, 'chrome');
+  assert.equal(stageManager.platforms.length, 4, 'Chrome must feature 4 Google-colored tab platforms');
+  assert.equal(queuedTotal, 16, 'Chrome wave recipe must queue 16 enemies');
+  arena.rebuildForStage();
+  assert.equal(arena.youtubePlayMonument, null, 'YouTube prop ref must clear when rebuilding for Chrome');
+  assert.ok(arena.chromeLogoGroup, 'Chrome 3D arena must build spinning 4-color Chrome ring');
+  const prevChromeRot = arena.chromeLogoGroup.rotation.z;
+  stageManager.stageTime = 0.8;
+  arena.update(0.25);
+  assert.notEqual(arena.chromeLogoGroup.rotation.z, prevChromeRot, 'Chrome 4-color ring must spin during update');
+
+  // 3. Stage 24: Spotify Player
+  stageManager.loadStage(24);
+  waveDirector.generateWaveQueue(24);
+  assert.equal(stageManager.stageName, 'Spotify Player');
+  assert.equal(stageManager.theme, 'spotify');
+  assert.equal(stageManager.movingPlatforms.length, 2, 'Spotify must feature 2 vertical equalizer lifts');
+  assert.equal(stageManager.movingPlatforms[0].axis, 'y');
+  assert.equal(queuedTotal, 16, 'Spotify wave recipe must queue 16 enemies');
+  arena.rebuildForStage();
+  assert.equal(arena.chromeLogoGroup, null, 'Chrome prop ref must clear when rebuilding for Spotify');
+  assert.equal(arena.spotifyEqualizerBars.length, 12, 'Spotify 3D arena must build 12-bar live audio equalizer');
+  assert.ok(arena.spotifyVinylDisc, 'Spotify 3D arena must build spinning vinyl turntable');
+  const prevVinylRot = arena.spotifyVinylDisc.rotation.y;
+  stageManager.stageTime = 1.1;
+  arena.update(0.25);
+  assert.notEqual(arena.spotifyVinylDisc.rotation.y, prevVinylRot, 'Spotify vinyl turntable must spin during update');
+  assert.ok(arena.spotifyEqualizerBars[0].barMesh.scale.y > 1.0, 'Spotify 3D equalizer bars must bounce dynamically');
+
+  // 4. Stage 25: Google Slides
+  stageManager.loadStage(25);
+  waveDirector.generateWaveQueue(25);
+  assert.equal(stageManager.stageName, 'Google Slides');
+  assert.equal(stageManager.theme, 'slides');
+  assert.equal(stageManager.platforms.length, 4, 'Slides must feature 4 presentation slide platforms');
+  assert.equal(queuedTotal, 17, 'Slides wave recipe must queue 17 enemies');
+  arena.rebuildForStage();
+  assert.equal(arena.spotifyVinylDisc, null, 'Spotify prop ref must clear when rebuilding for Slides');
+  assert.equal(arena.slidesChartBars.length, 4, 'Slides 3D arena must build 4-color Google bar-chart columns');
+  const prevChartH = arena.slidesChartBars[0].bar.scale.y;
+  stageManager.stageTime = 0.7;
+  arena.update(0.25);
+  assert.notEqual(arena.slidesChartBars[0].bar.scale.y, prevChartH, 'Slides 3D bar-chart columns must animate smoothly');
+
+  verifyDisposeHierarchy(arena.group, true);
+});
+
+test('App Gauntlet [3] 3D HTML Quick-Jump Pills & Game3D Integration: 3d/index.html & game3d.js expose Stages 22–27 + Trophy 28 + Slides Eraser', () => {
+  const htmlPath = fileURLToPath(new URL('../3d/index.html', import.meta.url));
+  const html = readFileSync(htmlPath, 'utf8');
+  assert.ok(html.includes('27 Stages'), '3d/index.html tagline must announce 27 Stages');
+  assert.ok(html.includes('data-jump-stage="22">▶️ 22: YouTube'), '3d/index.html must include Stage 22 YouTube pill');
+  assert.ok(html.includes('data-jump-stage="23">🌐 23: Chrome'), '3d/index.html must include Stage 23 Chrome pill');
+  assert.ok(html.includes('data-jump-stage="24">🎧 24: Spotify'), '3d/index.html must include Stage 24 Spotify pill');
+  assert.ok(html.includes('data-jump-stage="25">📊 25: Slides'), '3d/index.html must include Stage 25 Slides pill');
+  assert.ok(html.includes('data-jump-stage="26">🕶️ 26: Rocket Corp (Mercenaries)'), '3d/index.html must include Stage 26 Rocket Corp pill');
+  assert.ok(html.includes('data-jump-stage="27">⌁ 27: Zero-Day (H4C3R)'), '3d/index.html must include Stage 27 Zero-Day pill');
+  assert.ok(html.includes('src="js/game3d.js?v=11.3"'), '3d/index.html must load game3d.js?v=11.3');
+
+  const game3dSrc = readFileSync(fileURLToPath(new URL('../3d/js/game3d.js', import.meta.url)), 'utf8');
+  assert.match(game3dSrc, /28: 🏆 Trophy Room Epilogue/, 'game3d.js must expose Option 28 Trophy Room Epilogue');
+  assert.match(game3dSrc, /stage === 25/, 'game3d.js must spawn the Giant Pink Eraser pickup on Stage 25 Google Slides');
+});
+

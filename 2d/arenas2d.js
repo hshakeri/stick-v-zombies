@@ -1580,6 +1580,594 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY, onSkyP
     return true;
   }
 
+  if (theme === 'youtube') {
+    ctx.save();
+    paintFullVoid('#0f0f0f');
+    onSkyPainted?.();
+
+    // 1. Top YouTube Masthead Navigation Bar
+    ctx.fillStyle = '#18181b';
+    ctx.fillRect(minX, minY, maxX - minX, 62);
+    ctx.fillStyle = '#27272a';
+    ctx.fillRect(minX, minY + 61, maxX - minX, 2);
+
+    // YouTube Red Play Pill + Brand Wordmark
+    ctx.fillStyle = '#ff0033';
+    ctx.fillRect(minX + 54, minY + 15, 48, 32);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(minX + 73, minY + 23);
+    ctx.lineTo(minX + 73, minY + 39);
+    ctx.lineTo(minX + 88, minY + 31);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText('YouTube', minX + 112, minY + 38);
+
+    // Center Search Bar + Magnifying Button
+    ctx.fillStyle = '#121212';
+    ctx.strokeStyle = '#3f3f46';
+    ctx.lineWidth = 2;
+    ctx.fillRect(-310, minY + 14, 560, 34);
+    ctx.strokeRect(-310, minY + 14, 560, 34);
+    ctx.fillStyle = '#27272a';
+    ctx.fillRect(250, minY + 14, 62, 34);
+    ctx.strokeRect(250, minY + 14, 62, 34);
+    ctx.fillStyle = '#a1a1aa';
+    ctx.font = '13px monospace';
+    ctx.fillText('Stick vs Zombies - Official Fight (1080p60)', -292, minY + 36);
+    ctx.fillStyle = '#e4e4e7';
+    ctx.fillText('🔍', 272, minY + 36);
+
+    // Live Stream Indicator Pill on Right
+    const livePulse = 0.65 + Math.sin(t * 5.2) * 0.3;
+    ctx.fillStyle = `rgba(255, 0, 51, ${livePulse})`;
+    ctx.fillRect(maxX - 188, minY + 16, 126, 30);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText('● LIVE 1080p60', maxX - 174, minY + 35);
+
+    // 2. Left Creator Studio Award Plaques (Silver, Gold, Red Diamond)
+    const plaques = [
+      { y: groundY - 395, frame: '#cbd5e1', gem: '#f8fafc', label: '100K SILVER' },
+      { y: groundY - 285, frame: '#facc15', gem: '#fef08a', label: '1M GOLD' },
+      { y: groundY - 175, frame: '#ff0033', gem: '#38bdf8', label: '10M DIAMOND' }
+    ];
+    for (let i = 0; i < plaques.length; i++) {
+      const pl = plaques[i];
+      ctx.fillStyle = '#18181b';
+      ctx.strokeStyle = pl.frame;
+      ctx.lineWidth = 2.5;
+      ctx.fillRect(-900, pl.y, 165, 86);
+      ctx.strokeRect(-900, pl.y, 165, 86);
+      ctx.fillStyle = pl.frame;
+      ctx.fillRect(-848, pl.y + 18, 60, 38);
+      ctx.fillStyle = pl.gem;
+      ctx.beginPath();
+      ctx.moveTo(-824, pl.y + 27);
+      ctx.lineTo(-824, pl.y + 47);
+      ctx.lineTo(-806, pl.y + 37);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#e4e4e7';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText(pl.label, -872, pl.y + 74);
+    }
+
+    // 3. Central 16:9 Cinema Video Player Frame
+    const vidX = -430;
+    const vidY = groundY - 425;
+    const vidW = 860;
+    const vidH = 330;
+    ctx.fillStyle = '#09090b';
+    ctx.strokeStyle = '#3f3f46';
+    ctx.lineWidth = 3;
+    ctx.fillRect(vidX, vidY, vidW, vidH);
+    ctx.strokeRect(vidX, vidY, vidW, vidH);
+
+    // Subtle Theater Ambient Glow + Center Play Emblem
+    const playScale = 1 + Math.sin(t * 3.4) * 0.05;
+    ctx.save();
+    ctx.translate(0, vidY + vidH * 0.46);
+    ctx.scale(playScale, playScale);
+    ctx.fillStyle = 'rgba(255, 0, 51, 0.88)';
+    ctx.fillRect(-62, -42, 124, 84);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-62, -42, 124, 84);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(-16, -22);
+    ctx.lineTo(-16, 22);
+    ctx.lineTo(26, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Video Player Scrubbing Timeline & Controls
+    const scrubRatio = 0.52 + Math.sin(t * 0.85) * 0.32;
+    const scrubW = Math.round((vidW - 36) * scrubRatio);
+    ctx.fillStyle = '#3f3f46';
+    ctx.fillRect(vidX + 18, vidY + vidH - 32, vidW - 36, 6);
+    ctx.fillStyle = '#ff0033';
+    ctx.fillRect(vidX + 18, vidY + vidH - 32, scrubW, 6);
+    ctx.beginPath();
+    ctx.arc(vidX + 18 + scrubW, vidY + vidH - 29, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e4e4e7';
+    ctx.font = '11px monospace';
+    ctx.fillText('▶  ❚❚   🔊   04:20 / 10:01', vidX + 22, vidY + vidH - 10);
+    ctx.fillText('⚙ HD  ▭  ⛶', vidX + vidW - 118, vidY + vidH - 10);
+
+    // Below-Video Title, Channel Avatar & Subscribe CTA Bar
+    ctx.fillStyle = '#f4f4f5';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('Animation vs. YouTube — Stick vs Zombies Arena', vidX + 4, groundY - 68);
+    ctx.fillStyle = '#ff0033';
+    ctx.fillRect(72, groundY - 56, 152, 30);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText('🔔 SUBSCRIBE 10M', 84, groundY - 37);
+    ctx.fillStyle = '#27272a';
+    ctx.fillRect(238, groundY - 56, 190, 30);
+    ctx.fillStyle = '#e4e4e7';
+    ctx.fillText('👍 999K  |  ↗ SHARE', 252, groundY - 37);
+
+    // 4. Right Sidebar "Up Next" Thumbnail Queue
+    const thumbs = [
+      { y: groundY - 415, accent: '#38bdf8', title: 'AvA 8: Lake Showdown', dur: '14:22' },
+      { y: groundY - 300, accent: '#22c55e', title: 'Minecraft vs Zombies', dur: '09:45' },
+      { y: groundY - 185, accent: '#facc15', title: 'Chrome & Spotify Mix', dur: '06:18' }
+    ];
+    for (let i = 0; i < thumbs.length; i++) {
+      const th = thumbs[i];
+      ctx.fillStyle = '#18181b';
+      ctx.strokeStyle = '#3f3f46';
+      ctx.lineWidth = 2;
+      ctx.fillRect(475, th.y, 150, 84);
+      ctx.strokeRect(475, th.y, 150, 84);
+      ctx.fillStyle = th.accent;
+      ctx.fillRect(483, th.y + 8, 42, 42);
+      ctx.fillStyle = '#09090b';
+      ctx.fillRect(574, th.y + 62, 46, 16);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '10px monospace';
+      ctx.fillText(th.dur, 580, th.y + 74);
+      ctx.fillStyle = '#e4e4e7';
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText(th.title, 636, th.y + 32);
+      ctx.fillStyle = '#a1a1aa';
+      ctx.fillText('Alan-Style Arena • 8.2M', 636, th.y + 54);
+    }
+
+    // 5. Combat Floor Deck + Glowing Red Progress Scrub Line
+    ctx.fillStyle = '#18181b';
+    ctx.fillRect(minX, groundY, maxX - minX, 320);
+    ctx.fillStyle = '#ff0033';
+    ctx.fillRect(minX, groundY - 3, maxX - minX, 6);
+    ctx.fillStyle = '#27272a';
+    ctx.fillRect(minX - 24, minY, 24, groundY - minY + 40);
+    ctx.fillRect(maxX, minY, 24, groundY - minY + 40);
+    ctx.restore();
+    return true;
+  }
+
+  if (theme === 'chrome') {
+    ctx.save();
+    paintFullVoid('#202124');
+    onSkyPainted?.();
+
+    // 1. Top Multi-Tab Browser Strip + Traffic Lights + Omnibox URL Bar
+    ctx.fillStyle = '#292a2d';
+    ctx.fillRect(minX, minY, maxX - minX, 44);
+    const lights = ['#ff5f56', '#ffbd2e', '#27c93f'];
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = lights[i];
+      ctx.beginPath();
+      ctx.arc(minX + 38 + i * 22, minY + 22, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const tabs = [
+      { x: minX + 120, label: '🌐 Stick Arena', color: '#4285f4', active: true },
+      { x: minX + 360, label: '🦖 chrome://dino', color: '#ea4335', active: false },
+      { x: minX + 600, label: '🕶 Incognito Tab', color: '#fbbc05', active: false },
+      { x: minX + 840, label: '⚙ DevTools [F12]', color: '#34a853', active: false }
+    ];
+    for (let i = 0; i < tabs.length; i++) {
+      const tb = tabs[i];
+      ctx.fillStyle = tb.active ? '#35363a' : '#202124';
+      ctx.fillRect(tb.x, minY + 8, 226, 36);
+      ctx.fillStyle = tb.color;
+      ctx.fillRect(tb.x, minY + 8, 226, 4);
+      ctx.fillStyle = '#e8eaed';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(tb.label, tb.x + 14, minY + 30);
+      ctx.fillStyle = '#9aa0a6';
+      ctx.fillText('×', tb.x + 204, minY + 30);
+    }
+
+    // Omnibox Toolbar
+    ctx.fillStyle = '#35363a';
+    ctx.fillRect(minX, minY + 44, maxX - minX, 46);
+    ctx.fillStyle = '#202124';
+    ctx.strokeStyle = '#5f6368';
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(minX + 140, minY + 52, maxX - minX - 280, 30);
+    ctx.strokeRect(minX + 140, minY + 52, maxX - minX - 280, 30);
+    ctx.fillStyle = '#9aa0a6';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('←   →   ↻', minX + 34, minY + 72);
+    ctx.fillStyle = '#8ab4f8';
+    ctx.font = '13px monospace';
+    ctx.fillText('🔒 https://chrome.google.com/stick-vs-zombies/arena', minX + 162, minY + 72);
+    ctx.fillStyle = '#fbbc05';
+    ctx.fillText('★', maxX - 168, minY + 72);
+
+    // 2. Central 4-Color Google Chrome Spinning Ring Emblem
+    const ringY = groundY - 268;
+    const ringColors = ['#ea4335', '#fbbc05', '#34a853'];
+    ctx.save();
+    ctx.translate(0, ringY);
+    ctx.rotate(t * 0.35);
+    for (let s = 0; s < 3; s++) {
+      const a0 = (s * Math.PI * 2) / 3 - Math.PI * 0.75;
+      const a1 = a0 + (Math.PI * 2) / 3 + 0.03;
+      ctx.fillStyle = ringColors[s];
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, 88, a0, a1);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, 0, 44, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#4285f4';
+    ctx.beginPath();
+    ctx.arc(0, 0, 35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 3. Iconic Chrome Offline T-Rex Dino Runner Horizon (groundY - 92..groundY)
+    const desertY = groundY - 28;
+    ctx.strokeStyle = '#5f6368';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(minX + 60, desertY);
+    ctx.lineTo(maxX - 60, desertY);
+    ctx.stroke();
+
+    // Retro Score Readout
+    const scoreTick = String(4820 + Math.floor(t * 14) % 90000).padStart(5, '0');
+    ctx.fillStyle = '#9aa0a6';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(`NO INTERNET // HI 99999  ${scoreTick}`, 470, groundY - 108);
+
+    // Pixel Desert Cacti
+    const cactusXs = [-520, -140, 410, 740];
+    for (let i = 0; i < cactusXs.length; i++) {
+      const cx = cactusXs[i];
+      ctx.fillStyle = '#9aa0a6';
+      ctx.fillRect(cx - 6, desertY - 46, 12, 46);
+      ctx.fillRect(cx - 18, desertY - 34, 12, 8);
+      ctx.fillRect(cx - 18, desertY - 44, 8, 14);
+      ctx.fillRect(cx + 6, desertY - 28, 12, 8);
+      ctx.fillRect(cx + 10, desertY - 40, 8, 16);
+    }
+
+    // Animated Pixel Chrome Offline T-Rex Dino (hopping & running!)
+    const dinoX = -740;
+    const dinoHop = Math.abs(Math.sin(t * 4.2)) * 18;
+    const dy = desertY - dinoHop;
+    ctx.fillStyle = '#bdc1c6';
+    ctx.fillRect(dinoX, dy - 56, 30, 20);      // Snout & head
+    ctx.fillRect(dinoX - 10, dy - 38, 28, 24); // Torso
+    ctx.fillRect(dinoX - 22, dy - 32, 12, 12); // Tail
+    ctx.fillRect(dinoX + 18, dy - 30, 8, 6);   // Tiny T-Rex arm!
+    const legSwap = Math.floor(t * 10) % 2;
+    ctx.fillRect(dinoX - 6, dy - 14, 7, legSwap === 0 ? 14 : 9);
+    ctx.fillRect(dinoX + 8, dy - 14, 7, legSwap === 1 ? 14 : 9);
+    ctx.fillStyle = '#202124';
+    ctx.fillRect(dinoX + 8, dy - 51, 5, 5);    // Dino pixel eye
+
+    // 4. Combat Floor = Chrome Downloads Bar with 4-Color Google Stripe
+    ctx.fillStyle = '#292a2d';
+    ctx.fillRect(minX, groundY, maxX - minX, 320);
+    const spanQuarter = (maxX - minX) * 0.25;
+    const gCols = ['#4285f4', '#ea4335', '#fbbc05', '#34a853'];
+    for (let q = 0; q < 4; q++) {
+      ctx.fillStyle = gCols[q];
+      ctx.fillRect(minX + q * spanQuarter, groundY - 3, spanQuarter + 1, 6);
+    }
+    ctx.fillStyle = '#35363a';
+    ctx.fillRect(minX + 60, groundY + 12, 240, 26);
+    ctx.fillRect(minX + 320, groundY + 12, 240, 26);
+    ctx.fillStyle = '#e8eaed';
+    ctx.font = '11px monospace';
+    ctx.fillText('⬇ stick_arena_setup.exe', minX + 76, groundY + 29);
+    ctx.fillText('⬇ chrome_dino_mod.zip', minX + 336, groundY + 29);
+    ctx.restore();
+    return true;
+  }
+
+  if (theme === 'spotify') {
+    ctx.save();
+    const bgGrad = ctx.createLinearGradient(0, minY, 0, groundY);
+    bgGrad.addColorStop(0, '#07361a');
+    bgGrad.addColorStop(0.45, '#121212');
+    bgGrad.addColorStop(1, '#09090b');
+    paintFullVoid(bgGrad);
+    onSkyPainted?.();
+
+    // 1. Left "Your Library" Sidebar Panel
+    ctx.fillStyle = '#09090b';
+    ctx.strokeStyle = '#27272a';
+    ctx.lineWidth = 2;
+    ctx.fillRect(minX + 24, minY + 24, 340, groundY - minY - 40);
+    ctx.strokeRect(minX + 24, minY + 24, 340, groundY - minY - 40);
+
+    // Spotify Brand Green Circle + Sound Waves
+    ctx.fillStyle = '#1db954';
+    ctx.beginPath();
+    ctx.arc(minX + 68, minY + 64, 20, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#09090b';
+    ctx.lineWidth = 3;
+    for (let w = 0; w < 3; w++) {
+      ctx.beginPath();
+      ctx.moveTo(minX + 57 + w * 2, minY + 58 + w * 6);
+      ctx.lineTo(minX + 79 - w * 2, minY + 60 + w * 6);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.fillText('Spotify', minX + 98, minY + 71);
+
+    const playlists = [
+      '🏠  Home',
+      '🔍  Search',
+      '📚  Your Library',
+      '💚  Liked Songs • 412',
+      '🔥  Stick Fight BPM 175',
+      '⚡  Boss Rush Synthwave',
+      '🎧  Animator Lo-Fi Beats'
+    ];
+    ctx.font = 'bold 13px monospace';
+    for (let i = 0; i < playlists.length; i++) {
+      ctx.fillStyle = i === 4 ? '#1db954' : '#b3b3b3';
+      ctx.fillText(playlists[i], minX + 48, minY + 124 + i * 38);
+    }
+
+    // 2. Center Spinning Vinyl LP & Playlist Header
+    const vinylX = -150;
+    const vinylY = groundY - 355;
+    ctx.save();
+    ctx.translate(vinylX, vinylY);
+    ctx.rotate(t * 1.9);
+    ctx.fillStyle = '#18181b';
+    ctx.strokeStyle = '#3f3f46';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, 68, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = '#27272a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 48, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#1db954';
+    ctx.beginPath();
+    ctx.arc(0, 0, 24, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#09090b';
+    ctx.beginPath();
+    ctx.arc(0, 0, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#86efac';
+    ctx.fillRect(-3, -64, 6, 18);
+    ctx.restore();
+
+    ctx.fillStyle = '#1db954';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText('VERIFIED PLAYLIST • STAGE 24', -56, vinylY - 36);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillText('STICK VS ZOMBIES OST', -56, vinylY - 4);
+    ctx.fillStyle = '#a1a1aa';
+    ctx.font = '13px monospace';
+    ctx.fillText('DJ Second Coming • 27 Tracks • 175 BPM Bass Drop', -56, vinylY + 24);
+
+    // 3. Live Animated 24-Bar #1DB954 Audio Spectrum Equalizer across Main Stage
+    const eqCount = 24;
+    const eqStartX = -540;
+    const eqStep = 58;
+    for (let i = 0; i < eqCount; i++) {
+      const waveA = Math.sin(t * 7.4 + i * 0.58) * 0.5 + 0.5;
+      const waveB = Math.cos(t * 4.9 - i * 0.33) * 0.5 + 0.5;
+      const barH = Math.round(34 + (waveA * 0.65 + waveB * 0.35) * 165);
+      const bx = eqStartX + i * eqStep;
+      ctx.fillStyle = 'rgba(29, 185, 84, 0.78)';
+      ctx.fillRect(bx, groundY - 12 - barH, 38, barH);
+      ctx.fillStyle = '#86efac';
+      ctx.fillRect(bx, groundY - 18 - barH, 38, 6);
+    }
+
+    // 4. Combat Floor = Spotify "Now Playing" Transport Footer Bar
+    ctx.fillStyle = '#18181b';
+    ctx.fillRect(minX, groundY, maxX - minX, 320);
+    ctx.fillStyle = '#1db954';
+    ctx.fillRect(minX, groundY - 3, maxX - minX, 6);
+
+    // Transport Controls & Progress Readout
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, groundY + 26, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#09090b';
+    ctx.fillRect(-5, groundY + 19, 4, 14);
+    ctx.fillRect(2, groundY + 19, 4, 14);
+    ctx.fillStyle = '#b3b3b3';
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText('🔀   ⏮', -95, groundY + 31);
+    ctx.fillText('⏭   🔁', 34, groundY + 31);
+    ctx.fillStyle = '#1db954';
+    ctx.fillText('♫ NOW PLAYING: BASS DROP ARENA', minX + 54, groundY + 31);
+    ctx.fillText('🔊 ████████░░ 85%', maxX - 240, groundY + 31);
+    ctx.restore();
+    return true;
+  }
+
+  if (theme === 'slides') {
+    ctx.save();
+    paintFullVoid('#e8eaed');
+    onSkyPainted?.();
+
+    // 1. Top Google Slides Gold Ribbon & Toolbar
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(minX, minY, maxX - minX, 82);
+    ctx.fillStyle = '#dadce0';
+    ctx.fillRect(minX, minY + 81, maxX - minX, 2);
+
+    // Gold Google Slides Document Icon
+    ctx.fillStyle = '#fbbc04';
+    ctx.fillRect(minX + 44, minY + 16, 36, 46);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(minX + 51, minY + 30, 22, 18);
+    ctx.fillStyle = '#202124';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillText('Stick_vs_Zombies_Strategy_Deck.slides', minX + 94, minY + 36);
+    ctx.fillStyle = '#5f6368';
+    ctx.font = '12px monospace';
+    ctx.fillText('File  Edit  View  Insert  Slide  Format  Arrange  Tools', minX + 94, minY + 56);
+
+    // Formatting Strip + Yellow [ ▶ Slideshow ] CTA Button
+    ctx.fillStyle = '#f1f3f4';
+    ctx.fillRect(-120, minY + 46, 520, 26);
+    ctx.fillStyle = '#3c4043';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText('+  ↶  ↷  |  Arial  18pt  |  B   I   U   A   🔗   ⊞', -104, minY + 64);
+
+    ctx.fillStyle = '#fbbc04';
+    ctx.fillRect(maxX - 216, minY + 20, 158, 38);
+    ctx.fillStyle = '#202124';
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText('▶ SLIDESHOW', maxX - 188, minY + 44);
+
+    // 2. Left Vertical Slide Filmstrip (Slides 1..4)
+    ctx.fillStyle = '#f8f9fa';
+    ctx.strokeStyle = '#dadce0';
+    ctx.lineWidth = 2;
+    ctx.fillRect(minX + 22, minY + 96, 250, groundY - minY - 110);
+    ctx.strokeRect(minX + 22, minY + 96, 250, groundY - minY - 110);
+
+    for (let s = 0; s < 4; s++) {
+      const sy = minY + 114 + s * 96;
+      const active = s === 1;
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = active ? '#fbbc04' : '#bdc1c6';
+      ctx.lineWidth = active ? 3.5 : 1.5;
+      ctx.fillRect(minX + 58, sy, 190, 78);
+      ctx.strokeRect(minX + 58, sy, 190, 78);
+      ctx.fillStyle = active ? '#d97706' : '#5f6368';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(String(s + 1), minX + 36, sy + 44);
+      ctx.fillStyle = active ? '#fbbc04' : '#e8eaed';
+      ctx.fillRect(minX + 68, sy + 10, 170, 12);
+      ctx.fillStyle = '#9aa0a6';
+      ctx.fillRect(minX + 68, sy + 30, 110, 6);
+      ctx.fillRect(minX + 68, sy + 44, 140, 6);
+    }
+
+    // 3. Central 16:9 Crisp White Presentation Slide Canvas
+    const slideX = -590;
+    const slideY = groundY - 438;
+    const slideW = 1420;
+    const slideH = 408;
+
+    // Soft Drop Shadow + Crisp White Slide Sheet
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.14)';
+    ctx.fillRect(slideX + 10, slideY + 10, slideW, slideH);
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 2;
+    ctx.fillRect(slideX, slideY, slideW, slideH);
+    ctx.strokeRect(slideX, slideY, slideW, slideH);
+
+    // Slide Gold Accent Header Bar
+    ctx.fillStyle = '#fbbc04';
+    ctx.fillRect(slideX, slideY, slideW, 16);
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('SLIDE 02: HOW TO DEFEAT ZOMBIES (Q4 REPORT)', slideX + 42, slideY + 58);
+
+    // Left Editable Text Box with Blue Free-Transform Handles (□)
+    const boxX = slideX + 44;
+    const boxY = slideY + 86;
+    const boxW = 610;
+    const boxH = 265;
+    ctx.strokeStyle = '#4285f4';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
+    const handles = [
+      [boxX, boxY], [boxX + boxW * 0.5, boxY], [boxX + boxW, boxY],
+      [boxX, boxY + boxH * 0.5], [boxX + boxW, boxY + boxH * 0.5],
+      [boxX, boxY + boxH], [boxX + boxW * 0.5, boxY + boxH], [boxX + boxW, boxY + boxH]
+    ];
+    for (let h = 0; h < handles.length; h++) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(handles[h][0] - 5, handles[h][1] - 5, 10, 10);
+      ctx.strokeRect(handles[h][0] - 5, handles[h][1] - 5, 10, 10);
+    }
+    ctx.fillStyle = '#334155';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText('• 1. Build Voxel Cover [V / B]', boxX + 26, boxY + 54);
+    ctx.fillText('• 2. Equip Giant Pink Eraser', boxX + 26, boxY + 106);
+    ctx.fillText('• 3. Launch Air Juggle Combos', boxX + 26, boxY + 158);
+    ctx.fillText('• 4. Breach Rocket Corp Next →', boxX + 26, boxY + 210);
+
+    // Right Column: Live Animated 4-Color Google Bar Chart
+    const chartX = slideX + 740;
+    const chartBaseY = slideY + 350;
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(chartX, slideY + 95);
+    ctx.lineTo(chartX, chartBaseY);
+    ctx.lineTo(chartX + 590, chartBaseY);
+    ctx.stroke();
+
+    const bars = [
+      { label: 'INK', color: '#4285f4', baseH: 135 },
+      { label: 'COMBO', color: '#ea4335', baseH: 185 },
+      { label: 'SPEED', color: '#fbbc04', baseH: 155 },
+      { label: 'VICTORY', color: '#34a853', baseH: 225 }
+    ];
+    for (let b = 0; b < bars.length; b++) {
+      const br = bars[b];
+      const pulseH = br.baseH + Math.round(Math.sin(t * 2.8 + b * 1.1) * 14);
+      const bx = chartX + 46 + b * 134;
+      ctx.fillStyle = br.color;
+      ctx.fillRect(bx, chartBaseY - pulseH, 84, pulseH);
+      ctx.fillStyle = '#334155';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(br.label, bx + 12, chartBaseY + 22);
+    }
+
+    // 4. Combat Floor = Speaker Notes & Ruler Deck
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(minX, groundY, maxX - minX, 320);
+    ctx.fillStyle = '#fbbc04';
+    ctx.fillRect(minX, groundY - 3, maxX - minX, 6);
+    ctx.fillStyle = '#5f6368';
+    ctx.font = '13px monospace';
+    ctx.fillText('Speaker notes: Watch out for incoming waves while presenting Slide 02!', -310, groundY + 28);
+    ctx.restore();
+    return true;
+  }
+
   return false;
 }
 
@@ -1730,6 +2318,10 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
     theme !== 'aether' &&
     theme !== 'ancient_city' &&
     theme !== 'pale_garden' &&
+    theme !== 'youtube' &&
+    theme !== 'chrome' &&
+    theme !== 'spotify' &&
+    theme !== 'slides' &&
     theme !== 'rocket_corp' &&
     theme !== 'dark_core'
   ) {
@@ -1789,6 +2381,72 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
         ctx.lineTo(mx + sway, p.y + 18 + ((Math.abs(mx) | 0) % 10));
         ctx.stroke();
       }
+    } else if (theme === 'youtube') {
+      ctx.fillStyle = '#18181b';
+      ctx.strokeStyle = '#3f3f46';
+      ctx.lineWidth = 2;
+      ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+      ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+      const progW = p.axis ? p.width - 4 : Math.round((p.width - 4) * 0.72);
+      ctx.fillStyle = '#ff0033';
+      ctx.fillRect(p.x - halfW + 2, topY + 2, progW, 5);
+      ctx.beginPath();
+      ctx.arc(p.x - halfW + 2 + progW, topY + 4.5, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f4f4f5';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText(`▶ ${p.title || 'YouTube'}`, p.x - halfW + 10, topY + 17);
+    } else if (theme === 'chrome') {
+      const accent = p.accent || '#4285f4';
+      ctx.fillStyle = '#35363a';
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 2;
+      ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+      ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+      ctx.fillStyle = accent;
+      ctx.fillRect(p.x - halfW + 2, topY + 2, p.width - 4, 4);
+      ctx.beginPath();
+      ctx.arc(p.x - halfW + 12, topY + 13, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e8eaed';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText(p.title || 'Tab', p.x - halfW + 22, topY + 17);
+      ctx.fillStyle = '#9aa0a6';
+      ctx.fillText('×', p.x + halfW - 14, topY + 17);
+    } else if (theme === 'spotify') {
+      const isLift = p.axis === 'y';
+      ctx.fillStyle = '#18181b';
+      ctx.strokeStyle = '#1db954';
+      ctx.lineWidth = isLift ? 2.5 : 2;
+      ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+      ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+      ctx.fillStyle = '#1db954';
+      ctx.fillRect(p.x - halfW + 2, topY + 2, p.width - 4, 5);
+      ctx.fillStyle = '#86efac';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText(`♫ ${p.title || 'Track'}`, p.x - halfW + 10, topY + 17);
+    } else if (theme === 'slides') {
+      const borderCol = p.axis ? '#fbbc04' : '#4285f4';
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = borderCol;
+      ctx.lineWidth = 2;
+      ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+      ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+      // 4 Free-Transform corner handles (□)
+      const corners = [
+        [p.x - halfW, topY],
+        [p.x + halfW, topY],
+        [p.x - halfW, p.y],
+        [p.x + halfW, p.y]
+      ];
+      for (let c = 0; c < 4; c++) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(corners[c][0] - 3.5, corners[c][1] - 3.5, 7, 7);
+        ctx.strokeRect(corners[c][0] - 3.5, corners[c][1] - 3.5, 7, 7);
+      }
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText(p.title || 'Slide_Box', p.x - halfW + 10, topY + 15);
     } else if (theme === 'rocket_corp') {
       ctx.fillStyle = '#1e293b';
       ctx.strokeStyle = '#ff6b00';

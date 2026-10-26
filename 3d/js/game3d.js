@@ -20,7 +20,7 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from './arena3d.js?v=10.4';
+} from './arena3d.js?v=10.5';
 import {
   filterPlatformsForEntity,
   resolveSweptVerticalCollision,
@@ -44,9 +44,9 @@ import {
   buildVoxelWeaponMesh,
   createTurretMesh3D,
   createViraBotMesh3D
-} from './models3d.js?v=10.4';
-import { getVoxelTexture } from './textures3d.js?v=10.4';
-import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.5';
+} from './models3d.js?v=10.5';
+import { getVoxelTexture } from './textures3d.js?v=10.5';
+import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.6';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
 const CAMERA_LABELS = {
@@ -538,9 +538,13 @@ export class Game3D {
       '19: The Aether (Skylands)',
       '20: Ancient City (The Warden)',
       '21: Pale Garden (The Creaking)',
-      '22: Rocket Corp (The Mercenaries)',
-      '23: Zero-Day (H4C3R)',
-      '24: 🏆 Trophy Room Epilogue'
+      '22: ▶️ YouTube Studio',
+      '23: 🌐 Google Chrome',
+      '24: 🎧 Spotify Player',
+      '25: 📊 Google Slides',
+      '26: Rocket Corp (The Mercenaries)',
+      '27: Zero-Day (H4C3R)',
+      '28: 🏆 Trophy Room Epilogue'
     ];
     const selectorIds = ['stage-select-dropdown', 'title-stage-select', 'pause-stage-select'];
     selectorIds.forEach((id) => {
@@ -556,10 +560,10 @@ export class Game3D {
       select.addEventListener('change', () => {
         const val = Number(select.value);
         audio.init();
-        if (val === 24) {
+        if (val === 28) {
           this.startGame();
           this.enterTrophyRoom();
-        } else if (val >= 1 && val <= 23) {
+        } else if (val >= 1 && val <= 27) {
           this.jumpToStage(val);
         }
         select.blur();
@@ -569,7 +573,7 @@ export class Game3D {
     document.querySelectorAll('[data-jump-stage]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const stg = Number(btn.getAttribute('data-jump-stage'));
-        if (stg >= 1 && stg <= 23) {
+        if (stg >= 1 && stg <= 27) {
           audio.init();
           this.jumpToStage(stg);
         }
@@ -685,7 +689,7 @@ export class Game3D {
       btnStart.addEventListener('click', () => {
         audio.init();
         const selectedStage = parseInt(document.getElementById('title-stage-select')?.value, 10);
-        if (selectedStage === 24) {
+        if (selectedStage === 28) {
           this.startGame();
           this.enterTrophyRoom();
         } else if (selectedStage && selectedStage > 1) {
@@ -702,7 +706,7 @@ export class Game3D {
         const selectedStage = parseInt(document.getElementById('title-stage-select')?.value, 10) || 1;
         this.creativeMode = true;
         this.creativeGodMode = true;
-        if (selectedStage === 24) {
+        if (selectedStage === 28) {
           this.startGame();
           this.enterTrophyRoom();
         } else {
@@ -1574,7 +1578,7 @@ export class Game3D {
 
   startGame(options = {}) {
     const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
-    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 23 ? checkpoint.stage : 1;
+    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 27 ? checkpoint.stage : 1;
     this.hideAllModals();
     this.state = 'PLAYING';
     audio.setBGMDucked?.(false);
@@ -1711,7 +1715,7 @@ export class Game3D {
     this.player.weaponType = 'pencil';
     this.player.stageDamageTaken = 0;
 
-    const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 18, 20, 21, 22, 23].includes(nextStage);
+    const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 18, 20, 21, 26, 27].includes(nextStage);
     const baselineHeal = this.player.maxHp * 0.18;
     const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
     this.player.heal(isBossCheckpoint ? Math.max(baselineHeal, bossSafetyHeal) : baselineHeal);
@@ -1762,7 +1766,7 @@ export class Game3D {
     this.syncContinueButton();
     audio.setIntensity(0.12);
     audio.setBGMDucked?.(false);
-    this.showMissionStrip(23, 'EPILOGUE');
+    this.showMissionStrip(27, 'EPILOGUE');
     particles.addTextBanner(this.player.x + 90, this.player.y - 90, '★ 3D TROPHY ROOM UNLOCKED! ★', '#ffd54a');
     speech.spawnSpeechBubble?.('orange', 'TROPHY ROOM UNLOCKED!', {
       style: 'comic',
@@ -1771,7 +1775,7 @@ export class Game3D {
       anchor: this.player
     });
 
-    this.syncStageSelectors(24);
+    this.syncStageSelectors(28);
   }
 
   completeGame() {
@@ -1822,7 +1826,7 @@ export class Game3D {
   }
 
   prepareWeaponPickup(stage) {
-    const type = stage === 7 ? 'staff' : (stage === 12 ? 'eraser' : null);
+    const type = stage === 7 ? 'staff' : ((stage === 12 || stage === 25) ? 'eraser' : null);
     this.weaponPickup = type ? {
       type,
       x: Math.max(-720, this.stageManager.entranceDoor.x + 250),
@@ -1879,9 +1883,15 @@ export class Game3D {
       clue.textContent = previousClue ? `TRACE // ${previousClue}` : '';
     }
     if (lesson) {
+      const appLessons = {
+        22: 'YOUTUBE STUDIO · RIDE THE TIMELINE SCRUBBER & JUMP THE SKIP-AD LASER!',
+        23: 'GOOGLE CHROME · LEAP ACROSS GOOGLE TABS & RIDE THE DOWNLOAD CHIP!',
+        24: 'SPOTIFY PLAYER · RIDE THE BOUNCING GREEN EQUALIZER LIFTS!',
+        25: 'GOOGLE SLIDES · GRAB THE GIANT PINK ERASER & CLEAR THE PRESENTATION!'
+      };
       lesson.textContent = this.stageManager.isTrophyRoom
         ? '3D TROPHY ROOM · WALK TO THE RESULTS PORTAL'
-        : 'WASD / ARROWS MOVE IN 3D · SPACE JUMP · CLICK / Q COMBO · R-CLICK / K SLASH';
+        : (appLessons[stage] || 'WASD / ARROWS MOVE IN 3D · SPACE JUMP · CLICK / Q COMBO · R-CLICK / K SLASH');
     }
     strip.classList.add('active');
     this.missionStripTimer = 4.0;

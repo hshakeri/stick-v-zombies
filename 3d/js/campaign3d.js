@@ -1606,20 +1606,52 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     act: 'VI - DIMENSIONS BEYOND',
     mission: 'SHATTER THE CREAKING',
     clearText: 'CREAKING HEART SHATTERED!',
-    clue: 'SIGNAL LOCKED: ROCKET CORP HQ',
+    clue: 'APP GAUNTLET: YOUTUBE.COM',
     bossLabel: 'THE CREAKING',
     allyReaction: Object.freeze({ ally: 'yellow', line: 'KEEP EYES ON THE TREE!' })
   }),
   22: Object.freeze({
-    act: 'VII - ROCKET CORP CONTAINMENT',
+    act: 'VII - DESKTOP APP GAUNTLET',
+    mission: 'SURVIVE THE VIRAL STREAM',
+    clearText: 'STREAM MONETIZED!',
+    clue: 'NEW TAB OPENED: CHROME://ARENA',
+    bossLabel: null,
+    allyReaction: Object.freeze({ ally: 'green', line: 'SMASH THAT SUBSCRIBE BUTTON!' })
+  }),
+  23: Object.freeze({
+    act: 'VII - DESKTOP APP GAUNTLET',
+    mission: 'CLEAR THE BROWSER TABS',
+    clearText: 'CACHE PURGED!',
+    clue: 'AUDIO STREAM: SPOTIFY.EXE',
+    bossLabel: null,
+    allyReaction: Object.freeze({ ally: 'yellow', line: 'WATCH THE RAM USAGE!' })
+  }),
+  24: Object.freeze({
+    act: 'VII - DESKTOP APP GAUNTLET',
+    mission: 'RIDE THE BASS DROP',
+    clearText: 'PLAYLIST MASTERED!',
+    clue: 'DECK LOADED: GOOGLE SLIDES',
+    bossLabel: null,
+    allyReaction: Object.freeze({ ally: 'green', line: 'THIS BEAT DROPS HARD!' })
+  }),
+  25: Object.freeze({
+    act: 'VII - DESKTOP APP GAUNTLET',
+    mission: 'CRASH THE PRESENTATION',
+    clearText: 'SLIDE DECK PRESENTED!',
+    clue: 'SIGNAL LOCKED: ROCKET CORP HQ',
+    bossLabel: null,
+    allyReaction: Object.freeze({ ally: 'blue', line: 'NEXT SLIDE, PLEASE!' })
+  }),
+  26: Object.freeze({
+    act: 'VIII - ROCKET CORP CONTAINMENT',
     mission: 'DEFEAT THE MERCENARIES',
     clearText: 'THE BOX BREACHED!',
     clue: 'FINAL TRACE: ROOT://H4C3R',
     bossLabel: 'AGENT · BALLISTA · PRIMAL · HAZARD',
     allyReaction: Object.freeze({ ally: 'chosen', line: 'NOT GOING BACK IN THE BOX.' })
   }),
-  23: Object.freeze({
-    act: 'VIII - ZERO-DAY FINALE',
+  27: Object.freeze({
+    act: 'IX - ZERO-DAY FINALE',
     mission: 'LOG OUT H4C3R',
     clearText: 'SYSTEM RESTORED!',
     clue: 'RESTORE KEY COMPLETE',
@@ -1636,7 +1668,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   const origEnterTrophy = stageManager.enterTrophyRoom.bind(stageManager);
   const origGetBeat = stageManager.getCampaignBeat.bind(stageManager);
 
-  stageManager.maxStage = 23;
+  stageManager.maxStage = 27;
   stageManager.lavaHazards = stageManager.currentStage === 7 ? [
     { x: -360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 },
     { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 }
@@ -1654,17 +1686,17 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   }
 
   stageManager.getCampaignBeat = (stageNum = stageManager.currentStage) => {
-    const stage = Math.max(1, Math.min(23, Math.trunc(Number(stageNum)) || 1));
+    const stage = Math.max(1, Math.min(27, Math.trunc(Number(stageNum)) || 1));
     return CAMPAIGN_BEATS_3D[stage] || origGetBeat(stage);
   };
 
   stageManager.loadStage = (stageNum) => {
     const numericStage = Number.isFinite(stageNum) ? Math.trunc(stageNum) : 1;
-    const stage = Math.max(1, Math.min(23, numericStage));
+    const stage = Math.max(1, Math.min(27, numericStage));
 
     if (stage <= 17) {
       origLoadStage(stage);
-      stageManager.maxStage = 23;
+      stageManager.maxStage = 27;
       stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
       if (stage === 7) {
         stageManager.lavaHazards = [
@@ -1685,20 +1717,20 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       return;
     }
 
-    if (stage === 23) {
-      // Stage 23 is Zero-Day Mainframe (H4C3R), built from original stage 18
+    if (stage === 27) {
+      // Stage 27 is Zero-Day Mainframe (H4C3R), built from original stage 18
       origLoadStage(18);
-      stageManager.currentStage = 23;
-      stageManager.maxStage = 23;
-      stageManager.campaignBeat = CAMPAIGN_BEATS_3D[23];
+      stageManager.currentStage = 27;
+      stageManager.maxStage = 27;
+      stageManager.campaignBeat = CAMPAIGN_BEATS_3D[27];
       stageManager.lavaHazards = [];
       return;
     }
 
-    // Reset common state via stage 1 then customize for Stages 18, 19, 20, 21, 22
+    // Reset common state via stage 1 then customize for Stages 18..26
     origLoadStage(1);
     stageManager.currentStage = stage;
-    stageManager.maxStage = 23;
+    stageManager.maxStage = 27;
     stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
     stageManager.platforms = [];
     stageManager.movingPlatforms = [];
@@ -1814,7 +1846,146 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 800, y: -130, label: 'Pale_Hanging_Moss', icon: '🌿', color: '#cbd5e1' }
       ];
     } else if (stage === 22) {
-      // STAGE 22: ROCKET CORP HQ (Mercenaries Boss Squad: Agent, Ballista, Primal, Hazard)
+      // STAGE 22: YOUTUBE STUDIO (Animation vs. YouTube — Viral Player Arena)
+      stageManager.stageName = 'YouTube Studio';
+      stageManager.theme = 'youtube';
+      stageManager.platforms = [
+        { x: -640, y: -165, width: 250, height: 22, title: 'Up_Next_Queue_01', appType: 'youtube' },
+        { x: 0, y: -275, width: 330, height: 24, title: '1080p_60fps_Player', appType: 'youtube' },
+        { x: 640, y: -165, width: 250, height: 22, title: 'Subscribe_Bell_CTA', appType: 'youtube' }
+      ];
+      stageManager.movingPlatforms = [
+        {
+          x: 0,
+          y: -155,
+          width: 215,
+          height: 20,
+          title: 'Timeline_Scrubber',
+          appType: 'youtube',
+          minX: -340,
+          maxX: 340,
+          speed: 145,
+          dir: 1,
+          axis: 'x'
+        }
+      ];
+      stageManager.laserHazards = [
+        { x: -190, y: -36, width: 380, height: 10, timer: 0, cycleDuration: 3.4, activeDuration: 1.35, damage: 18 }
+      ];
+      stageManager.desktopIcons = [
+        { x: -800, y: -125, label: 'Play_Button', icon: '▶', color: '#ff0033' },
+        { x: -320, y: -340, label: '10M_Diamond', icon: '💎', color: '#38bdf8' },
+        { x: 320, y: -340, label: 'Live_Chat', icon: '💬', color: '#f8fafc' },
+        { x: 800, y: -125, label: 'Skip_Ad_5s', icon: '⏭', color: '#facc15' }
+      ];
+    } else if (stage === 23) {
+      // STAGE 23: GOOGLE CHROME (Multi-Tab Browser & Offline Dino Arena)
+      stageManager.stageName = 'Google Chrome';
+      stageManager.theme = 'chrome';
+      stageManager.platforms = [
+        { x: -660, y: -160, width: 240, height: 22, title: 'Tab_01_Search', appType: 'chrome', accent: '#4285f4' },
+        { x: -220, y: -275, width: 235, height: 22, title: 'Omnibox_URL_Bar', appType: 'chrome', accent: '#ea4335' },
+        { x: 230, y: -275, width: 235, height: 22, title: 'Incognito_Window', appType: 'chrome', accent: '#fbbc05' },
+        { x: 660, y: -160, width: 240, height: 22, title: 'DevTools_Console', appType: 'chrome', accent: '#34a853' }
+      ];
+      stageManager.movingPlatforms = [
+        {
+          x: 0,
+          y: -165,
+          width: 210,
+          height: 20,
+          title: 'Download_Bar_Chip',
+          appType: 'chrome',
+          accent: '#4285f4',
+          minX: -330,
+          maxX: 330,
+          speed: 150,
+          dir: 1,
+          axis: 'x'
+        }
+      ];
+      stageManager.desktopIcons = [
+        { x: -810, y: -125, label: 'Offline_Dino', icon: '🦖', color: '#9aa0a6' },
+        { x: -330, y: -345, label: 'Bookmarks_Bar', icon: '★', color: '#fbbc05' },
+        { x: 330, y: -345, label: 'Extensions', icon: '🧩', color: '#34a853' },
+        { x: 810, y: -125, label: 'New_Tab (+)', icon: '🌐', color: '#4285f4' }
+      ];
+    } else if (stage === 24) {
+      // STAGE 24: SPOTIFY PLAYER (Equalizer Spectrum & Vinyl Turntable Arena)
+      stageManager.stageName = 'Spotify Player';
+      stageManager.theme = 'spotify';
+      stageManager.platforms = [
+        { x: -640, y: -165, width: 245, height: 22, title: 'Liked_Songs_Queue', appType: 'spotify' },
+        { x: 0, y: -290, width: 320, height: 24, title: 'Now_Playing_Vinyl', appType: 'spotify' },
+        { x: 640, y: -165, width: 245, height: 22, title: 'Bass_Boost_Mixer', appType: 'spotify' }
+      ];
+      stageManager.movingPlatforms = [
+        {
+          x: -290,
+          y: -175,
+          width: 175,
+          height: 20,
+          title: 'Equalizer_Bass_W',
+          appType: 'spotify',
+          minY: -265,
+          maxY: -115,
+          speed: 118,
+          dir: -1,
+          axis: 'y'
+        },
+        {
+          x: 290,
+          y: -215,
+          width: 175,
+          height: 20,
+          title: 'Equalizer_Treble_E',
+          appType: 'spotify',
+          minY: -265,
+          maxY: -115,
+          speed: 126,
+          dir: 1,
+          axis: 'y'
+        }
+      ];
+      stageManager.desktopIcons = [
+        { x: -810, y: -125, label: 'Shuffle_Mode', icon: '🔀', color: '#1db954' },
+        { x: -330, y: -350, label: 'Stick_Beats_FM', icon: '🎧', color: '#4ade80' },
+        { x: 330, y: -350, label: 'Audio_Spectrum', icon: 'ılı', color: '#1db954' },
+        { x: 810, y: -125, label: 'Loop_Track', icon: '🔁', color: '#86efac' }
+      ];
+    } else if (stage === 25) {
+      // STAGE 25: GOOGLE SLIDES (Presentation Deck & Live Chart Arena)
+      stageManager.stageName = 'Google Slides';
+      stageManager.theme = 'slides';
+      stageManager.platforms = [
+        { x: -650, y: -160, width: 245, height: 22, title: 'Slide_01_Title_Card', appType: 'slides' },
+        { x: -220, y: -275, width: 235, height: 22, title: 'Bullet_Points_Box', appType: 'slides' },
+        { x: 230, y: -275, width: 235, height: 22, title: 'Q4_Zombie_Chart', appType: 'slides' },
+        { x: 650, y: -160, width: 245, height: 22, title: 'Speaker_Notes_Deck', appType: 'slides' }
+      ];
+      stageManager.movingPlatforms = [
+        {
+          x: 0,
+          y: -165,
+          width: 215,
+          height: 20,
+          title: 'Slide_Transition_Box',
+          appType: 'slides',
+          minX: -320,
+          maxX: 320,
+          speed: 140,
+          dir: 1,
+          axis: 'x'
+        }
+      ];
+      stageManager.desktopIcons = [
+        { x: -810, y: -125, label: 'Slideshow_F5', icon: '📊', color: '#fbbc04' },
+        { x: -330, y: -345, label: 'Text_Box_Tool', icon: 'T', color: '#ea4335' },
+        { x: 330, y: -345, label: 'Shape_Insert', icon: '◇', color: '#4285f4' },
+        { x: 810, y: -125, label: 'Laser_Pointer', icon: '✦', color: '#34a853' }
+      ];
+    } else if (stage === 26) {
+      // STAGE 26: ROCKET CORP HQ (Mercenaries Boss Squad: Agent, Ballista, Primal, Hazard)
       stageManager.stageName = 'Rocket Corp HQ';
       stageManager.theme = 'rocket_corp';
       stageManager.platforms = [
@@ -1836,8 +2007,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
 
   stageManager.enterTrophyRoom = () => {
     origEnterTrophy();
-    stageManager.maxStage = 23;
-    stageManager.currentStage = 23;
+    stageManager.maxStage = 27;
+    stageManager.currentStage = 27;
     stageManager.lavaHazards = [];
     stageManager.desktopIcons = [
       { x: -900, y: -105, label: 'TITAN', icon: 'T', color: '#8cff66' },
@@ -1854,7 +2025,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
     ];
   };
 
-  // Extend WaveDirector for Stages 18, 19, 20, 21, 22, 23
+  // Extend WaveDirector for Stages 18..27
   activeWaveDirector = waveDirector;
   const origGenerateWaveQueue = waveDirector.generateWaveQueue.bind(waveDirector);
   const origSpawnZombie = waveDirector.spawnZombie.bind(waveDirector);
@@ -1871,8 +2042,52 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
     ])
   });
 
+  const YOUTUBE_RECIPE = Object.freeze({
+    total: 16,
+    bossHelpers: 0,
+    packs: Object.freeze([
+      Object.freeze({ gap: 0.95, enemies: Object.freeze(['runner', 'spitter', 'stalker', 'crawler']) }),
+      Object.freeze({ gap: 1.05, enemies: Object.freeze(['shieldbearer', 'spitter', 'boom_bug', 'runner']) }),
+      Object.freeze({ gap: 1.1, enemies: Object.freeze(['brute', 'stalker', 'spitter', 'boom_bug']) }),
+      Object.freeze({ gap: 1.15, enemies: Object.freeze(['warden', 'runner', 'shieldbearer', 'boom_bug']) })
+    ])
+  });
+
+  const CHROME_RECIPE = Object.freeze({
+    total: 16,
+    bossHelpers: 0,
+    packs: Object.freeze([
+      Object.freeze({ gap: 0.92, enemies: Object.freeze(['runner', 'crawler', 'stalker', 'runner']) }),
+      Object.freeze({ gap: 1.02, enemies: Object.freeze(['spitter', 'shieldbearer', 'crawler', 'boom_bug']) }),
+      Object.freeze({ gap: 1.1, enemies: Object.freeze(['warden', 'stalker', 'runner', 'spitter']) }),
+      Object.freeze({ gap: 1.18, enemies: Object.freeze(['brute', 'shieldbearer', 'boom_bug', 'stalker']) })
+    ])
+  });
+
+  const SPOTIFY_RECIPE = Object.freeze({
+    total: 16,
+    bossHelpers: 0,
+    packs: Object.freeze([
+      Object.freeze({ gap: 0.95, enemies: Object.freeze(['stalker', 'runner', 'boom_bug', 'spitter']) }),
+      Object.freeze({ gap: 1.05, enemies: Object.freeze(['warden', 'runner', 'stalker', 'boom_bug']) }),
+      Object.freeze({ gap: 1.1, enemies: Object.freeze(['brute', 'spitter', 'shieldbearer', 'runner']) }),
+      Object.freeze({ gap: 1.2, enemies: Object.freeze(['warden', 'boom_bug', 'stalker', 'shieldbearer']) })
+    ])
+  });
+
+  const SLIDES_RECIPE = Object.freeze({
+    total: 17,
+    bossHelpers: 0,
+    packs: Object.freeze([
+      Object.freeze({ gap: 0.95, enemies: Object.freeze(['walker', 'spitter', 'shieldbearer', 'runner']) }),
+      Object.freeze({ gap: 1.05, enemies: Object.freeze(['stalker', 'brute', 'crawler', 'spitter']) }),
+      Object.freeze({ gap: 1.1, enemies: Object.freeze(['warden', 'shieldbearer', 'boom_bug', 'stalker']) }),
+      Object.freeze({ gap: 1.2, enemies: Object.freeze(['brute', 'warden', 'spitter', 'boom_bug', 'runner']) })
+    ])
+  });
+
   waveDirector.generateWaveQueue = (wave) => {
-    const stage = Math.max(1, Math.min(23, Math.trunc(Number(wave)) || 1));
+    const stage = Math.max(1, Math.min(27, Math.trunc(Number(wave)) || 1));
     if (stage <= 17) {
       origGenerateWaveQueue(stage);
       return;
@@ -1901,7 +2116,27 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       return;
     }
     if (stage === 22) {
-      // Stage 22: Rocket Corp HQ — All 4 Mercenaries from AvA Season 3!
+      // Stage 22: YouTube Studio — Viral Stream Wave
+      waveDirector.queueWaveRecipe(YOUTUBE_RECIPE);
+      return;
+    }
+    if (stage === 23) {
+      // Stage 23: Google Chrome — Multi-Tab Browser Wave
+      waveDirector.queueWaveRecipe(CHROME_RECIPE);
+      return;
+    }
+    if (stage === 24) {
+      // Stage 24: Spotify Player — Bass Drop Wave
+      waveDirector.queueWaveRecipe(SPOTIFY_RECIPE);
+      return;
+    }
+    if (stage === 25) {
+      // Stage 25: Google Slides — Presentation Deck Wave
+      waveDirector.queueWaveRecipe(SLIDES_RECIPE);
+      return;
+    }
+    if (stage === 26) {
+      // Stage 26: Rocket Corp HQ — All 4 Mercenaries from AvA Season 3!
       waveDirector.usesAuthoredRecipe = true;
       const mercs = ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard'];
       mercs.forEach((type, idx) => {
@@ -1914,8 +2149,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       });
       return;
     }
-    if (stage === 23) {
-      // Stage 23: Zero-Day Mainframe — H4C3R
+    if (stage === 27) {
+      // Stage 27: Zero-Day Mainframe — H4C3R
       waveDirector.queueWaveRecipe(WAVE_RECIPES[18]);
     }
   };
@@ -2035,7 +2270,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   waveDirector.update = (dt, player, groundY, sketchBlocks, camera, onWaveComplete, platforms = [], friendlyTargets = []) => {
     origWaveUpdate(dt, player, groundY, sketchBlocks, camera, onWaveComplete, platforms, friendlyTargets);
 
-    // If in Stage 22 (Rocket Corp Mercenaries), synthesize combined squad health on waveDirector.bossZombie
+    // If in Stage 26 (Rocket Corp Mercenaries), synthesize combined squad health on waveDirector.bossZombie
     const aliveMercs = waveDirector.zombies.filter((z) => z.isMercenary && !z.isDead);
     if (aliveMercs.length > 0) {
       const totalHp = aliveMercs.reduce((sum, m) => sum + m.hp, 0);

@@ -157,6 +157,42 @@ const THEME_DEPTH_PROFILES = Object.freeze({
     bokehTint: '#fdba74',
     motif: 'pale_forest'
   },
+  youtube: {
+    farTint: '#ff0033',
+    midTint: '#f87171',
+    hazeTop: 'rgba(15, 15, 15, 0)',
+    hazeMid: 'rgba(69, 10, 10, 0.16)',
+    hazeBottom: 'rgba(24, 24, 27, 0.30)',
+    bokehTint: '#fca5a5',
+    motif: 'youtube_ui'
+  },
+  chrome: {
+    farTint: '#4285f4',
+    midTint: '#34a853',
+    hazeTop: 'rgba(32, 33, 36, 0)',
+    hazeMid: 'rgba(30, 58, 138, 0.14)',
+    hazeBottom: 'rgba(23, 37, 84, 0.24)',
+    bokehTint: '#93c5fd',
+    motif: 'chrome_tabs'
+  },
+  spotify: {
+    farTint: '#1db954',
+    midTint: '#4ade80',
+    hazeTop: 'rgba(10, 14, 12, 0)',
+    hazeMid: 'rgba(6, 78, 59, 0.18)',
+    hazeBottom: 'rgba(5, 46, 22, 0.30)',
+    bokehTint: '#86efac',
+    motif: 'spotify_eq'
+  },
+  slides: {
+    farTint: '#fbbc04',
+    midTint: '#f59e0b',
+    hazeTop: 'rgba(248, 249, 250, 0)',
+    hazeMid: 'rgba(254, 243, 199, 0.14)',
+    hazeBottom: 'rgba(226, 232, 240, 0.22)',
+    bokehTint: '#fde047',
+    motif: 'slides_deck'
+  },
   rocket_corp: {
     farTint: '#64748b',
     midTint: '#38bdf8',
@@ -307,6 +343,55 @@ function paintDepthMotifSilhouettes(ctx, motif, profile, stageSeed, isMidLayer) 
         ctx.fillStyle = tint;
         ctx.fillRect(cx - 7, groundLocalY - h * 0.8, 14, h * 0.82);
       }
+    } else if (motif === 'youtube_ui') {
+      // Distant blurred 16:9 video recommendation cards & glowing Play button badges
+      const cardY = 125 + ((hash >> 2) % 290);
+      const cardW = w * 0.92;
+      const cardH = Math.round(cardW * 0.56);
+      ctx.fillStyle = isMidLayer ? '#27272a' : '#18181b';
+      ctx.fillRect(cx - cardW * 0.5, cardY, cardW, cardH);
+      ctx.fillStyle = '#ff0033';
+      ctx.fillRect(cx - cardW * 0.5, cardY + cardH - 5, cardW * 0.65, 5);
+      ctx.fillRect(cx - 16, cardY + cardH * 0.5 - 11, 32, 22);
+    } else if (motif === 'chrome_tabs') {
+      // Distant blurred multi-tab browser windows accented with Google's 4 brand colors
+      const googlePalette = ['#4285f4', '#ea4335', '#fbbc05', '#34a853'];
+      const accent = googlePalette[i % 4];
+      const winY = 115 + ((hash >> 2) % 295);
+      const winH = 95 + (hash % 75);
+      ctx.fillStyle = isMidLayer ? '#3c4043' : '#292a2d';
+      ctx.fillRect(cx - w * 0.48, winY, w * 0.96, winH);
+      ctx.fillStyle = accent;
+      ctx.fillRect(cx - w * 0.48, winY, w * 0.52, 14);
+    } else if (motif === 'spotify_eq') {
+      // Distant blurred #1db954 equalizer spectrum columns & floating vinyl halos
+      const bars = 4;
+      const barW = Math.max(12, Math.floor((w * 0.68) / bars) - 5);
+      for (let b = 0; b < bars; b++) {
+        const bh = 70 + (((hash + b * 43) % 190));
+        ctx.fillStyle = b % 2 === 0 ? '#1db954' : tint;
+        ctx.fillRect(cx - w * 0.34 + b * (barW + 6), groundLocalY - bh, barW, bh + 20);
+      }
+      if (i % 3 === 0) {
+        ctx.beginPath();
+        ctx.arc(cx, 185 + (hash % 110), isMidLayer ? 34 : 46, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (motif === 'slides_deck') {
+      // Distant blurred 16:9 presentation slide cards & gold header ribbons
+      const slideY = 120 + ((hash >> 2) % 280);
+      const slideW = w * 0.94;
+      const slideH = Math.round(slideW * 0.56);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(cx - slideW * 0.5, slideY, slideW, slideH);
+      ctx.fillStyle = '#fbbc04';
+      ctx.fillRect(cx - slideW * 0.5, slideY, slideW, 13);
+      ctx.fillStyle = '#4285f4';
+      ctx.fillRect(cx - slideW * 0.3, slideY + slideH - 36, 16, 26);
+      ctx.fillStyle = '#ea4335';
+      ctx.fillRect(cx - slideW * 0.08, slideY + slideH - 46, 16, 36);
+      ctx.fillStyle = '#34a853';
+      ctx.fillRect(cx + slideW * 0.14, slideY + slideH - 30, 16, 20);
     } else if (motif === 'facility') {
       // Distant Rocket Corp industrial testing bays & glowing cyan conduits
       ctx.fillStyle = '#0f172a';
