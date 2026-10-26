@@ -27,148 +27,414 @@ export const CREATIVE_BLOCK_TYPES_2D = Object.freeze([
 ]);
 
 const BLOCK_PALETTES = Object.freeze({
-  command_block: { base: '#c97a4b', dark: '#8d4c28', light: '#f4a261', border: '#5c2e14', accent: '#38bdf8' },
-  obsidian: { base: '#1a1026', dark: '#0d0714', light: '#3b1f5e', border: '#4c1d95', accent: '#a855f7' },
-  gold_block: { base: '#facc15', dark: '#ca8a04', light: '#fef08a', border: '#854d0e', accent: '#ffffff' },
-  tnt_block: { base: '#dc2626', dark: '#991b1b', light: '#f87171', border: '#450a0a', accent: '#f8fafc' },
-  lucky_block: { base: '#f59e0b', dark: '#b45309', light: '#fde047', border: '#78350f', accent: '#ffffff' },
-  purpur_block: { base: '#a875a8', dark: '#7e4e7e', light: '#d8b4d8', border: '#581c87', accent: '#f5d0fe' },
-  holystone: { base: '#cbd5e1', dark: '#94a3b8', light: '#f1f5f9', border: '#64748b', accent: '#fde047' },
-  rocket_corp_wall: { base: '#334155', dark: '#1e293b', light: '#64748b', border: '#0f172a', accent: '#ff6b00' },
-  sculk: { base: '#061a23', dark: '#030d14', light: '#0d3b4c', border: '#0891b2', accent: '#22d3ee' },
-  deepslate_tiles: { base: '#27272a', dark: '#18181b', light: '#3f3f46', border: '#09090b', accent: '#52525b' },
-  pale_moss: { base: '#aeb6bf', dark: '#85929e', light: '#d5dbdb', border: '#5d6d7e', accent: '#f97316' },
-  pale_oak_log: { base: '#b8bec6', dark: '#7f8c8d', light: '#dfe4ea', border: '#4b5563', accent: '#94a3b8' },
-  creaking_heart: { base: '#4a4e54', dark: '#2c3036', light: '#6c727a', border: '#1f2328', accent: '#f97316' },
+  command_block: { base: '#c87d4b', dark: '#78421e', light: '#e7a16c', border: '#3b2110', accent: '#38bdf8' },
+  obsidian: { base: '#160e26', dark: '#08040f', light: '#3b1f5e', border: '#090512', accent: '#7e22ce' },
+  gold_block: { base: '#eab308', dark: '#a16207', light: '#fef08a', border: '#713f12', accent: '#ffffff' },
+  tnt_block: { base: '#dc2626', dark: '#991b1b', light: '#ef4444', border: '#450a0a', accent: '#f8fafc' },
+  lucky_block: { base: '#f59e0b', dark: '#b45309', light: '#fef08a', border: '#78350f', accent: '#ffffff' },
+  purpur_block: { base: '#a87ca8', dark: '#6b426b', light: '#d8b4d8', border: '#4a254a', accent: '#f5d0fe' },
+  holystone: { base: '#cbd5e1', dark: '#64748b', light: '#f1f5f9', border: '#475569', accent: '#facc15' },
+  rocket_corp_wall: { base: '#475569', dark: '#1e293b', light: '#94a3b8', border: '#0f172a', accent: '#ff6b00' },
+  sculk: { base: '#06141f', dark: '#02080d', light: '#0d3b4c', border: '#042f3e', accent: '#22d3ee' },
+  deepslate_tiles: { base: '#272c35', dark: '#11151a', light: '#3f4756', border: '#090b0e', accent: '#52525b' },
+  pale_moss: { base: '#9ea6ae', dark: '#6e767f', light: '#c5ccd3', border: '#4b525a', accent: '#cfd6dc' },
+  pale_oak_log: { base: '#6e747d', dark: '#494e56', light: '#9aa1ab', border: '#2f3339', accent: '#f97316' },
+  creaking_heart: { base: '#3b3f46', dark: '#23262b', light: '#686d75', border: '#181a1f', accent: '#f97316' },
   sketch_block: { base: '#f8fafc', dark: '#cbd5e1', light: '#ffffff', border: '#1e293b', accent: '#ff7700' },
-  lava: { base: '#ea580c', dark: '#b91c1c', light: '#facc15', border: '#7c2d12', accent: '#fef08a' }
+  lava: { base: '#ea580c', dark: '#9a3412', light: '#facc15', border: '#7c2d12', accent: '#fef08a' }
 });
 
 export function getBlockPalette2D(texKey) {
   return BLOCK_PALETTES[texKey] || BLOCK_PALETTES.obsidian;
 }
 
+const VOXEL_SPRITE_CACHE_2D = new Map();
+
+function hashTexel2D(tx, ty, seed = 1) {
+  let h = Math.imul(tx * 374761393 + ty * 668265263 + seed * 1442695041, 0x9E3779B1);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x85EBCA6B);
+  h ^= h >>> 13;
+  return (h >>> 0) / 4294967295;
+}
+
+function shadeHex2D(hex, factor) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, Math.min(255, Math.round(((num >> 16) & 255) * factor)));
+  const g = Math.max(0, Math.min(255, Math.round(((num >> 8) & 255) * factor)));
+  const b = Math.max(0, Math.min(255, Math.round((num & 255) * factor)));
+  return `rgb(${r},${g},${b})`;
+}
+
+// Paints an authentic 16x16 Minecraft / AvM pixel-art voxel face into [ox, oy, size, size]
+export function paintVoxelBlockPixels2D(ctx, texKey, ox = 0, oy = 0, size = 64) {
+  const p = size / 16;
+  const px = (tx, ty, tw = 1, th = 1, col = null) => {
+    if (col) ctx.fillStyle = col;
+    ctx.fillRect(ox + tx * p, oy + ty * p, tw * p, th * p);
+  };
+  const fillNoise = (baseHex, variance, seed) => {
+    for (let ty = 0; ty < 16; ty++) {
+      for (let tx = 0; tx < 16; tx++) {
+        const n = (hashTexel2D(tx, ty, seed) - 0.5) * 2 * variance;
+        px(tx, ty, 1, 1, shadeHex2D(baseHex, 1 + n));
+      }
+    }
+  };
+  const bevel = (lightHex, darkHex) => {
+    px(0, 0, 16, 1, lightHex);
+    px(0, 0, 1, 16, lightHex);
+    px(0, 15, 16, 1, darkHex);
+    px(15, 0, 1, 16, darkHex);
+  };
+
+  switch (texKey) {
+    case 'command_block': {
+      fillNoise('#c87d4b', 0.14, 110);
+      bevel('#e7a16c', '#78421e');
+      // Metallic plate seams & corner bolts
+      px(7, 1, 2, 3, '#9c592d');
+      px(7, 12, 2, 3, '#9c592d');
+      px(1, 7, 3, 2, '#9c592d');
+      px(12, 7, 3, 2, '#9c592d');
+      for (const [bx, by] of [[2, 2], [13, 2], [2, 13], [13, 13]]) {
+        px(bx, by, 1, 1, '#5c3116');
+      }
+      // Chamfered octagonal dark-slate control housing
+      px(5, 3, 6, 10, '#3b2a1e');
+      px(3, 5, 10, 6, '#3b2a1e');
+      px(4, 4, 8, 8, '#261b13');
+      // Iconic multicolor Command Block pixel buttons
+      px(5, 5, 2, 2, '#ffaa33');
+      px(9, 5, 2, 2, '#5ce1e6');
+      px(5, 9, 2, 2, '#ff5757');
+      px(9, 9, 2, 2, '#7ed957');
+      px(7, 7, 2, 2, '#fef08a');
+      break;
+    }
+    case 'obsidian': {
+      fillNoise('#150d24', 0.24, 75);
+      bevel('#2f1d4f', '#07040d');
+      // Jagged crystalline violet/indigo volcanic glass shards
+      const shards = [
+        [2, 3, 3, 1, '#3b1f5e'], [3, 4, 2, 1, '#581c87'],
+        [9, 2, 4, 1, '#2e1065'], [10, 3, 2, 2, '#4c1d95'],
+        [4, 9, 3, 2, '#3b1f5e'], [5, 10, 2, 1, '#6d28d9'],
+        [10, 11, 3, 2, '#4c1d95'], [11, 12, 2, 1, '#7e22ce']
+      ];
+      for (const [sx, sy, sw, sh, col] of shards) px(sx, sy, sw, sh, col);
+      break;
+    }
+    case 'gold_block': {
+      fillNoise('#eab308', 0.12, 115);
+      bevel('#fef08a', '#a16207');
+      // Inner recessed bullion frame
+      px(2, 2, 12, 1, '#fde047');
+      px(2, 2, 1, 12, '#fde047');
+      px(2, 13, 12, 1, '#b45309');
+      px(13, 2, 1, 12, '#b45309');
+      // Diagonal metallic gold sheen bands
+      for (let i = 3; i <= 11; i++) {
+        px(i, 14 - i, 2, 1, '#fef08a');
+      }
+      px(4, 4, 2, 2, '#ffffff');
+      px(5, 5, 2, 1, '#fef9c3');
+      break;
+    }
+    case 'tnt_block': {
+      // Bundled vertical red/crimson dynamite sticks
+      const stickCols = ['#dc2626', '#ef4444', '#b91c1c', '#991b1b'];
+      for (let tx = 0; tx < 16; tx++) {
+        const baseCol = stickCols[tx % 4];
+        for (let ty = 0; ty < 16; ty++) {
+          const n = (hashTexel2D(tx, ty, 220) - 0.5) * 0.14;
+          px(tx, ty, 1, 1, shadeHex2D(baseCol, 1 + n));
+        }
+      }
+      // Top & bottom gunpowder cap rims
+      px(0, 0, 16, 1, '#7f1d1d');
+      px(0, 15, 16, 1, '#450a0a');
+      for (let tx = 1; tx < 16; tx += 4) px(tx, 0, 2, 1, '#1f2937');
+      // Crisp white paper label band + authentic pixel-art T N T
+      px(0, 5, 16, 6, '#f8fafc');
+      px(0, 5, 16, 1, '#e2e8f0');
+      px(0, 10, 16, 1, '#cbd5e1');
+      // 'T'
+      px(1, 6, 3, 1, '#111827');
+      px(2, 7, 1, 3, '#111827');
+      // 'N' (with true diagonal stroke)
+      px(5, 6, 1, 4, '#111827');
+      px(6, 7, 1, 1, '#111827');
+      px(7, 8, 1, 1, '#111827');
+      px(8, 6, 1, 4, '#111827');
+      // 'T'
+      px(11, 6, 3, 1, '#111827');
+      px(12, 7, 1, 3, '#111827');
+      break;
+    }
+    case 'lucky_block': {
+      fillNoise('#f59e0b', 0.13, 170);
+      bevel('#fef08a', '#92400e');
+      // Inner gold frame & corner rivets
+      px(2, 2, 12, 1, '#fde047');
+      px(2, 13, 12, 1, '#b45309');
+      px(2, 2, 1, 12, '#fde047');
+      px(13, 2, 1, 12, '#b45309');
+      // Drop shadow for pixel '?'
+      px(6, 4, 5, 2, '#92400e');
+      px(9, 6, 2, 3, '#92400e');
+      px(8, 8, 2, 3, '#92400e');
+      px(8, 12, 2, 2, '#92400e');
+      // Crisp white pixel '?'
+      px(5, 3, 5, 2, '#ffffff');
+      px(5, 5, 2, 1, '#ffffff');
+      px(8, 5, 2, 3, '#ffffff');
+      px(7, 7, 2, 3, '#ffffff');
+      px(7, 11, 2, 2, '#ffffff');
+      break;
+    }
+    case 'purpur_block': {
+      fillNoise('#a87ca8', 0.11, 235);
+      // Iconic 2x2 End City Purpur square tile grid with per-quadrant bevels
+      for (const [qx, qy] of [[0, 0], [8, 0], [0, 8], [8, 8]]) {
+        px(qx, qy, 8, 1, '#d8b4d8');
+        px(qx, qy, 1, 8, '#d8b4d8');
+        px(qx, qy + 7, 8, 1, '#6b426b');
+        px(qx + 7, qy, 1, 8, '#6b426b');
+      }
+      break;
+    }
+    case 'holystone': {
+      fillNoise('#cbd5e1', 0.14, 245);
+      bevel('#f8fafc', '#64748b');
+      // Rounded cobblestone mortar seams + golden Aether ambrosium moss flecks
+      px(0, 7, 16, 1, '#94a3b8');
+      px(7, 0, 1, 7, '#94a3b8');
+      px(3, 8, 1, 8, '#94a3b8');
+      px(11, 8, 1, 8, '#94a3b8');
+      px(3, 3, 2, 2, '#facc15');
+      px(11, 4, 2, 1, '#fde047');
+      px(6, 11, 2, 2, '#facc15');
+      px(13, 12, 1, 2, '#fde047');
+      break;
+    }
+    case 'rocket_corp_wall': {
+      fillNoise('#475569', 0.08, 252);
+      bevel('#94a3b8', '#1e293b');
+      // Modular "The Box" 2x2 brushed-steel containment chamber sub-panels
+      px(0, 7, 16, 2, '#1e293b');
+      px(7, 0, 2, 16, '#1e293b');
+      for (const [sx, sy] of [[2, 2], [10, 2], [2, 10], [10, 10]]) {
+        px(sx, sy, 4, 4, '#64748b');
+        px(sx, sy, 4, 1, '#cbd5e1');
+        px(sx, sy + 3, 4, 1, '#334155');
+      }
+      // Subtle Rocket Corp orange & cyan containment node accents at cross-seam
+      px(7, 7, 2, 2, '#ff6b00');
+      px(1, 1, 1, 1, '#38bdf8');
+      px(14, 1, 1, 1, '#38bdf8');
+      break;
+    }
+    case 'sculk': {
+      fillNoise('#05131d', 0.2, 260);
+      bevel('#0d3b4c', '#02080d');
+      const pulseCols = ['#06b6d4', '#22d3ee', '#67e8f9', '#0e7490'];
+      for (let i = 0; i < 18; i++) {
+        px((i * 5 + 2) % 14 + 1, (i * 9 + 3) % 14 + 1, 1, 1, pulseCols[i % 4]);
+      }
+      px(3, 4, 2, 1, '#22d3ee');
+      px(10, 11, 2, 1, '#67e8f9');
+      px(11, 4, 1, 2, '#06b6d4');
+      break;
+    }
+    case 'deepslate_tiles': {
+      fillNoise('#242a33', 0.14, 265);
+      // Staggered chiseled dark deepslate tiles + top highlights
+      px(0, 7, 16, 1, '#11151a');
+      px(0, 15, 16, 1, '#11151a');
+      px(7, 0, 1, 7, '#11151a');
+      px(3, 8, 1, 7, '#11151a');
+      px(11, 8, 1, 7, '#11151a');
+      px(1, 1, 5, 1, '#3f4756');
+      px(9, 1, 5, 1, '#3f4756');
+      px(5, 9, 5, 1, '#3f4756');
+      px(12, 9, 3, 1, '#3f4756');
+      break;
+    }
+    case 'pale_moss': {
+      fillNoise('#9ca3ab', 0.15, 275);
+      bevel('#c4cbd2', '#6e757d');
+      // Soft desaturated lichen patches & silver moss tufts
+      px(2, 3, 3, 2, '#cfd6dc');
+      px(10, 9, 3, 2, '#cfd6dc');
+      px(6, 12, 4, 1, '#798089');
+      px(11, 4, 2, 2, '#798089');
+      px(4, 8, 2, 2, '#b6bec6');
+      break;
+    }
+    case 'pale_oak_log': {
+      fillNoise('#6c727b', 0.15, 280);
+      // Vertical pale-ash bark ridges & dark gnarled fissures (full height)
+      for (const fx of [1, 5, 9, 13]) {
+        px(fx, 0, 1, 16, '#464b53');
+      }
+      px(2, 2, 1, 12, '#8b929c');
+      px(7, 1, 1, 14, '#8b929c');
+      px(11, 3, 1, 11, '#8b929c');
+      px(5, 6, 2, 2, '#363a40');
+      px(10, 11, 2, 2, '#363a40');
+      break;
+    }
+    case 'creaking_heart': {
+      fillNoise('#43474e', 0.16, 290);
+      for (const fx of [1, 5, 10, 14]) {
+        px(fx, 0, 1, 16, '#26292e');
+      }
+      // Blazing layered orange/amber Resin Heart nested inside dark Pale Oak fissures
+      px(3, 3, 10, 10, '#9a3412');
+      px(4, 4, 8, 8, '#ea580c');
+      px(5, 5, 6, 6, '#f97316');
+      px(6, 6, 4, 4, '#fde047');
+      // Gnarled bark ribs clamping across the glowing heart
+      px(3, 7, 3, 2, '#26292e');
+      px(10, 7, 3, 2, '#26292e');
+      break;
+    }
+    case 'sketch_block': {
+      fillNoise('#f8fafc', 0.05, 200);
+      // Hand-drawn double-inked graphite sketch frame
+      px(0, 0, 16, 2, '#1e293b');
+      px(0, 14, 16, 2, '#1e293b');
+      px(0, 0, 2, 16, '#1e293b');
+      px(14, 0, 2, 16, '#1e293b');
+      // Subtle pencil cross-hatch marks
+      for (let i = 3; i <= 11; i += 2) {
+        px(i, 3, 1, 1, '#cbd5e1');
+        px(12, i, 1, 1, '#cbd5e1');
+      }
+      // Animator Orange center glyph
+      px(5, 5, 6, 6, '#ff7700');
+      px(6, 6, 4, 4, '#fdba74');
+      break;
+    }
+    case 'lava': {
+      fillNoise('#ea580c', 0.22, 78);
+      // Winding molten yellow-orange magma channels & white-hot fissures
+      px(1, 2, 6, 2, '#f97316');
+      px(2, 3, 4, 2, '#facc15');
+      px(3, 3, 2, 1, '#fef08a');
+      px(8, 7, 6, 3, '#f97316');
+      px(9, 8, 4, 2, '#facc15');
+      px(10, 8, 2, 1, '#fef08a');
+      px(2, 11, 5, 3, '#b91c1c');
+      px(4, 12, 3, 2, '#facc15');
+      break;
+    }
+    default: {
+      fillNoise('#334155', 0.14, 999);
+      bevel('#64748b', '#1e293b');
+      break;
+    }
+  }
+}
+
+export function getCreativeBlockSprite2D(texKey, createCanvas = null) {
+  const validKey = BLOCK_PALETTES[texKey] ? texKey : 'obsidian';
+  if (!createCanvas && VOXEL_SPRITE_CACHE_2D.has(validKey)) {
+    return VOXEL_SPRITE_CACHE_2D.get(validKey);
+  }
+
+  let canvas = null;
+  if (typeof createCanvas === 'function') {
+    canvas = createCanvas(64, 64);
+  } else if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+    canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+  } else if (typeof globalThis.OffscreenCanvas === 'function') {
+    canvas = new globalThis.OffscreenCanvas(64, 64);
+  }
+
+  if (!canvas) return null;
+  const sctx = canvas.getContext?.('2d');
+  if (!sctx) return null;
+
+  sctx.save?.();
+  if ('imageSmoothingEnabled' in sctx) sctx.imageSmoothingEnabled = false;
+  sctx.clearRect?.(0, 0, 64, 64);
+  paintVoxelBlockPixels2D(sctx, validKey, 0, 0, 64);
+  sctx.restore?.();
+
+  if (!createCanvas) {
+    VOXEL_SPRITE_CACHE_2D.set(validKey, canvas);
+  }
+  return canvas;
+}
+
 export function drawCreativeBlockSingle2D(ctx, block, stageTime = 0) {
   const w = block.width || 68;
   const h = block.height || 68;
-  const x = block.x - w * 0.5;
-  const y = block.y - h;
-  const key = block.texKey || 'obsidian';
+  const x = Math.round(block.x - w * 0.5);
+  const y = Math.round(block.y - h);
+  const key = BLOCK_PALETTES[block.texKey] ? block.texKey : 'obsidian';
   const pal = getBlockPalette2D(key);
 
   ctx.save();
 
-  // TNT active fuse flash
+  // TNT active fuse flash (classic Minecraft white ignition blink)
   const fuseFlash = key === 'tnt_block' && block.fuseTimer !== undefined && Math.floor(block.fuseTimer * 10) % 2 === 0;
-  ctx.fillStyle = fuseFlash ? '#ffffff' : pal.base;
-  ctx.fillRect(x, y, w, h);
-
-  // Top highlight & bottom bevel
-  ctx.fillStyle = fuseFlash ? '#fee2e2' : pal.light;
-  ctx.fillRect(x + 2, y + 2, w - 4, 8);
-  ctx.fillStyle = pal.dark;
-  ctx.fillRect(x + 2, y + h - 10, w - 4, 8);
-
-  // Block-specific 2D pixel details
-  if (key === 'command_block') {
-    ctx.fillStyle = pal.dark;
-    ctx.fillRect(x + 12, y + 12, w - 24, h - 24);
-    ctx.fillStyle = Math.floor(stageTime * 4) % 2 === 0 ? '#38bdf8' : '#fb923c';
-    ctx.fillRect(x + w * 0.5 - 8, y + h * 0.5 - 8, 16, 16);
-    ctx.fillStyle = '#fde047';
-    ctx.fillRect(x + w * 0.5 - 3, y + h * 0.5 - 3, 6, 6);
-  } else if (key === 'tnt_block' && !fuseFlash) {
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(x + 2, y + h * 0.34, w - 4, h * 0.32);
-    ctx.fillStyle = '#111827';
-    ctx.font = "900 13px 'Bungee', Impact, sans-serif";
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('TNT', block.x, y + h * 0.5 + 1);
-  } else if (key === 'lucky_block') {
+  if (fuseFlash) {
     ctx.fillStyle = '#ffffff';
-    ctx.font = "900 26px 'Bungee', Impact, sans-serif";
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('?', block.x, y + h * 0.5 + 2);
-  } else if (key === 'sculk') {
-    const pulse = 0.55 + Math.sin(stageTime * 5 + block.x * 0.03) * 0.35;
-    ctx.fillStyle = `rgba(34, 211, 238, ${pulse})`;
-    for (let i = 0; i < 5; i++) {
-      const px = x + 10 + ((i * 19) % (w - 20));
-      const py = y + 12 + ((i * 23) % (h - 24));
-      ctx.fillRect(px, py, 6, 6);
-    }
-  } else if (key === 'deepslate_tiles' || key === 'purpur_block' || key === 'holystone') {
-    ctx.strokeStyle = pal.dark;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#fca5a5';
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x, y + h * 0.5);
-    ctx.lineTo(x + w, y + h * 0.5);
-    ctx.moveTo(x + w * 0.5, y);
-    ctx.lineTo(x + w * 0.5, y + h * 0.5);
-    ctx.moveTo(x + w * 0.25, y + h * 0.5);
-    ctx.lineTo(x + w * 0.25, y + h);
-    ctx.moveTo(x + w * 0.75, y + h * 0.5);
-    ctx.lineTo(x + w * 0.75, y + h);
-    ctx.stroke();
-  } else if (key === 'pale_oak_log') {
-    ctx.fillStyle = pal.dark;
-    for (let sx = x + 10; sx < x + w - 8; sx += 12) {
-      ctx.fillRect(sx, y + 4, 4, h - 8);
-    }
-  } else if (key === 'pale_moss') {
-    ctx.fillStyle = '#d5dbdb';
-    ctx.fillRect(x + 4, y + 4, w - 8, 12);
-    // Tiny Open Eyeblossom accent
-    ctx.fillStyle = '#f97316';
-    ctx.fillRect(block.x - 4, y + 6, 8, 5);
-  } else if (key === 'creaking_heart') {
-    const pulse = 0.7 + Math.sin(stageTime * 6) * 0.3;
-    ctx.fillStyle = pal.dark;
-    for (let sx = x + 8; sx < x + w - 8; sx += 14) {
-      ctx.fillRect(sx, y + 4, 4, h - 8);
-    }
-    ctx.shadowColor = '#f97316';
-    ctx.shadowBlur = 14 * pulse;
-    ctx.fillStyle = '#f97316';
-    ctx.fillRect(block.x - 12, y + h * 0.5 - 12, 24, 24);
-    ctx.fillStyle = '#fde047';
-    ctx.fillRect(block.x - 6, y + h * 0.5 - 6, 12, 12);
-  } else if (key === 'rocket_corp_wall') {
-    ctx.fillStyle = '#ff6b00';
-    ctx.beginPath();
-    ctx.moveTo(block.x, y + 14);
-    ctx.lineTo(block.x + 14, y + h - 14);
-    ctx.lineTo(block.x - 14, y + h - 14);
-    ctx.closePath();
-    ctx.fill();
-  } else if (key === 'lava') {
-    const wave = Math.sin(stageTime * 5 + block.x * 0.04) * 5;
-    ctx.fillStyle = '#facc15';
-    ctx.fillRect(x + 6, y + 10 + wave, w - 12, 10);
-    ctx.fillStyle = '#b91c1c';
-    ctx.fillRect(x + 10, y + 34 - wave * 0.6, w - 20, 12);
-  } else if (key === 'sketch_block') {
-    ctx.strokeStyle = '#ff7700';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 4]);
-    ctx.strokeRect(x + 6, y + 6, w - 12, h - 12);
-    ctx.setLineDash([]);
-  } else if (key === 'obsidian') {
-    ctx.fillStyle = '#7e22ce';
-    ctx.fillRect(x + 12, y + 16, 8, 8);
-    ctx.fillRect(x + w - 22, y + h - 22, 8, 8);
-  } else if (key === 'gold_block') {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x + 10, y + 10, 12, 5);
-    ctx.fillRect(x + 10, y + 10, 5, 12);
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.restore();
+    return;
   }
 
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = pal.border;
-  ctx.lineWidth = 3;
-  ctx.strokeRect(x, y, w, h);
+  // Crisp outer 2px voxel casing rim so 64x64 (16x16 x 4px) interior maps 1:1 with zero blur
+  ctx.fillStyle = pal.border;
+  ctx.fillRect(x, y, w, h);
+
+  const innerX = x + 2;
+  const innerY = y + 2;
+  const innerW = Math.max(16, w - 4);
+  const innerH = Math.max(16, h - 4);
+
+  const sprite = getCreativeBlockSprite2D(key);
+  if (sprite) {
+    const prevSmooth = ctx.imageSmoothingEnabled;
+    if ('imageSmoothingEnabled' in ctx) ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(sprite, innerX, innerY, innerW, innerH);
+    if ('imageSmoothingEnabled' in ctx) ctx.imageSmoothingEnabled = prevSmooth;
+  } else {
+    paintVoxelBlockPixels2D(ctx, key, innerX, innerY, Math.min(innerW, innerH));
+  }
+
+  // Lightweight live pixel-grid pulse accents on emissive blocks (no font/blur overhead)
+  if (key === 'creaking_heart') {
+    const pulse = 0.22 + (Math.sin(stageTime * 5.5) * 0.5 + 0.5) * 0.35;
+    ctx.fillStyle = `rgba(254, 240, 138, ${pulse})`;
+    ctx.fillRect(innerX + 24, innerY + 24, 16, 16);
+  } else if (key === 'sculk') {
+    const pulse = 0.15 + (Math.sin(stageTime * 4.2 + block.x * 0.03) * 0.5 + 0.5) * 0.3;
+    ctx.fillStyle = `rgba(103, 232, 249, ${pulse})`;
+    ctx.fillRect(innerX + 12, innerY + 16, 8, 4);
+    ctx.fillRect(innerX + 40, innerY + 44, 8, 4);
+  } else if (key === 'lava') {
+    const pulse = 0.18 + (Math.sin(stageTime * 4.8 + block.x * 0.04) * 0.5 + 0.5) * 0.28;
+    ctx.fillStyle = `rgba(254, 240, 138, ${pulse})`;
+    ctx.fillRect(innerX + 8, innerY + 12, 16, 8);
+    ctx.fillRect(innerX + 36, innerY + 32, 16, 8);
+  } else if (key === 'command_block') {
+    const blink = Math.floor(stageTime * 3.5) % 4;
+    const ledOffsets = [[20, 20], [36, 20], [20, 36], [36, 36]];
+    const [lx, ly] = ledOffsets[blink];
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.fillRect(innerX + lx, innerY + ly, 8, 8);
+  }
+
   ctx.restore();
 }
 

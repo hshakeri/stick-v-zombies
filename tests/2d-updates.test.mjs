@@ -28,17 +28,18 @@ import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 
 import {
   CREATIVE_BLOCK_TYPES_2D,
-  drawCreativeBlocks2D
-} from '../2d/arenas2d.js?v=9.8';
+  drawCreativeBlocks2D,
+  getCreativeBlockSprite2D
+} from '../2d/arenas2d.js?v=9.9';
 import {
   DEPTH_PARALLAX,
   Depth2DRenderer,
   getDepthProfile2D
-} from '../2d/depth2d.js?v=9.8';
+} from '../2d/depth2d.js?v=9.9';
 import {
   STAGE_OPTIONS_2D,
   install2DExpansion
-} from '../2d/expansion2d.js?v=9.8';
+} from '../2d/expansion2d.js?v=9.9';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -152,8 +153,8 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
 
 test('2D Expansion [2] Prominent Level Selector & Title UI: index.html exposes Creative Mode, Stage Select, and Stages 18–23 pills', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-  assert.match(html, /href="2d\/style2d\.css\?v=9\.8"/);
-  assert.match(html, /src="2d\/expansion2d\.js\?v=9\.8"/);
+  assert.match(html, /href="2d\/style2d\.css\?v=9\.9"/);
+  assert.match(html, /src="2d\/expansion2d\.js\?v=9\.9"/);
   assert.match(html, /id="btn-start-creative"/);
   assert.match(html, /id="title-stage-select"/);
   for (const stage of [18, 19, 20, 21, 22, 23]) {
@@ -676,4 +677,47 @@ test('2D Expansion [8] Depth-of-Field, Cached Offscreen Far/Mid Blur, Parallax, 
 
   resetGlobalSystems();
 });
+
+test('2D Expansion [9] Crisp 16x16 Voxel Block Pixel-Art Textures & Selector Sync', () => {
+  resetGlobalSystems();
+  const signatures = new Set();
+
+  for (const texKey of CREATIVE_BLOCK_TYPES_2D) {
+    const ops = [];
+    let smoothingDuringBake = true;
+    const sprite = getCreativeBlockSprite2D(texKey, (width, height) => {
+      const sctx = {
+        fillStyle: '#000',
+        imageSmoothingEnabled: true,
+        save() {},
+        restore() {},
+        clearRect() {},
+        fillRect(x, y, w, h) {
+          smoothingDuringBake = this.imageSmoothingEnabled;
+          ops.push(`${this.fillStyle}@${x},${y},${w},${h}`);
+        }
+      };
+      return { width, height, getContext: () => sctx };
+    });
+
+    assert.ok(sprite && sprite.width === 64 && sprite.height === 64, `${texKey} must bake a 64x64 (16x16 x 4px) voxel sprite`);
+    assert.equal(smoothingDuringBake, false, `${texKey} sprite bake must disable imageSmoothingEnabled for crisp pixels`);
+    assert.ok(ops.length >= 256, `${texKey} must paint full 16x16 pixel-art texel grid + details (got ${ops.length} ops)`);
+
+    const sig = ops.join('|');
+    assert.ok(!signatures.has(sig), `${texKey} pixel-art texture must be visually distinct from every other block`);
+    signatures.add(sig);
+  }
+  assert.equal(signatures.size, 15, 'all 15 2D Creative voxel block types must produce unique pixel-art textures');
+
+  // Calling placeCreativeBlock() with no explicit arg uses sandbox.selectedBlock and preserves texKey
+  const { game, controller } = create2DGameHarness();
+  game.startGame({ stage: 1, creative: true });
+  controller.sandbox.selectedBlock = 'creaking_heart';
+  const placed = controller.placeCreativeBlock();
+  assert.equal(placed.texKey, 'creaking_heart', 'placeCreativeBlock() must place the currently selected block texture');
+
+  resetGlobalSystems();
+});
+
 

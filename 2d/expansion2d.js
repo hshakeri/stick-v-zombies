@@ -50,9 +50,9 @@ import {
   drawExpandedTrophyIcons2D,
   drawBossFloorTelegraphs2D,
   drawCustomStagePlatforms2D
-} from './arenas2d.js?v=9.8';
-import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=9.8';
-import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=9.8';
+} from './arenas2d.js?v=9.9';
+import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=9.9';
+import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=9.9';
 
 export const STAGE_OPTIONS_2D = Object.freeze([
   { value: 1, label: '1: Main Desktop' },
@@ -555,8 +555,15 @@ export function install2DExpansion(game) {
   // --------------------------------------------------------------------------
   // Creative Voxel Block Builder Actions (Place, Clear, TNT Detonation, Lucky)
   // --------------------------------------------------------------------------
-  function placeCreativeBlock(texKey = sandbox.selectedBlock) {
-    const validKey = CREATIVE_BLOCK_TYPES_2D.includes(texKey) ? texKey : 'command_block';
+  function placeCreativeBlock(texKey) {
+    let requestedKey = texKey;
+    if (!requestedKey && typeof document !== 'undefined') {
+      const sel = document.getElementById('creative-block-select');
+      if (sel?.value) sandbox.selectedBlock = sel.value;
+    }
+    requestedKey = requestedKey || sandbox.selectedBlock;
+    const validKey = CREATIVE_BLOCK_TYPES_2D.includes(requestedKey) ? requestedKey : 'command_block';
+    sandbox.selectedBlock = validKey;
     const player = game.player;
     const grid = CREATIVE_BLOCK_SIZE_2D; // 68
     const rawX = (player?.x || 0) + (player?.facing || 1) * 84;
@@ -1635,8 +1642,12 @@ export function install2DExpansion(game) {
         if (e.code === 'KeyC') {
           setCreativeMode(!sandbox.enabled);
         } else if (sandbox.enabled && e.code === 'KeyV') {
+          const sel = document.getElementById('creative-block-select');
+          if (sel?.value) sandbox.selectedBlock = sel.value;
           placeCreativeBlock(sandbox.selectedBlock);
         } else if (sandbox.enabled && e.code === 'KeyN') {
+          const sel = document.getElementById('creative-spawn-select');
+          if (sel?.value) sandbox.selectedSpawn = sel.value;
           spawnCreativeEntity(sandbox.selectedSpawn);
         } else if (sandbox.enabled && e.code === 'Space') {
           const now = performance.now();

@@ -155,10 +155,24 @@ function drawPixelBlock(ctx, kind) {
       break;
     }
     case 'command_block': {
-      fillNoisyPixels(ctx, '#c77d48', 0.14, 110);
-      drawBevelBorder(ctx, '#e39d64', '#7a4520');
-      ctx.fillStyle = '#4a3525';
-      ctx.fillRect(3, 3, 10, 10);
+      fillNoisyPixels(ctx, '#c87d4b', 0.14, 110);
+      drawBevelBorder(ctx, '#e7a16c', '#78421e');
+      ctx.fillStyle = '#9c592d';
+      ctx.fillRect(7, 1, 2, 3);
+      ctx.fillRect(7, 12, 2, 3);
+      ctx.fillRect(1, 7, 3, 2);
+      ctx.fillRect(12, 7, 3, 2);
+      ctx.fillStyle = '#5c3116';
+      ctx.fillRect(2, 2, 1, 1);
+      ctx.fillRect(13, 2, 1, 1);
+      ctx.fillRect(2, 13, 1, 1);
+      ctx.fillRect(13, 13, 1, 1);
+      // Chamfered octagonal dark-slate control housing + multicolor buttons
+      ctx.fillStyle = '#3b2a1e';
+      ctx.fillRect(5, 3, 6, 10);
+      ctx.fillRect(3, 5, 10, 6);
+      ctx.fillStyle = '#261b13';
+      ctx.fillRect(4, 4, 8, 8);
       ctx.fillStyle = '#ffaa33';
       ctx.fillRect(5, 5, 2, 2);
       ctx.fillStyle = '#5ce1e6';
@@ -167,14 +181,25 @@ function drawPixelBlock(ctx, kind) {
       ctx.fillRect(5, 9, 2, 2);
       ctx.fillStyle = '#7ed957';
       ctx.fillRect(9, 9, 2, 2);
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(7, 7, 2, 2);
       break;
     }
     case 'gold_block': {
-      fillNoisyPixels(ctx, '#f5b82e', 0.14, 115);
-      drawBevelBorder(ctx, '#fff078', '#b87d14');
-      ctx.fillStyle = '#ffe566';
-      ctx.fillRect(2, 2, 4, 2);
-      ctx.fillRect(3, 4, 2, 2);
+      fillNoisyPixels(ctx, '#eab308', 0.12, 115);
+      drawBevelBorder(ctx, '#fef08a', '#a16207');
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(2, 2, 12, 1);
+      ctx.fillRect(2, 2, 1, 12);
+      ctx.fillStyle = '#b45309';
+      ctx.fillRect(2, 13, 12, 1);
+      ctx.fillRect(13, 2, 1, 12);
+      ctx.fillStyle = '#fef08a';
+      for (let i = 3; i <= 11; i++) {
+        ctx.fillRect(i, 14 - i, 2, 1);
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(4, 4, 2, 2);
       break;
     }
     case 'browser_floor': {
@@ -261,15 +286,33 @@ function drawPixelBlock(ctx, kind) {
       break;
     }
     case 'tnt_block': {
-      fillNoisyPixels(ctx, '#dc2626', 0.14, 220);
+      const stickCols = ['#dc2626', '#ef4444', '#b91c1c', '#991b1b'];
+      for (let x = 0; x < 16; x++) {
+        const base = stickCols[x % 4];
+        for (let y = 0; y < 16; y++) {
+          const n = (hash2D(x, y, 220) - 0.5) * 0.14;
+          ctx.fillStyle = shadeHex(base, 1 + n);
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+      ctx.fillStyle = '#7f1d1d';
+      ctx.fillRect(0, 0, 16, 1);
+      ctx.fillStyle = '#450a0a';
+      ctx.fillRect(0, 15, 16, 1);
       ctx.fillStyle = '#f8fafc';
       ctx.fillRect(0, 5, 16, 6);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(0, 10, 16, 1);
+      // Crisp 1-pixel T N T
       ctx.fillStyle = '#111827';
-      ctx.fillRect(2, 6, 3, 1);
-      ctx.fillRect(3, 7, 1, 3);
-      ctx.fillRect(7, 6, 3, 4);
-      ctx.fillRect(12, 6, 3, 1);
-      ctx.fillRect(13, 7, 1, 3);
+      ctx.fillRect(1, 6, 3, 1);
+      ctx.fillRect(2, 7, 1, 3);
+      ctx.fillRect(5, 6, 1, 4);
+      ctx.fillRect(6, 7, 1, 1);
+      ctx.fillRect(7, 8, 1, 1);
+      ctx.fillRect(8, 6, 1, 4);
+      ctx.fillRect(11, 6, 3, 1);
+      ctx.fillRect(12, 7, 1, 3);
       break;
     }
     case 'end_stone': {
