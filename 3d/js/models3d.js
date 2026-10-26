@@ -1,5 +1,5 @@
 import * as THREE from '../lib/three.module.min.js';
-import { getVoxelTexture } from './textures3d.js?v=10.5';
+import { getVoxelTexture } from './textures3d.js?v=10.6';
 
 export const SHOULDER_Y = 1.60;
 export const LINE_RADIUS = 0.052;

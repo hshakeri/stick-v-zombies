@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Orange Stickman vs Zombies 3D — Voxel Desktop Edition</title>
 <link rel="stylesheet" href="../css/style.css?v=9.8">
-<link rel="stylesheet" href="css/style3d.css?v=10.9">
+<link rel="stylesheet" href="css/style3d.css?v=11.0">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22%23ff7700%22 stroke=%22white%22 stroke-width=%228%22/></svg>">
 </head>
 <body>
@@ -94,6 +94,10 @@
 <div class="creative-row">
 <label for="creative-block-select" class="creative-row-label">🧱 BLOCK</label>
 <select id="creative-block-select" class="creative-select" aria-label="Select 3D Voxel Block">
+<option value="grass_block">🟩 Grass Block</option>
+<option value="cobblestone">🪨 Cobblestone</option>
+<option value="oak_planks">🪵 Oak Planks</option>
+<option value="crafting_table">🛠️ Crafting Table</option>
 <option value="command_block">🟧 Command Block</option>
 <option value="obsidian">⬛ Obsidian</option>
 <option value="gold_block">🟨 Gold Block</option>
@@ -224,7 +228,7 @@
 <span>STICK</span><span class="title-vs">VS</span><span>ZOMBIES</span><span class="badge-3d-pill">3D VOXEL</span>
 </h1>
 <h2 class="game-sub-title">3D DESKTOP &amp; MINECRAFT ARENA</h2>
-<p class="title-tagline">27 Stages • YouTube • Chrome • Spotify • Slides • Ender Dragon • Warden • Creaking • Mercenaries • H4C3R</p>
+<p class="title-tagline">28 Stages • Overworld • YouTube • Chrome • Spotify • Slides • Ender Dragon • Warden • Creaking • Mercenaries • H4C3R</p>
 </div>
 <div class="title-actions">
 <button id="btn-start-game" class="primary-btn" style="font-size: 20px; padding: 14px 28px;">▶ PLAY 3D CAMPAIGN</button>
@@ -245,12 +249,13 @@
 <button type="button" class="quick-stage-btn" data-jump-stage="19">☁️ 19: The Aether</button>
 <button type="button" class="quick-stage-btn" data-jump-stage="20">🔊 20: Ancient City (The Warden)</button>
 <button type="button" class="quick-stage-btn" data-jump-stage="21">🪵 21: Pale Garden (The Creaking)</button>
-<button type="button" class="quick-stage-btn" data-jump-stage="22">▶️ 22: YouTube</button>
-<button type="button" class="quick-stage-btn" data-jump-stage="23">🌐 23: Chrome</button>
-<button type="button" class="quick-stage-btn" data-jump-stage="24">🎧 24: Spotify</button>
-<button type="button" class="quick-stage-btn" data-jump-stage="25">📊 25: Slides</button>
-<button type="button" class="quick-stage-btn" data-jump-stage="26">🕶️ 26: Rocket Corp (Mercenaries)</button>
-<button type="button" class="quick-stage-btn" data-jump-stage="27">⌁ 27: Zero-Day (H4C3R)</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="22">⛏️ 22: Overworld</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="23">▶️ 23: YouTube</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="24">🌐 24: Chrome</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="25">🎧 25: Spotify</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="26">📊 26: Slides</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="27">🕶️ 27: Rocket Corp (Mercenaries)</button>
+<button type="button" class="quick-stage-btn" data-jump-stage="28">⌁ 28: Zero-Day (H4C3R)</button>
 </div>
 </div>
 <div class="controls-guide-card">
@@ -356,7 +361,11 @@
 <div id="gameover-modal" class="modal-overlay">
 <div class="modal-box" style="max-width: 500px; text-align: center;">
 <div class="modal-title" style="color: #ff3344; margin-bottom: 8px;">BUG ENCOUNTERED</div>
-<p style="color: #a0a4be; margin-bottom: 20px;">The bug won this round. Sidestep in 3D or try a new combo!</p>
+<p style="color: #a0a4be; margin-bottom: 12px;">The bug won this round. Sidestep in 3D or try a new combo!</p>
+<div id="gameover-death-reason" class="gameover-death-banner" role="alert">
+<span class="gameover-death-label">💀 HOW YOU DIED</span>
+<span id="gameover-death-text" class="gameover-death-text">The Second Coming was defeated in battle</span>
+</div>
 <div style="background: #14151f; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #33364d; text-align: left; font-family: var(--font-pop-art);">
 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
 <span>STAGE REACHED:</span> <span id="gameover-wave" style="color: #ffea00;">STAGE 1</span>
@@ -433,6 +442,6 @@
 </div>
 </div>
 </div>
-<script type="module" src="js/game3d.js?v=11.3"></script>
+<script type="module" src="js/game3d.js?v=11.4"></script>
 </body>
 </html>

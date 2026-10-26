@@ -14,6 +14,10 @@ export const CREATIVE_BLOCK_TYPES_2D = Object.freeze([
   'gold_block',
   'tnt_block',
   'lucky_block',
+  'grass_block',
+  'cobblestone',
+  'oak_planks',
+  'crafting_table',
   'purpur_block',
   'holystone',
   'rocket_corp_wall',
@@ -32,6 +36,10 @@ const BLOCK_PALETTES = Object.freeze({
   gold_block: { base: '#eab308', dark: '#a16207', light: '#fef08a', border: '#713f12', accent: '#ffffff' },
   tnt_block: { base: '#dc2626', dark: '#991b1b', light: '#ef4444', border: '#450a0a', accent: '#f8fafc' },
   lucky_block: { base: '#f59e0b', dark: '#b45309', light: '#fef08a', border: '#78350f', accent: '#ffffff' },
+  grass_block: { base: '#86592d', dark: '#5c3c1e', light: '#4ade80', border: '#3e2712', accent: '#22c55e' },
+  cobblestone: { base: '#64748b', dark: '#334155', light: '#cbd5e1', border: '#1e293b', accent: '#94a3b8' },
+  oak_planks: { base: '#b88b4a', dark: '#785224', light: '#d9ae6a', border: '#5c3a18', accent: '#eab308' },
+  crafting_table: { base: '#b88b4a', dark: '#5c3a18', light: '#d9ae6a', border: '#3b2110', accent: '#cbd5e1' },
   purpur_block: { base: '#a87ca8', dark: '#6b426b', light: '#d8b4d8', border: '#4a254a', accent: '#f5d0fe' },
   holystone: { base: '#cbd5e1', dark: '#64748b', light: '#f1f5f9', border: '#475569', accent: '#facc15' },
   rocket_corp_wall: { base: '#475569', dark: '#1e293b', light: '#94a3b8', border: '#0f172a', accent: '#ff6b00' },
@@ -518,6 +526,95 @@ export function paintVoxelBlockPixels2D(ctx, texKey, ox = 0, oy = 0, size = 64) 
         '5': '#facc15',
         '6': '#fef08a'
       });
+      break;
+    }
+    case 'grass_block': {
+      // Authentic Minecraft Grass Block side face: rich dirt pebbles + overhanging lush Overworld grass turf
+      fillNoise('#86592d', 0.14, 301);
+      for (const [dx, dy, dc] of [
+        [2, 7, '#5c3c1e'], [6, 9, '#a3703e'], [11, 8, '#5c3c1e'],
+        [4, 12, '#5c3c1e'], [9, 13, '#a3703e'], [13, 11, '#5c3c1e'],
+        [1, 14, '#a3703e'], [8, 10, '#5c3c1e'], [14, 14, '#5c3c1e']
+      ]) {
+        px(dx, dy, 2, 1, dc);
+      }
+      // Top turf cap + irregular overhanging grass blades
+      for (let tx = 0; tx < 16; tx++) {
+        const overhang = 3 + ((tx * 7 + 3) % 4);
+        for (let ty = 0; ty < overhang; ty++) {
+          const gCol = ty === 0 ? '#86efac' : (ty === overhang - 1 ? '#15803d' : ((tx + ty) % 2 === 0 ? '#4ade80' : '#22c55e'));
+          px(tx, ty, 1, 1, gCol);
+        }
+      }
+      break;
+    }
+    case 'cobblestone': {
+      // Authentic Minecraft Cobblestone: interlocking grey stone boulders + dark mortar crevices
+      paintMap([
+        '2332023432023320',
+        '3442034431034421',
+        '2211022110122110',
+        '0000100001000001',
+        '3320234432023432',
+        '4420344321034431',
+        '2110221100122110',
+        '0010000123100001',
+        '2320233234202342',
+        '3420344222103442',
+        '2110223100012211',
+        '0001001023200001',
+        '3432023234312342',
+        '4431034222103442',
+        '2210122100012211',
+        '0100001012100010'
+      ], {
+        '0': '#1e293b',
+        '1': '#334155',
+        '2': '#64748b',
+        '3': '#94a3b8',
+        '4': '#cbd5e1'
+      });
+      break;
+    }
+    case 'oak_planks': {
+      // Authentic Minecraft Oak Planks: 4 horizontal wood boards with staggered vertical joints & grain
+      fillNoise('#b88b4a', 0.1, 312);
+      for (let board = 0; board < 4; board++) {
+        const by = board * 4;
+        px(0, by, 16, 1, '#d9ae6a');
+        px(0, by + 3, 16, 1, '#785224');
+        const jointX = board % 2 === 0 ? 7 : 12;
+        px(jointX, by, 1, 4, '#785224');
+        if (board % 2 === 1) px(3, by, 1, 4, '#785224');
+        px((board * 5 + 2) % 13, by + 1, 3, 1, '#9c6f34');
+      }
+      bevel('#e2bc7e', '#69451c');
+      break;
+    }
+    case 'crafting_table': {
+      // Authentic Minecraft Crafting Table front/side: crimson workbench cloth rim, dark oak pillars & iron saw/hammer tools
+      fillNoise('#b88b4a', 0.1, 325);
+      // Dark Oak corner pillars & bottom base trim
+      px(0, 0, 2, 16, '#5c3a18');
+      px(14, 0, 2, 16, '#5c3a18');
+      px(0, 14, 16, 2, '#5c3a18');
+      // Top crafting cloth & grid rim
+      px(0, 0, 16, 4, '#7f1d1d');
+      px(1, 0, 14, 1, '#ef4444');
+      px(2, 1, 12, 2, '#991b1b');
+      for (let gx = 3; gx <= 12; gx += 3) {
+        px(gx, 1, 1, 2, '#fca5a5');
+      }
+      // Framed Oak tool panel + iron saw & hammer silhouettes
+      px(3, 5, 10, 8, '#8c6230');
+      px(4, 6, 8, 6, '#a8793e');
+      // Iron hand-saw (left)
+      px(5, 6, 2, 2, '#78350f');
+      px(5, 8, 2, 4, '#cbd5e1');
+      px(6, 8, 1, 4, '#f8fafc');
+      // Iron hammer/tongs (right)
+      px(9, 6, 3, 2, '#cbd5e1');
+      px(10, 8, 1, 4, '#5c3a18');
       break;
     }
     default: {
@@ -1200,6 +1297,216 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY, onSkyP
     ctx.fillStyle = '#fdba74';
     ctx.font = 'bold 14px monospace';
     ctx.fillText('BIOME://PALE_GARDEN — KEEP EYES ON THE CREAKING', minX + 60, minY + 58);
+    ctx.restore();
+    return true;
+  }
+
+  if (theme === 'overworld') {
+    ctx.save();
+    const skyGrad = typeof ctx.createLinearGradient === 'function'
+      ? ctx.createLinearGradient(0, minY - 300, 0, groundY + 120)
+      : null;
+    if (skyGrad && typeof skyGrad.addColorStop === 'function') {
+      skyGrad.addColorStop(0, '#1d4ed8');
+      skyGrad.addColorStop(0.45, '#38bdf8');
+      skyGrad.addColorStop(0.82, '#bae6fd');
+      skyGrad.addColorStop(1, '#dcfce7');
+      paintFullVoid(skyGrad);
+    } else {
+      paintFullVoid('#38bdf8');
+    }
+
+    // Classic Square Minecraft Sun & Golden Halo
+    const sunX = 590;
+    const sunY = minY + 88;
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.34)';
+    ctx.fillRect(sunX - 20, sunY - 20, 116, 116);
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(sunX, sunY, 76, 76);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(sunX + 14, sunY + 14, 48, 48);
+
+    onSkyPainted?.();
+
+    // Drifting Pixel-Art Overworld Voxel Clouds
+    for (let i = 0; i < 8; i++) {
+      const cx = -1150 + (((i * 310 + t * (16 + (i % 3) * 6)) % 2500) + 2500) % 2500 - 120;
+      const cy = minY + 72 + (i % 3) * 76;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fillRect(cx - 72, cy, 144, 24);
+      ctx.fillRect(cx - 42, cy - 16, 88, 18);
+      ctx.fillStyle = 'rgba(226, 232, 240, 0.85)';
+      ctx.fillRect(cx - 72, cy + 20, 144, 5);
+    }
+
+    // Stepped Voxel Grass+Dirt Hills on West & East Flanks
+    const hills = [
+      { x: -960, w: 300, h: 170 },
+      { x: -720, w: 230, h: 112 },
+      { x: 500, w: 240, h: 118 },
+      { x: 690, w: 290, h: 176 }
+    ];
+    for (let i = 0; i < hills.length; i++) {
+      const hl = hills[i];
+      const top = groundY - hl.h;
+      ctx.fillStyle = '#784c2a';
+      ctx.fillRect(hl.x, top, hl.w, hl.h);
+      ctx.fillStyle = '#5c3a1e';
+      for (let bx = hl.x + 18; bx < hl.x + hl.w - 24; bx += 54) {
+        ctx.fillRect(bx, top + 34, 18, 12);
+      }
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(hl.x, top, hl.w, 18);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(hl.x, top, hl.w, 8);
+    }
+
+    // Sparkling Blue Voxel River & Sugar Cane / Lily Pads across Valley Midground
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(-620, groundY - 22, 1240, 22);
+    ctx.fillStyle = '#38bdf8';
+    for (let wx = -590; wx < 580; wx += 95) {
+      const shimmer = Math.sin(t * 4 + wx * 0.04) * 10;
+      ctx.fillRect(wx + shimmer, groundY - 16, 36, 5);
+    }
+    for (const lx of [-470, -250, 240, 460]) {
+      // Lily pad
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(lx - 14, groundY - 23, 28, 5);
+      // 3-block Sugar Cane stalk
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(lx + 26, groundY - 68, 10, 48);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(lx + 26, groundY - 52, 10, 3);
+      ctx.fillRect(lx + 26, groundY - 36, 10, 3);
+    }
+
+    // Center-Back Cobblestone & Oak Planks Village Blacksmith Cottage (x = -148..+148)
+    const houseW = 296;
+    const houseH = 176;
+    const houseTop = groundY - houseH;
+    // Cobblestone foundation & forge chimney
+    ctx.fillStyle = '#475569';
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 2;
+    ctx.fillRect(88, houseTop - 38, 48, houseH + 38);
+    ctx.strokeRect(88, houseTop - 38, 48, houseH + 38);
+    // Oak Planks main cabin wall
+    ctx.fillStyle = '#b88b4a';
+    ctx.fillRect(-houseW * 0.5, houseTop, houseW, houseH);
+    ctx.strokeRect(-houseW * 0.5, houseTop, houseW, houseH);
+    ctx.fillStyle = '#64748b';
+    ctx.fillRect(-houseW * 0.5, groundY - 32, houseW, 32);
+    // Oak Log corner beams
+    ctx.fillStyle = '#5c3a18';
+    ctx.fillRect(-houseW * 0.5, houseTop, 22, houseH);
+    ctx.fillRect(houseW * 0.5 - 22, houseTop, 22, houseH);
+    // Stepped Pitched Oak Planks Roof
+    const roofSteps = [
+      { w: 332, y: houseTop - 22 },
+      { w: 264, y: houseTop - 44 },
+      { w: 192, y: houseTop - 66 },
+      { w: 112, y: houseTop - 88 }
+    ];
+    for (let r = 0; r < roofSteps.length; r++) {
+      const rs = roofSteps[r];
+      ctx.fillStyle = r % 2 === 0 ? '#9c6f34' : '#b88b4a';
+      ctx.fillRect(-rs.w * 0.5, rs.y, rs.w, 22);
+      ctx.strokeRect(-rs.w * 0.5, rs.y, rs.w, 22);
+    }
+    // Oak Door, Glowing Windows, Lit Furnace & Crafting Table Bench
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-20, groundY - 82, 40, 82);
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(-96, houseTop + 48, 44, 38);
+    ctx.fillRect(42, houseTop + 48, 38, 38);
+    ctx.strokeStyle = '#5c3a18';
+    ctx.strokeRect(-96, houseTop + 48, 44, 38);
+    ctx.strokeRect(42, houseTop + 48, 38, 38);
+    // Glowing Blacksmith Furnace Hearth
+    const forgePulse = 0.72 + Math.sin(t * 9) * 0.25;
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(94, groundY - 70, 36, 38);
+    ctx.fillStyle = `rgba(251, 146, 60, ${forgePulse})`;
+    ctx.fillRect(101, groundY - 58, 22, 18);
+    // Outdoor Crafting Table beside porch
+    paintVoxelBlockPixels2D(ctx, 'crafting_table', -126, groundY - 40, 40);
+
+    // Blocky Oak & Birch Trees across the Overworld Meadow
+    const trees = [
+      { x: -835, baseY: groundY - 170, trunkH: 108, birch: false },
+      { x: -535, baseY: groundY, trunkH: 138, birch: false },
+      { x: -320, baseY: groundY, trunkH: 122, birch: true },
+      { x: 325, baseY: groundY, trunkH: 128, birch: true },
+      { x: 545, baseY: groundY, trunkH: 142, birch: false },
+      { x: 830, baseY: groundY - 176, trunkH: 112, birch: true }
+    ];
+    for (let i = 0; i < trees.length; i++) {
+      const tr = trees[i];
+      ctx.fillStyle = tr.birch ? '#f1f5f9' : '#6b4423';
+      ctx.fillRect(tr.x - 14, tr.baseY - tr.trunkH, 28, tr.trunkH);
+      if (tr.birch) {
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(tr.x - 14, tr.baseY - tr.trunkH + 24, 12, 6);
+        ctx.fillRect(tr.x + 2, tr.baseY - tr.trunkH + 56, 12, 6);
+        ctx.fillRect(tr.x - 10, tr.baseY - tr.trunkH + 88, 14, 6);
+      }
+      // Layered voxel leaf crown
+      ctx.fillStyle = '#15803d';
+      ctx.fillRect(tr.x - 68, tr.baseY - tr.trunkH - 44, 136, 52);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(tr.x - 52, tr.baseY - tr.trunkH - 78, 104, 38);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(tr.x - 32, tr.baseY - tr.trunkH - 102, 64, 26);
+    }
+
+    // Red Poppies & Yellow Dandelions dotting the Meadow
+    for (let fx = minX + 70; fx < maxX - 70; fx += 145) {
+      if (Math.abs(fx) < 175) continue;
+      ctx.fillStyle = '#15803d';
+      ctx.fillRect(fx, groundY - 14, 4, 14);
+      ctx.fillStyle = ((fx / 145) | 0) % 2 === 0 ? '#ef4444' : '#facc15';
+      ctx.fillRect(fx - 4, groundY - 20, 12, 8);
+    }
+
+    // Powered Redstone Minecart Track Guide along Moving Platform Span (-280..+280 at y = groundY - 210)
+    const railY = groundY - 210;
+    ctx.strokeStyle = 'rgba(120, 53, 15, 0.55)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-360, railY + 2);
+    ctx.lineTo(360, railY + 2);
+    ctx.stroke();
+    ctx.fillStyle = '#ef4444';
+    for (let rx = -340; rx <= 340; rx += 34) {
+      ctx.fillRect(rx - 6, railY - 1, 12, 4);
+    }
+
+    // Lush Grass-Topped Overworld Voxel Combat Floor & Rich Dirt Strata
+    ctx.fillStyle = '#784c2a';
+    ctx.fillRect(minX, groundY, maxX - minX, 340);
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(minX, groundY + 76, maxX - minX, 264);
+    ctx.fillStyle = '#16a34a';
+    ctx.fillRect(minX, groundY, maxX - minX, 18);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(minX, groundY, maxX - minX, 7);
+    for (let gx = minX; gx < maxX; gx += 32) {
+      ctx.fillStyle = (gx / 32) % 2 === 0 ? '#22c55e' : '#15803d';
+      ctx.fillRect(gx + 8, groundY + 18, 12, 7);
+    }
+
+    // Perimeter Oak Fence / Border Frame
+    ctx.strokeStyle = '#4ade80';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(minX, groundY);
+    ctx.lineTo(maxX, groundY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('BIOME://MINECRAFT_OVERWORLD — VILLAGE PLAINS & TNT OUTPOST', minX + 60, minY + 58);
     ctx.restore();
     return true;
   }
@@ -2318,6 +2625,7 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
     theme !== 'aether' &&
     theme !== 'ancient_city' &&
     theme !== 'pale_garden' &&
+    theme !== 'overworld' &&
     theme !== 'youtube' &&
     theme !== 'chrome' &&
     theme !== 'spotify' &&
@@ -2380,6 +2688,39 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
         ctx.moveTo(mx, p.y);
         ctx.lineTo(mx + sway, p.y + 18 + ((Math.abs(mx) | 0) % 10));
         ctx.stroke();
+      }
+    } else if (theme === 'overworld') {
+      const isMinecart = Boolean(p.axis);
+      if (isMinecart) {
+        // Iron Minecart riding Powered Redstone Rails
+        ctx.fillStyle = '#475569';
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 2;
+        ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+        ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(p.x - halfW + 4, topY + 2, p.width - 8, 5);
+        ctx.fillStyle = '#facc15';
+        for (let rx = p.x - halfW + 14; rx < p.x + halfW - 14; rx += 28) {
+          ctx.fillRect(rx, topY + 3, 10, 3);
+        }
+        // Iron wheels underneath
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(p.x - halfW + 22, p.y + 3, 6, 0, Math.PI * 2);
+        ctx.arc(p.x + halfW - 22, p.y + 3, 6, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Oak Planks & Cobblestone Village / Canopy Ledges with Lush Grass Turf Cap
+        ctx.fillStyle = '#8b5a2b';
+        ctx.strokeStyle = '#3e2712';
+        ctx.lineWidth = 2;
+        ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+        ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(p.x - halfW + 1, topY + 1, p.width - 2, 7);
+        ctx.fillStyle = '#4ade80';
+        ctx.fillRect(p.x - halfW + 2, topY + 1, p.width - 4, 4);
       }
     } else if (theme === 'youtube') {
       ctx.fillStyle = '#18181b';

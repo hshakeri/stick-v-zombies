@@ -183,6 +183,7 @@ export class EnderDragonBoss {
           if (Math.abs(player.x - this.x) < this.radius + (player.radius || 20) + 18 &&
               Math.abs(player.y - this.groundY) < 95) {
             this.attackHit = true;
+            player._pendingDamageCause = 'The Second Coming was launched by Ender Dragon';
             player.takeDamage(this.phase === 2 ? 28 : 22, this.rollDirection, 540);
             particles.createHitSparks(player.x, player.y - 35, 10, '#e879f9');
           }
@@ -278,6 +279,7 @@ export class EnderDragonBoss {
     if (canHitPlayer(player) && Math.abs(player.y - this.groundY) < 75) {
       for (const bx of this.dropXs) {
         if (Math.abs(player.x - bx) < blastRadius + (player.radius || 20)) {
+          player._pendingDamageCause = "The Second Coming was roasted in Ender Dragon's Breath";
           player.takeDamage(this.phase === 2 ? 26 : 20, player.x >= bx ? 1 : -1, 450);
           break;
         }
@@ -560,6 +562,7 @@ export class MercenaryBoss {
           if (Math.abs(player.x - this.x) < 58 && Math.abs(player.y - this.y) < 75) {
             this.attackHit = true;
             const dmg = this.type === 'mercenary_primal' ? 22 : 18;
+            player._pendingDamageCause = formatAttackerDeathMessage(this);
             player.takeDamage(dmg, this.facing, 420);
             particles.createHitSparks(player.x, player.y - 35, 8, '#ff6b00');
           }
@@ -632,6 +635,8 @@ export class MercenaryBoss {
     if (this.type === 'mercenary_ballista') {
       // Ballista fires an 8-bit pixel projectile volley
       projectiles.spawnSpit?.(this.x + this.facing * 24, this.y - 44, player.x, player.y - 34);
+      const lastProj = projectiles.projectiles?.[projectiles.projectiles.length - 1];
+      if (lastProj) lastProj.deathCause = "The Second Coming was blown up by Ballista's 8-Bit Bazooka";
       particles.addShockwave(this.x + this.facing * 28, this.y - 44, 48, '#ef4444', 5);
       audio.playPunch?.('heavy');
     } else if (this.type === 'mercenary_hazard') {
@@ -640,12 +645,15 @@ export class MercenaryBoss {
       particles.addShockwave(hx, this.groundY - 10, 88, '#facc15', 8);
       particles.createHitSparks(hx, this.groundY - 25, 10, '#facc15');
       if (canHitPlayer(player) && Math.abs(player.x - hx) < 76 && Math.abs(player.y - this.groundY) < 70) {
+        player._pendingDamageCause = 'The Second Coming was electrocuted by Hazard';
         player.takeDamage(19, player.x >= hx ? 1 : -1, 380);
       }
       camera?.addShake?.(0.18);
     } else {
       // Agent fires a fast UI toolbar cursor bolt
       projectiles.spawnSpit?.(this.x + this.facing * 24, this.y - 46, player.x, player.y - 36);
+      const lastProj = projectiles.projectiles?.[projectiles.projectiles.length - 1];
+      if (lastProj) lastProj.deathCause = 'The Second Coming was paused & erased by Agent';
       particles.createHitSparks(this.x + this.facing * 24, this.y - 46, 6, '#38bdf8');
     }
   }
@@ -937,6 +945,7 @@ export class WardenBoss {
           const inZ = Math.abs((player.z || 0) - (this.z || 0)) <= 165;
           if (inX && inY && inZ) {
             this.attackHit = true;
+            player._pendingDamageCause = 'The Second Coming was crushed by The Warden';
             player.takeDamage(this.phase === 2 ? 32 : 26, this.rollDirection, 580);
             particles.createHitSparks(player.x, player.y - 38, 12, '#22d3ee');
           }
@@ -990,6 +999,7 @@ export class WardenBoss {
       const inY = player.y >= this.groundY - 175 && player.y <= this.groundY + 45;
       const inZ = Math.abs((player.z || 0) - (this.z || 0)) <= 185;
       if (inX && inY && inZ) {
+        player._pendingDamageCause = "The Second Coming was obliterated by The Warden's Sonic Boom";
         player.takeDamage(this.phase === 2 ? 34 : 28, this.facing, 620);
         particles.createHitSparks(player.x, player.y - 40, 14, '#67e8f9');
       }
@@ -1027,6 +1037,7 @@ export class WardenBoss {
       if (inZ) {
         for (const bx of this.dropXs) {
           if (Math.abs(player.x - bx) < blastRadius + (player.radius || 20)) {
+            player._pendingDamageCause = "The Second Coming was shattered by The Warden's Sculk Slam";
             player.takeDamage(this.phase === 2 ? 30 : 24, player.x >= bx ? 1 : -1, 480);
             break;
           }
@@ -1321,6 +1332,7 @@ export class CreakingBoss {
           const inZ = Math.abs((player.z || 0) - (this.z || 0)) <= 170;
           if (inX && inY && inZ) {
             this.attackHit = true;
+            player._pendingDamageCause = 'The Second Coming blinked and was ambushed by The Creaking';
             player.takeDamage(this.phase === 2 ? 32 : 26, this.rollDirection, 540);
             particles.createHitSparks(player.x, player.y - 38, 12, '#f97316');
           }
@@ -1442,6 +1454,7 @@ export class CreakingBoss {
       if (inZ) {
         for (const bx of this.dropXs) {
           if (Math.abs(player.x - bx) < blastRadius + (player.radius || 20)) {
+            player._pendingDamageCause = "The Second Coming was snared by The Creaking's Pale Roots";
             player.takeDamage(this.phase === 2 ? 30 : 24, player.x >= bx ? 1 : -1, 470);
             break;
           }
@@ -1473,8 +1486,12 @@ export class CreakingBoss {
     particles.createHitSparks(this.x, this.groundY - 68, 12, '#fde047');
 
     projectiles.spawnSpit?.(this.x + this.facing * 26, this.y - 72, player.x, player.y - 36);
+    const p1 = projectiles.projectiles?.[projectiles.projectiles.length - 1];
+    if (p1) p1.deathCause = "The Second Coming was struck by The Creaking's Resin Bolt";
     if (this.phase === 2) {
       projectiles.spawnSpit?.(this.x + this.facing * 26, this.y - 96, player.x + this.facing * 90, player.y - 64);
+      const p2 = projectiles.projectiles?.[projectiles.projectiles.length - 1];
+      if (p2) p2.deathCause = "The Second Coming was struck by The Creaking's Resin Bolt";
     }
 
     if (canHitPlayer(player)) {
@@ -1482,6 +1499,7 @@ export class CreakingBoss {
       const inY = Math.abs(player.y - this.groundY) < 95;
       const inZ = Math.abs((player.z || 0) - (this.z || 0)) <= 185;
       if (inX && inY && inZ) {
+        player._pendingDamageCause = "The Second Coming was overwhelmed by The Creaking's Heart Surge";
         player.takeDamage(this.phase === 2 ? 31 : 25, this.facing, 520);
         particles.createHitSparks(player.x, player.y - 38, 12, '#f97316');
       }
@@ -1606,11 +1624,19 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     act: 'VI - DIMENSIONS BEYOND',
     mission: 'SHATTER THE CREAKING',
     clearText: 'CREAKING HEART SHATTERED!',
-    clue: 'APP GAUNTLET: YOUTUBE.COM',
+    clue: 'SUNLIGHT AHEAD: MINECRAFT OVERWORLD',
     bossLabel: 'THE CREAKING',
     allyReaction: Object.freeze({ ally: 'yellow', line: 'KEEP EYES ON THE TREE!' })
   }),
   22: Object.freeze({
+    act: 'VI - MINECRAFT EXPANSION',
+    mission: 'DEFEND THE OVERWORLD VILLAGE',
+    clearText: 'OVERWORLD SECURED!',
+    clue: 'APP GAUNTLET: YOUTUBE.COM',
+    bossLabel: null,
+    allyReaction: Object.freeze({ ally: 'blue', line: 'FRESH AIR! WATCH FOR CREEPERS & TNT!' })
+  }),
+  23: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'SURVIVE THE VIRAL STREAM',
     clearText: 'STREAM MONETIZED!',
@@ -1618,7 +1644,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'green', line: 'SMASH THAT SUBSCRIBE BUTTON!' })
   }),
-  23: Object.freeze({
+  24: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'CLEAR THE BROWSER TABS',
     clearText: 'CACHE PURGED!',
@@ -1626,7 +1652,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'yellow', line: 'WATCH THE RAM USAGE!' })
   }),
-  24: Object.freeze({
+  25: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'RIDE THE BASS DROP',
     clearText: 'PLAYLIST MASTERED!',
@@ -1634,7 +1660,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'green', line: 'THIS BEAT DROPS HARD!' })
   }),
-  25: Object.freeze({
+  26: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'CRASH THE PRESENTATION',
     clearText: 'SLIDE DECK PRESENTED!',
@@ -1642,7 +1668,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'blue', line: 'NEXT SLIDE, PLEASE!' })
   }),
-  26: Object.freeze({
+  27: Object.freeze({
     act: 'VIII - ROCKET CORP CONTAINMENT',
     mission: 'DEFEAT THE MERCENARIES',
     clearText: 'THE BOX BREACHED!',
@@ -1650,7 +1676,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: 'AGENT · BALLISTA · PRIMAL · HAZARD',
     allyReaction: Object.freeze({ ally: 'chosen', line: 'NOT GOING BACK IN THE BOX.' })
   }),
-  27: Object.freeze({
+  28: Object.freeze({
     act: 'IX - ZERO-DAY FINALE',
     mission: 'LOG OUT H4C3R',
     clearText: 'SYSTEM RESTORED!',
@@ -1660,15 +1686,191 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
   })
 });
 
+export const OVERWORLD_OUTPOST_BLOCKS = Object.freeze([
+  Object.freeze({ x: 272, y: 0, z: 0, texKey: 'cobblestone', armedOnHit: false }),
+  Object.freeze({ x: 272, y: -68, z: 0, texKey: 'oak_planks', armedOnHit: false }),
+  Object.freeze({ x: 340, y: 0, z: 0, texKey: 'tnt_block', armedOnHit: true }),
+  Object.freeze({ x: 408, y: 0, z: 0, texKey: 'grass_block', armedOnHit: false }),
+  Object.freeze({ x: 408, y: -68, z: 0, texKey: 'crafting_table', armedOnHit: false })
+]);
+
+export function formatAttackerDeathMessage(attacker) {
+  if (!attacker || typeof attacker !== 'object') {
+    return 'The Second Coming was defeated in battle';
+  }
+  const type = String(attacker.type || '').toLowerCase();
+  const action = String(attacker.actionKind || attacker.state || '').toLowerCase();
+  switch (type) {
+    case 'boom_bug':
+      return 'The Second Coming was blown up by Boom-Bug';
+    case 'creeper_lord':
+      return 'The Second Coming was blown up by Creeper Lord';
+    case 'warden_boss':
+      if (action.includes('sonic')) return "The Second Coming was obliterated by The Warden's Sonic Boom";
+      if (action.includes('slam')) return "The Second Coming was shattered by The Warden's Sculk Slam";
+      return 'The Second Coming was crushed by The Warden';
+    case 'creaking_boss':
+      if (action.includes('root')) return "The Second Coming was snared by The Creaking's Pale Roots";
+      if (action.includes('surge')) return "The Second Coming was overwhelmed by The Creaking's Heart Surge";
+      return 'The Second Coming blinked and was ambushed by The Creaking';
+    case 'ender_dragon':
+      if (action.includes('breath')) return "The Second Coming was roasted in Ender Dragon's Breath";
+      return 'The Second Coming was launched by Ender Dragon';
+    case 'mercenary_agent':
+      return 'The Second Coming was paused & erased by Agent';
+    case 'mercenary_ballista':
+      return "The Second Coming was blown up by Ballista's 8-Bit Bazooka";
+    case 'mercenary_primal':
+      return 'The Second Coming was speared by Primal';
+    case 'mercenary_hazard':
+      return 'The Second Coming was electrocuted by Hazard';
+    case 'titan_boss':
+      return 'The Second Coming was smashed by Titan Undead';
+    case 'dark_lord':
+      return 'The Second Coming was struck down by The Dark Lord';
+    case 'king_orange':
+      return "The Second Coming was blasted by King Orange's Command Staff";
+    case 'giant_cat':
+      return 'The Second Coming was swiped off the desktop by Giant Cat';
+    case 'lucky_orb':
+      return 'The Second Coming was crushed by The Lucky Orb';
+    case 'h4c3r':
+      return 'The Second Coming was deleted from the system by H4C3R';
+    case 'brute':
+      return 'The Second Coming was ground-slammed by Brute Zombie';
+    case 'warden':
+      return 'The Second Coming was battered by Warden Zombie';
+    case 'runner':
+      return 'The Second Coming was blitzed by Runner Zombie';
+    case 'crawler':
+      return 'The Second Coming was ambushed by Crawler';
+    case 'shieldbearer':
+      return 'The Second Coming was bashed by Shieldbearer';
+    case 'stalker':
+      return 'The Second Coming was backstabbed by Glitch Stalker';
+    case 'spitter':
+      return 'The Second Coming was corroded by Acid Spitter';
+    case 'walker':
+      return 'The Second Coming was slain by Basic Zombie';
+    default: {
+      const label = attacker.name || (type ? type.replaceAll('_', ' ') : 'a hostile bug');
+      return `The Second Coming was slain by ${label}`;
+    }
+  }
+}
+
+function formatSingleProjectileDeathMessage(p) {
+  if (!p || typeof p !== 'object') return 'The Second Coming was shot down by hostile fire';
+  if (p.deathCause) return String(p.deathCause);
+  const pType = String(p.type || '').toLowerCase();
+  if (pType === 'doom_laser') return "The Second Coming was vaporized by The Dark Lord's Doom Laser";
+  if (pType === 'dragon_breath') return "The Second Coming was roasted in Ender Dragon's Breath";
+  if (pType === 'acid_pool') return 'The Second Coming melted in Acid Spitter venom';
+  if (pType === 'acid_blob' || p.spawnsAcidPool) return 'The Second Coming was melted by an Acid Spitter glob';
+  if (pType === 'virabot') return 'The Second Coming was corrupted by a ViraBot';
+  if (pType === 'energy_orb' || pType === 'command_bolt') {
+    return "The Second Coming was blasted by King Orange's Command Bolt";
+  }
+  return 'The Second Coming was shot down by hostile fire';
+}
+
+export function formatProjectileDeathMessage(projOrPlayer, projectilesMgr, stageTheme = 'desktop') {
+  if (!projectilesMgr && projOrPlayer && typeof projOrPlayer === 'object' && ('type' in projOrPlayer || 'deathCause' in projOrPlayer || 'spawnsAcidPool' in projOrPlayer)) {
+    return formatSingleProjectileDeathMessage(projOrPlayer);
+  }
+  const player = projOrPlayer;
+  if (projectilesMgr) {
+    const px = player?.x || 0;
+    const py = (player?.y || 0) - 30;
+    const activeProjs = projectilesMgr.projectiles || [];
+    for (let i = 0; i < activeProjs.length; i++) {
+      const p = activeProjs[i];
+      if (!p) continue;
+      if (p.type === 'doom_laser') {
+        return "The Second Coming was vaporized by The Dark Lord's Doom Laser";
+      }
+      if (!p.isHostile) continue;
+      if (Math.hypot((p.x || 0) - px, (p.y || 0) - py) <= (p.radius || 20) + 95) {
+        return formatSingleProjectileDeathMessage(p);
+      }
+    }
+    const hazards = projectilesMgr.hazards || [];
+    for (let i = 0; i < hazards.length; i++) {
+      const h = hazards[i];
+      if (h && Math.abs((player?.x || 0) - (h.x || 0)) <= (h.radius || 60) + 30) {
+        return 'The Second Coming melted in Acid Spitter venom';
+      }
+    }
+  }
+  return stageTheme === 'virabot' || stageTheme === 'dark_core'
+    ? 'The Second Coming was corrupted by a ViraBot'
+    : 'The Second Coming was shot down by hostile fire';
+}
+
+export function resolvePlayerDeathCause(player, fallbackOrOptions = '') {
+  if (player?._pendingDamageCause) {
+    const msg = String(player._pendingDamageCause);
+    player._pendingDamageCause = null;
+    return msg;
+  }
+  if (player?.lastDeathReason) {
+    return String(player.lastDeathReason);
+  }
+  if (player?._activeAttacker) {
+    return formatAttackerDeathMessage(player._activeAttacker);
+  }
+  if (typeof fallbackOrOptions === 'string') {
+    if (player?.lastDamageCause) return String(player.lastDamageCause);
+    if (fallbackOrOptions) return fallbackOrOptions;
+    return 'The Second Coming was defeated in battle';
+  }
+  const {
+    phase = null,
+    stageTheme = 'desktop',
+    projectilesMgr = null,
+    wavesMgr = null
+  } = fallbackOrOptions || {};
+  if (phase === 'stage_hazards') {
+    if (stageTheme === 'youtube') {
+      return 'The Second Coming was vaporized by a YouTube Skip-Ad Laser';
+    }
+    return 'The Second Coming was vaporized by a Security Laser';
+  }
+  if (phase === 'projectiles') {
+    return formatProjectileDeathMessage(player, projectilesMgr, stageTheme);
+  }
+  if (wavesMgr?.zombies?.length) {
+    let nearest = null;
+    let bestDist = 360;
+    const px = player?.x || 0;
+    const py = player?.y || 0;
+    for (let i = 0; i < wavesMgr.zombies.length; i++) {
+      const z = wavesMgr.zombies[i];
+      if (!z || z.isDead) continue;
+      const d = Math.hypot((z.x || 0) - px, (z.y || 0) - py);
+      if (d < bestDist) {
+        bestDist = d;
+        nearest = z;
+      }
+    }
+    if (nearest) return formatAttackerDeathMessage(nearest);
+    if (wavesMgr.bossZombie && !wavesMgr.bossZombie.isDead) {
+      return formatAttackerDeathMessage(wavesMgr.bossZombie);
+    }
+  }
+  if (player?.lastDamageCause) return String(player.lastDamageCause);
+  return 'The Second Coming was defeated in battle';
+}
+
 export function extendCampaignFor3D(stageManager, waveDirector) {
   if (stageManager._extendedFor3D) return;
   stageManager._extendedFor3D = true;
 
   const origLoadStage = stageManager.loadStage.bind(stageManager);
-  const origEnterTrophy = stageManager.enterTrophyRoom.bind(stageManager);
-  const origGetBeat = stageManager.getCampaignBeat.bind(stageManager);
+  const origEnterTrophy = stageManager.enterTrophyRoom ? stageManager.enterTrophyRoom.bind(stageManager) : () => {};
+  const origGetBeat = stageManager.getCampaignBeat ? stageManager.getCampaignBeat.bind(stageManager) : (s) => CAMPAIGN_BEATS_3D[s] || {};
 
-  stageManager.maxStage = 27;
+  stageManager.maxStage = 28;
   stageManager.lavaHazards = stageManager.currentStage === 7 ? [
     { x: -360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 },
     { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 }
@@ -1686,17 +1888,17 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   }
 
   stageManager.getCampaignBeat = (stageNum = stageManager.currentStage) => {
-    const stage = Math.max(1, Math.min(27, Math.trunc(Number(stageNum)) || 1));
+    const stage = Math.max(1, Math.min(28, Math.trunc(Number(stageNum)) || 1));
     return CAMPAIGN_BEATS_3D[stage] || origGetBeat(stage);
   };
 
   stageManager.loadStage = (stageNum) => {
     const numericStage = Number.isFinite(stageNum) ? Math.trunc(stageNum) : 1;
-    const stage = Math.max(1, Math.min(27, numericStage));
+    const stage = Math.max(1, Math.min(28, numericStage));
 
     if (stage <= 17) {
       origLoadStage(stage);
-      stageManager.maxStage = 27;
+      stageManager.maxStage = 28;
       stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
       if (stage === 7) {
         stageManager.lavaHazards = [
@@ -1717,20 +1919,20 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       return;
     }
 
-    if (stage === 27) {
-      // Stage 27 is Zero-Day Mainframe (H4C3R), built from original stage 18
+    if (stage === 28) {
+      // Stage 28 is Zero-Day Mainframe (H4C3R), built from original stage 18
       origLoadStage(18);
-      stageManager.currentStage = 27;
-      stageManager.maxStage = 27;
-      stageManager.campaignBeat = CAMPAIGN_BEATS_3D[27];
+      stageManager.currentStage = 28;
+      stageManager.maxStage = 28;
+      stageManager.campaignBeat = CAMPAIGN_BEATS_3D[28];
       stageManager.lavaHazards = [];
       return;
     }
 
-    // Reset common state via stage 1 then customize for Stages 18..26
+    // Reset common state via stage 1 then customize for Stages 18..27
     origLoadStage(1);
     stageManager.currentStage = stage;
-    stageManager.maxStage = 27;
+    stageManager.maxStage = 28;
     stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
     stageManager.platforms = [];
     stageManager.movingPlatforms = [];
@@ -1846,7 +2048,37 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 800, y: -130, label: 'Pale_Hanging_Moss', icon: '🌿', color: '#cbd5e1' }
       ];
     } else if (stage === 22) {
-      // STAGE 22: YOUTUBE STUDIO (Animation vs. YouTube — Viral Player Arena)
+      // STAGE 22: MINECRAFT OVERWORLD (Sunlit Plains, Oak Village, Crafting Outpost & TNT Quarry)
+      stageManager.stageName = 'Minecraft Overworld';
+      stageManager.theme = 'overworld';
+      stageManager.platforms = [
+        { x: -580, y: -160, width: 235, height: 22, title: 'Oak_Canopy_West', appType: 'overworld' },
+        { x: 0, y: -255, width: 295, height: 24, title: 'Village_Blacksmith_Roof', appType: 'overworld' },
+        { x: 580, y: -160, width: 235, height: 22, title: 'Birch_Hill_Overlook', appType: 'overworld' }
+      ];
+      stageManager.movingPlatforms = [
+        {
+          x: -220,
+          y: -135,
+          width: 175,
+          height: 20,
+          title: 'Minecart_Rail_Track',
+          appType: 'overworld',
+          minX: -360,
+          maxX: 360,
+          speed: 132,
+          dir: 1,
+          axis: 'x'
+        }
+      ];
+      stageManager.desktopIcons = [
+        { x: -800, y: -125, label: 'Grass_Block', icon: '🌱', color: '#4ade80' },
+        { x: -320, y: -340, label: 'Crafting_Table', icon: '🛠️', color: '#d97706' },
+        { x: 320, y: -340, label: 'TNT_Quarry', icon: '🧨', color: '#ef4444' },
+        { x: 800, y: -125, label: 'Diamond_Pick', icon: '⛏️', color: '#38bdf8' }
+      ];
+    } else if (stage === 23) {
+      // STAGE 23: YOUTUBE STUDIO (Animation vs. YouTube — Viral Player Arena)
       stageManager.stageName = 'YouTube Studio';
       stageManager.theme = 'youtube';
       stageManager.platforms = [
@@ -1878,8 +2110,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 320, y: -340, label: 'Live_Chat', icon: '💬', color: '#f8fafc' },
         { x: 800, y: -125, label: 'Skip_Ad_5s', icon: '⏭', color: '#facc15' }
       ];
-    } else if (stage === 23) {
-      // STAGE 23: GOOGLE CHROME (Multi-Tab Browser & Offline Dino Arena)
+    } else if (stage === 24) {
+      // STAGE 24: GOOGLE CHROME (Multi-Tab Browser & Offline Dino Arena)
       stageManager.stageName = 'Google Chrome';
       stageManager.theme = 'chrome';
       stageManager.platforms = [
@@ -1910,8 +2142,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 330, y: -345, label: 'Extensions', icon: '🧩', color: '#34a853' },
         { x: 810, y: -125, label: 'New_Tab (+)', icon: '🌐', color: '#4285f4' }
       ];
-    } else if (stage === 24) {
-      // STAGE 24: SPOTIFY PLAYER (Equalizer Spectrum & Vinyl Turntable Arena)
+    } else if (stage === 25) {
+      // STAGE 25: SPOTIFY PLAYER (Equalizer Spectrum & Vinyl Turntable Arena)
       stageManager.stageName = 'Spotify Player';
       stageManager.theme = 'spotify';
       stageManager.platforms = [
@@ -1953,8 +2185,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 330, y: -350, label: 'Audio_Spectrum', icon: 'ılı', color: '#1db954' },
         { x: 810, y: -125, label: 'Loop_Track', icon: '🔁', color: '#86efac' }
       ];
-    } else if (stage === 25) {
-      // STAGE 25: GOOGLE SLIDES (Presentation Deck & Live Chart Arena)
+    } else if (stage === 26) {
+      // STAGE 26: GOOGLE SLIDES (Presentation Deck & Live Chart Arena)
       stageManager.stageName = 'Google Slides';
       stageManager.theme = 'slides';
       stageManager.platforms = [
@@ -1984,8 +2216,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 330, y: -345, label: 'Shape_Insert', icon: '◇', color: '#4285f4' },
         { x: 810, y: -125, label: 'Laser_Pointer', icon: '✦', color: '#34a853' }
       ];
-    } else if (stage === 26) {
-      // STAGE 26: ROCKET CORP HQ (Mercenaries Boss Squad: Agent, Ballista, Primal, Hazard)
+    } else if (stage === 27) {
+      // STAGE 27: ROCKET CORP HQ (Mercenaries Boss Squad: Agent, Ballista, Primal, Hazard)
       stageManager.stageName = 'Rocket Corp HQ';
       stageManager.theme = 'rocket_corp';
       stageManager.platforms = [
@@ -2007,8 +2239,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
 
   stageManager.enterTrophyRoom = () => {
     origEnterTrophy();
-    stageManager.maxStage = 27;
-    stageManager.currentStage = 27;
+    stageManager.maxStage = 28;
+    stageManager.currentStage = 28;
     stageManager.lavaHazards = [];
     stageManager.desktopIcons = [
       { x: -900, y: -105, label: 'TITAN', icon: 'T', color: '#8cff66' },
@@ -2025,7 +2257,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
     ];
   };
 
-  // Extend WaveDirector for Stages 18..27
+  // Extend WaveDirector for Stages 18..28
   activeWaveDirector = waveDirector;
   const origGenerateWaveQueue = waveDirector.generateWaveQueue.bind(waveDirector);
   const origSpawnZombie = waveDirector.spawnZombie.bind(waveDirector);
@@ -2039,6 +2271,17 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       Object.freeze({ gap: 1.05, enemies: Object.freeze(['warden', 'stalker', 'boom_bug', 'spitter']) }),
       Object.freeze({ gap: 1.1, enemies: Object.freeze(['brute', 'stalker', 'runner', 'boom_bug']) }),
       Object.freeze({ gap: 1.2, enemies: Object.freeze(['warden', 'shieldbearer', 'spitter', 'boom_bug']) })
+    ])
+  });
+
+  const OVERWORLD_RECIPE = Object.freeze({
+    total: 16,
+    bossHelpers: 0,
+    packs: Object.freeze([
+      Object.freeze({ gap: 0.92, enemies: Object.freeze(['walker', 'runner', 'boom_bug', 'spitter']) }),
+      Object.freeze({ gap: 1.02, enemies: Object.freeze(['shieldbearer', 'boom_bug', 'walker', 'runner']) }),
+      Object.freeze({ gap: 1.1, enemies: Object.freeze(['brute', 'spitter', 'boom_bug', 'crawler']) }),
+      Object.freeze({ gap: 1.18, enemies: Object.freeze(['warden', 'boom_bug', 'shieldbearer', 'runner']) })
     ])
   });
 
@@ -2087,7 +2330,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   });
 
   waveDirector.generateWaveQueue = (wave) => {
-    const stage = Math.max(1, Math.min(27, Math.trunc(Number(wave)) || 1));
+    const stage = Math.max(1, Math.min(28, Math.trunc(Number(wave)) || 1));
     if (stage <= 17) {
       origGenerateWaveQueue(stage);
       return;
@@ -2116,27 +2359,32 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       return;
     }
     if (stage === 22) {
-      // Stage 22: YouTube Studio — Viral Stream Wave
-      waveDirector.queueWaveRecipe(YOUTUBE_RECIPE);
+      // Stage 22: Minecraft Overworld — Village Raid & Creeper/TNT Wave
+      waveDirector.queueWaveRecipe(OVERWORLD_RECIPE);
       return;
     }
     if (stage === 23) {
-      // Stage 23: Google Chrome — Multi-Tab Browser Wave
-      waveDirector.queueWaveRecipe(CHROME_RECIPE);
+      // Stage 23: YouTube Studio — Viral Stream Wave
+      waveDirector.queueWaveRecipe(YOUTUBE_RECIPE);
       return;
     }
     if (stage === 24) {
-      // Stage 24: Spotify Player — Bass Drop Wave
-      waveDirector.queueWaveRecipe(SPOTIFY_RECIPE);
+      // Stage 24: Google Chrome — Multi-Tab Browser Wave
+      waveDirector.queueWaveRecipe(CHROME_RECIPE);
       return;
     }
     if (stage === 25) {
-      // Stage 25: Google Slides — Presentation Deck Wave
-      waveDirector.queueWaveRecipe(SLIDES_RECIPE);
+      // Stage 25: Spotify Player — Bass Drop Wave
+      waveDirector.queueWaveRecipe(SPOTIFY_RECIPE);
       return;
     }
     if (stage === 26) {
-      // Stage 26: Rocket Corp HQ — All 4 Mercenaries from AvA Season 3!
+      // Stage 26: Google Slides — Presentation Deck Wave
+      waveDirector.queueWaveRecipe(SLIDES_RECIPE);
+      return;
+    }
+    if (stage === 27) {
+      // Stage 27: Rocket Corp HQ — All 4 Mercenaries from AvA Season 3!
       waveDirector.usesAuthoredRecipe = true;
       const mercs = ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard'];
       mercs.forEach((type, idx) => {
@@ -2149,8 +2397,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       });
       return;
     }
-    if (stage === 27) {
-      // Stage 27: Zero-Day Mainframe — H4C3R
+    if (stage === 28) {
+      // Stage 28: Zero-Day Mainframe — H4C3R
       waveDirector.queueWaveRecipe(WAVE_RECIPES[18]);
     }
   };

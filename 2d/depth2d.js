@@ -157,6 +157,15 @@ const THEME_DEPTH_PROFILES = Object.freeze({
     bokehTint: '#fdba74',
     motif: 'pale_forest'
   },
+  overworld: {
+    farTint: '#86efac',
+    midTint: '#22c55e',
+    hazeTop: 'rgba(56, 189, 248, 0)',
+    hazeMid: 'rgba(186, 230, 253, 0.14)',
+    hazeBottom: 'rgba(220, 252, 231, 0.24)',
+    bokehTint: '#fef08a',
+    motif: 'overworld_hills'
+  },
   youtube: {
     farTint: '#ff0033',
     midTint: '#f87171',
@@ -286,6 +295,22 @@ function paintDepthMotifSilhouettes(ctx, motif, profile, stageSeed, isMidLayer) 
         ctx.beginPath();
         ctx.arc(cx + 18, groundLocalY - 14, isMidLayer ? 6 : 8, 0, Math.PI * 2);
         ctx.fill();
+      }
+    } else if (motif === 'overworld_hills') {
+      // Distant blurred Minecraft Overworld stepped voxel hills & Oak/Birch tree crowns
+      const hillH = Math.round(h * 0.65);
+      ctx.fillStyle = isMidLayer ? '#784c2a' : '#64748b';
+      ctx.fillRect(cx - w * 0.52, groundLocalY - hillH, w * 1.04, hillH + 40);
+      ctx.fillStyle = isMidLayer ? '#22c55e' : '#4ade80';
+      ctx.fillRect(cx - w * 0.52, groundLocalY - hillH, w * 1.04, 18);
+      if (i % 2 === 0) {
+        const treeX = cx + ((hash % 30) - 15);
+        const trunkH = isMidLayer ? 56 : 74;
+        ctx.fillStyle = i % 4 === 0 ? '#e2e8f0' : '#78350f';
+        ctx.fillRect(treeX - 10, groundLocalY - hillH - trunkH, 20, trunkH);
+        ctx.fillStyle = tint;
+        ctx.fillRect(treeX - 44, groundLocalY - hillH - trunkH - 36, 88, 44);
+        ctx.fillRect(treeX - 28, groundLocalY - hillH - trunkH - 56, 56, 24);
       }
     } else if (motif === 'cavern') {
       // Distant Deep Dark hanging stalactites & ruined Deepslate arches

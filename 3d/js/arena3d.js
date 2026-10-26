@@ -1,5 +1,5 @@
 import * as THREE from '../lib/three.module.min.js';
-import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.5';
+import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.6';
 import {
   StickRig3D,
   CreeperLordRig3D,
@@ -8,7 +8,7 @@ import {
   EnderDragonRig3D,
   WardenBossRig3D,
   CreakingBossRig3D
-} from './models3d.js?v=10.5';
+} from './models3d.js?v=10.6';
 
 export const WORLD_TO_3D = 1 / 34;
 export const ARENA_HALF_X = 980;
@@ -174,15 +174,17 @@ export class Arena3DBuilder {
     this.spotifyEqualizerBars = [];
     this.spotifyVinylDisc = null;
     this.slidesChartBars = [];
+    this.overworldClouds = [];
+    this.overworldWaterMesh = null;
 
     if (stageManager) this.stageManager = stageManager;
     const sm = stageManager || this.stageManager;
     const theme = themeOverride || sm?.theme || 'desktop';
     const floorKey = getThemeFloorTextureKey(theme, false);
 
-    // Hide PC monitor stand neck when inside Rocket Corp Facility, Ancient City, Pale Garden, or AvA 8 Lake
+    // Hide PC monitor stand neck when inside Rocket Corp Facility, Ancient City, Pale Garden, Overworld, or AvA 8 Lake
     if (this.standNeck) {
-      this.standNeck.visible = theme !== 'rocket_corp' && theme !== 'ancient_city' && theme !== 'pale_garden' && theme !== 'dark_core';
+      this.standNeck.visible = theme !== 'rocket_corp' && theme !== 'ancient_city' && theme !== 'pale_garden' && theme !== 'overworld' && theme !== 'dark_core';
     }
 
     // 1. Voxel Arena Floor (62 x 26 blocks)
@@ -199,12 +201,13 @@ export class Arena3DBuilder {
     floorMesh.receiveShadow = true;
     this.group.add(floorMesh);
 
-    // Sub-floor voxel cliff layers (Minecraft island / Ancient City & AvA 8 Lake canyon stone / Pale Garden oak / Facility foundation)
+    // Sub-floor voxel cliff layers (Minecraft island / Overworld cobblestone strata / Ancient City & AvA 8 Lake canyon stone / Pale Garden oak / Facility foundation)
     const subTexKey = theme === 'minecraft' || theme === 'the_end'
       ? 'obsidian'
+      : (theme === 'overworld' ? 'cobblestone'
       : (theme === 'ancient_city' || theme === 'dark_core' ? 'deepslate_tiles'
       : (theme === 'pale_garden' ? 'pale_oak_log'
-      : (theme === 'aether' ? 'holystone' : (theme === 'rocket_corp' ? 'rocket_corp_wall' : 'anvil_iron'))));
+      : (theme === 'aether' ? 'holystone' : (theme === 'rocket_corp' ? 'rocket_corp_wall' : 'anvil_iron')))));
     const subTex = getVoxelTexture(subTexKey, 31, 2);
     const subMat = new THREE.MeshStandardMaterial({ map: subTex, roughness: 0.7 });
     const subLayer = new THREE.Mesh(new THREE.BoxGeometry(floorW - 1.5, 3.2, floorD - 1.5), subMat);
@@ -353,6 +356,7 @@ export class Arena3DBuilder {
       aether: 0x38d9a9,
       ancient_city: 0x22d3ee,
       pale_garden: 0xf97316,
+      overworld: 0x4ade80,
       youtube: 0xff0033,
       chrome: 0x4285f4,
       spotify: 0x1db954,
@@ -1117,6 +1121,226 @@ export class Arena3DBuilder {
     this.group.add(chartPlinth);
   }
 
+  buildOverworldProps() {
+    const grassBlockMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('grass_block', 3, 2),
+      roughness: 0.65
+    });
+    const grassTopMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('grass_top', 3, 3),
+      roughness: 0.65
+    });
+    const cobbleMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('cobblestone', 3, 3),
+      roughness: 0.72
+    });
+    const oakPlanksMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('oak_planks', 3, 3),
+      roughness: 0.58
+    });
+    const oakLogMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('oak_log', 1, 3),
+      roughness: 0.62
+    });
+    const birchLogMat = new THREE.MeshStandardMaterial({
+      color: 0xf1f5f9,
+      roughness: 0.55
+    });
+    const birchBarkMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      roughness: 0.8
+    });
+    const leavesMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('oak_leaves', 3, 3),
+      roughness: 0.65
+    });
+    const craftingMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('crafting_table', 1, 1),
+      roughness: 0.52
+    });
+    const furnaceGlowMat = new THREE.MeshStandardMaterial({
+      color: 0xff7b00,
+      emissive: new THREE.Color(0xff5500),
+      emissiveIntensity: 0.95,
+      roughness: 0.3
+    });
+
+    // 1. Sparkling Overworld River Strip across the Valley Backplane
+    const waterTex = getVoxelTexture('water_still', 18, 2);
+    const waterMat = new THREE.MeshStandardMaterial({
+      map: waterTex,
+      color: 0x38bdf8,
+      emissive: new THREE.Color(0x0284c7),
+      emissiveIntensity: 0.35,
+      transparent: true,
+      opacity: 0.86,
+      roughness: 0.18,
+      metalness: 0.25
+    });
+    const riverMesh = new THREE.Mesh(new THREE.BoxGeometry(58, 0.18, 3.2), waterMat);
+    riverMesh.name = 'overworldRiverMesh';
+    riverMesh.position.set(0, 0.06, -8.6);
+    this.group.add(riverMesh);
+    this.overworldWaterMesh = riverMesh;
+
+    // Lily pads & sugar cane along the riverbank
+    const caneMat = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.5 });
+    const lilyMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.55 });
+    [-19.5, -9.2, 8.8, 18.4].forEach((rx, idx) => {
+      const lily = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.06, 0.85), lilyMat);
+      lily.position.set(rx, 0.17, -8.4 + (idx % 2) * 0.7);
+      this.group.add(lily);
+
+      const caneH = 1.9 + (idx % 2) * 0.65;
+      const cane = new THREE.Mesh(new THREE.BoxGeometry(0.36, caneH, 0.36), caneMat);
+      cane.position.set(rx + 1.2, caneH / 2, -6.85);
+      this.group.add(cane);
+    });
+
+    // 2. Center-Back 3D Cobblestone & Oak Planks Village Blacksmith Cottage
+    const cottage = new THREE.Group();
+    cottage.name = 'overworldVillageHouse';
+    cottage.position.set(0, 0, -11.3);
+
+    const foundation = new THREE.Mesh(new THREE.BoxGeometry(10.8, 1.1, 4.2), cobbleMat);
+    foundation.position.y = 0.55;
+    const cabinWalls = new THREE.Mesh(new THREE.BoxGeometry(9.6, 3.6, 3.6), oakPlanksMat);
+    cabinWalls.position.y = 2.9;
+    cabinWalls.castShadow = true;
+
+    // Cobblestone corner posts & forge chimney
+    [-4.6, 4.6].forEach((px) => {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.85, 3.8, 3.8), oakLogMat);
+      post.position.set(px, 2.95, 0);
+      cottage.add(post);
+    });
+    const chimney = new THREE.Mesh(new THREE.BoxGeometry(2.1, 6.4, 2.2), cobbleMat);
+    chimney.position.set(3.4, 3.6, -0.3);
+    const furnaceFront = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.9, 0.25), furnaceGlowMat);
+    furnaceFront.position.set(3.4, 1.95, 0.86);
+
+    // Stepped Pitched Oak Planks Roof
+    [
+      { w: 11.2, y: 5.05, d: 4.4 },
+      { w: 8.8, y: 5.75, d: 3.9 },
+      { w: 6.2, y: 6.45, d: 3.4 },
+      { w: 3.4, y: 7.1, d: 2.9 }
+    ].forEach((step) => {
+      const roofTier = new THREE.Mesh(new THREE.BoxGeometry(step.w, 0.72, step.d), oakPlanksMat);
+      roofTier.position.y = step.y;
+      roofTier.castShadow = true;
+      cottage.add(roofTier);
+    });
+
+    // Oak Door, Glowing Windows & Outdoor Crafting Table Bench
+    const doorMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1.3, 2.4, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.65 })
+    );
+    doorMesh.position.set(-0.6, 2.25, 1.82);
+
+    const winMat = new THREE.MeshStandardMaterial({
+      color: 0xfef08a,
+      emissive: new THREE.Color(0xfacc15),
+      emissiveIntensity: 0.7,
+      roughness: 0.2
+    });
+    const winL = new THREE.Mesh(new THREE.BoxGeometry(1.35, 1.15, 0.2), winMat);
+    winL.position.set(-2.8, 2.95, 1.82);
+    const winR = winL.clone();
+    winR.position.set(1.45, 2.95, 1.82);
+
+    const craftingBench = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.25, 1.25), craftingMat);
+    craftingBench.name = 'overworldCraftingBench';
+    craftingBench.position.set(-3.1, 1.72, 2.35);
+    craftingBench.castShadow = true;
+
+    cottage.add(foundation, cabinWalls, chimney, furnaceFront, doorMesh, winL, winR, craftingBench);
+    this.group.add(cottage);
+
+    // 3. Stepped Grass-Block Extreme Hills Terraces on West & East Flanks
+    [-23.5, 23.5].forEach((hx, sideIdx) => {
+      const hillGroup = new THREE.Group();
+      hillGroup.position.set(hx, 0, -11.4);
+      const lowerHill = new THREE.Mesh(new THREE.BoxGeometry(9.2, 2.2, 4.2), grassBlockMat);
+      lowerHill.position.y = 1.1;
+      const lowerCap = new THREE.Mesh(new THREE.BoxGeometry(9.24, 0.14, 4.24), grassTopMat);
+      lowerCap.position.y = 2.22;
+      const upperHill = new THREE.Mesh(new THREE.BoxGeometry(5.8, 2.0, 3.2), grassBlockMat);
+      upperHill.position.set(sideIdx === 0 ? -1.1 : 1.1, 3.2, -0.3);
+      const upperCap = new THREE.Mesh(new THREE.BoxGeometry(5.84, 0.14, 3.24), grassTopMat);
+      upperCap.position.set(sideIdx === 0 ? -1.1 : 1.1, 4.22, -0.3);
+      hillGroup.add(lowerHill, lowerCap, upperHill, upperCap);
+      this.group.add(hillGroup);
+    });
+
+    // 4. Voxel Oak & Birch Trees across the Meadow
+    const treeSpecs = [
+      { x: -25.2, y: 4.2, z: -11.5, h: 3.6, birch: false },
+      { x: -14.4, y: 0, z: -10.8, h: 4.4, birch: false },
+      { x: -8.2, y: 0, z: -11.6, h: 3.9, birch: true },
+      { x: 8.6, y: 0, z: -11.5, h: 4.2, birch: true },
+      { x: 14.8, y: 0, z: -10.6, h: 4.6, birch: false },
+      { x: 24.8, y: 4.2, z: -11.5, h: 3.8, birch: true }
+    ];
+    treeSpecs.forEach((spec) => {
+      const tree = new THREE.Group();
+      tree.position.set(spec.x, spec.y, spec.z);
+      const trunk = new THREE.Mesh(
+        new THREE.BoxGeometry(0.95, spec.h, 0.95),
+        spec.birch ? birchLogMat : oakLogMat
+      );
+      trunk.position.y = spec.h / 2;
+      trunk.castShadow = true;
+      tree.add(trunk);
+
+      if (spec.birch) {
+        for (let b = 0; b < 3; b++) {
+          const notch = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.18, 0.98), birchBarkMat);
+          notch.position.y = 0.8 + b * 1.1;
+          tree.add(notch);
+        }
+      }
+
+      const canopyLower = new THREE.Mesh(new THREE.BoxGeometry(3.8, 1.6, 3.8), leavesMat);
+      canopyLower.position.y = spec.h + 0.35;
+      canopyLower.castShadow = true;
+      const canopyMid = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.3, 2.9), leavesMat);
+      canopyMid.position.y = spec.h + 1.55;
+      const canopyTop = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.95, 1.7), leavesMat);
+      canopyTop.position.y = spec.h + 2.45;
+      tree.add(canopyLower, canopyMid, canopyTop);
+      this.group.add(tree);
+    });
+
+    // 5. Drifting White 3D Voxel Clouds Overhead
+    const cloudMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: new THREE.Color(0xe0f2fe),
+      emissiveIntensity: 0.25,
+      roughness: 0.4,
+      transparent: true,
+      opacity: 0.92
+    });
+    const cloudSeeds = [
+      { x: -22, y: 11.8, z: -9.5, w: 6.4, d: 2.6, speed: 0.55 },
+      { x: -6, y: 12.6, z: -10.8, w: 8.2, d: 3.1, speed: 0.42 },
+      { x: 11, y: 11.4, z: -9.2, w: 5.8, d: 2.4, speed: 0.62 },
+      { x: 24, y: 12.3, z: -10.5, w: 7.2, d: 2.8, speed: 0.48 }
+    ];
+    this.overworldClouds = cloudSeeds.map((seed) => {
+      const cloudGroup = new THREE.Group();
+      cloudGroup.name = 'overworldVoxelCloud';
+      const mainSlab = new THREE.Mesh(new THREE.BoxGeometry(seed.w, 0.72, seed.d), cloudMat);
+      const lobe = new THREE.Mesh(new THREE.BoxGeometry(seed.w * 0.58, 0.65, seed.d * 0.72), cloudMat);
+      lobe.position.set(seed.w * 0.14, 0.38, 0.2);
+      cloudGroup.add(mainSlab, lobe);
+      cloudGroup.position.set(seed.x, seed.y, seed.z);
+      this.group.add(cloudGroup);
+      return { mesh: cloudGroup, speed: seed.speed };
+    });
+  }
+
   buildBiomeColumns(theme, accentHex) {
     if (theme === 'rocket_corp') {
       this.buildRocketCorpFacility();
@@ -1128,6 +1352,10 @@ export class Arena3DBuilder {
     }
     if (theme === 'pale_garden') {
       this.buildPaleGardenGrove();
+      return;
+    }
+    if (theme === 'overworld') {
+      this.buildOverworldProps();
       return;
     }
     if (theme === 'dark_core') {
@@ -1604,11 +1832,12 @@ export class Arena3DBuilder {
     const isRocketCorp = this.stageManager?.theme === 'rocket_corp';
     const isAncientCity = this.stageManager?.theme === 'ancient_city';
     const isPaleGarden = this.stageManager?.theme === 'pale_garden';
+    const isOverworld = this.stageManager?.theme === 'overworld';
     const frameMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(
         isRocketCorp
           ? 'rocket_corp_wall'
-          : (isAncientCity ? 'reinforced_deepslate' : (isPaleGarden ? 'pale_oak_log' : 'obsidian')),
+          : (isAncientCity ? 'reinforced_deepslate' : (isPaleGarden ? 'pale_oak_log' : (isOverworld ? 'oak_log' : 'obsidian'))),
         1,
         2
       ),
@@ -1645,11 +1874,11 @@ export class Arena3DBuilder {
       label,
       isRocketCorp
         ? 'ROCKET CORP'
-        : (isAncientCity ? 'DEEP DARK' : (isPaleGarden ? 'PALE GARDEN' : (isExit ? 'PORTAL' : 'SPAWN'))),
+        : (isAncientCity ? 'DEEP DARK' : (isPaleGarden ? 'PALE GARDEN' : (isOverworld ? 'OVERWORLD' : (isExit ? 'PORTAL' : 'SPAWN')))),
       '#0f172a',
       isRocketCorp
         ? '#ff6b00'
-        : (isAncientCity ? '#22d3ee' : (isPaleGarden ? '#fb923c' : (isExit ? '#10b981' : '#38bdf8')))
+        : (isAncientCity ? '#22d3ee' : (isPaleGarden ? '#fb923c' : (isOverworld ? '#4ade80' : (isExit ? '#10b981' : '#38bdf8'))))
     );
     const signMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2.4, 0.9),
@@ -1675,6 +1904,7 @@ export class Arena3DBuilder {
     const group = new THREE.Group();
     const texKey = theme === 'command_realm' ? 'gold_block'
       : (theme === 'minecraft' ? 'obsidian'
+      : (theme === 'overworld' ? (isMoving ? 'cobblestone' : 'oak_planks')
       : (theme === 'the_end' ? 'purpur_block'
       : (theme === 'aether' ? 'holystone'
       : (theme === 'ancient_city' ? 'deepslate_tiles'
@@ -1685,7 +1915,7 @@ export class Arena3DBuilder {
       : (theme === 'slides' ? 'slides_floor'
       : (theme === 'rocket_corp' ? 'rocket_corp_wall'
       : (theme === 'lucky_orb' ? 'lucky_block'
-      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))))))))));
+      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron')))))))))))));
 
     const bodyMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(texKey, Math.max(2, Math.round(w / 2)), 2),
@@ -1714,11 +1944,16 @@ export class Arena3DBuilder {
           map: getVoxelTexture('rocket_corp_hazard', Math.max(4, Math.round(w)), 1),
           roughness: 0.35
         })
-      : new THREE.MeshStandardMaterial({
-          color: accentHex,
-          emissive: accentHex,
-          emissiveIntensity: 0.38
-        });
+      : (theme === 'overworld' && !isMoving
+        ? new THREE.MeshStandardMaterial({
+            map: getVoxelTexture('grass_top', Math.max(2, Math.round(w / 2)), 2),
+            roughness: 0.55
+          })
+        : new THREE.MeshStandardMaterial({
+            color: accentHex,
+            emissive: accentHex,
+            emissiveIntensity: 0.38
+          }));
     const headerBar = new THREE.Mesh(
       new THREE.BoxGeometry(w + 0.04, barH, d + 0.04),
       headerMat
@@ -2503,6 +2738,8 @@ export class Arena3DBuilder {
       this.drawAncientCityCavernBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'pale_garden') {
       this.drawPaleGardenBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'overworld') {
+      this.drawOverworldMonitorBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'dark_core') {
       this.drawAvA8LakeBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'youtube') {
@@ -2774,6 +3011,113 @@ export class Arena3DBuilder {
     ctx.fillText('SECURITY LEVEL: MAXIMUM', w - 28, h - 24);
   }
 
+  drawOverworldMonitorBackdrop(ctx, w, h, sm) {
+    // 1. Bright Minecraft Overworld Daylight Sky Gradient
+    const grad = typeof ctx.createLinearGradient === 'function' ? ctx.createLinearGradient(0, 0, 0, h) : null;
+    if (grad && typeof grad.addColorStop === 'function') {
+      grad.addColorStop(0, '#1d4ed8');
+      grad.addColorStop(0.42, '#38bdf8');
+      grad.addColorStop(0.78, '#bae6fd');
+      grad.addColorStop(1, '#dcfce7');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#38bdf8';
+    }
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Classic Square Pixel Minecraft Sun & Glow Halo
+    const sunX = w - 165;
+    const sunY = 48;
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.35)';
+    ctx.fillRect(sunX - 18, sunY - 18, 108, 108);
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(sunX, sunY, 72, 72);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(sunX + 12, sunY + 12, 48, 48);
+
+    // 3. Pixel-Art Voxel Clouds Drifting Across Sky
+    const t = Number(sm?.stageTime) || 0;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+    [
+      { x: 60, y: 62, cw: 148, ch: 26 },
+      { x: 350, y: 88, cw: 192, ch: 30 },
+      { x: 660, y: 54, cw: 136, ch: 24 }
+    ].forEach((c, idx) => {
+      const cx = ((c.x + t * (16 + idx * 4)) % (w + 220)) - 110;
+      ctx.fillRect(cx, c.y, c.cw, c.ch);
+      ctx.fillRect(cx + 28, c.y - 16, c.cw * 0.56, 18);
+    });
+
+    // 4. Distant Voxel Extreme Hills & Snow-Capped Mountain Ridge
+    const hills = [
+      { x: 0, w: 220, top: 228 },
+      { x: 190, w: 240, top: 184 },
+      { x: 400, w: 260, top: 214 },
+      { x: 630, w: 230, top: 174 },
+      { x: 830, w: 220, top: 220 }
+    ];
+    hills.forEach((m) => {
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(m.x, m.top, m.w, h - m.top);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(m.x, m.top, m.w, 18);
+      if (m.top < 195) {
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(m.x + 28, m.top - 14, m.w - 56, 18);
+      }
+      ctx.fillStyle = '#784c2a';
+      ctx.fillRect(m.x, m.top + 18, m.w, 26);
+    });
+
+    // 5. Rolling Foreground Grass Meadow & Sparkling River Band
+    ctx.fillStyle = '#22c55e';
+    ctx.fillRect(0, h - 148, w, 86);
+    ctx.fillStyle = '#8b5a2b';
+    ctx.fillRect(0, h - 122, w, 60);
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(260, h - 136, 504, 34);
+    ctx.fillStyle = '#7dd3fc';
+    ctx.fillRect(284, h - 130, 120, 6);
+    ctx.fillRect(540, h - 122, 160, 6);
+
+    // 6. Overworld Campaign Banner & TNT / Outpost Telemetry
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(w / 2 - 430, 18, 860, 134);
+    ctx.strokeStyle = '#4ade80';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(w / 2 - 430, 18, 860, 134);
+
+    ctx.fillStyle = '#86efac';
+    ctx.font = 'bold 21px monospace';
+    ctx.fillText('ACT VI // STAGE 22: MINECRAFT OVERWORLD — SUNLIT PLAINS & VILLAGE', w / 2, 52);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 31px monospace';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ OVERWORLD SECURED — PORTAL OPEN' : '⛏ DEFEND THE VILLAGE & IGNITE TNT TO BLAST BLOCKS!',
+      w / 2,
+      96
+    );
+
+    ctx.fillStyle = '#fde047';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('STRIKE TNT OR PRESS [B] TO PLACE GRASS, COBBLESTONE, OAK PLANKS, CRAFTING TABLE & TNT', w / 2, 132);
+
+    // 7. Overworld Hotbar-Style Footer Bar
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, h - 62, w, 62);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(0, h - 62, w, 5);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('⛏ MINECRAFT OVERWORLD // DAYLIGHT BIOME  •  TNT BLOCK BLASTING ACTIVE', 28, h - 22);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#86efac';
+    ctx.fillText(sm.isObjectiveComplete ? 'VILLAGE STATUS: SAFE' : 'HOSTILE RAID: ACTIVE', w - 28, h - 22);
+  }
+
   update(dt) {
     const sm = this.stageManager;
 
@@ -2838,6 +3182,19 @@ export class Arena3DBuilder {
       if (this.paleGardenHeartShrine.resinRing) {
         this.paleGardenHeartShrine.resinRing.rotation.z = t * 0.9;
       }
+    }
+
+    // Animate Overworld Clouds & Flowing River
+    if (this.overworldClouds && this.overworldClouds.length > 0) {
+      for (const cloud of this.overworldClouds) {
+        cloud.mesh.position.x += dt * cloud.speed;
+        if (cloud.mesh.position.x > 34) {
+          cloud.mesh.position.x = -34;
+        }
+      }
+    }
+    if (this.overworldWaterMesh?.material?.map?.offset) {
+      this.overworldWaterMesh.material.map.offset.x = (this.overworldWaterMesh.material.map.offset.x + dt * 0.09) % 1;
     }
 
     // Animate App Gauntlet 3D Props (YouTube, Chrome, Spotify, Slides)

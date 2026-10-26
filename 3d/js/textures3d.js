@@ -801,6 +801,123 @@ export function drawPixelBlock(ctx, kind) {
       ctx.fillRect(12, 12, 2, 2);
       break;
     }
+    case 'grass_top': {
+      fillNoisyPixels(ctx, '#4d9b2a', 0.14, 345);
+      drawBevelBorder(ctx, '#74c647', '#35741a');
+      ctx.fillStyle = '#86efac';
+      ctx.fillRect(3, 3, 2, 1);
+      ctx.fillRect(11, 7, 1, 2);
+      ctx.fillRect(6, 12, 2, 1);
+      break;
+    }
+    case 'grass_block': {
+      // Rich dirt lower body + vibrant green overhanging grass turf top
+      fillNoisyPixels(ctx, '#85532f', 0.16, 355);
+      ctx.fillStyle = '#5c381e';
+      ctx.fillRect(3, 9, 2, 2);
+      ctx.fillRect(11, 12, 2, 2);
+      ctx.fillStyle = '#a36a3e';
+      ctx.fillRect(7, 8, 2, 1);
+      ctx.fillRect(13, 7, 1, 2);
+      // Lush green grass cap + jagged pixel blades
+      ctx.fillStyle = '#4d9b2a';
+      ctx.fillRect(0, 0, 16, 4);
+      const blades = [2, 1, 3, 1, 2, 0, 2, 3, 1, 2, 1, 3, 2, 1, 2, 1];
+      for (let x = 0; x < 16; x++) {
+        ctx.fillStyle = x % 2 === 0 ? '#5bb332' : '#3d8220';
+        ctx.fillRect(x, 4, 1, blades[x]);
+      }
+      ctx.fillStyle = '#86efac';
+      ctx.fillRect(1, 1, 4, 1);
+      ctx.fillRect(9, 1, 5, 1);
+      drawBevelBorder(ctx, '#74c647', '#432814');
+      break;
+    }
+    case 'cobblestone': {
+      fillNoisyPixels(ctx, '#787e87', 0.14, 365);
+      ctx.fillStyle = '#4b5057';
+      ctx.fillRect(0, 4, 16, 1);
+      ctx.fillRect(0, 9, 16, 1);
+      ctx.fillRect(0, 14, 16, 1);
+      ctx.fillRect(5, 0, 1, 4);
+      ctx.fillRect(11, 0, 1, 4);
+      ctx.fillRect(3, 5, 1, 4);
+      ctx.fillRect(9, 5, 1, 4);
+      ctx.fillRect(6, 10, 1, 4);
+      ctx.fillRect(13, 10, 1, 4);
+      ctx.fillStyle = '#a3aab4';
+      ctx.fillRect(1, 1, 3, 1);
+      ctx.fillRect(6, 1, 4, 1);
+      ctx.fillRect(5, 6, 3, 1);
+      ctx.fillRect(1, 11, 4, 1);
+      drawBevelBorder(ctx, '#9ca3af', '#374151');
+      break;
+    }
+    case 'oak_planks': {
+      fillNoisyPixels(ctx, '#b88c52', 0.1, 375);
+      ctx.fillStyle = '#7c582b';
+      for (const y of [3, 7, 11, 15]) ctx.fillRect(0, y, 16, 1);
+      ctx.fillRect(7, 0, 1, 3);
+      ctx.fillRect(12, 4, 1, 3);
+      ctx.fillRect(4, 8, 1, 3);
+      ctx.fillRect(10, 12, 1, 3);
+      ctx.fillStyle = '#d4a96a';
+      ctx.fillRect(1, 1, 5, 1);
+      ctx.fillRect(2, 5, 8, 1);
+      ctx.fillRect(6, 9, 7, 1);
+      drawBevelBorder(ctx, '#deb881', '#694921');
+      break;
+    }
+    case 'crafting_table': {
+      fillNoisyPixels(ctx, '#a97942', 0.1, 385);
+      // Dark oak top band with 3x3 crafting grid hints
+      ctx.fillStyle = '#5c3a1b';
+      ctx.fillRect(0, 0, 16, 4);
+      ctx.fillStyle = '#d6a86c';
+      for (const gx of [2, 6, 10, 13]) ctx.fillRect(gx, 1, 2, 2);
+      // Tool silhouette (iron saw & hammer) on front face
+      ctx.fillStyle = '#3f2813';
+      ctx.fillRect(2, 5, 12, 9);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(4, 6, 3, 4);
+      ctx.fillRect(10, 6, 2, 5);
+      ctx.fillStyle = '#92400e';
+      ctx.fillRect(5, 10, 1, 3);
+      ctx.fillRect(10, 11, 2, 2);
+      drawBevelBorder(ctx, '#d9a96c', '#45270f');
+      break;
+    }
+    case 'oak_log': {
+      fillNoisyPixels(ctx, '#6b4c2b', 0.14, 395);
+      ctx.fillStyle = '#473019';
+      for (const x of [2, 6, 10, 13]) ctx.fillRect(x, 0, 1, 16);
+      ctx.fillStyle = '#87623a';
+      for (const x of [4, 8, 12]) ctx.fillRect(x, 1, 1, 14);
+      drawBevelBorder(ctx, '#87623a', '#382411');
+      break;
+    }
+    case 'oak_leaves': {
+      fillNoisyPixels(ctx, '#2f7d24', 0.22, 405);
+      ctx.fillStyle = '#1b5114';
+      for (let i = 1; i < 15; i += 4) {
+        ctx.fillRect(i, (i * 3) % 13, 2, 2);
+      }
+      ctx.fillStyle = '#52b741';
+      ctx.fillRect(2, 2, 2, 2);
+      ctx.fillRect(9, 5, 2, 2);
+      ctx.fillRect(5, 11, 3, 2);
+      drawBevelBorder(ctx, '#52b741', '#1a4d14');
+      break;
+    }
+    case 'water_still': {
+      fillNoisyPixels(ctx, '#2563eb', 0.12, 415);
+      ctx.fillStyle = '#60a5fa';
+      ctx.fillRect(2, 3, 5, 1);
+      ctx.fillRect(9, 8, 5, 1);
+      ctx.fillRect(3, 13, 6, 1);
+      drawBevelBorder(ctx, '#3b82f6', '#1d4ed8');
+      break;
+    }
     default: {
       fillNoisyPixels(ctx, '#334155', 0.14, 999);
       drawBevelBorder(ctx, '#64748b', '#1e293b');
@@ -819,6 +936,7 @@ export function getThemeFloorTextureKey(theme, isWhiteVoid = false) {
     case 'bsod': return 'bsod_floor';
     case 'recycle': return 'recycle_floor';
     case 'minecraft': return 'netherrack';
+    case 'overworld': return 'grass_top';
     case 'terminal':
     case 'root_gateway': return 'terminal_floor';
     case 'virabot': return 'virabot_floor';

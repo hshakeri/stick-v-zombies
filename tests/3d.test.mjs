@@ -112,7 +112,7 @@ if (typeof globalThis.window === 'undefined') {
 // 3D Module Imports
 // ----------------------------------------------------------------------------
 import * as THREE from '../3d/lib/three.module.min.js';
-import * as models3d from '../3d/js/models3d.js?v=10.5';
+import * as models3d from '../3d/js/models3d.js?v=10.6';
 const {
   StickRig3D,
   CreeperLordRig3D,
@@ -134,16 +134,24 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from '../3d/js/arena3d.js?v=10.5';
+} from '../3d/js/arena3d.js?v=10.6';
 import {
   extendCampaignFor3D,
   CAMPAIGN_BEATS_3D,
+  OVERWORLD_OUTPOST_BLOCKS,
+  formatAttackerDeathMessage,
+  formatProjectileDeathMessage,
+  resolvePlayerDeathCause,
   EnderDragonBoss,
   MercenaryBoss,
   WardenBoss,
   CreakingBoss
-} from '../3d/js/campaign3d.js?v=10.6';
-import { getVoxelTexture, getThemeFloorTextureKey, drawPixelBlock } from '../3d/js/textures3d.js?v=10.5';
+} from '../3d/js/campaign3d.js?v=10.7';
+import { getVoxelTexture, getThemeFloorTextureKey, drawPixelBlock } from '../3d/js/textures3d.js?v=10.6';
+import { Game3D } from '../3d/js/game3d.js?v=11.4';
+import { Player } from '../js/entities/player.js?v=9.8';
+import { projectiles } from '../js/entities/projectiles.js?v=9.8';
+import { waves } from '../js/systems/waves.js?v=9.8';
 
 // ----------------------------------------------------------------------------
 // Local Verification Helpers for Resource Disposal Protocol
@@ -1305,19 +1313,20 @@ test('Tier 4 [Scenario 6] Full 23-Stage Campaign Routing & 11-Trophy Victory Roo
   };
 
   extendCampaignFor3D(stageManager, waveDirector);
-  assert.equal(stageManager.maxStage, 27, 'extendCampaignFor3D must set maxStage to 27');
+  assert.equal(stageManager.maxStage, 28, 'extendCampaignFor3D must set maxStage to 28');
 
-  // Check 3D custom late-game & App Gauntlet campaign beats are defined
+  // Check 3D custom late-game, Minecraft Overworld & App Gauntlet campaign beats are defined
   assert.ok(CAMPAIGN_BEATS_3D[18], 'stage 18 (The End) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[19], 'stage 19 (The Aether) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[20], 'stage 20 (Ancient City) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[21], 'stage 21 (Pale Garden) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[22], 'stage 22 (YouTube Studio) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[23], 'stage 23 (Google Chrome) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[24], 'stage 24 (Spotify Player) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[25], 'stage 25 (Google Slides) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[26], 'stage 26 (Rocket Corp HQ) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[27], 'stage 27 (Zero-Day Mainframe) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[22], 'stage 22 (Minecraft Overworld) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[23], 'stage 23 (YouTube Studio) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[24], 'stage 24 (Google Chrome) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[25], 'stage 25 (Spotify Player) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[26], 'stage 26 (Google Slides) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[27], 'stage 27 (Rocket Corp HQ) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[28], 'stage 28 (Zero-Day Mainframe) must exist in CAMPAIGN_BEATS_3D');
 
   assert.equal(CAMPAIGN_BEATS_3D[18].bossLabel, 'ENDER DRAGON');
   assert.equal(CAMPAIGN_BEATS_3D[18].mission, 'SLAY THE ENDER DRAGON');
@@ -1326,12 +1335,13 @@ test('Tier 4 [Scenario 6] Full 23-Stage Campaign Routing & 11-Trophy Victory Roo
   assert.equal(CAMPAIGN_BEATS_3D[20].mission, 'SILENCE THE WARDEN');
   assert.equal(CAMPAIGN_BEATS_3D[21].bossLabel, 'THE CREAKING');
   assert.equal(CAMPAIGN_BEATS_3D[21].mission, 'SHATTER THE CREAKING');
-  assert.equal(CAMPAIGN_BEATS_3D[22].mission, 'SURVIVE THE VIRAL STREAM');
-  assert.equal(CAMPAIGN_BEATS_3D[23].mission, 'CLEAR THE BROWSER TABS');
-  assert.equal(CAMPAIGN_BEATS_3D[24].mission, 'RIDE THE BASS DROP');
-  assert.equal(CAMPAIGN_BEATS_3D[25].mission, 'CRASH THE PRESENTATION');
-  assert.equal(CAMPAIGN_BEATS_3D[26].bossLabel, 'AGENT · BALLISTA · PRIMAL · HAZARD');
-  assert.equal(CAMPAIGN_BEATS_3D[27].bossLabel, 'H4C3R');
+  assert.equal(CAMPAIGN_BEATS_3D[22].mission, 'DEFEND THE OVERWORLD VILLAGE');
+  assert.equal(CAMPAIGN_BEATS_3D[23].mission, 'SURVIVE THE VIRAL STREAM');
+  assert.equal(CAMPAIGN_BEATS_3D[24].mission, 'CLEAR THE BROWSER TABS');
+  assert.equal(CAMPAIGN_BEATS_3D[25].mission, 'RIDE THE BASS DROP');
+  assert.equal(CAMPAIGN_BEATS_3D[26].mission, 'CRASH THE PRESENTATION');
+  assert.equal(CAMPAIGN_BEATS_3D[27].bossLabel, 'AGENT · BALLISTA · PRIMAL · HAZARD');
+  assert.equal(CAMPAIGN_BEATS_3D[28].bossLabel, 'H4C3R');
 
   // 11-Trophy victory room roster
   stageManager.enterTrophyRoom();
@@ -4681,8 +4691,8 @@ test('Ancient City [5] Creative Sandbox & Title Quick-Jump UI: 3d/index.html exp
   assert.ok(html.includes('value="sculk"'), '3d/index.html must include sculk in Creative block select');
   assert.ok(html.includes('value="deepslate_tiles"'), '3d/index.html must include deepslate_tiles in Creative block select');
   assert.ok(html.includes('data-jump-stage="20">🔊 20: Ancient City (The Warden)'), 'Title screen must include Stage 20 Ancient City quick-jump pill');
-  assert.ok(html.includes('data-jump-stage="26">🕶️ 26: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must be Stage 26 right before Stage 27 H4C3R');
-  assert.ok(html.includes('data-jump-stage="27">⌁ 27: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 27');
+  assert.ok(html.includes('data-jump-stage="27">🕶️ 27: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must be Stage 27 right before Stage 28 H4C3R');
+  assert.ok(html.includes('data-jump-stage="28">⌁ 28: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 28');
 });
 
 // ============================================================================
@@ -4755,12 +4765,14 @@ test('Pale Garden [2] Stage 21 Arena3DBuilder: builds Center Ancient Pale Oak & 
   assert.ok(arena.paleGardenHeartShrine.heartMat.emissiveIntensity >= 0.4, 'Creaking Heart emissive must pulse');
   assert.notEqual(arena.paleGardenHeartShrine.resinRing.rotation.z, prevRingRot, 'Resin ring around Creaking Heart must rotate');
 
-  // Verify clean rebuild transition to Stage 22 (YouTube Studio) and Stage 26 (Rocket Corp HQ)
+  // Verify clean rebuild transition to Stage 22 (Minecraft Overworld), Stage 23 (YouTube Studio), and Stage 27 (Rocket Corp HQ)
   stageManager.loadStage(22);
-  assert.equal(stageManager.stageName, 'YouTube Studio');
+  assert.equal(stageManager.stageName, 'Minecraft Overworld');
   arena.rebuildForStage();
   assert.equal(arena.paleGardenHeartShrine, null, 'Creaking Heart Shrine reference must clear on stage rebuild');
-  stageManager.loadStage(26);
+  stageManager.loadStage(23);
+  assert.equal(stageManager.stageName, 'YouTube Studio');
+  stageManager.loadStage(27);
   assert.equal(stageManager.stageName, 'Rocket Corp HQ');
 });
 
@@ -4898,8 +4910,8 @@ test('Pale Garden [5] Creative Sandbox, Title Quick-Jump UI & Speech Aliases: 3d
   assert.ok(html.includes('value="pale_oak_log"'), '3d/index.html must include pale_oak_log in Creative block select');
   assert.ok(html.includes('value="creaking_heart"'), '3d/index.html must include creaking_heart in Creative block select');
   assert.ok(html.includes('data-jump-stage="21">🪵 21: Pale Garden (The Creaking)'), 'Title screen must include Stage 21 Pale Garden quick-jump pill');
-  assert.ok(html.includes('data-jump-stage="26">🕶️ 26: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must remain immediately before Zero-Day H4C3R');
-  assert.ok(html.includes('data-jump-stage="27">⌁ 27: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 27');
+  assert.ok(html.includes('data-jump-stage="27">🕶️ 27: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must remain immediately before Zero-Day H4C3R');
+  assert.ok(html.includes('data-jump-stage="28">⌁ 28: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 28');
 
   if (speech3dModule) {
     assert.ok(speech3dModule.SPEAKER_BADGES.creaking_boss, 'SPEAKER_BADGES must define creaking_boss');
@@ -5117,9 +5129,9 @@ test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop An
   extendCampaignFor3D(stageManager, waveDirector);
   const arena = new Arena3DBuilder(scene, stageManager);
 
-  // 1. Stage 22: YouTube Studio
-  stageManager.loadStage(22);
-  waveDirector.generateWaveQueue(22);
+  // 1. Stage 23: YouTube Studio
+  stageManager.loadStage(23);
+  waveDirector.generateWaveQueue(23);
   assert.equal(stageManager.stageName, 'YouTube Studio');
   assert.equal(stageManager.theme, 'youtube');
   assert.equal(stageManager.laserHazards.length, 1, 'YouTube Studio must spawn 1 red skip-ad/buffering laser');
@@ -5130,9 +5142,9 @@ test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop An
   arena.update(0.2);
   assert.notEqual(arena.youtubePlayMonument.playPrism.scale.x, 1, 'YouTube Play Button prism must pulse during update');
 
-  // 2. Stage 23: Google Chrome
-  stageManager.loadStage(23);
-  waveDirector.generateWaveQueue(23);
+  // 2. Stage 24: Google Chrome
+  stageManager.loadStage(24);
+  waveDirector.generateWaveQueue(24);
   assert.equal(stageManager.stageName, 'Google Chrome');
   assert.equal(stageManager.theme, 'chrome');
   assert.equal(stageManager.platforms.length, 4, 'Chrome must feature 4 Google-colored tab platforms');
@@ -5145,9 +5157,9 @@ test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop An
   arena.update(0.25);
   assert.notEqual(arena.chromeLogoGroup.rotation.z, prevChromeRot, 'Chrome 4-color ring must spin during update');
 
-  // 3. Stage 24: Spotify Player
-  stageManager.loadStage(24);
-  waveDirector.generateWaveQueue(24);
+  // 3. Stage 25: Spotify Player
+  stageManager.loadStage(25);
+  waveDirector.generateWaveQueue(25);
   assert.equal(stageManager.stageName, 'Spotify Player');
   assert.equal(stageManager.theme, 'spotify');
   assert.equal(stageManager.movingPlatforms.length, 2, 'Spotify must feature 2 vertical equalizer lifts');
@@ -5163,9 +5175,9 @@ test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop An
   assert.notEqual(arena.spotifyVinylDisc.rotation.y, prevVinylRot, 'Spotify vinyl turntable must spin during update');
   assert.ok(arena.spotifyEqualizerBars[0].barMesh.scale.y > 1.0, 'Spotify 3D equalizer bars must bounce dynamically');
 
-  // 4. Stage 25: Google Slides
-  stageManager.loadStage(25);
-  waveDirector.generateWaveQueue(25);
+  // 4. Stage 26: Google Slides
+  stageManager.loadStage(26);
+  waveDirector.generateWaveQueue(26);
   assert.equal(stageManager.stageName, 'Google Slides');
   assert.equal(stageManager.theme, 'slides');
   assert.equal(stageManager.platforms.length, 4, 'Slides must feature 4 presentation slide platforms');
@@ -5181,20 +5193,351 @@ test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop An
   verifyDisposeHierarchy(arena.group, true);
 });
 
-test('App Gauntlet [3] 3D HTML Quick-Jump Pills & Game3D Integration: 3d/index.html & game3d.js expose Stages 22–27 + Trophy 28 + Slides Eraser', () => {
+test('App Gauntlet [3] 3D HTML Quick-Jump Pills & Game3D Integration: 3d/index.html & game3d.js expose Stages 22–28 + Trophy 29 + Overworld Blocks + Death Banner', () => {
   const htmlPath = fileURLToPath(new URL('../3d/index.html', import.meta.url));
   const html = readFileSync(htmlPath, 'utf8');
-  assert.ok(html.includes('27 Stages'), '3d/index.html tagline must announce 27 Stages');
-  assert.ok(html.includes('data-jump-stage="22">▶️ 22: YouTube'), '3d/index.html must include Stage 22 YouTube pill');
-  assert.ok(html.includes('data-jump-stage="23">🌐 23: Chrome'), '3d/index.html must include Stage 23 Chrome pill');
-  assert.ok(html.includes('data-jump-stage="24">🎧 24: Spotify'), '3d/index.html must include Stage 24 Spotify pill');
-  assert.ok(html.includes('data-jump-stage="25">📊 25: Slides'), '3d/index.html must include Stage 25 Slides pill');
-  assert.ok(html.includes('data-jump-stage="26">🕶️ 26: Rocket Corp (Mercenaries)'), '3d/index.html must include Stage 26 Rocket Corp pill');
-  assert.ok(html.includes('data-jump-stage="27">⌁ 27: Zero-Day (H4C3R)'), '3d/index.html must include Stage 27 Zero-Day pill');
-  assert.ok(html.includes('src="js/game3d.js?v=11.3"'), '3d/index.html must load game3d.js?v=11.3');
+  assert.ok(html.includes('28 Stages'), '3d/index.html tagline must announce 28 Stages');
+  assert.ok(html.includes('data-jump-stage="22">⛏️ 22: Overworld'), '3d/index.html must include Stage 22 Overworld pill');
+  assert.ok(html.includes('data-jump-stage="23">▶️ 23: YouTube'), '3d/index.html must include Stage 23 YouTube pill');
+  assert.ok(html.includes('data-jump-stage="24">🌐 24: Chrome'), '3d/index.html must include Stage 24 Chrome pill');
+  assert.ok(html.includes('data-jump-stage="25">🎧 25: Spotify'), '3d/index.html must include Stage 25 Spotify pill');
+  assert.ok(html.includes('data-jump-stage="26">📊 26: Slides'), '3d/index.html must include Stage 26 Slides pill');
+  assert.ok(html.includes('data-jump-stage="27">🕶️ 27: Rocket Corp (Mercenaries)'), '3d/index.html must include Stage 27 Rocket Corp pill');
+  assert.ok(html.includes('data-jump-stage="28">⌁ 28: Zero-Day (H4C3R)'), '3d/index.html must include Stage 28 Zero-Day pill');
+  assert.ok(html.includes('src="js/game3d.js?v=11.4"'), '3d/index.html must load game3d.js?v=11.4');
+  assert.ok(html.includes('id="gameover-death-reason"'), '3d/index.html must include #gameover-death-reason banner');
+  assert.ok(html.includes('id="gameover-death-text"'), '3d/index.html must include #gameover-death-text span');
+  for (const key of ['grass_block', 'cobblestone', 'oak_planks', 'crafting_table']) {
+    assert.ok(html.includes(`<option value="${key}">`), `3d/index.html Creative palette must include ${key}`);
+  }
 
   const game3dSrc = readFileSync(fileURLToPath(new URL('../3d/js/game3d.js', import.meta.url)), 'utf8');
-  assert.match(game3dSrc, /28: 🏆 Trophy Room Epilogue/, 'game3d.js must expose Option 28 Trophy Room Epilogue');
-  assert.match(game3dSrc, /stage === 25/, 'game3d.js must spawn the Giant Pink Eraser pickup on Stage 25 Google Slides');
+  assert.match(game3dSrc, /29: 🏆 Trophy Room Epilogue/, 'game3d.js must expose Option 29 Trophy Room Epilogue');
+  assert.match(game3dSrc, /stage === 26/, 'game3d.js must spawn the Giant Pink Eraser pickup on Stage 26 Google Slides');
+  assert.match(game3dSrc, /stage === 22/, 'game3d.js must spawn the Block Staff pickup on Stage 22 Minecraft Overworld');
 });
 
+test('Minecraft Overworld 3D [1]: Stage 22 loads Overworld Plains & Village with 16-pixel Overworld textures, Minecart Rail Track, 3D cottage, river, and drifting clouds', () => {
+  assert.equal(getThemeFloorTextureKey('overworld'), 'grass_top', 'Overworld floor must use grass_top 16x16 voxel texture');
+  for (const texKey of ['grass_top', 'grass_block', 'cobblestone', 'oak_planks', 'crafting_table', 'oak_log', 'oak_leaves', 'water_still']) {
+    const tex = getVoxelTexture(texKey);
+    assert.ok(tex && tex.image, `getVoxelTexture('${texKey}') must return a valid CanvasTexture`);
+    assert.equal(tex.magFilter, THREE.NearestFilter, `${texKey} texture must use crisp NearestFilter`);
+  }
+
+  const scene = new THREE.Scene();
+  const stageManager = {
+    currentStage: 1,
+    maxStage: 28,
+    stageName: 'Main Desktop',
+    theme: 'desktop',
+    stageTime: 0,
+    isObjectiveComplete: false,
+    isWhiteVoid: false,
+    isTrophyRoom: false,
+    platforms: [],
+    movingPlatforms: [],
+    laserHazards: [],
+    lavaHazards: [],
+    errorPopups: [],
+    desktopIcons: [],
+    entranceDoor: { x: -930, y: 0 },
+    exitDoor: { x: 890, y: 0, isOpen: false },
+    loadStage: () => {},
+    update: () => {},
+    getAllSolidPlatforms: function () {
+      return [...this.platforms, ...this.movingPlatforms];
+    }
+  };
+
+  let queuedTotal = 0;
+  const waveDirector = {
+    zombies: [],
+    spawnQueue: [],
+    generateWaveQueue: () => {},
+    queueWaveRecipe: (recipe) => {
+      queuedTotal = recipe.packs.reduce((sum, pack) => sum + pack.enemies.length, 0);
+      assert.equal(queuedTotal, recipe.total);
+    },
+    spawnZombie: () => {},
+    getSafeSpawnX: () => 420,
+    update: () => {}
+  };
+
+  extendCampaignFor3D(stageManager, waveDirector);
+  const arena = new Arena3DBuilder(scene, stageManager);
+
+  stageManager.loadStage(22);
+  waveDirector.generateWaveQueue(22);
+  assert.equal(stageManager.stageName, 'Minecraft Overworld');
+  assert.equal(stageManager.theme, 'overworld');
+  assert.equal(stageManager.platforms.length, 3, 'Overworld must build 3 static terrain/village platforms');
+  assert.equal(stageManager.movingPlatforms.length, 1, 'Overworld must feature 1 Minecart Rail Track moving platform');
+  assert.equal(stageManager.movingPlatforms[0].title, 'Minecart_Rail_Track');
+  assert.equal(queuedTotal, 16, 'Overworld wave recipe must queue 16 raid enemies');
+  assert.equal(OVERWORLD_OUTPOST_BLOCKS.length, 5, 'OVERWORLD_OUTPOST_BLOCKS must define 5 destructible voxel blocks');
+  assert.ok(OVERWORLD_OUTPOST_BLOCKS.some((b) => b.texKey === 'tnt_block' && b.armedOnHit), 'Overworld outpost must include a hit-ignitable TNT crate');
+
+  arena.rebuildForStage();
+  assert.equal(arena.overworldClouds.length, 4, 'Overworld 3D arena must build 4 drifting voxel clouds');
+  assert.ok(arena.overworldWaterMesh, 'Overworld 3D arena must build flowing river mesh');
+  assert.ok(arena.group.getObjectByName('overworldVillageHouse'), 'Overworld 3D arena must build Village Blacksmith Cottage');
+  assert.ok(arena.group.getObjectByName('overworldCraftingBench'), 'Overworld 3D arena must build 3D Crafting Bench');
+
+  const initialCloudX = arena.overworldClouds[0].mesh.position.x;
+  stageManager.stageTime = 1.0;
+  arena.update(0.5);
+  assert.ok(arena.overworldClouds[0].mesh.position.x > initialCloudX, 'Overworld 3D clouds must drift across the sky on update');
+
+  // Rebuild to Stage 23 YouTube and confirm Overworld refs clean up cleanly
+  stageManager.loadStage(23);
+  arena.rebuildForStage();
+  assert.equal(arena.overworldClouds.length, 0, 'Overworld cloud refs must clear on stage rebuild');
+  assert.equal(arena.overworldWaterMesh, null, 'Overworld river ref must clear on stage rebuild');
+
+  verifyDisposeHierarchy(arena.group, true);
+});
+
+function createHeadlessGame3DHarness(theme = 'overworld') {
+  const domNodes = new Map();
+  const getOrMakeNode = (id) => {
+    if (!domNodes.has(id)) {
+      const classes = new Set();
+      domNodes.set(id, {
+        id,
+        value: 'command_block',
+        textContent: '',
+        innerText: '',
+        style: {},
+        clientWidth: 1280,
+        clientHeight: 720,
+        width: 1280,
+        height: 720,
+        classList: {
+          add: (...c) => c.forEach((x) => classes.add(x)),
+          remove: (...c) => c.forEach((x) => classes.delete(x)),
+          contains: (x) => classes.has(x),
+          toggle: (x) => (classes.has(x) ? (classes.delete(x), false) : (classes.add(x), true))
+        },
+        getContext: () => createHeadlessCanvas2DContext()
+      });
+    }
+    return domNodes.get(id);
+  };
+
+  const game = Object.create(Game3D.prototype);
+  game.state = 'PLAYING';
+  game.groundY = 0;
+  game.creativeMode = false;
+  game.creativeGodMode = false;
+  game.creativeFlyMode = false;
+  game.lastDamageCause = '';
+  game.lastDeathReason = '';
+  game.activeDamagePhase = null;
+  game.hudCache = {};
+  game.lastHudValues = {};
+  game.creativeBlocks = [];
+  game.creativeBlockPool = [];
+  game.creativeMaterialCache = new Map();
+  game.sketchBlockMeshes = new Map();
+  game.dynamicGroup = new THREE.Group();
+  game.voxelParticles = [];
+  game.voxelParticlePool = [];
+  game.voxelMaterialCache = new Map();
+  game.floorSplats3D = [];
+  game.floorSplatPool = [];
+  game._allPlatforms = [];
+  game.camera2D = { addShake: () => {}, isHitstopped: () => false };
+  game.stageManager = {
+    currentStage: 22,
+    theme,
+    stageTime: 0,
+    laserHazards: [],
+    lavaHazards: [],
+    entranceDoor: { x: -900, y: 0 },
+    getAllSolidPlatforms: () => []
+  };
+  game.player = new Player(-200, 0);
+  game.player.z = 0;
+  game.decoratePlayer3D(game.player);
+
+  return { game, domNodes, getOrMakeNode };
+}
+
+test('How You Died 3D [2]: Exact cause-of-death attribution across 3D bosses, projectiles, lasers, lava, void falls, TNT, and Game Over modal DOM', () => {
+  // 1. Direct formatter coverage for bosses, special attacks, and projectiles
+  assert.equal(
+    formatAttackerDeathMessage({ type: 'warden_boss', name: 'THE WARDEN', state: 'SONIC_BOOM' }),
+    "The Second Coming was obliterated by The Warden's Sonic Boom"
+  );
+  assert.equal(
+    formatAttackerDeathMessage({ type: 'creaking_boss', name: 'THE CREAKING', state: 'BLINK_STRIKE' }),
+    'The Second Coming blinked and was ambushed by The Creaking'
+  );
+  assert.equal(
+    formatAttackerDeathMessage({ type: 'creeper_lord', name: 'CREEPER LORD', state: 'FUSE_DETONATE' }),
+    'The Second Coming was blown up by Creeper Lord'
+  );
+  assert.equal(
+    formatProjectileDeathMessage({ type: 'dragon_breath' }),
+    "The Second Coming was roasted in Ender Dragon's Breath"
+  );
+  assert.equal(
+    formatProjectileDeathMessage({ type: 'acid_pool' }),
+    'The Second Coming melted in Acid Spitter venom'
+  );
+
+  // 2. End-to-end Game3D hazard attribution & #gameover-death-text DOM sync
+  const origGetElementById = globalThis.document.getElementById;
+  const origQuerySelectorAll = globalThis.document.querySelectorAll;
+  const { game, getOrMakeNode } = createHeadlessGame3DHarness('youtube');
+  globalThis.document.getElementById = (id) => getOrMakeNode(id);
+  globalThis.document.querySelectorAll = () => [];
+
+  try {
+    // 2a. YouTube Skip-Ad Laser lethal hit
+    game.stageManager.theme = 'youtube';
+    game.stageManager.laserHazards = [{ x: -240, width: 120, timer: 0.2, activeDuration: 1.5, damage: 250 }];
+    game.player.x = -200;
+    game.player.y = 0;
+    game.player.z = 0;
+    game.player.hp = 40;
+    game.player.iFrames = 0;
+    game.check3DLaserDamage();
+    assert.equal(game.player.isDead, true, 'Lethal YouTube laser must kill mortal player');
+    assert.equal(
+      game.lastDeathReason,
+      'The Second Coming was vaporized by a YouTube Skip-Ad Laser',
+      'YouTube laser death must record exact Skip-Ad Laser cause'
+    );
+    game.gameOver();
+    assert.equal(
+      getOrMakeNode('gameover-death-text').textContent,
+      'The Second Coming was vaporized by a YouTube Skip-Ad Laser',
+      'gameOver() must populate #gameover-death-text with exact death cause'
+    );
+    assert.equal(getOrMakeNode('gameover-modal').classList.contains('active'), true);
+
+    // 2b. Creative Lava Block lethal burn
+    game.state = 'PLAYING';
+    game.player = new Player(0, 0);
+    game.player.z = 0;
+    game.player.hp = 15;
+    game.decoratePlayer3D(game.player);
+    game.lastDamageCause = '';
+    game.lastDeathReason = '';
+    game.placeCreativeBlock('lava', { x: 0, y: 0, z: 0, silent: true });
+    game.check3DLavaHazards(0.016);
+    assert.equal(game.player.isDead, true);
+    assert.equal(game.lastDeathReason, 'The Second Coming stepped onto a molten Lava Block');
+
+    // 2c. Open-edge Nether Lava Sea vs End Void Fall
+    game.player = new Player(0, 520);
+    game.player.z = 0;
+    game.player.hp = 25;
+    game.decoratePlayer3D(game.player);
+    game.stageManager.theme = 'minecraft';
+    game.checkPlayerVoidFall();
+    assert.equal(game.lastDeathReason, 'The Second Coming tried to swim in lava');
+
+    game.player = new Player(0, 520);
+    game.player.z = 0;
+    game.player.hp = 25;
+    game.decoratePlayer3D(game.player);
+    game.stageManager.theme = 'the_end';
+    game.checkPlayerVoidFall();
+    assert.equal(game.lastDeathReason, 'The Second Coming fell out of the world');
+  } finally {
+    verifyDisposeHierarchy(game.dynamicGroup, false);
+    globalThis.document.getElementById = origGetElementById;
+    globalThis.document.querySelectorAll = origQuerySelectorAll;
+    waves.zombies.length = 0;
+    projectiles.reset();
+  }
+});
+
+test('TNT Block Destruction 3D [3]: Stage 22 Outpost spawns voxel blocks, strikes ignite TNT, and TNT blasts surrounding Creative blocks, Lucky Blocks, SketchBlocks, chain-ignites TNT, and kills mortal players', () => {
+  const origGetElementById = globalThis.document.getElementById;
+  const origQuerySelectorAll = globalThis.document.querySelectorAll;
+  const { game, getOrMakeNode } = createHeadlessGame3DHarness('overworld');
+  globalThis.document.getElementById = (id) => getOrMakeNode(id);
+  globalThis.document.querySelectorAll = () => [];
+
+  try {
+    waves.zombies.length = 0;
+    projectiles.reset();
+
+    // 1. Stage 22 Overworld spawns 5 destructible outpost blocks including hit-armed TNT
+    game.spawnStageVoxelProps3D();
+    assert.equal(game.creativeBlocks.length, OVERWORLD_OUTPOST_BLOCKS.length, 'Overworld must spawn 5 outpost voxel blocks');
+    const outpostTnt = game.creativeBlocks.find((b) => b.texKey === 'tnt_block');
+    assert.ok(outpostTnt, 'Overworld outpost must include a TNT block');
+    assert.equal(outpostTnt.fuseTimer, null, 'Outpost TNT must wait unlit until struck or blasted');
+
+    // Striking near outpost TNT lights its short fuse
+    game.triggerCreativeBlockStrike3D(outpostTnt.x, outpostTnt.y - 34, outpostTnt.z, 98);
+    assert.equal(outpostTnt.isIgnited, true, 'Striking outpost TNT must ignite it');
+    assert.ok(outpostTnt.fuseTimer > 0 && outpostTnt.fuseTimer <= 0.65, 'Struck TNT must arm 0.65s fuse');
+
+    // 2. Full TNT Blast Test: shatters nearby blocks & SketchBlocks, cracks Lucky Block, chain-ignites neighbor TNT, spares distant block
+    game.clearCreativeBlocks();
+    const centerTnt = game.placeCreativeBlock('tnt_block', { x: 100, y: 0, z: 0, silent: true });
+    const nearCobble = game.placeCreativeBlock('cobblestone', { x: 168, y: 0, z: 0, silent: true });
+    const nearObsidian = game.placeCreativeBlock('obsidian', { x: 32, y: 0, z: 20, silent: true });
+    const nearLucky = game.placeCreativeBlock('lucky_block', { x: 100, y: 0, z: 68, armedOnHit: true, silent: true });
+    const chainTnt = game.placeCreativeBlock('tnt_block', { x: 220, y: 0, z: 0, armedOnHit: true, silent: true });
+    const farGrass = game.placeCreativeBlock('grass_block', { x: 620, y: 0, z: 0, silent: true });
+
+    // Place a player-drawn [E] SketchBlock inside blast radius and perch an enemy on nearCobble
+    const nearSketch = { x: 120, y: 0, z: 0, width: 65, height: 65 };
+    projectiles.sketchBlocks.push(nearSketch);
+    const perchedEnemy = { x: 168, y: -68, z: 0, hp: 500, isDead: false, standingPlatform: nearCobble, isGrounded: true, takeDamage(dmg) { this.hp -= dmg; } };
+    waves.zombies.push(perchedEnemy);
+
+    // Keep player safely out of centerTnt blast (since nearLucky heals +60 HP when cracked), then detonate chainTnt next to mortal player!
+    game.creativeMode = false;
+    game.creativeGodMode = false;
+    game.player.x = -500;
+    game.player.y = 0;
+    game.player.z = 0;
+
+    game.detonateCreativeTNT(centerTnt);
+
+    assert.equal(nearCobble.broken, true, 'Nearby Cobblestone block must be blown up by TNT');
+    assert.equal(nearObsidian.broken, true, 'Nearby Obsidian block must be blown up by TNT');
+    assert.equal(nearLucky.broken, true, 'Nearby Lucky Block must crack open when hit by TNT blast');
+    assert.equal(projectiles.sketchBlocks.includes(nearSketch), false, 'Nearby [E] SketchBlock must be blown up by TNT');
+    assert.equal(perchedEnemy.standingPlatform, null, 'Entity perched on blown-up block must detach standingPlatform');
+    assert.equal(perchedEnemy.isGrounded, false, 'Entity perched on blown-up block must become airborne');
+    assert.ok(perchedEnemy.hp < 500, 'Enemy inside TNT blast radius must take explosion damage');
+
+    assert.equal(chainTnt.broken, false, 'Neighboring TNT must chain-ignite rather than vanish silently');
+    assert.equal(chainTnt.isIgnited, true, 'Neighboring TNT must be ignited by blast wave');
+    assert.ok(chainTnt.fuseTimer <= 0.16, 'Chain-ignited TNT must receive a rapid 0.16s cascade fuse');
+
+    assert.equal(farGrass.broken, false, 'Distant Grass Block outside blast radius must remain intact');
+    assert.ok(game.creativeBlocks.includes(farGrass), 'Distant Grass Block must stay in creativeBlocks');
+    assert.ok(game.voxelParticles.length > 0, 'TNT block destruction must emit 3D voxel debris particles');
+
+    // 3. Now detonate chain-ignited TNT next to mortal player at 35 HP -> fatal TNT blast!
+    game.player.x = chainTnt.x + 24;
+    game.player.y = 0;
+    game.player.z = 0;
+    game.player.hp = 35;
+    game.player.iFrames = 0;
+    game.detonateCreativeTNT(chainTnt);
+
+    assert.equal(game.player.isDead, true, 'Mortal player at 35 HP inside TNT blast must die');
+    assert.equal(
+      game.lastDeathReason,
+      'The Second Coming was blown up by TNT',
+      'Fatal TNT blast must record "The Second Coming was blown up by TNT"'
+    );
+  } finally {
+    verifyDisposeHierarchy(game.dynamicGroup, false);
+    globalThis.document.getElementById = origGetElementById;
+    globalThis.document.querySelectorAll = origQuerySelectorAll;
+    waves.zombies.length = 0;
+    projectiles.reset();
+  }
+});

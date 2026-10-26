@@ -22,8 +22,12 @@ import {
   EnderDragonBoss,
   WardenBoss,
   CreakingBoss,
-  MercenaryBoss
-} from '../3d/js/campaign3d.js?v=10.6';
+  MercenaryBoss,
+  OVERWORLD_OUTPOST_BLOCKS,
+  formatAttackerDeathMessage,
+  formatProjectileDeathMessage,
+  resolvePlayerDeathCause
+} from '../3d/js/campaign3d.js?v=10.7';
 import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 
 import {
@@ -32,16 +36,16 @@ import {
   drawSketchBlocksVoxel2D,
   getCreativeBlockSprite2D,
   paintVoxelBlockPixels2D
-} from '../2d/arenas2d.js?v=10.3';
+} from '../2d/arenas2d.js?v=10.4';
 import {
   DEPTH_PARALLAX,
   Depth2DRenderer,
   getDepthProfile2D
-} from '../2d/depth2d.js?v=10.3';
+} from '../2d/depth2d.js?v=10.4';
 import {
   STAGE_OPTIONS_2D,
   install2DExpansion
-} from '../2d/expansion2d.js?v=10.3';
+} from '../2d/expansion2d.js?v=10.4';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -153,27 +157,27 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
   );
 });
 
-test('2D Expansion [2] Prominent Level Selector & Title UI: index.html + expansion2d expose Creative Mode, Stage Select, and Stages 18–27 pills', () => {
+test('2D Expansion [2] Prominent Level Selector & Title UI: index.html + expansion2d expose Creative Mode, Stage Select, and Stages 18–28 pills', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-  assert.match(html, /href="2d\/style2d\.css\?v=10\.3"/);
-  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.3"/);
+  assert.match(html, /href="2d\/style2d\.css\?v=10\.4"/);
+  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.4"/);
   assert.match(html, /id="btn-start-creative"/);
   assert.match(html, /id="title-stage-select"/);
-  for (const stage of [18, 19, 20, 21, 26, 27]) {
+  for (const stage of [18, 19, 20, 21, 27, 28]) {
     assert.match(html, new RegExp(`data-jump-stage="${stage}"`), `missing quick-jump pill for stage ${stage}`);
   }
   const expansionSrc = readFileSync(join(ROOT, '2d/expansion2d.js'), 'utf8');
-  for (const stage of [22, 23, 24, 25]) {
-    assert.match(expansionSrc, new RegExp(`stage:\\s*['"]?${stage}['"]?`), `expansion2d.js must inject quick-jump pill for App Stage ${stage}`);
+  for (const stage of [22, 23, 24, 25, 26]) {
+    assert.match(expansionSrc, new RegExp(`stage:\\s*['"]?${stage}['"]?`), `expansion2d.js must inject quick-jump pill for Stage ${stage}`);
   }
-  assert.equal(STAGE_OPTIONS_2D.length, 28, 'selector must expose Stages 1–27 plus Stage 28 Trophy Room');
+  assert.equal(STAGE_OPTIONS_2D.length, 29, 'selector must expose Stages 1–28 plus Stage 29 Trophy Room');
 });
 
-test('2D Expansion [3] 27-Stage Campaign + 11-Boss Trophy Room: App Gauntlet (22–25) & Rocket Corp (26) precede Zero-Day (27)', () => {
+test('2D Expansion [3] 28-Stage Campaign + 11-Boss Trophy Room: Overworld (22), App Gauntlet (23–26) & Rocket Corp (27) precede Zero-Day (28)', () => {
   resetGlobalSystems();
   const { game, controller } = create2DGameHarness();
 
-  assert.equal(game.stageManager.maxStage, 27);
+  assert.equal(game.stageManager.maxStage, 28);
 
   // Verify Stage 18: The End + Ender Dragon
   controller.jumpToStage(18, { freshStart: true });
@@ -204,22 +208,27 @@ test('2D Expansion [3] 27-Stage Campaign + 11-Boss Trophy Room: App Gauntlet (22
   assert.equal(game.stageManager.movingPlatforms[0]?.axis, 'x', 'Hanging_Moss_Bough must move horizontally in 2D');
   assert.ok(waves.zombies.some((z) => z instanceof CreakingBoss), 'Stage 21 must spawn CreakingBoss');
 
-  // Verify Stage 26: Rocket Corp HQ (4 Mercenaries) immediately precedes Stage 27: Zero-Day (H4C3R)
-  controller.jumpToStage(26);
+  // Verify Stage 22: Minecraft Overworld
+  controller.jumpToStage(22);
+  assert.equal(game.stageManager.currentStage, 22);
+  assert.equal(game.stageManager.theme, 'overworld');
+
+  // Verify Stage 27: Rocket Corp HQ (4 Mercenaries) immediately precedes Stage 28: Zero-Day (H4C3R)
+  controller.jumpToStage(27);
   advanceWaveSpawns(game, 4.0);
-  assert.equal(game.stageManager.currentStage, 26);
+  assert.equal(game.stageManager.currentStage, 27);
   assert.equal(game.stageManager.theme, 'rocket_corp');
   const mercs = waves.zombies.filter((z) => z instanceof MercenaryBoss);
-  assert.equal(mercs.length, 4, 'Stage 26 must spawn Agent, Ballista, Primal, and Hazard');
+  assert.equal(mercs.length, 4, 'Stage 27 must spawn Agent, Ballista, Primal, and Hazard');
 
-  controller.jumpToStage(27);
-  advanceWaveSpawns(game, 2.0);
-  assert.equal(game.stageManager.currentStage, 27);
-  assert.equal(game.stageManager.theme, 'zero_day');
-  assert.ok(waves.zombies.some((z) => z.type === 'h4c3r'), 'Stage 27 must spawn H4C3R');
-
-  // Verify Stage 28: Trophy Room Epilogue with all 11 Boss Monuments
   controller.jumpToStage(28);
+  advanceWaveSpawns(game, 2.0);
+  assert.equal(game.stageManager.currentStage, 28);
+  assert.equal(game.stageManager.theme, 'zero_day');
+  assert.ok(waves.zombies.some((z) => z.type === 'h4c3r'), 'Stage 28 must spawn H4C3R');
+
+  // Verify Stage 29: Trophy Room Epilogue with all 11 Boss Monuments
+  controller.jumpToStage(29);
   assert.equal(game.stageManager.isTrophyRoom, true);
   assert.equal(game.stageManager.desktopIcons.length, 11, 'Trophy Room must honor all 11 campaign bosses');
 
@@ -230,10 +239,10 @@ test('2D Expansion [4] Pure 2D Canvas Rendering & Gaze-Freeze: all new arenas, v
   resetGlobalSystems();
   const { game, controller, ctx, calls } = create2DGameHarness();
 
-  // Render Stages 7, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, and 28 through full game.render()
-  for (const stage of [7, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]) {
+  // Render Stages 7, 18..29 through full game.render()
+  for (const stage of [7, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]) {
     controller.jumpToStage(stage, { freshStart: stage === 7 });
-    if (stage < 28) advanceWaveSpawns(game, 2.5);
+    if (stage < 29) advanceWaveSpawns(game, 2.5);
     calls.save = 0;
     calls.restore = 0;
     game.update(1 / 60);
@@ -291,7 +300,7 @@ test('2D Expansion [4] Pure 2D Canvas Rendering & Gaze-Freeze: all new arenas, v
   game.render();
   assert.equal(calls.save, calls.restore, 'Creaking 2D renderer + Heart-Tether must balance save/restore');
 
-  // Render all 15 Creative Voxel Block types
+  // Render all 19 Creative Voxel Block types
   const sampleBlocks = CREATIVE_BLOCK_TYPES_2D.map((texKey, i) => ({
     x: -450 + i * 68,
     y: 0,
@@ -303,7 +312,7 @@ test('2D Expansion [4] Pure 2D Canvas Rendering & Gaze-Freeze: all new arenas, v
   calls.save = 0;
   calls.restore = 0;
   drawCreativeBlocks2D(ctx, sampleBlocks, 1.25);
-  assert.equal(calls.save, calls.restore, 'All 15 2D Creative voxel block renderers must balance save/restore');
+  assert.equal(calls.save, calls.restore, 'All 19 2D Creative voxel block renderers must balance save/restore');
 
   resetGlobalSystems();
 });
@@ -721,7 +730,7 @@ test('2D Expansion [9] Crisp 16x16 Voxel Block Pixel-Art Textures & Selector Syn
     assert.ok(!signatures.has(sig), `${texKey} pixel-art texture must be visually distinct from every other block`);
     signatures.add(sig);
   }
-  assert.equal(signatures.size, 15, 'all 15 2D Creative voxel block types must produce unique pixel-art textures');
+  assert.equal(signatures.size, 19, 'all 19 2D Creative voxel block types must produce unique pixel-art textures');
 
   // Calling placeCreativeBlock() with no explicit arg uses sandbox.selectedBlock and preserves texKey
   const { game, controller } = create2DGameHarness();
@@ -793,8 +802,8 @@ test('2D Expansion [10] Creative Mob & Boss Spawner On-Screen Visibility Across 
   assert.ok(inwardMob.x < game.player.x && inwardMob.x >= -870, 'spawning near right arena boundary must flip inward onto safe floor');
   assert.equal(inwardMob.facing, 1, 'mob spawned to the left of Orange must face right toward Orange');
 
-  // 4. Spawning inside Stage 28 (Trophy Room, where waves start inactive) activates waves and updates spawned mobs
-  controller.jumpToStage(28, { creative: true });
+  // 4. Spawning inside Stage 29 (Trophy Room, where waves start inactive) activates waves and updates spawned mobs
+  controller.jumpToStage(29, { creative: true });
   assert.equal(waves.isWaveActive, false, 'Trophy Room starts with waves inactive');
   game.player.x = 0;
   game.player.facing = 1;
@@ -880,11 +889,11 @@ test('2D Expansion [11] Stage 10 AvA 8 Showdown Lake Arena: Outernet Lake, Water
   resetGlobalSystems();
 });
 
-test('2D Expansion [12] All 15 Placed Block Voxel Textures, KeyV Isolation & E-Key Voxel SketchBlocks', () => {
+test('2D Expansion [12] All 19 Placed Block Voxel Textures, KeyV Isolation & E-Key Voxel SketchBlocks', () => {
   resetGlobalSystems();
 
-  // 1. Rasterize all 15 16x16 voxel block sprites into an exact 16x16 pixel grid and verify richness + uniqueness
-  assert.equal(CREATIVE_BLOCK_TYPES_2D.length, 15, 'All 15 Creative block types must be registered');
+  // 1. Rasterize all 19 16x16 voxel block sprites into an exact 16x16 pixel grid and verify richness + uniqueness
+  assert.equal(CREATIVE_BLOCK_TYPES_2D.length, 19, 'All 19 Creative block types must be registered');
   const signatures = new Map();
   for (const key of CREATIVE_BLOCK_TYPES_2D) {
     const grid = new Array(16 * 16).fill('');
@@ -919,9 +928,9 @@ test('2D Expansion [12] All 15 Placed Block Voxel Textures, KeyV Isolation & E-K
     }
     signatures.set(key, sig);
   }
-  assert.equal(signatures.size, 15);
+  assert.equal(signatures.size, 19);
 
-  // 2. Verify KeyV in Creative Mode places each of the 15 blocks WITHOUT double-spawning a flat #1c1b29 SketchBlock
+  // 2. Verify KeyV in Creative Mode places each of the 19 blocks WITHOUT double-spawning a flat #1c1b29 SketchBlock
   const { game, controller, ctx } = create2DGameHarness();
   controller.jumpToStage(1, { freshStart: true, creative: true });
   assert.equal(controller.sandbox.enabled, true);
@@ -1001,13 +1010,13 @@ test('2D Expansion [12] All 15 Placed Block Voxel Textures, KeyV Isolation & E-K
   resetGlobalSystems();
 });
 
-test('2D Expansion [13] Dedicated App Levels (Stages 22–25): YouTube, Chrome, Spotify & Slides Arenas, Vertical Equalizer Lifts, Eraser Pickup & Depth Motifs', () => {
+test('2D Expansion [13] Dedicated App Levels (Stages 23–26): YouTube, Chrome, Spotify & Slides Arenas, Vertical Equalizer Lifts, Eraser Pickup & Depth Motifs', () => {
   resetGlobalSystems();
   const { game, controller, calls } = create2DGameHarness();
 
   const expectedApps = [
     {
-      stage: 22,
+      stage: 23,
       theme: 'youtube',
       stageName: 'YouTube Studio',
       motif: 'youtube_ui',
@@ -1018,7 +1027,7 @@ test('2D Expansion [13] Dedicated App Levels (Stages 22–25): YouTube, Chrome, 
       uiSnippet: 'YouTube'
     },
     {
-      stage: 23,
+      stage: 24,
       theme: 'chrome',
       stageName: 'Google Chrome',
       motif: 'chrome_tabs',
@@ -1029,7 +1038,7 @@ test('2D Expansion [13] Dedicated App Levels (Stages 22–25): YouTube, Chrome, 
       uiSnippet: 'chrome.google.com/stick-vs-zombies/arena'
     },
     {
-      stage: 24,
+      stage: 25,
       theme: 'spotify',
       stageName: 'Spotify Player',
       motif: 'spotify_eq',
@@ -1040,7 +1049,7 @@ test('2D Expansion [13] Dedicated App Levels (Stages 22–25): YouTube, Chrome, 
       uiSnippet: 'Spotify'
     },
     {
-      stage: 25,
+      stage: 26,
       theme: 'slides',
       stageName: 'Google Slides',
       motif: 'slides_deck',
@@ -1082,9 +1091,9 @@ test('2D Expansion [13] Dedicated App Levels (Stages 22–25): YouTube, Chrome, 
     assert.equal(bakedCount, 2, `${app.theme} (${app.motif}) must bake both Far and Mid blurred depth planes cleanly`);
   }
 
-  // 2. Jump to each App Stage (22..25), verify layouts, wave counts, UI rendering, and taskbar suppression
+  // 2. Jump to each App Stage (23..26), verify layouts, wave counts, UI rendering, and taskbar suppression
   for (const app of expectedApps) {
-    controller.jumpToStage(app.stage, { freshStart: app.stage === 22 });
+    controller.jumpToStage(app.stage, { freshStart: app.stage === 23 });
     assert.equal(game.stageManager.currentStage, app.stage);
     assert.equal(game.stageManager.theme, app.theme);
     assert.equal(game.stageManager.stageName, app.stageName);
@@ -1095,11 +1104,11 @@ test('2D Expansion [13] Dedicated App Levels (Stages 22–25): YouTube, Chrome, 
     const totalQueuedAndActive = waves.zombies.length + waves.spawnQueue.length;
     assert.equal(totalQueuedAndActive, app.waveTotal, `${app.stageName} must queue ${app.waveTotal} enemies`);
 
-    if (app.stage === 22) {
-      assert.equal(game.stageManager.laserHazards.length, 1, 'Stage 22 YouTube must feature the red skip-ad/buffering laser hazard');
+    if (app.stage === 23) {
+      assert.equal(game.stageManager.laserHazards.length, 1, 'Stage 23 YouTube must feature the red skip-ad/buffering laser hazard');
     }
-    if (app.stage === 25) {
-      assert.ok(game.weaponPickup && game.weaponPickup.type === 'eraser', 'Stage 25 Google Slides must spawn the Giant Pink Eraser pickup');
+    if (app.stage === 26) {
+      assert.ok(game.weaponPickup && game.weaponPickup.type === 'eraser', 'Stage 26 Google Slides must spawn the Giant Pink Eraser pickup');
     }
 
     calls.save = 0;
@@ -1120,8 +1129,8 @@ test('2D Expansion [13] Dedicated App Levels (Stages 22–25): YouTube, Chrome, 
     );
   }
 
-  // 3. Verify Stage 24 Spotify's vertical bouncing equalizer lift (`axis: 'y'`) carries Orange smoothly upward & downward
-  controller.jumpToStage(24);
+  // 3. Verify Stage 25 Spotify's vertical bouncing equalizer lift (`axis: 'y'`) carries Orange smoothly upward & downward
+  controller.jumpToStage(25);
   const bassLift = game.stageManager.movingPlatforms[0];
   assert.equal(bassLift.title, 'Equalizer_Bass_W');
   assert.equal(bassLift.axis, 'y');
@@ -1151,5 +1160,270 @@ test('2D Expansion [13] Dedicated App Levels (Stages 22–25): YouTube, Chrome, 
 
   resetGlobalSystems();
 });
+
+test('2D Expansion [14] Stage 22 Minecraft Overworld Level: Sunny Grasslands, Minecart Rail Track, Destructible Outpost Voxel Blocks & Block Staff Pickup', () => {
+  resetGlobalSystems();
+  const { game, controller, calls } = create2DGameHarness();
+
+  // 1. Selector option & depth-of-field motif
+  const stage22Opt = STAGE_OPTIONS_2D.find((o) => o.value === 22);
+  assert.ok(stage22Opt && stage22Opt.label.includes('Minecraft Overworld'), 'Stage 22 option must advertise Minecraft Overworld');
+  const depthProfile = getDepthProfile2D('overworld');
+  assert.equal(depthProfile.motif, 'overworld_hills', 'overworld theme must map to overworld_hills depth motif');
+
+  // 2. Jump to Stage 22 and inspect arena, wave recipe, weapon pickup, and pre-placed destructible voxel outpost
+  controller.jumpToStage(22, { freshStart: true, creative: false });
+  assert.equal(game.stageManager.currentStage, 22);
+  assert.equal(game.stageManager.theme, 'overworld');
+  assert.equal(game.stageManager.stageName, 'Minecraft Overworld');
+  assert.equal(game.stageManager.platforms.length, 3, 'Overworld must have 3 static terrain/canopy ledges');
+  assert.equal(game.stageManager.movingPlatforms.length, 1, 'Overworld must have 1 moving Minecart_Rail_Track platform');
+  assert.equal(game.stageManager.movingPlatforms[0].title, 'Minecart_Rail_Track');
+  assert.equal(game.stageManager.movingPlatforms[0].axis, 'x');
+  assert.equal(waves.zombies.length + waves.spawnQueue.length, 16, 'Overworld wave recipe must queue 16 enemies');
+  assert.ok(game.weaponPickup && game.weaponPickup.type === 'staff', 'Stage 22 Overworld must spawn the Block Staff pickup');
+
+  assert.equal(
+    controller.sandbox.blocks.length,
+    OVERWORLD_OUTPOST_BLOCKS.length,
+    'Stage 22 Overworld must spawn pre-placed destructible voxel outpost blocks'
+  );
+  const outpostTNT = controller.sandbox.blocks.find((b) => b.texKey === 'tnt_block');
+  assert.ok(outpostTNT, 'Stage 22 Overworld outpost must include a hit-ignitable TNT block');
+
+  // 3. Render Stage 22 and confirm Overworld banner + taskbar suppression + zero layer errors
+  calls.save = 0;
+  calls.restore = 0;
+  calls.fillText.length = 0;
+  game.update(1 / 60);
+  game.render();
+  assert.equal(calls.save, calls.restore, 'Stage 22 Overworld must balance ctx.save and ctx.restore');
+  assert.equal(game.reportedLayerErrors.size, 0, 'Stage 22 Overworld must render with zero layer errors');
+  assert.ok(
+    calls.fillText.some((t) => t.includes('MINECRAFT_OVERWORLD')),
+    'Stage 22 Overworld must paint the MINECRAFT_OVERWORLD header'
+  );
+  assert.ok(
+    !calls.fillText.some((t) => t.includes('🪟 START') || t.includes('Stick_vs_Zombies.exe')),
+    'Stage 22 Overworld must suppress the Windows taskbar'
+  );
+
+  resetGlobalSystems();
+});
+
+test('2D Expansion [15] How You Died Attribution & Game Over Death Banner: Zombies, Boss Attacks, Lasers, Lava, Void Fall & TNT Blast', () => {
+  resetGlobalSystems();
+  const { game, controller } = create2DGameHarness();
+
+  // 1. Unit-verify attacker & projectile death message formatters across enemies and boss attacks
+  assert.equal(
+    formatAttackerDeathMessage({ type: 'walker' }),
+    'The Second Coming was slain by Basic Zombie'
+  );
+  assert.equal(
+    formatAttackerDeathMessage({ type: 'warden_boss', state: 'sonic_active' }),
+    "The Second Coming was obliterated by The Warden's Sonic Boom"
+  );
+  assert.equal(
+    formatAttackerDeathMessage({ type: 'creaking_boss', state: 'blink_active' }),
+    'The Second Coming blinked and was ambushed by The Creaking'
+  );
+  assert.equal(
+    formatAttackerDeathMessage({ type: 'ender_dragon', state: 'breath_active' }),
+    "The Second Coming was roasted in Ender Dragon's Breath"
+  );
+  assert.equal(
+    formatAttackerDeathMessage({ type: 'creeper_lord', creeperBlast: true }),
+    'The Second Coming was blown up by Creeper Lord'
+  );
+  assert.equal(
+    formatProjectileDeathMessage({ type: 'doom_laser' }),
+    "The Second Coming was vaporized by The Dark Lord's Doom Laser"
+  );
+  assert.equal(
+    resolvePlayerDeathCause({ lastDeathReason: '', lastDamageCause: '' }, ''),
+    'The Second Coming was defeated in battle'
+  );
+
+  // 2. End-to-end 2D combat kill by Zombie -> records exact cause on player, controller, text banner, and gameOver()
+  controller.jumpToStage(1, { freshStart: true, creative: false });
+  controller.nukeAllEnemies();
+  const walker = controller.spawnCreativeEntity('walker');
+  walker.x = game.player.x + 12;
+  walker.y = 0;
+  walker.attackCooldown = 0;
+  game.player.hp = 5;
+  game.player.iFrames = 0;
+  game.player.isRolling = false;
+  game.player.isAwakened = false;
+
+  for (let i = 0; i < 15 && !game.player.isDead; i++) {
+    game.update(0.05);
+  }
+  assert.equal(game.player.isDead, true, 'Walker melee hit at 5 HP must kill player');
+  assert.equal(
+    controller.getLastDeathReason(),
+    'The Second Coming was slain by Basic Zombie',
+    'Zombie kill must record exact Minecraft-style death cause'
+  );
+  assert.ok(
+    particles.damageTexts.some((ft) => String(ft.text || '').toUpperCase().includes('WAS SLAIN BY BASIC ZOMBIE')),
+    'player.die() must spawn an immediate floating death cause banner'
+  );
+  const prevDoc = globalThis.document;
+  const mockDom = new Map();
+  const getEl = (id) => {
+    if (!mockDom.has(id)) {
+      mockDom.set(id, { id, textContent: '', innerText: '', style: {}, classList: { add() {}, remove() {} } });
+    }
+    return mockDom.get(id);
+  };
+  globalThis.document = {
+    getElementById: getEl,
+    querySelector: () => null,
+    querySelectorAll: () => []
+  };
+  try {
+    game.gameOver();
+    assert.equal(game.state, 'GAMEOVER');
+    assert.equal(
+      getEl('gameover-death-text').textContent,
+      'The Second Coming was slain by Basic Zombie',
+      '2D gameOver() must populate #gameover-death-text with exact death cause'
+    );
+  } finally {
+    if (prevDoc === undefined) delete globalThis.document;
+    else globalThis.document = prevDoc;
+  }
+
+  // 3. End-to-end Stage 23 YouTube Skip-Ad Laser kill -> records YouTube Skip-Ad Laser death cause
+  controller.jumpToStage(23, { freshStart: true, creative: false });
+  controller.nukeAllEnemies();
+  const laser = game.stageManager.laserHazards[0];
+  assert.ok(laser);
+  laser.timer = 0.1; // active beam
+  game.player.x = laser.x + laser.width * 0.5;
+  game.player.y = 0;
+  game.player.hp = 10;
+  game.player.iFrames = 0;
+  game.update(1 / 60);
+  assert.equal(game.player.isDead, true);
+  assert.equal(
+    controller.getLastDeathReason(),
+    'The Second Coming was vaporized by a YouTube Skip-Ad Laser'
+  );
+
+  // 4. End-to-end Stage 7 Nether Lava Pool kill -> records "tried to swim in lava"
+  controller.jumpToStage(7, { freshStart: true, creative: false });
+  controller.nukeAllEnemies();
+  game.player.x = -360;
+  game.player.y = 0;
+  game.player.hp = 15;
+  game.player.iFrames = 0;
+  game.update(1 / 60);
+  assert.equal(game.player.isDead, true);
+  assert.equal(
+    controller.getLastDeathReason(),
+    'The Second Coming tried to swim in lava'
+  );
+
+  // 5. End-to-end Stage 18 Open-Edge Void Plunge kill -> records "fell out of the world"
+  controller.jumpToStage(18, { freshStart: true, creative: false });
+  controller.nukeAllEnemies();
+  game.player.x = 1040;
+  game.player.y = 190;
+  game.player.vy = 700;
+  game.player.hp = 25;
+  game.player.iFrames = 0;
+  game.update(1 / 60);
+  assert.equal(game.player.isDead, true);
+  assert.equal(
+    controller.getLastDeathReason(),
+    'The Second Coming fell out of the world'
+  );
+
+  resetGlobalSystems();
+});
+
+test('2D Expansion [16] TNT Blows Up Blocks: Destroys Creative & Sketch Blocks, Detaches Standing Entities, Ignites Chain TNT, Cracks Lucky Blocks & Kills Mortal Player', () => {
+  resetGlobalSystems();
+  const { game, controller } = create2DGameHarness();
+
+  // 1. Jump to Stage 22 (Minecraft Overworld) and smack the outpost TNT crate with Orange's attack!
+  controller.jumpToStage(22, { freshStart: true, creative: false });
+  controller.nukeAllEnemies();
+  const initialOutpostCount = controller.sandbox.blocks.length;
+  const outpostTNT = controller.sandbox.blocks.find((b) => b.texKey === 'tnt_block');
+  assert.ok(outpostTNT && initialOutpostCount >= 5);
+
+  game.player.x = outpostTNT.x - 52;
+  game.player.y = 0;
+  game.player.facing = 1;
+  game.player.executeLightCombo([], game.camera);
+  assert.ok(outpostTNT.isIgnited && outpostTNT.fuseTimer > 0, 'Attacking adjacent TNT block must ignite its fuse');
+
+  // Move Orange safely away before the fuse expires so we inspect outpost block destruction first
+  game.player.x = -420;
+  for (let i = 0; i < 16; i++) {
+    game.update(0.1);
+  }
+  assert.ok(
+    controller.sandbox.blocks.length < initialOutpostCount - 1,
+    `Exploding outpost TNT must blow up neighboring Overworld blocks (before=${initialOutpostCount}, after=${controller.sandbox.blocks.length})`
+  );
+
+  // 2. Verify TNT blast destroys ALL nearby block types (including command_block, obsidian, cobblestone) AND [E] SketchBlocks,
+  //    cracks nearby Lucky Blocks, chain-ignites adjacent TNT, and detaches entities standing on blown-up blocks!
+  controller.clearCreativeBlocks();
+  projectiles.sketchBlocks.length = 0;
+
+  game.player.x = -60;
+  game.player.facing = 1;
+  const centerTNT = controller.placeCreativeBlock('tnt_block'); // x = 0
+  const nearObsidian = { x: 68, y: 0, width: 68, height: 68, texKey: 'obsidian', broken: false };
+  const nearCommand = { x: -68, y: 0, width: 68, height: 68, texKey: 'command_block', broken: false };
+  const nearLucky = { x: 0, y: -68, width: 68, height: 68, texKey: 'lucky_block', broken: false };
+  const chainTNT = { x: 136, y: 0, width: 68, height: 68, texKey: 'tnt_block', broken: false };
+  const farBlock = { x: 600, y: 0, width: 68, height: 68, texKey: 'cobblestone', broken: false };
+  controller.sandbox.blocks.push(nearObsidian, nearCommand, nearLucky, chainTNT, farBlock);
+
+  // Also spawn an [E] SketchBlock inside blast radius and a distant [E] SketchBlock outside blast radius
+  projectiles.spawnSketchBlock(55, 0, 'obsidian');
+  projectiles.spawnSketchBlock(620, 0, 'obsidian');
+  assert.equal(projectiles.sketchBlocks.length, 2);
+
+  // Place a zombie standing directly on top of nearObsidian
+  const perchedZombie = controller.spawnCreativeEntity('walker');
+  perchedZombie.x = 68;
+  perchedZombie.y = -68;
+  perchedZombie.isGrounded = true;
+  perchedZombie.standingPlatform = nearObsidian;
+
+  // Put mortal Orange right next to the TNT with 35 HP -> TNT blast (42 dmg) kills Orange and records TNT death cause!
+  game.player.x = 24;
+  game.player.y = 0;
+  game.player.hp = 35;
+  game.player.iFrames = 0;
+  game.player.isGodMode = false;
+
+  controller.detonateTNTBlock(centerTNT);
+
+  assert.equal(nearObsidian.broken, true, 'TNT must blow up nearby Obsidian block');
+  assert.equal(nearCommand.broken, true, 'TNT must blow up nearby Command Block');
+  assert.equal(nearLucky.broken, true, 'TNT must crack nearby Lucky Block');
+  assert.ok(chainTNT.isIgnited && chainTNT.fuseTimer > 0, 'TNT must chain-ignite neighboring TNT block');
+  assert.equal(farBlock.broken, false, 'Distant block outside blast radius must survive');
+  assert.equal(projectiles.sketchBlocks.length, 1, 'TNT must destroy nearby [E] SketchBlock while sparing distant SketchBlock');
+  assert.equal(perchedZombie.standingPlatform, null, 'Entity standing on a blown-up block must be detached so gravity drops them');
+  assert.equal(game.player.isDead, true, 'Mortal player in close TNT blast radius at 35 HP must be blown up');
+  assert.equal(
+    controller.getLastDeathReason(),
+    'The Second Coming was blown up by TNT',
+    'Lethal TNT blast must set exact death message "The Second Coming was blown up by TNT"'
+  );
+
+  resetGlobalSystems();
+});
+
 
 

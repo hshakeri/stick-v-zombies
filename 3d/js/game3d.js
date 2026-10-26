@@ -20,13 +20,14 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from './arena3d.js?v=10.5';
+} from './arena3d.js?v=10.6';
 import {
   filterPlatformsForEntity,
   resolveSweptVerticalCollision,
   checkPlatformStepOff,
   clampEnclosedWalls,
   isOpenEdgeTheme,
+  isLavaSeaTheme,
   CREATIVE_BLOCK_SIZE_2D,
   ISLAND_FLOOR_BOUNDS,
   VOID_FALL_THRESHOLD,
@@ -44,9 +45,16 @@ import {
   buildVoxelWeaponMesh,
   createTurretMesh3D,
   createViraBotMesh3D
-} from './models3d.js?v=10.5';
-import { getVoxelTexture } from './textures3d.js?v=10.5';
-import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.6';
+} from './models3d.js?v=10.6';
+import { getVoxelTexture } from './textures3d.js?v=10.6';
+import {
+  extendCampaignFor3D,
+  CAMPAIGN_BEATS_3D,
+  OVERWORLD_OUTPOST_BLOCKS,
+  formatAttackerDeathMessage,
+  formatProjectileDeathMessage,
+  resolvePlayerDeathCause
+} from './campaign3d.js?v=10.7';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
 const CAMERA_LABELS = {
@@ -183,11 +191,40 @@ function wrapEnemyUpdate3D(e, game) {
       }
     }
 
-    const res = this._origUpdate3D(dt, effectiveGroundY, player, sketchBlocks, camera, zFiltered, zombies, friendlyTargets);
+    const prevAttacker = player ? player._activeAttacker : null;
+    if (player) player._activeAttacker = this;
+    let res;
+    try {
+      res = this._origUpdate3D(dt, effectiveGroundY, player, sketchBlocks, camera, zFiltered, zombies, friendlyTargets);
+    } finally {
+      if (player) player._activeAttacker = prevAttacker;
+    }
     resolveSweptVerticalCollision(this, zFiltered, prevY, dt);
     checkPlatformStepOff(this);
     return res;
   };
+
+  if (typeof e.creeperBlast === 'function') {
+    const origCreeperBlast = e.creeperBlast.bind(e);
+    e.creeperBlast = function(targets, cam, radius = 175) {
+      if (game.player) {
+        game.player._pendingDamageCause = formatAttackerDeathMessage(this, 'charged explosion');
+      }
+      game.blastBlocksInRadius3D?.(this.x, this.y - 30, this.z || 0, radius + 35);
+      return origCreeperBlast(targets, cam, radius);
+    };
+  }
+
+  if (typeof e.boomBurst === 'function') {
+    const origBoomBurst = e.boomBurst.bind(e);
+    e.boomBurst = function(targets, cam) {
+      if (game.player) {
+        game.player._pendingDamageCause = formatAttackerDeathMessage(this, 'self-destruct blast');
+      }
+      game.blastBlocksInRadius3D?.(this.x, this.y - 24, this.z || 0, 175);
+      return origBoomBurst(targets, cam);
+    };
+  }
 }
 
 export class Game3D {
@@ -200,7 +237,12 @@ export class Game3D {
     this.camera2D = new Camera(this.overlayCanvas);
     this.stageManager = stages;
     extendCampaignFor3D(this.stageManager, waves);
-    this.player = new Player(this.stageManager.entranceDoor.x + 30, this.groundY);
+
+    this.activeDamagePhase = null;
+    this.lastDamageCause = '';
+    this.lastDeathReason = '';
+
+    this.player = this.decoratePlayer3D(new Player(this.stageManager.entranceDoor.x + 30, this.groundY));
     this.player.z = 0;
     this.player.vz = 0;
     this.player.yaw = Math.PI / 2;
@@ -440,6 +482,7 @@ export class Game3D {
     this.populateStageSelector();
     this.syncContinueButton();
     this.arena3D.rebuildForStage();
+    this.spawnStageVoxelProps3D();
     document.fonts?.load?.('900 18px Bungee').catch?.(() => {});
     requestAnimationFrame((t) => {
       this.lastTime = t;
@@ -515,6 +558,126 @@ export class Game3D {
     }
   }
 
+  updateDeathBannerDOM(reason) {
+    const finalText = reason || 'The Second Coming was defeated in battle';
+    if (typeof document === 'undefined') return finalText;
+    const textSpan = document.getElementById('gameover-death-text');
+    if (textSpan) {
+      textSpan.textContent = finalText;
+    } else {
+      const banner = document.getElementById('gameover-death-reason');
+      if (banner) banner.textContent = `💀 HOW YOU DIED: ${finalText}`;
+    }
+    return finalText;
+  }
+
+  inferCurrent3DDamageCause(player) {
+    if (player?._pendingDamageCause) return player._pendingDamageCause;
+    if (player?._activeAttacker) return formatAttackerDeathMessage(player._activeAttacker);
+
+    if (this.activeDamagePhase === 'stage_hazards') {
+      return this.stageManager?.theme === 'youtube'
+        ? 'The Second Coming was vaporized by a YouTube Skip-Ad Laser'
+        : 'The Second Coming was vaporized by a Security Laser';
+    }
+
+    if (this.activeDamagePhase === 'projectiles') {
+      if (projectiles.isUpdatingProjectiles) {
+        let bestProj = null;
+        let bestDist = Infinity;
+        const py = (player?.y || 0) - 30;
+        const pz = player?.z || 0;
+        for (const p of projectiles.projectiles || []) {
+          if (!p) continue;
+          if (p.type === 'doom_laser' && p.hitPlayer) {
+            bestProj = p;
+            break;
+          }
+          if (!p.isHostile) continue;
+          const d = Math.hypot((p.x || 0) - (player?.x || 0), (p.y || 0) - py, ((p.z || 0) - pz) * 0.5);
+          if (d < bestDist) {
+            bestDist = d;
+            bestProj = p;
+          }
+        }
+        if (bestProj) return formatProjectileDeathMessage(bestProj);
+      }
+      return formatProjectileDeathMessage({ type: 'acid_pool' });
+    }
+
+    if (this.activeDamagePhase === 'enemies') {
+      let closest = null;
+      let bestDist = Infinity;
+      for (const z of waves.zombies || []) {
+        if (!z || z.isDead) continue;
+        const d = Math.hypot(z.x - (player?.x || 0), z.y - (player?.y || 0), ((z.z || 0) - (player?.z || 0)) * 0.5);
+        if (d < bestDist) {
+          bestDist = d;
+          closest = z;
+        }
+      }
+      if (closest) return formatAttackerDeathMessage(closest);
+    }
+
+    return player?.lastDamageCause || this.lastDamageCause || 'The Second Coming was defeated in battle';
+  }
+
+  decoratePlayer3D(player) {
+    if (!player || player._decorated3D) return player;
+    player._decorated3D = true;
+
+    const origDie = player.die.bind(player);
+    player.die = () => {
+      if (player.isDead) return;
+      const reason = resolvePlayerDeathCause(player, this.lastDamageCause);
+      player.lastDeathReason = reason;
+      this.lastDeathReason = reason;
+      player._pendingDamageCause = null;
+      origDie();
+      this.updateDeathBannerDOM(reason);
+      particles.addTextBanner?.(player.x, player.y - 96, `💀 ${reason.toUpperCase()}`, '#fde047');
+    };
+
+    const origTakeDamage = player.takeDamage.bind(player);
+    player.takeDamage = (amount, knockbackDir = 0, knockbackPower = 300) => {
+      if (player.isGodMode || (this.creativeMode && this.creativeGodMode)) {
+        player._pendingDamageCause = null;
+        return;
+      }
+      if (!player.isDead && (player.iFrames || 0) <= 0 && !player.isRolling && !player.isAwakened && amount > 0) {
+        const cause = this.inferCurrent3DDamageCause(player);
+        player.lastDamageCause = cause;
+        this.lastDamageCause = cause;
+      }
+      player._pendingDamageCause = null;
+      origTakeDamage(amount, knockbackDir, knockbackPower);
+    };
+
+    if (typeof player.executeWeaponAttack === 'function') {
+      const origExecWeapon = player.executeWeaponAttack.bind(player);
+      player.executeWeaponAttack = (zombies, camera) => {
+        const started = origExecWeapon(zombies, camera);
+        if (started) {
+          this.triggerCreativeBlockStrike3D(player.x + player.facing * 68, player.y - 30, player.z || 0, 105);
+        }
+        return started;
+      };
+    }
+
+    if (typeof player.executeLightCombo === 'function') {
+      const origExecCombo = player.executeLightCombo.bind(player);
+      player.executeLightCombo = (zombies, camera) => {
+        const started = origExecCombo(zombies, camera);
+        if (started) {
+          this.triggerCreativeBlockStrike3D(player.x + player.facing * 52, player.y - 30, player.z || 0, 88);
+        }
+        return started;
+      };
+    }
+
+    return player;
+  }
+
   populateStageSelector() {
     const stageNames = [
       '1: Main Desktop',
@@ -538,13 +701,14 @@ export class Game3D {
       '19: The Aether (Skylands)',
       '20: Ancient City (The Warden)',
       '21: Pale Garden (The Creaking)',
-      '22: ▶️ YouTube Studio',
-      '23: 🌐 Google Chrome',
-      '24: 🎧 Spotify Player',
-      '25: 📊 Google Slides',
-      '26: Rocket Corp (The Mercenaries)',
-      '27: Zero-Day (H4C3R)',
-      '28: 🏆 Trophy Room Epilogue'
+      '22: ⛏️ Minecraft Overworld',
+      '23: ▶️ YouTube Studio',
+      '24: 🌐 Google Chrome',
+      '25: 🎧 Spotify Player',
+      '26: 📊 Google Slides',
+      '27: Rocket Corp (The Mercenaries)',
+      '28: Zero-Day (H4C3R)',
+      '29: 🏆 Trophy Room Epilogue'
     ];
     const selectorIds = ['stage-select-dropdown', 'title-stage-select', 'pause-stage-select'];
     selectorIds.forEach((id) => {
@@ -560,10 +724,10 @@ export class Game3D {
       select.addEventListener('change', () => {
         const val = Number(select.value);
         audio.init();
-        if (val === 28) {
+        if (val === 29) {
           this.startGame();
           this.enterTrophyRoom();
-        } else if (val >= 1 && val <= 27) {
+        } else if (val >= 1 && val <= 28) {
           this.jumpToStage(val);
         }
         select.blur();
@@ -573,7 +737,11 @@ export class Game3D {
     document.querySelectorAll('[data-jump-stage]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const stg = Number(btn.getAttribute('data-jump-stage'));
-        if (stg >= 1 && stg <= 27) {
+        if (stg === 29) {
+          audio.init();
+          this.startGame();
+          this.enterTrophyRoom();
+        } else if (stg >= 1 && stg <= 28) {
           audio.init();
           this.jumpToStage(stg);
         }
@@ -591,6 +759,8 @@ export class Game3D {
   jumpToStage(stageNum) {
     this.hideAllModals();
     this.state = 'PLAYING';
+    this.lastDamageCause = '';
+    this.lastDeathReason = '';
     audio.setBGMDucked?.(false);
     input.resetHeldInputs();
     projectiles.reset();
@@ -602,8 +772,13 @@ export class Game3D {
 
     this.stageManager.loadStage(stageNum);
     this.arena3D.rebuildForStage();
+    this.spawnStageVoxelProps3D();
 
+    this.decoratePlayer3D(this.player);
     this.player.resetStageCombat?.(true);
+    this.player.lastDamageCause = '';
+    this.player.lastDeathReason = '';
+    this.player._pendingDamageCause = null;
     this.player.hp = this.player.maxHp;
     this.player.x = this.stageManager.entranceDoor.x + 30;
     this.player.y = this.groundY;
@@ -689,7 +864,7 @@ export class Game3D {
       btnStart.addEventListener('click', () => {
         audio.init();
         const selectedStage = parseInt(document.getElementById('title-stage-select')?.value, 10);
-        if (selectedStage === 28) {
+        if (selectedStage === 29) {
           this.startGame();
           this.enterTrophyRoom();
         } else if (selectedStage && selectedStage > 1) {
@@ -706,7 +881,7 @@ export class Game3D {
         const selectedStage = parseInt(document.getElementById('title-stage-select')?.value, 10) || 1;
         this.creativeMode = true;
         this.creativeGodMode = true;
-        if (selectedStage === 28) {
+        if (selectedStage === 29) {
           this.startGame();
           this.enterTrophyRoom();
         } else {
@@ -1028,41 +1203,89 @@ export class Game3D {
     speech.onCreativeAction?.('god_mode', { enabled: this.creativeGodMode, anchor: this.player });
   }
 
-  placeCreativeBlock() {
-    if (this.state !== 'PLAYING') return;
+  getBlockBurstColor3D(texKey) {
+    return {
+      grass_block: '#4da82c',
+      cobblestone: '#878787',
+      oak_planks: '#b8945f',
+      crafting_table: '#9c6b3b',
+      command_block: '#d67e56',
+      obsidian: '#4c2882',
+      gold_block: '#facc15',
+      tnt_block: '#ef4444',
+      lucky_block: '#facc15',
+      purpur_block: '#a855f7',
+      holystone: '#cbd5e1',
+      rocket_corp_wall: '#64748b',
+      sculk: '#06b6d4',
+      deepslate_tiles: '#475569',
+      pale_moss: '#94a3b8',
+      pale_oak_log: '#a1a1aa',
+      creaking_heart: '#f97316',
+      sketch_block: '#fb923c',
+      lava: '#ff6600'
+    }[texKey] || '#38bdf8';
+  }
+
+  recycleCreativeBlockMesh(cb) {
+    if (!cb?.mesh) return;
+    cb.mesh.visible = false;
+    cb.mesh.scale.set(1, 1, 1);
+    if (cb.texKey !== 'lava' && cb.texKey !== 'sculk' && cb.texKey !== 'creaking_heart') {
+      cb.mesh.material?.emissive?.setHex?.(0x000000);
+      if (cb.mesh.material) cb.mesh.material.emissiveIntensity = 0;
+    }
+    if (this.creativeBlockPool.length < 64) {
+      this.creativeBlockPool.push(cb.mesh);
+    } else {
+      this.dynamicGroup.remove(cb.mesh);
+      disposeHierarchy(cb.mesh, true);
+    }
+    cb.mesh = null;
+  }
+
+  detachEntitiesStandingOn3D(targetPlatform) {
+    if (!targetPlatform) return;
+    if (this.player?.standingPlatform === targetPlatform) {
+      this.player.standingPlatform = null;
+      this.player.isGrounded = false;
+    }
+    for (const z of waves.zombies || []) {
+      if (z && z.standingPlatform === targetPlatform) {
+        z.standingPlatform = null;
+        z.isGrounded = false;
+      }
+    }
+  }
+
+  placeCreativeBlock(explicitTexKey = null, options = null) {
+    if (this.state !== 'PLAYING' && !options?.allowWhenIdle) return null;
     if (this.creativeBlocks.length >= 64) {
       const oldest = this.creativeBlocks.shift();
-      if (oldest?.mesh) {
-        oldest.mesh.visible = false;
-        oldest.mesh.scale.set(1, 1, 1);
-        if (oldest.texKey !== 'lava' && oldest.texKey !== 'sculk' && oldest.texKey !== 'creaking_heart') {
-          oldest.mesh.material?.emissive?.setHex?.(0x000000);
-          if (oldest.mesh.material) oldest.mesh.material.emissiveIntensity = 0;
-        }
-        if (this.creativeBlockPool.length < 64) {
-          this.creativeBlockPool.push(oldest.mesh);
-        } else {
-          this.dynamicGroup.remove(oldest.mesh);
-          disposeHierarchy(oldest.mesh, true);
-        }
-      }
+      this.detachEntitiesStandingOn3D(oldest);
+      this.recycleCreativeBlockMesh(oldest);
     }
 
     const blockSelect = this.getHudElement('creative-block-select');
-    const texKey = blockSelect?.value || 'command_block';
+    const texKey = explicitTexKey || blockSelect?.value || 'command_block';
     const isLava = texKey === 'lava';
     const isSculk = texKey === 'sculk';
     const isCreakingHeart = texKey === 'creaking_heart';
     const blockW = 68;
     const blockH = 68;
-    const bx = Math.max(-920, Math.min(920, this.player.x + this.player.facing * 76));
-    const bz = this.player.z || 0;
+    const bx = Number.isFinite(options?.x)
+      ? Math.max(-952, Math.min(952, options.x))
+      : Math.max(-920, Math.min(920, this.player.x + this.player.facing * 76));
+    const bz = Number.isFinite(options?.z) ? options.z : (this.player.z || 0);
 
     // Stack on top if another creative block is already placed at this X/Z spot
-    let by = this.player.y;
-    for (const cb of this.creativeBlocks) {
-      if (Math.abs(cb.x - bx) < 48 && Math.abs(cb.z - bz) < 48) {
-        by = Math.min(by, cb.y - cb.height);
+    let by = Number.isFinite(options?.y) ? options.y : this.player.y;
+    if (!Number.isFinite(options?.y)) {
+      for (const cb of this.creativeBlocks) {
+        if (!cb || cb.broken) continue;
+        if (Math.abs(cb.x - bx) < 48 && Math.abs(cb.z - bz) < 48) {
+          by = Math.min(by, cb.y - cb.height);
+        }
       }
     }
 
@@ -1105,6 +1328,10 @@ export class Game3D {
     mesh.visible = true;
     mesh.position.set(to3DX(bx), to3DY(by - blockH / 2), to3DZ(bz));
 
+    const fuseTimer = texKey === 'tnt_block'
+      ? (options?.armedOnHit ? null : 2.2)
+      : (texKey === 'lucky_block' ? (options?.armedOnHit ? null : 1.1) : null);
+
     const blockRecord = {
       x: bx,
       y: by,
@@ -1117,41 +1344,194 @@ export class Game3D {
       isLava,
       damage: isLava ? 20 : 0,
       mesh,
-      fuseTimer: texKey === 'tnt_block' ? 2.2 : (texKey === 'lucky_block' ? 1.1 : null)
+      broken: false,
+      fuseTimer
     };
     this.creativeBlocks.push(blockRecord);
-    const burstColor = isLava ? '#ff6600' : (isSculk ? '#22d3ee' : (isCreakingHeart ? '#f97316' : '#38bdf8'));
-    this.spawnVoxelBurst(bx, by - blockH / 2, bz, burstColor, isLava ? 8 : 6);
 
-    if (texKey === 'tnt_block') {
-      speech.onCreativeAction?.('tnt_place', { anchor: blockRecord });
-    } else if (texKey === 'lucky_block') {
-      speech.onCreativeAction?.('lucky_block', { anchor: blockRecord });
-    } else if (isLava) {
-      particles.addTextBanner(bx, by - 80, '🔥 LAVA HAZARD PLACED', '#ff5500');
-      speech.onCreativeAction?.('lava_block', { anchor: blockRecord });
+    if (!options?.silent) {
+      const burstColor = this.getBlockBurstColor3D(texKey);
+      this.spawnVoxelBurst(bx, by - blockH / 2, bz, burstColor, isLava ? 8 : 6);
+      if (texKey === 'tnt_block') {
+        speech.onCreativeAction?.('tnt_place', { anchor: blockRecord });
+      } else if (texKey === 'lucky_block') {
+        speech.onCreativeAction?.('lucky_block', { anchor: blockRecord });
+      } else if (isLava) {
+        particles.addTextBanner(bx, by - 80, '🔥 LAVA HAZARD PLACED', '#ff5500');
+        speech.onCreativeAction?.('lava_block', { anchor: blockRecord });
+      }
+    }
+    return blockRecord;
+  }
+
+  spawnStageVoxelProps3D() {
+    if (this.stageManager?.theme !== 'overworld') return;
+    for (let i = 0; i < OVERWORLD_OUTPOST_BLOCKS.length; i++) {
+      const spec = OVERWORLD_OUTPOST_BLOCKS[i];
+      this.placeCreativeBlock(spec.texKey, {
+        x: spec.x,
+        y: this.groundY + (spec.y || 0),
+        z: spec.z || 0,
+        armedOnHit: Boolean(spec.armedOnHit),
+        silent: true,
+        allowWhenIdle: true
+      });
     }
   }
 
   clearCreativeBlocks() {
     for (const cb of this.creativeBlocks) {
-      if (cb.mesh) {
-        cb.mesh.visible = false;
-        cb.mesh.scale.set(1, 1, 1);
-        if (cb.texKey !== 'lava' && cb.texKey !== 'sculk' && cb.texKey !== 'creaking_heart') {
-          cb.mesh.material?.emissive?.setHex?.(0x000000);
-          if (cb.mesh.material) cb.mesh.material.emissiveIntensity = 0;
-        }
-        if (this.creativeBlockPool.length < 64) {
-          this.creativeBlockPool.push(cb.mesh);
-        } else {
-          this.dynamicGroup.remove(cb.mesh);
-          disposeHierarchy(cb.mesh, true);
-        }
-      }
+      this.detachEntitiesStandingOn3D(cb);
+      this.recycleCreativeBlockMesh(cb);
     }
     this.creativeBlocks.length = 0;
     particles.addTextBanner(this.player.x, this.player.y - 80, '🗑️ BLOCKS CLEARED', '#94a3b8');
+  }
+
+  crackLuckyBlock3D(cb) {
+    if (!cb || cb.broken) return;
+    cb.broken = true;
+    this.detachEntitiesStandingOn3D(cb);
+    this.recycleCreativeBlockMesh(cb);
+    combat.ink += 250;
+    this.player.heal?.(60);
+    this.spawnVoxelBurst(cb.x, cb.y - 34, cb.z || 0, '#facc15', 16);
+    particles.addShockwave(cb.x, cb.y - 30, 180, '#facc15', 8);
+    particles.addTextBanner(cb.x, cb.y - 75, '★ LUCKY PRIZE! +250 INK ★', '#facc15');
+    speech.onCreativeAction?.('lucky_block_open', { anchor: cb, x: cb.x, y: cb.y - 34, z: cb.z || 0 });
+  }
+
+  blastBlocksInRadius3D(cx, cy, cz = 0, radius = 245, sourceBlock = null) {
+    let destroyedCount = 0;
+
+    // 1. Shatter nearby Creative / World 3D Voxel Blocks (+ chain-ignite TNT & crack Lucky Blocks!)
+    for (let i = 0; i < this.creativeBlocks.length; i++) {
+      const other = this.creativeBlocks[i];
+      if (!other || other.broken || other === sourceBlock) continue;
+      const otherCenterY = other.y - (other.height || 68) * 0.5;
+      const dist = Math.hypot(other.x - cx, otherCenterY - cy, (other.z || 0) - cz);
+      if (dist > radius) continue;
+
+      if (other.texKey === 'tnt_block') {
+        other.isIgnited = true;
+        other.fuseTimer = Math.min(other.fuseTimer ?? 99, 0.16);
+      } else if (other.texKey === 'lucky_block') {
+        this.crackLuckyBlock3D(other);
+        destroyedCount++;
+      } else {
+        other.broken = true;
+        this.detachEntitiesStandingOn3D(other);
+        this.recycleCreativeBlockMesh(other);
+        this.spawnVoxelBurst(other.x, otherCenterY, other.z || 0, this.getBlockBurstColor3D(other.texKey), 10);
+        destroyedCount++;
+      }
+    }
+
+    for (let i = this.creativeBlocks.length - 1; i >= 0; i--) {
+      const b = this.creativeBlocks[i];
+      if (b && b.broken && b !== sourceBlock) {
+        this.creativeBlocks.splice(i, 1);
+      }
+    }
+
+    // 2. Also shatter nearby [E] SketchBlocks and dispose their 3D meshes cleanly!
+    const sketchBlocks = projectiles.sketchBlocks || [];
+    for (let i = sketchBlocks.length - 1; i >= 0; i--) {
+      const sb = sketchBlocks[i];
+      if (!sb) continue;
+      const sbCenterY = sb.y - (sb.height || 65) * 0.5;
+      const sbZ = sb.z || 0;
+      if (Math.hypot(sb.x - cx, sbCenterY - cy, sbZ - cz) <= radius) {
+        this.detachEntitiesStandingOn3D(sb);
+        const sbMesh = this.sketchBlockMeshes.get(sb);
+        if (sbMesh) {
+          this.dynamicGroup.remove(sbMesh);
+          disposeHierarchy(sbMesh, true);
+          this.sketchBlockMeshes.delete(sb);
+        }
+        this.spawnVoxelBurst(sb.x, sbCenterY, sbZ, this.getBlockBurstColor3D(sb.texKey || 'obsidian'), 10);
+        sketchBlocks.splice(i, 1);
+        destroyedCount++;
+      }
+    }
+
+    return destroyedCount;
+  }
+
+  detonateCreativeTNT(cb) {
+    if (!cb || cb.broken) return;
+    cb.broken = true;
+    this.detachEntitiesStandingOn3D(cb);
+    this.recycleCreativeBlockMesh(cb);
+
+    const centerY = cb.y - (cb.height || 68) * 0.5;
+    const cz = cb.z || 0;
+
+    audio.playFinisherImpact?.();
+    this.camera2D?.addShake?.(0.68);
+    particles.emitBossExplosion({
+      x: cb.x,
+      y: centerY,
+      bodyY: cb.y,
+      groundY: this.groundY,
+      color: '#ef4444',
+      accent: '#facc15',
+      radius: 220,
+      stickFigure: false,
+      seed: Math.abs(Math.round(cb.x + cz)) + 101
+    });
+    this.spawnVoxelBurst(cb.x, centerY, cz, '#ef4444', 22);
+
+    // Blow up surrounding 3D voxel blocks & SketchBlocks + chain-ignite neighboring TNT!
+    this.blastBlocksInRadius3D(cb.x, centerY, cz, 245, cb);
+
+    for (const enemy of waves.zombies) {
+      if (!enemy || enemy.isDead) continue;
+      const dist = Math.hypot(enemy.x - cb.x, (enemy.z || 0) - cz);
+      if (dist <= 280) {
+        const dir = enemy.x >= cb.x ? 1 : -1;
+        enemy.takeDamage?.(280, dir, 520, true);
+      }
+    }
+
+    const player = this.player;
+    if (player && !player.isDead && !player.isGodMode && !(this.creativeMode && this.creativeGodMode)) {
+      const pDist = Math.hypot(player.x - cb.x, (player.y - 30) - centerY, (player.z || 0) - cz);
+      if (pDist <= 195) {
+        const dir = player.x >= cb.x ? 1 : -1;
+        player._pendingDamageCause = 'The Second Coming was blown up by TNT';
+        this.lastDamageCause = 'The Second Coming was blown up by TNT';
+        player.takeDamage(42, dir, 560);
+      }
+    }
+
+    speech.onCreativeAction?.('tnt_detonate', { anchor: cb, x: cb.x, y: centerY, z: cz });
+  }
+
+  triggerCreativeBlockStrike3D(hitX, hitY, hitZ = 0, radius = 98) {
+    for (let i = this.creativeBlocks.length - 1; i >= 0; i--) {
+      const b = this.creativeBlocks[i];
+      if (!b || b.broken) continue;
+      const centerY = b.y - (b.height || 68) * 0.5;
+      if (Math.hypot(b.x - hitX, centerY - hitY, ((b.z || 0) - hitZ) * 0.65) <= radius) {
+        if (b.texKey === 'tnt_block') {
+          b.isIgnited = true;
+          b.fuseTimer = Math.min(b.fuseTimer ?? 99, 0.65);
+          particles.addDamageText?.(b.x, b.y - (b.height || 68) - 12, '🧨 FUSE LIT!', false, '#f87171');
+        } else if (b.texKey === 'lucky_block') {
+          this.crackLuckyBlock3D(b);
+          this.creativeBlocks.splice(i, 1);
+        } else if (b.texKey === 'creaking_heart') {
+          particles.addShockwave?.(b.x, centerY, 155, '#f97316', 9);
+          this.spawnVoxelBurst(b.x, centerY, b.z || 0, '#f97316', 10);
+          for (const z of waves.zombies || []) {
+            if (z && !z.isDead && Math.hypot(z.x - b.x, (z.z || 0) - (b.z || 0)) <= 185) {
+              z.takeDamage?.(85, z.x >= b.x ? 1 : -1, 460, true);
+            }
+          }
+        }
+      }
+    }
   }
 
   updateCreativeBlocks(dt) {
@@ -1164,17 +1544,47 @@ export class Game3D {
       heartMat.emissiveIntensity = 0.5 + 0.25 * Math.sin((this.stageManager?.stageTime || 0) * 4.2);
     }
 
+    const stageLavaHazards = this.stageManager?.lavaHazards || [];
+    const p = this.player;
+
     for (let i = this.creativeBlocks.length - 1; i >= 0; i--) {
       const cb = this.creativeBlocks[i];
+      if (!cb || cb.broken) {
+        this.creativeBlocks.splice(i, 1);
+        continue;
+      }
 
-      // Pairwise 2: Lava proximity accelerates adjacent TNT detonation
-      if (cb.texKey === 'tnt_block' && cb.fuseTimer > 0.5) {
+      // Pairwise 2: Lava proximity or player heavy-attack strike ignites / accelerates TNT detonation
+      if (cb.texKey === 'tnt_block' && (cb.fuseTimer === null || cb.fuseTimer === undefined || cb.fuseTimer > 0.5)) {
+        let nearLava = false;
         for (let j = 0; j < this.creativeBlocks.length; j++) {
           const other = this.creativeBlocks[j];
-          if ((other.texKey === 'lava' || other.isLava) && Math.hypot(other.x - cb.x, (other.z || 0) - (cb.z || 0)) < 48) {
-            cb.isIgnited = true;
-            cb.fuseTimer = 0.5;
+          if (other && !other.broken && (other.texKey === 'lava' || other.isLava) &&
+              Math.hypot(other.x - cb.x, (other.z || 0) - (cb.z || 0)) < 96) {
+            nearLava = true;
             break;
+          }
+        }
+        if (!nearLava) {
+          for (let h = 0; h < stageLavaHazards.length; h++) {
+            const sh = stageLavaHazards[h];
+            if (sh && Math.abs(cb.x - sh.x) <= (sh.width || 160) * 0.5 + 48 && Math.abs((cb.z || 0) - (sh.z || 0)) <= 120) {
+              nearLava = true;
+              break;
+            }
+          }
+        }
+        if (nearLava) {
+          cb.isIgnited = true;
+          cb.fuseTimer = 0.5;
+        } else if ((cb.fuseTimer === null || cb.fuseTimer === undefined) && p && !p.isDead && p.attackTimer > 0) {
+          const hitX = p.x + (p.facing || 1) * 58;
+          const hitY = p.y - 30;
+          const centerY = cb.y - (cb.height || 68) * 0.5;
+          if (Math.hypot(cb.x - hitX, centerY - hitY, ((cb.z || 0) - (p.z || 0)) * 0.65) <= 96) {
+            cb.isIgnited = true;
+            cb.fuseTimer = 0.65;
+            particles.addDamageText?.(cb.x, cb.y - (cb.height || 68) - 12, '🧨 FUSE LIT!', false, '#f87171');
           }
         }
       }
@@ -1190,64 +1600,14 @@ export class Game3D {
       }
 
       if (cb.fuseTimer <= 0) {
-        if (cb.mesh) {
-          cb.mesh.visible = false;
-          cb.mesh.scale.set(1, 1, 1);
-          if (cb.texKey !== 'lava' && cb.texKey !== 'sculk' && cb.texKey !== 'creaking_heart') {
-            cb.mesh.material?.emissive?.setHex?.(0x000000);
-            if (cb.mesh.material) {
-              cb.mesh.material.emissiveIntensity = 0;
-            }
-          }
-          if (this.creativeBlockPool.length < 64) {
-            this.creativeBlockPool.push(cb.mesh);
-          } else {
-            this.dynamicGroup.remove(cb.mesh);
-            disposeHierarchy(cb.mesh, true);
-          }
-        }
-        this.creativeBlocks.splice(i, 1);
-
         if (cb.texKey === 'tnt_block') {
-          audio.playFinisherImpact?.();
-          this.camera2D?.addShake?.(0.65);
-          particles.emitBossExplosion({
-            x: cb.x,
-            y: cb.y - 34,
-            bodyY: cb.y,
-            groundY: this.groundY,
-            color: '#ef4444',
-            accent: '#facc15',
-            radius: 220,
-            stickFigure: false,
-            seed: Math.abs(Math.round(cb.x + cb.z)) + 101
-          });
-          this.spawnVoxelBurst(cb.x, cb.y - 34, cb.z, '#ef4444', 22);
-          for (const enemy of waves.zombies) {
-            if (!enemy || enemy.isDead) continue;
-            const dist = Math.hypot(enemy.x - cb.x, (enemy.z || 0) - cb.z);
-            if (dist <= 280) {
-              const dir = enemy.x >= cb.x ? 1 : -1;
-              enemy.takeDamage?.(280, dir, 520, true);
-            }
-          }
-          // Chain reaction: ignite neighboring TNT blocks within 240 units!
-          for (const other of this.creativeBlocks) {
-            if (other.texKey === 'tnt_block' && other.fuseTimer > 0.15) {
-              const dist = Math.hypot(other.x - cb.x, (other.z || 0) - cb.z);
-              if (dist <= 240) {
-                other.fuseTimer = Math.min(other.fuseTimer, 0.12);
-              }
-            }
-          }
-          speech.onCreativeAction?.('tnt_detonate', { anchor: cb, x: cb.x, y: cb.y - 34, z: cb.z });
+          this.detonateCreativeTNT(cb);
+          const idx = this.creativeBlocks.indexOf(cb);
+          if (idx >= 0) this.creativeBlocks.splice(idx, 1);
         } else if (cb.texKey === 'lucky_block') {
-          combat.ink += 250;
-          this.player.heal?.(60);
-          this.spawnVoxelBurst(cb.x, cb.y - 34, cb.z, '#facc15', 16);
-          particles.addShockwave(cb.x, cb.y - 30, 180, '#facc15', 8);
-          particles.addTextBanner(cb.x, cb.y - 75, '★ LUCKY PRIZE! +250 INK ★', '#facc15');
-          speech.onCreativeAction?.('lucky_block_open', { anchor: cb, x: cb.x, y: cb.y - 34, z: cb.z });
+          this.crackLuckyBlock3D(cb);
+          const idx = this.creativeBlocks.indexOf(cb);
+          if (idx >= 0) this.creativeBlocks.splice(idx, 1);
         }
       }
     }
@@ -1578,9 +1938,11 @@ export class Game3D {
 
   startGame(options = {}) {
     const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
-    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 27 ? checkpoint.stage : 1;
+    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 28 ? checkpoint.stage : 1;
     this.hideAllModals();
     this.state = 'PLAYING';
+    this.lastDamageCause = '';
+    this.lastDeathReason = '';
     audio.setBGMDucked?.(false);
     input.resetHeldInputs();
     projectiles.reset();
@@ -1594,8 +1956,9 @@ export class Game3D {
 
     this.stageManager.loadStage(stage);
     this.arena3D.rebuildForStage();
+    this.spawnStageVoxelProps3D();
 
-    this.player = new Player(this.stageManager.entranceDoor.x + 30, this.groundY);
+    this.player = this.decoratePlayer3D(new Player(this.stageManager.entranceDoor.x + 30, this.groundY));
     this.player.z = 0;
     this.player.vz = 0;
     this.player.yaw = Math.PI / 2;
@@ -1638,6 +2001,8 @@ export class Game3D {
     const stage = this.stageManager.currentStage;
     this.hideAllModals();
     this.state = 'PLAYING';
+    this.lastDamageCause = '';
+    this.lastDeathReason = '';
     audio.setBGMDucked?.(false);
     input.resetHeldInputs();
     projectiles.reset();
@@ -1656,8 +2021,13 @@ export class Game3D {
 
     this.stageManager.loadStage(stage);
     this.arena3D.rebuildForStage();
+    this.spawnStageVoxelProps3D();
 
+    this.decoratePlayer3D(this.player);
     this.player.resetStageCombat?.(true);
+    this.player.lastDamageCause = '';
+    this.player.lastDeathReason = '';
+    this.player._pendingDamageCause = null;
     this.player.hp = this.player.maxHp;
     this.player.x = this.stageManager.entranceDoor.x + 30;
     this.player.y = this.groundY;
@@ -1680,6 +2050,8 @@ export class Game3D {
   advanceStage(nextStage) {
     this.hideAllModals();
     this.state = 'PLAYING';
+    this.lastDamageCause = '';
+    this.lastDeathReason = '';
     audio.setBGMDucked?.(false);
     save.recordStageCleared(nextStage - 1);
     this.stageManager.loadStage(nextStage);
@@ -1691,7 +2063,12 @@ export class Game3D {
     combat.clearArena();
     this.clearDynamic3DMeshes();
     this.arena3D.rebuildForStage();
+    this.spawnStageVoxelProps3D();
 
+    this.decoratePlayer3D(this.player);
+    this.player.lastDamageCause = '';
+    this.player.lastDeathReason = '';
+    this.player._pendingDamageCause = null;
     this.player.x = this.stageManager.entranceDoor.x + 30;
     this.player.y = this.groundY;
     this.player.z = 0;
@@ -1715,7 +2092,7 @@ export class Game3D {
     this.player.weaponType = 'pencil';
     this.player.stageDamageTaken = 0;
 
-    const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 18, 20, 21, 26, 27].includes(nextStage);
+    const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 18, 20, 21, 27, 28].includes(nextStage);
     const baselineHeal = this.player.maxHp * 0.18;
     const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
     this.player.heal(isBossCheckpoint ? Math.max(baselineHeal, bossSafetyHeal) : baselineHeal);
@@ -1766,7 +2143,7 @@ export class Game3D {
     this.syncContinueButton();
     audio.setIntensity(0.12);
     audio.setBGMDucked?.(false);
-    this.showMissionStrip(27, 'EPILOGUE');
+    this.showMissionStrip(28, 'EPILOGUE');
     particles.addTextBanner(this.player.x + 90, this.player.y - 90, '★ 3D TROPHY ROOM UNLOCKED! ★', '#ffd54a');
     speech.spawnSpeechBubble?.('orange', 'TROPHY ROOM UNLOCKED!', {
       style: 'comic',
@@ -1775,7 +2152,7 @@ export class Game3D {
       anchor: this.player
     });
 
-    this.syncStageSelectors(28);
+    this.syncStageSelectors(29);
   }
 
   completeGame() {
@@ -1826,7 +2203,7 @@ export class Game3D {
   }
 
   prepareWeaponPickup(stage) {
-    const type = stage === 7 ? 'staff' : ((stage === 12 || stage === 25) ? 'eraser' : null);
+    const type = (stage === 7 || stage === 22) ? 'staff' : ((stage === 12 || stage === 26) ? 'eraser' : null);
     this.weaponPickup = type ? {
       type,
       x: Math.max(-720, this.stageManager.entranceDoor.x + 250),
@@ -1884,10 +2261,11 @@ export class Game3D {
     }
     if (lesson) {
       const appLessons = {
-        22: 'YOUTUBE STUDIO · RIDE THE TIMELINE SCRUBBER & JUMP THE SKIP-AD LASER!',
-        23: 'GOOGLE CHROME · LEAP ACROSS GOOGLE TABS & RIDE THE DOWNLOAD CHIP!',
-        24: 'SPOTIFY PLAYER · RIDE THE BOUNCING GREEN EQUALIZER LIFTS!',
-        25: 'GOOGLE SLIDES · GRAB THE GIANT PINK ERASER & CLEAR THE PRESENTATION!'
+        22: 'MINECRAFT OVERWORLD · SMACK THE OUTPOST TNT CRATE TO BLOW UP BLOCKS & GRAB THE BLOCK STAFF!',
+        23: 'YOUTUBE STUDIO · RIDE THE TIMELINE SCRUBBER & JUMP THE SKIP-AD LASER!',
+        24: 'GOOGLE CHROME · LEAP ACROSS GOOGLE TABS & RIDE THE DOWNLOAD CHIP!',
+        25: 'SPOTIFY PLAYER · RIDE THE BOUNCING GREEN EQUALIZER LIFTS!',
+        26: 'GOOGLE SLIDES · GRAB THE GIANT PINK ERASER & CLEAR THE PRESENTATION!'
       };
       lesson.textContent = this.stageManager.isTrophyRoom
         ? '3D TROPHY ROOM · WALK TO THE RESULTS PORTAL'
@@ -1944,6 +2322,10 @@ export class Game3D {
     audio.setIntensity(0);
     audio.setBGMDucked?.(true);
     save.recordRun(combat.score, combat.maxCombo, combat.totalKills);
+    const deathReason = this.lastDeathReason
+      || this.player?.lastDeathReason
+      || resolvePlayerDeathCause(this.player, this.lastDamageCause);
+    this.updateDeathBannerDOM(deathReason);
     const elWave = document.getElementById('gameover-wave');
     const elScore = document.getElementById('gameover-score');
     const elKills = document.getElementById('gameover-kills');
@@ -2025,11 +2407,15 @@ export class Game3D {
     if (!this.creativeBlocks || this.creativeBlocks.length === 0) return solidPlats;
     this._allPlatforms.length = 0;
     for (let i = 0; i < solidPlats.length; i++) this._allPlatforms.push(solidPlats[i]);
-    for (let i = 0; i < this.creativeBlocks.length; i++) this._allPlatforms.push(this.creativeBlocks[i]);
+    for (let i = 0; i < this.creativeBlocks.length; i++) {
+      const cb = this.creativeBlocks[i];
+      if (cb && !cb.broken) this._allPlatforms.push(cb);
+    }
     return this._allPlatforms;
   }
 
   update(dt) {
+    this.decoratePlayer3D(this.player);
     this.camera2D.update(dt, this.player, waves.zombies.length);
     const simDt = this.camera2D.isHitstopped() ? dt * 0.5 : dt;
     this.hudSyncTimer += simDt;
@@ -2166,16 +2552,21 @@ export class Game3D {
         : (enemies.length > 0 ? (enemies[0]?.z || 0) : (this.player.z || 0));
       const waveAlignedPlatforms = filterPlatformsForEntity({ z: waveTargetZ }, allPlatforms, 0);
 
-      waves.update(
-        simDt,
-        this.player,
-        this.groundY,
-        projectiles.sketchBlocks,
-        this.camera2D,
-        () => {},
-        waveAlignedPlatforms,
-        allies.getCombatTargets?.() || []
-      );
+      this.activeDamagePhase = 'enemies';
+      try {
+        waves.update(
+          simDt,
+          this.player,
+          this.groundY,
+          projectiles.sketchBlocks,
+          this.camera2D,
+          () => {},
+          waveAlignedPlatforms,
+          allies.getCombatTargets?.() || []
+        );
+      } finally {
+        this.activeDamagePhase = null;
+      }
 
       // Update Enemy & Boss 3D Z-positions and separation
       this.updateEnemies3DMovement(simDt);
@@ -2186,22 +2577,40 @@ export class Game3D {
       }
     }
 
-    this.stageManager.update(simDt, this.player, waves, (nextStage) => {
-      this.stageManager.resolveStageExit(
-        nextStage,
-        () => (this.stageManager.isTrophyRoom ? this.completeGame() : this.enterTrophyRoom()),
-        (stage) => this.advanceStage(stage)
-      );
-    }, this.camera2D);
+    this.activeDamagePhase = 'stage_hazards';
+    try {
+      this.stageManager.update(simDt, this.player, waves, (nextStage) => {
+        this.stageManager.resolveStageExit(
+          nextStage,
+          () => (this.stageManager.isTrophyRoom ? this.completeGame() : this.enterTrophyRoom()),
+          (stage) => this.advanceStage(stage)
+        );
+      }, this.camera2D);
+    } finally {
+      this.activeDamagePhase = null;
+    }
 
-    projectiles.update(
-      simDt,
-      this.groundY,
-      hostileTargets,
-      this.player,
-      this.camera2D,
-      allies.getCombatTargets?.() || []
-    );
+    // Player projectiles (EX Javelins, Command Staff bolts, Iron Anvils) ignite TNT & crack Lucky Blocks!
+    if (this.creativeBlocks.length > 0 && Array.isArray(projectiles.projectiles)) {
+      for (const pr of projectiles.projectiles) {
+        if (!pr || pr.isHostile || pr.pendingRemoval || pr.isDead) continue;
+        this.triggerCreativeBlockStrike3D(pr.x, pr.y, pr.z ?? (this.player.z || 0), (pr.radius || 14) + 42);
+      }
+    }
+
+    this.activeDamagePhase = 'projectiles';
+    try {
+      projectiles.update(
+        simDt,
+        this.groundY,
+        hostileTargets,
+        this.player,
+        this.camera2D,
+        allies.getCombatTargets?.() || []
+      );
+    } finally {
+      this.activeDamagePhase = null;
+    }
 
     allies.update(simDt, this.groundY, hostileTargets, this.player, this.camera2D);
     combat.update(simDt, this.player);
@@ -2242,6 +2651,9 @@ export class Game3D {
       if (inX && inZ && inY) {
         audio.playLaserZap();
         const knockDir = p.x < laser.x + laser.width * 0.5 ? -1 : 1;
+        p._pendingDamageCause = this.stageManager?.theme === 'youtube'
+          ? 'The Second Coming was vaporized by a YouTube Skip-Ad Laser'
+          : 'The Second Coming was vaporized by a Security Laser';
         p.takeDamage(laser.damage || 20, knockDir, 350);
         particles.createHitSparks(p.x, p.y - 24, 10, '#ff2244');
         this.spawnVoxelBurst(p.x, p.y - 24, p.z || 0, '#ff1744', 12);
@@ -2259,6 +2671,7 @@ export class Game3D {
       const bossZ = waves.bossZombie?.z || 0;
       const inBeamZ = Math.abs((p.z || 0) - bossZ) <= 140;
       if (inBeamX && inBeamY && inBeamZ) {
+        p._pendingDamageCause = formatProjectileDeathMessage(doomLaser);
         p.takeDamage(doomLaser.damage || 45, doomLaser.facing, 450);
         particles.createHitSparks(p.x, doomLaser.y, 8, '#ff0033');
         this.spawnVoxelBurst(p.x, p.y - 35, p.z || 0, '#ff0033', 14);
@@ -2291,7 +2704,7 @@ export class Game3D {
     if (cBlocks && Array.isArray(cBlocks)) {
       for (let i = 0; i < cBlocks.length; i++) {
         const cb = cBlocks[i];
-        if (cb && (cb.texKey === 'lava' || cb.isLava)) {
+        if (cb && !cb.broken && (cb.texKey === 'lava' || cb.isLava)) {
           hazards.push(cb);
         }
       }
@@ -2317,6 +2730,12 @@ export class Game3D {
 
           if (inX && inZ && inY) {
             const dmg = h.damage !== undefined ? h.damage : 20;
+            const lavaCause = h.texKey === 'lava'
+              ? 'The Second Coming stepped onto a molten Lava Block'
+              : 'The Second Coming tried to swim in lava';
+            p._pendingDamageCause = lavaCause;
+            p.lastDamageCause = lavaCause;
+            this.lastDamageCause = lavaCause;
             p.hp = Math.max(0, (p.hp || 100) - dmg);
             p.stageDamageTaken = (p.stageDamageTaken || 0) + dmg;
             p.vy = -340;
@@ -2334,6 +2753,8 @@ export class Game3D {
 
             if (p.hp <= 0 && typeof p.die === 'function') {
               p.die();
+            } else {
+              p._pendingDamageCause = null;
             }
             break;
           }
@@ -2568,15 +2989,28 @@ export class Game3D {
       if (this.player.isDead) return;
 
       const voidDamage = 40;
+      const isLavaSea = isLavaSeaTheme(this.stageManager?.theme);
+      const voidCause = isLavaSea
+        ? 'The Second Coming tried to swim in lava'
+        : 'The Second Coming fell out of the world';
+      this.player._pendingDamageCause = voidCause;
+      this.player.lastDamageCause = voidCause;
+      this.lastDamageCause = voidCause;
       this.player.hp = Math.max(0, this.player.hp - voidDamage);
       this.player.stageDamageTaken = (this.player.stageDamageTaken || 0) + voidDamage;
       audio.playPlayerHurt?.();
-      particles.addTextBanner?.(this.player.x, this.groundY - 80, `⚠ VOID FALL! -${voidDamage} HP`, '#ff3344');
-      this.spawnVoxelBurst(this.player.x, this.groundY, this.player.z || 0, '#ff3344', 16);
+      particles.addTextBanner?.(
+        this.player.x,
+        this.groundY - 80,
+        isLavaSea ? `🔥 LAVA PLUNGE! -${voidDamage} HP` : `⚠ VOID FALL! -${voidDamage} HP`,
+        '#ff3344'
+      );
+      this.spawnVoxelBurst(this.player.x, this.groundY, this.player.z || 0, isLavaSea ? '#ff6600' : '#ff3344', 16);
 
       if (this.player.hp <= 0) {
         this.player.die();
       } else {
+        this.player._pendingDamageCause = null;
         this.respawnPlayerOnIsland();
       }
     }
@@ -2743,12 +3177,17 @@ export class Game3D {
       const bgHex = {
         bsod: 0x002b7a,
         minecraft: 0x220c12,
+        overworld: 0x78b9ff,
         dark_core: 0x0c4a6e,
         command_realm: 0x1f1105,
         the_end: 0x0c0517,
         aether: 0x1a4b75,
         ancient_city: 0x040d14,
         pale_garden: 0x1a1e24,
+        youtube: 0x0f0f0f,
+        chrome: 0x161b26,
+        spotify: 0x091710,
+        slides: 0x1e222b,
         rocket_corp: 0x334155,
         trophy: 0x041838,
         zero_day: 0x060a14
