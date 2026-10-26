@@ -1,5 +1,5 @@
 import * as THREE from '../lib/three.module.min.js';
-import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.3';
+import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.4';
 import {
   StickRig3D,
   CreeperLordRig3D,
@@ -8,7 +8,7 @@ import {
   EnderDragonRig3D,
   WardenBossRig3D,
   CreakingBossRig3D
-} from './models3d.js?v=10.3';
+} from './models3d.js?v=10.4';
 
 export const WORLD_TO_3D = 1 / 34;
 export const ARENA_HALF_X = 980;

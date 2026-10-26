@@ -29,17 +29,19 @@ import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 import {
   CREATIVE_BLOCK_TYPES_2D,
   drawCreativeBlocks2D,
-  getCreativeBlockSprite2D
-} from '../2d/arenas2d.js?v=10.1';
+  drawSketchBlocksVoxel2D,
+  getCreativeBlockSprite2D,
+  paintVoxelBlockPixels2D
+} from '../2d/arenas2d.js?v=10.2';
 import {
   DEPTH_PARALLAX,
   Depth2DRenderer,
   getDepthProfile2D
-} from '../2d/depth2d.js?v=10.1';
+} from '../2d/depth2d.js?v=10.2';
 import {
   STAGE_OPTIONS_2D,
   install2DExpansion
-} from '../2d/expansion2d.js?v=10.1';
+} from '../2d/expansion2d.js?v=10.2';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -153,8 +155,8 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
 
 test('2D Expansion [2] Prominent Level Selector & Title UI: index.html exposes Creative Mode, Stage Select, and Stages 18–23 pills', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-  assert.match(html, /href="2d\/style2d\.css\?v=10\.1"/);
-  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.1"/);
+  assert.match(html, /href="2d\/style2d\.css\?v=10\.2"/);
+  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.2"/);
   assert.match(html, /id="btn-start-creative"/);
   assert.match(html, /id="title-stage-select"/);
   for (const stage of [18, 19, 20, 21, 22, 23]) {
@@ -684,6 +686,7 @@ test('2D Expansion [9] Crisp 16x16 Voxel Block Pixel-Art Textures & Selector Syn
 
   for (const texKey of CREATIVE_BLOCK_TYPES_2D) {
     const ops = [];
+    const coveredTexels = new Set();
     let smoothingDuringBake = true;
     const sprite = getCreativeBlockSprite2D(texKey, (width, height) => {
       const sctx = {
@@ -695,6 +698,11 @@ test('2D Expansion [9] Crisp 16x16 Voxel Block Pixel-Art Textures & Selector Syn
         fillRect(x, y, w, h) {
           smoothingDuringBake = this.imageSmoothingEnabled;
           ops.push(`${this.fillStyle}@${x},${y},${w},${h}`);
+          for (let r = Math.max(0, Math.floor(y / 4)); r < Math.min(16, Math.ceil((y + h) / 4)); r++) {
+            for (let c = Math.max(0, Math.floor(x / 4)); c < Math.min(16, Math.ceil((x + w) / 4)); c++) {
+              coveredTexels.add(r * 16 + c);
+            }
+          }
         }
       };
       return { width, height, getContext: () => sctx };
@@ -702,7 +710,8 @@ test('2D Expansion [9] Crisp 16x16 Voxel Block Pixel-Art Textures & Selector Syn
 
     assert.ok(sprite && sprite.width === 64 && sprite.height === 64, `${texKey} must bake a 64x64 (16x16 x 4px) voxel sprite`);
     assert.equal(smoothingDuringBake, false, `${texKey} sprite bake must disable imageSmoothingEnabled for crisp pixels`);
-    assert.ok(ops.length >= 256, `${texKey} must paint full 16x16 pixel-art texel grid + details (got ${ops.length} ops)`);
+    assert.equal(coveredTexels.size, 256, `${texKey} must paint all 256 texels of the 16x16 grid`);
+    assert.ok(ops.length >= 20, `${texKey} must paint detailed pixel-art runs + features (got ${ops.length} ops)`);
 
     const sig = ops.join('|');
     assert.ok(!signatures.has(sig), `${texKey} pixel-art texture must be visually distinct from every other block`);
@@ -863,6 +872,127 @@ test('2D Expansion [11] Stage 10 AvA 8 Showdown Lake Arena: Outernet Lake, Water
     !calls.fillText.some((t) => t.includes('🪟 START') || t.includes('Stick_vs_Zombies.exe')),
     'Windows desktop taskbar must be suppressed so the Outernet Lake shore remains visible'
   );
+
+  resetGlobalSystems();
+});
+
+test('2D Expansion [12] All 15 Placed Block Voxel Textures, KeyV Isolation & E-Key Voxel SketchBlocks', () => {
+  resetGlobalSystems();
+
+  // 1. Rasterize all 15 16x16 voxel block sprites into an exact 16x16 pixel grid and verify richness + uniqueness
+  assert.equal(CREATIVE_BLOCK_TYPES_2D.length, 15, 'All 15 Creative block types must be registered');
+  const signatures = new Map();
+  for (const key of CREATIVE_BLOCK_TYPES_2D) {
+    const grid = new Array(16 * 16).fill('');
+    const rasterCtx = {
+      fillStyle: '#000000',
+      fillRect(rx, ry, rw, rh) {
+        const c0 = Math.max(0, Math.floor(rx / 4));
+        const r0 = Math.max(0, Math.floor(ry / 4));
+        const c1 = Math.min(16, Math.ceil((rx + rw) / 4));
+        const r1 = Math.min(16, Math.ceil((ry + rh) / 4));
+        for (let r = r0; r < r1; r++) {
+          for (let c = c0; c < c1; c++) {
+            grid[r * 16 + c] = String(this.fillStyle).toLowerCase();
+          }
+        }
+      }
+    };
+    paintVoxelBlockPixels2D(rasterCtx, key, 0, 0, 64);
+
+    assert.ok(
+      grid.every((cell) => cell.length > 0),
+      `${key} 16x16 voxel sprite must cover all 256 pixels with zero unpainted gaps`
+    );
+    const uniqueColors = new Set(grid);
+    assert.ok(
+      uniqueColors.size >= 4,
+      `${key} must render multi-tone 16x16 pixel art (got ${uniqueColors.size} colors)`
+    );
+    const sig = grid.join('|');
+    for (const [otherKey, otherSig] of signatures.entries()) {
+      assert.notEqual(sig, otherSig, `${key} must have a distinct 16x16 pixel texture from ${otherKey}`);
+    }
+    signatures.set(key, sig);
+  }
+  assert.equal(signatures.size, 15);
+
+  // 2. Verify KeyV in Creative Mode places each of the 15 blocks WITHOUT double-spawning a flat #1c1b29 SketchBlock
+  const { game, controller, ctx } = create2DGameHarness();
+  controller.jumpToStage(1, { freshStart: true, creative: true });
+  assert.equal(controller.sandbox.enabled, true);
+
+  for (let i = 0; i < CREATIVE_BLOCK_TYPES_2D.length; i++) {
+    const key = CREATIVE_BLOCK_TYPES_2D[i];
+    controller.sandbox.selectedBlock = key;
+    game.player.x = -400 + (i % 8) * 100;
+
+    // Simulate browser keydown order where input.js sees KeyV before expansion2d.js
+    input.keys['KeyV'] = true;
+    input.keysPressed['KeyV'] = true;
+    input.update();
+    controller.handleCreativeKeyDown({ code: 'KeyV' });
+    game.update(0.016);
+    input.keys['KeyV'] = false;
+    input.endFrame?.();
+
+    const lastPlaced = controller.sandbox.blocks.at(-1);
+    assert.ok(lastPlaced, `KeyV must place a Creative block for ${key}`);
+    assert.equal(lastPlaced.texKey, key, `Placed Creative block must preserve texKey=${key}`);
+    assert.equal(
+      projectiles.sketchBlocks.length,
+      0,
+      `KeyV in Creative Mode must never double-spawn a legacy SketchBlock over ${key}`
+    );
+  }
+
+  // 3. Verify E-key SketchBlocks in both Creative Mode and Normal Mode stamp texKey and render voxel art (never #1c1b29)
+  const fillColorsUsed = [];
+  ctx.fillRect = () => {
+    fillColorsUsed.push(String(ctx.fillStyle).toLowerCase());
+  };
+
+  controller.sandbox.selectedBlock = 'lucky_block';
+  game.player.blockCooldown = 0;
+  input.keys['KeyE'] = true;
+  input.keysPressed['KeyE'] = true;
+  input.update();
+  game.update(0.016);
+  input.keys['KeyE'] = false;
+  input.keysPressed['KeyE'] = false;
+
+  assert.equal(projectiles.sketchBlocks.length, 1, 'KeyE must spawn a SketchBlock');
+  assert.equal(
+    projectiles.sketchBlocks[0].texKey,
+    'lucky_block',
+    'KeyE in Creative Mode must stamp the selected Creative block texKey'
+  );
+
+  // Switch to Normal Mode and press KeyE again -> stamps volcanic obsidian voxel texture
+  controller.setCreativeMode(false);
+  game.player.blockCooldown = 0;
+  game.player.x += 120;
+  input.keys['KeyE'] = true;
+  input.keysPressed['KeyE'] = true;
+  input.update();
+  game.update(0.3);
+  input.keys['KeyE'] = false;
+  input.keysPressed['KeyE'] = false;
+
+  assert.equal(projectiles.sketchBlocks.length, 2);
+  assert.equal(projectiles.sketchBlocks[1].texKey, 'obsidian');
+
+  fillColorsUsed.length = 0;
+  game.render();
+  assert.equal(game.reportedLayerErrors.size, 0, 'Rendering Creative blocks + voxel SketchBlocks must produce zero layer errors');
+  assert.ok(
+    !fillColorsUsed.includes('#1c1b29') && !fillColorsUsed.includes('#8d6e63'),
+    'Legacy flat #1c1b29 / #8d6e63 SketchBlock fills must never paint over voxel blocks'
+  );
+
+  // Direct drawSketchBlocksVoxel2D smoke check with damaged HP bar + draw-in reveal
+  projectiles.sketchBlocks[0].hp = 90;
+  drawSketchBlocksVoxel2D(createCanvasMock().ctx, projectiles.sketchBlocks, 1.5);
 
   resetGlobalSystems();
 });

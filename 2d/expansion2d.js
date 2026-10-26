@@ -44,15 +44,16 @@ import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 import {
   CREATIVE_BLOCK_TYPES_2D,
   drawCreativeBlocks2D,
+  drawSketchBlocksVoxel2D,
   drawFloatingIslandBody2D,
   drawMinecraftLavaFeatures2D,
   drawExpandedStageBackground2D,
   drawExpandedTrophyIcons2D,
   drawBossFloorTelegraphs2D,
   drawCustomStagePlatforms2D
-} from './arenas2d.js?v=10.1';
-import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=10.1';
-import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=10.1';
+} from './arenas2d.js?v=10.2';
+import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=10.2';
+import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=10.2';
 
 export const STAGE_OPTIONS_2D = Object.freeze([
   { value: 1, label: '1: Main Desktop' },
@@ -573,13 +574,16 @@ export function install2DExpansion(game) {
   // --------------------------------------------------------------------------
   function placeCreativeBlock(texKey) {
     let requestedKey = texKey;
-    if (!requestedKey && typeof document !== 'undefined') {
-      const sel = document.getElementById('creative-block-select');
-      if (sel?.value) sandbox.selectedBlock = sel.value;
+    const sel = typeof document !== 'undefined' ? document.getElementById('creative-block-select') : null;
+    if (!requestedKey && sel?.value) {
+      sandbox.selectedBlock = sel.value;
     }
     requestedKey = requestedKey || sandbox.selectedBlock;
     const validKey = CREATIVE_BLOCK_TYPES_2D.includes(requestedKey) ? requestedKey : 'command_block';
     sandbox.selectedBlock = validKey;
+    if (sel && sel.value !== validKey) {
+      sel.value = validKey;
+    }
     const player = game.player;
     const grid = CREATIVE_BLOCK_SIZE_2D; // 68
     const rawX = (player?.x || 0) + (player?.facing || 1) * 84;
@@ -625,6 +629,28 @@ export function install2DExpansion(game) {
       game.player.standingPlatform = null;
       game.player.isGrounded = false;
     }
+  }
+
+  // Stamp voxel texKey onto E-key SketchBlocks so they render crisp 16x16 pixel art
+  projectiles._afterSpawnSketchBlock2D = (block, type) => {
+    if (!block) return;
+    if (sandbox.enabled) {
+      const sel = typeof document !== 'undefined' ? document.getElementById('creative-block-select') : null;
+      const picked = sel?.value || sandbox.selectedBlock;
+      block.texKey = CREATIVE_BLOCK_TYPES_2D.includes(picked) ? picked : 'command_block';
+    } else {
+      block.texKey = type === 'obsidian' ? 'obsidian' : 'sketch_block';
+    }
+  };
+  if (!projectiles._wrappedSpawnSketchBlock2D) {
+    projectiles._wrappedSpawnSketchBlock2D = true;
+    const origSpawnSketchBlock = projectiles.spawnSketchBlock.bind(projectiles);
+    projectiles.spawnSketchBlock = (x, y, type = 'obsidian') => {
+      const res = origSpawnSketchBlock(x, y, type);
+      const newest = projectiles.sketchBlocks[projectiles.sketchBlocks.length - 1];
+      projectiles._afterSpawnSketchBlock2D?.(newest, type);
+      return res;
+    };
   }
 
   function detonateTNTBlock(block) {
@@ -1228,6 +1254,16 @@ export function install2DExpansion(game) {
     const playerOffIsland = openEdge && Math.abs(player.x) > ISLAND_FLOOR_BOUNDS.halfX;
     const effectivePlayerGroundY = playerOffIsland ? 99999 : game.groundY;
 
+    // Suppress KeyV -> SketchBlock double-spawn when Creative Mode is active ([V] places Creative voxel blocks)
+    if (sandbox.enabled && (input.keys?.['KeyV'] || input.keysPressed?.['KeyV'])) {
+      input.keys['KeyV'] = false;
+      input.keysPressed['KeyV'] = false;
+      if (!input.keys?.['KeyE'] && !input.keysPressed?.['KeyE'] && !input.touch?.block && !input.touch?.blockPressed) {
+        input.actions.block = false;
+        input.actions.blockPressed = false;
+      }
+    }
+
     try {
       player.update(
         simDt,
@@ -1559,7 +1595,21 @@ export function install2DExpansion(game) {
         drawCreativeBlocks2D(layerCtx, sandbox.blocks, stageManager.stageTime);
       });
       game.renderLayer('boss-telegraphs', (layerCtx) => drawBossFloorTelegraphs2D(layerCtx, waves.zombies, game.groundY, stageManager.stageTime));
-      game.renderLayer('projectiles', (layerCtx) => projectiles.draw(layerCtx, crowded));
+      game.renderLayer('projectiles', (layerCtx) => {
+        const savedSketchBlocks = projectiles.sketchBlocks;
+        if (savedSketchBlocks?.length) {
+          depth2d.drawPlatformDepthShadows(layerCtx, savedSketchBlocks);
+          drawSketchBlocksVoxel2D(layerCtx, savedSketchBlocks, stageManager.stageTime);
+          projectiles.sketchBlocks = [];
+          try {
+            projectiles.draw(layerCtx, crowded);
+          } finally {
+            projectiles.sketchBlocks = savedSketchBlocks;
+          }
+        } else {
+          projectiles.draw(layerCtx, crowded);
+        }
+      });
       game.renderLayer('ink', (layerCtx) => combat.draw(layerCtx));
       game.renderLayer('depth-shadows', (layerCtx) => depth2d.drawEntityContactShadows(
         layerCtx,
@@ -1684,9 +1734,13 @@ export function install2DExpansion(game) {
       e.target?.blur?.();
     });
 
-    document.getElementById('creative-block-select')?.addEventListener('change', (e) => {
+    const blockSelectEl = document.getElementById('creative-block-select');
+    blockSelectEl?.addEventListener('change', (e) => {
       sandbox.selectedBlock = e.target.value;
       e.target?.blur?.();
+    });
+    blockSelectEl?.addEventListener('input', (e) => {
+      sandbox.selectedBlock = e.target.value;
     });
 
     document.getElementById('creative-place-block-btn')?.addEventListener('click', (e) => {
@@ -1723,53 +1777,70 @@ export function install2DExpansion(game) {
         document.activeElement.blur?.();
       }
     });
+  }
 
-    if (typeof window !== 'undefined' && !window._bound2DCreativeKeys) {
+  function handleCreativeKeyDown(e) {
+    if (!e || e.repeat) return;
+    const tag = e.target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (game.state !== 'PLAYING') return;
+
+    if (e.code === 'KeyC') {
+      if (tag === 'SELECT') {
+        e.preventDefault?.();
+        e.target?.blur?.();
+      }
+      if (input.keys) input.keys['KeyC'] = false;
+      if (input.keysPressed) input.keysPressed['KeyC'] = false;
+      if (!input.keys?.['ShiftLeft'] && !input.keys?.['ShiftRight'] && !input.keys?.['KeyL'] && !input.touch?.roll) {
+        input.actions.roll = false;
+        input.actions.rollPressed = false;
+      }
+      setCreativeMode(!sandbox.enabled);
+    } else if (sandbox.enabled && e.code === 'KeyV') {
+      if (tag === 'SELECT') {
+        e.preventDefault?.();
+        e.target?.blur?.();
+      }
+      if (input.keys) input.keys['KeyV'] = false;
+      if (input.keysPressed) input.keysPressed['KeyV'] = false;
+      if (!input.keys?.['KeyE'] && !input.keysPressed?.['KeyE'] && !input.touch?.block && !input.touch?.blockPressed) {
+        input.actions.block = false;
+        input.actions.blockPressed = false;
+      }
+      const sel = typeof document !== 'undefined' ? document.getElementById('creative-block-select') : null;
+      if (sel?.value) sandbox.selectedBlock = sel.value;
+      placeCreativeBlock(sandbox.selectedBlock);
+    } else if (sandbox.enabled && e.code === 'KeyN') {
+      if (tag === 'SELECT') {
+        e.preventDefault?.();
+        e.target?.blur?.();
+      }
+      const sel = typeof document !== 'undefined' ? document.getElementById('creative-spawn-select') : null;
+      if (sel?.value) sandbox.selectedSpawn = sel.value;
+      spawnCreativeEntity(sandbox.selectedSpawn);
+    } else if (sandbox.enabled && e.code === 'Space') {
+      if (tag === 'SELECT') {
+        e.preventDefault?.();
+        e.target?.blur?.();
+      }
+      const now = performance.now();
+      if (now - sandbox.lastSpaceTapTime < 280) {
+        sandbox.flight = !sandbox.flight;
+        if (game.player) game.player.isCreativeFlight = sandbox.flight;
+        syncCreativeUI();
+        sandbox.lastSpaceTapTime = 0;
+      } else {
+        sandbox.lastSpaceTapTime = now;
+      }
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    window._2dCreativeKeyHandler = handleCreativeKeyDown;
+    if (!window._bound2DCreativeKeys) {
       window._bound2DCreativeKeys = true;
-      window.addEventListener('keydown', (e) => {
-        if (e.repeat) return;
-        const tag = e.target?.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-        if (game.state !== 'PLAYING') return;
-
-        if (e.code === 'KeyC') {
-          if (tag === 'SELECT') {
-            e.preventDefault();
-            e.target?.blur?.();
-          }
-          setCreativeMode(!sandbox.enabled);
-        } else if (sandbox.enabled && e.code === 'KeyV') {
-          if (tag === 'SELECT') {
-            e.preventDefault();
-            e.target?.blur?.();
-          }
-          const sel = document.getElementById('creative-block-select');
-          if (sel?.value) sandbox.selectedBlock = sel.value;
-          placeCreativeBlock(sandbox.selectedBlock);
-        } else if (sandbox.enabled && e.code === 'KeyN') {
-          if (tag === 'SELECT') {
-            e.preventDefault();
-            e.target?.blur?.();
-          }
-          const sel = document.getElementById('creative-spawn-select');
-          if (sel?.value) sandbox.selectedSpawn = sel.value;
-          spawnCreativeEntity(sandbox.selectedSpawn);
-        } else if (sandbox.enabled && e.code === 'Space') {
-          if (tag === 'SELECT') {
-            e.preventDefault();
-            e.target?.blur?.();
-          }
-          const now = performance.now();
-          if (now - sandbox.lastSpaceTapTime < 280) {
-            sandbox.flight = !sandbox.flight;
-            if (game.player) game.player.isCreativeFlight = sandbox.flight;
-            syncCreativeUI();
-            sandbox.lastSpaceTapTime = 0;
-          } else {
-            sandbox.lastSpaceTapTime = now;
-          }
-        }
-      });
+      window.addEventListener('keydown', (e) => window._2dCreativeKeyHandler?.(e));
     }
   }
 
@@ -1790,7 +1861,8 @@ export function install2DExpansion(game) {
     maxAllStats,
     unlockStageExit,
     jumpToStage,
-    syncStageSelectors
+    syncStageSelectors,
+    handleCreativeKeyDown
   };
 
   game._expansion2D = controller;

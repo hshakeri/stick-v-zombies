@@ -66,7 +66,7 @@ function shadeHex2D(hex, factor) {
   return `rgb(${r},${g},${b})`;
 }
 
-// Paints an authentic 16x16 Minecraft / AvM pixel-art voxel face into [ox, oy, size, size]
+// Paints an authentic 16x16 Minecraft / AvM / AvA pixel-art voxel face into [ox, oy, size, size]
 export function paintVoxelBlockPixels2D(ctx, texKey, ox = 0, oy = 0, size = 64) {
   const p = size / 16;
   const px = (tx, ty, tw = 1, th = 1, col = null) => {
@@ -86,6 +86,15 @@ export function paintVoxelBlockPixels2D(ctx, texKey, ox = 0, oy = 0, size = 64) 
     px(0, 0, 1, 16, lightHex);
     px(0, 15, 16, 1, darkHex);
     px(15, 0, 1, 16, darkHex);
+  };
+  const paintMap = (rows, palette) => {
+    for (let ty = 0; ty < 16; ty++) {
+      const row = rows[ty];
+      for (let tx = 0; tx < 16; tx++) {
+        const col = palette[row[tx]];
+        if (col) px(tx, ty, 1, 1, col);
+      }
+    }
   };
 
   switch (texKey) {
@@ -113,221 +122,402 @@ export function paintVoxelBlockPixels2D(ctx, texKey, ox = 0, oy = 0, size = 64) 
       break;
     }
     case 'obsidian': {
-      fillNoise('#150d24', 0.24, 75);
-      bevel('#2f1d4f', '#07040d');
-      // Jagged crystalline violet/indigo volcanic glass shards
-      const shards = [
-        [2, 3, 3, 1, '#3b1f5e'], [3, 4, 2, 1, '#581c87'],
-        [9, 2, 4, 1, '#2e1065'], [10, 3, 2, 2, '#4c1d95'],
-        [4, 9, 3, 2, '#3b1f5e'], [5, 10, 2, 1, '#6d28d9'],
-        [10, 11, 3, 2, '#4c1d95'], [11, 12, 2, 1, '#7e22ce']
-      ];
-      for (const [sx, sy, sw, sh, col] of shards) px(sx, sy, sw, sh, col);
+      // Authentic Minecraft volcanic obsidian: interlocking dark-indigo/black glass boulders + violet/amethyst glints
+      paintMap([
+        '2233112233112210',
+        '2453101245310120',
+        '3564200136421010',
+        '1342112213212320',
+        '0110245300124531',
+        '1221356411235641',
+        '2432134223113420',
+        '3541001134200110',
+        '1320123212101231',
+        '0112356400123542',
+        '1233466521234652',
+        '2454245332123431',
+        '1342012123001210',
+        '0121124531123420',
+        '1232235642234530',
+        '0010011210011210'
+      ], {
+        '0': '#07040e',
+        '1': '#120a21',
+        '2': '#1f1238',
+        '3': '#311b59',
+        '4': '#4c1d95',
+        '5': '#6d28d9',
+        '6': '#a855f7'
+      });
       break;
     }
     case 'gold_block': {
-      fillNoise('#eab308', 0.12, 115);
-      bevel('#fef08a', '#a16207');
-      // Inner recessed bullion frame
-      px(2, 2, 12, 1, '#fde047');
-      px(2, 2, 1, 12, '#fde047');
-      px(2, 13, 12, 1, '#b45309');
-      px(13, 2, 1, 12, '#b45309');
-      // Diagonal metallic gold sheen bands
-      for (let i = 3; i <= 11; i++) {
-        px(i, 14 - i, 2, 1, '#fef08a');
+      // Authentic Minecraft Block of Gold: lustrous diagonal metallic bullion sheen + beveled ingot rim
+      const bandCols = ['#b45309', '#ca8a04', '#eab308', '#facc15', '#fde047', '#fef08a', '#ffffff'];
+      for (let ty = 0; ty < 16; ty++) {
+        for (let tx = 0; tx < 16; tx++) {
+          const d = tx + ty;
+          let idx = 2;
+          if (d >= 8 && d <= 10) idx = d === 9 ? 6 : 5;
+          else if (d === 7 || d === 11) idx = 4;
+          else if (d >= 19 && d <= 21) idx = d === 20 ? 5 : 4;
+          else if (d >= 25) idx = 0;
+          else if (d >= 15 && d <= 17) idx = 1;
+          else idx = 3;
+          const n = (hashTexel2D(tx, ty, 115) - 0.5) * 0.08;
+          px(tx, ty, 1, 1, shadeHex2D(bandCols[idx], 1 + n));
+        }
       }
-      px(4, 4, 2, 2, '#ffffff');
-      px(5, 5, 2, 1, '#fef9c3');
+      bevel('#fef9c3', '#92400e');
+      px(1, 1, 14, 1, '#fde047');
+      px(1, 1, 1, 14, '#fde047');
+      px(1, 14, 14, 1, '#b45309');
+      px(14, 1, 1, 14, '#b45309');
       break;
     }
     case 'tnt_block': {
-      // Bundled vertical red/crimson dynamite sticks
-      const stickCols = ['#dc2626', '#ef4444', '#b91c1c', '#991b1b'];
+      // 4 cylindrical bundled dynamite sticks ([0..3], [4..7], [8..11], [12..15])
+      const stickShade = ['#b91c1c', '#f87171', '#dc2626', '#7f1d1d'];
       for (let tx = 0; tx < 16; tx++) {
-        const baseCol = stickCols[tx % 4];
+        const baseCol = stickShade[tx % 4];
         for (let ty = 0; ty < 16; ty++) {
-          const n = (hashTexel2D(tx, ty, 220) - 0.5) * 0.14;
+          const n = (hashTexel2D(tx, ty, 220) - 0.5) * 0.1;
           px(tx, ty, 1, 1, shadeHex2D(baseCol, 1 + n));
         }
       }
-      // Top & bottom gunpowder cap rims
-      px(0, 0, 16, 1, '#7f1d1d');
+      // Top & bottom gunpowder crimp bands + fuse cords
+      px(0, 0, 16, 1, '#450a0a');
       px(0, 15, 16, 1, '#450a0a');
-      for (let tx = 1; tx < 16; tx += 4) px(tx, 0, 2, 1, '#1f2937');
-      // Crisp white paper label band + authentic pixel-art T N T
+      for (let tx = 1; tx < 16; tx += 4) {
+        px(tx, 0, 2, 1, '#d6d3d1');
+        px(tx, 15, 2, 1, '#7f1d1d');
+      }
+      // Crisp centered white paper wrapper + symmetric T N T pixel lettering
       px(0, 5, 16, 6, '#f8fafc');
       px(0, 5, 16, 1, '#e2e8f0');
       px(0, 10, 16, 1, '#cbd5e1');
-      // 'T'
+      // Left 'T' (x = 1..3)
       px(1, 6, 3, 1, '#111827');
       px(2, 7, 1, 3, '#111827');
-      // 'N' (with true diagonal stroke)
-      px(5, 6, 1, 4, '#111827');
-      px(6, 7, 1, 1, '#111827');
-      px(7, 8, 1, 1, '#111827');
-      px(8, 6, 1, 4, '#111827');
-      // 'T'
-      px(11, 6, 3, 1, '#111827');
-      px(12, 7, 1, 3, '#111827');
+      // Center 'N' (x = 6..9)
+      px(6, 6, 1, 4, '#111827');
+      px(7, 7, 1, 1, '#111827');
+      px(8, 8, 1, 1, '#111827');
+      px(9, 6, 1, 4, '#111827');
+      // Right 'T' (x = 12..14)
+      px(12, 6, 3, 1, '#111827');
+      px(13, 7, 1, 3, '#111827');
       break;
     }
     case 'lucky_block': {
-      fillNoise('#f59e0b', 0.13, 170);
-      bevel('#fef08a', '#92400e');
-      // Inner gold frame & corner rivets
-      px(2, 2, 12, 1, '#fde047');
-      px(2, 13, 12, 1, '#b45309');
-      px(2, 2, 1, 12, '#fde047');
-      px(13, 2, 1, 12, '#b45309');
-      // Drop shadow for pixel '?'
-      px(6, 4, 5, 2, '#92400e');
-      px(9, 6, 2, 3, '#92400e');
-      px(8, 8, 2, 3, '#92400e');
+      // Lustrous amber-gold Lucky Block with corner rivets and bold shadowed '?'
+      for (let ty = 0; ty < 16; ty++) {
+        for (let tx = 0; tx < 16; tx++) {
+          const d = (tx + ty) % 9;
+          const base = d < 2 ? '#fde047' : (d < 5 ? '#fbbf24' : '#f59e0b');
+          const n = (hashTexel2D(tx, ty, 170) - 0.5) * 0.08;
+          px(tx, ty, 1, 1, shadeHex2D(base, 1 + n));
+        }
+      }
+      bevel('#fef9c3', '#92400e');
+      for (const [rx, ry] of [[2, 2], [13, 2], [2, 13], [13, 13]]) {
+        px(rx, ry, 1, 1, '#78350f');
+      }
+      // Drop shadow for '?'
+      px(6, 3, 6, 2, '#92400e');
+      px(5, 5, 2, 2, '#92400e');
+      px(10, 5, 2, 3, '#92400e');
+      px(8, 8, 3, 2, '#92400e');
+      px(8, 10, 2, 1, '#92400e');
       px(8, 12, 2, 2, '#92400e');
-      // Crisp white pixel '?'
-      px(5, 3, 5, 2, '#ffffff');
-      px(5, 5, 2, 1, '#ffffff');
-      px(8, 5, 2, 3, '#ffffff');
-      px(7, 7, 2, 3, '#ffffff');
+      // Crisp white '?'
+      px(5, 2, 6, 2, '#ffffff');
+      px(4, 4, 2, 2, '#ffffff');
+      px(9, 4, 2, 3, '#ffffff');
+      px(7, 7, 3, 2, '#ffffff');
+      px(7, 9, 2, 1, '#ffffff');
       px(7, 11, 2, 2, '#ffffff');
       break;
     }
     case 'purpur_block': {
-      fillNoise('#a87ca8', 0.11, 235);
-      // Iconic 2x2 End City Purpur square tile grid with per-quadrant bevels
-      for (const [qx, qy] of [[0, 0], [8, 0], [0, 8], [8, 8]]) {
-        px(qx, qy, 8, 1, '#d8b4d8');
-        px(qx, qy, 1, 8, '#d8b4d8');
-        px(qx, qy + 7, 8, 1, '#6b426b');
-        px(qx + 7, qy, 1, 8, '#6b426b');
+      // Authentic Minecraft Purpur Block: 4x4 grid of 4x4 End City chorus-lavender tiles
+      fillNoise('#a879a8', 0.1, 235);
+      for (let qy = 0; qy < 16; qy += 4) {
+        for (let qx = 0; qx < 16; qx += 4) {
+          px(qx, qy, 4, 1, '#d8b4d8');
+          px(qx, qy, 1, 4, '#d8b4d8');
+          px(qx, qy + 3, 4, 1, '#6b426b');
+          px(qx + 3, qy, 1, 4, '#6b426b');
+          if (((qx + qy) / 4) % 2 === 1) {
+            px(qx + 1, qy + 1, 2, 2, '#b589b5');
+          }
+        }
       }
       break;
     }
     case 'holystone': {
-      fillNoise('#cbd5e1', 0.14, 245);
-      bevel('#f8fafc', '#64748b');
-      // Rounded cobblestone mortar seams + golden Aether ambrosium moss flecks
-      px(0, 7, 16, 1, '#94a3b8');
-      px(7, 0, 1, 7, '#94a3b8');
-      px(3, 8, 1, 8, '#94a3b8');
-      px(11, 8, 1, 8, '#94a3b8');
-      px(3, 3, 2, 2, '#facc15');
-      px(11, 4, 2, 1, '#fde047');
-      px(6, 11, 2, 2, '#facc15');
-      px(13, 12, 1, 2, '#fde047');
+      // Authentic Aether Mossy Holystone: organic interlocking pale cobblestones + golden ambrosium moss seams
+      paintMap([
+        '3332033332033320',
+        '3442034432034320',
+        '2211023321022110',
+        '0000101100100001',
+        '3320334432033432',
+        '4420344321034432',
+        '2110221105602211',
+        '0015600016510000',
+        '3325333201033432',
+        '4320344203324431',
+        '2110233103422210',
+        '0001011056210001',
+        '3432033263103342',
+        '4431034200013442',
+        '2210122103322211',
+        '0100001002110010'
+      ], {
+        '0': '#64748b',
+        '1': '#94a3b8',
+        '2': '#cbd5e1',
+        '3': '#e2e8f0',
+        '4': '#f8fafc',
+        '5': '#eab308',
+        '6': '#fef08a'
+      });
       break;
     }
     case 'rocket_corp_wall': {
-      fillNoise('#475569', 0.08, 252);
-      bevel('#94a3b8', '#1e293b');
-      // Modular "The Box" 2x2 brushed-steel containment chamber sub-panels
-      px(0, 7, 16, 2, '#1e293b');
-      px(7, 0, 2, 16, '#1e293b');
-      for (const [sx, sy] of [[2, 2], [10, 2], [2, 10], [10, 10]]) {
-        px(sx, sy, 4, 4, '#64748b');
-        px(sx, sy, 4, 1, '#cbd5e1');
-        px(sx, sy + 3, 4, 1, '#334155');
+      // AvA Rocket Corp ("The Box") Brushed-Titanium Containment Armor & Rocket Chevron
+      for (let ty = 0; ty < 16; ty++) {
+        for (let tx = 0; tx < 16; tx++) {
+          const sheen = ((tx + ty) % 7 === 0) ? '#64748b' : '#475569';
+          const n = (hashTexel2D(tx, ty, 252) - 0.5) * 0.06;
+          px(tx, ty, 1, 1, shadeHex2D(sheen, 1 + n));
+        }
       }
-      // Subtle Rocket Corp orange & cyan containment node accents at cross-seam
-      px(7, 7, 2, 2, '#ff6b00');
-      px(1, 1, 1, 1, '#38bdf8');
-      px(14, 1, 1, 1, '#38bdf8');
+      bevel('#94a3b8', '#0f172a');
+      // Top & bottom orange/slate containment hazard trim
+      for (let tx = 2; tx < 14; tx += 4) {
+        px(tx, 1, 2, 1, '#ff6b00');
+        px(tx + 2, 1, 2, 1, '#1e293b');
+        px(tx, 14, 2, 1, '#ff6b00');
+        px(tx + 2, 14, 2, 1, '#1e293b');
+      }
+      // Recessed center octagon & Rocket Corp cursor-arrow glyph
+      px(3, 3, 10, 10, '#1e293b');
+      px(4, 4, 8, 8, '#0f172a');
+      px(7, 4, 2, 2, '#ff6b00');
+      px(6, 6, 4, 4, '#f8fafc');
+      px(7, 7, 2, 2, '#38bdf8');
+      px(5, 9, 2, 2, '#cbd5e1');
+      px(9, 9, 2, 2, '#cbd5e1');
+      px(7, 10, 2, 2, '#ff6b00');
+      for (const [bx, by] of [[2, 3], [13, 3], [2, 12], [13, 12]]) {
+        px(bx, by, 1, 1, '#cbd5e1');
+      }
       break;
     }
     case 'sculk': {
-      fillNoise('#05131d', 0.2, 260);
-      bevel('#0d3b4c', '#02080d');
-      const pulseCols = ['#06b6d4', '#22d3ee', '#67e8f9', '#0e7490'];
-      for (let i = 0; i < 18; i++) {
-        px((i * 5 + 2) % 14 + 1, (i * 9 + 3) % 14 + 1, 1, 1, pulseCols[i % 4]);
-      }
-      px(3, 4, 2, 1, '#22d3ee');
-      px(10, 11, 2, 1, '#67e8f9');
-      px(11, 4, 1, 2, '#06b6d4');
+      // Authentic Minecraft Deep Dark Sculk: organic abyssal biomass + scattered non-collinear soul-cyan stars
+      paintMap([
+        '2100122100121001',
+        '1231011002310012',
+        '0153000123421001',
+        '0021010012100120',
+        '1000134100010252',
+        '2100246201000131',
+        '1210123100121000',
+        '0001000012342001',
+        '0123100123531012',
+        '1245201001210023',
+        '0123100010001242',
+        '0001001231001363',
+        '1000012452100131',
+        '2101001231010010',
+        '1232100010021001',
+        '0121001100122100'
+      ], {
+        '0': '#030b12',
+        '1': '#061621',
+        '2': '#0b2636',
+        '3': '#0e4f68',
+        '4': '#06b6d4',
+        '5': '#22d3ee',
+        '6': '#a5f3fc'
+      });
       break;
     }
     case 'deepslate_tiles': {
-      fillNoise('#242a33', 0.14, 265);
-      // Staggered chiseled dark deepslate tiles + top highlights
-      px(0, 7, 16, 1, '#11151a');
-      px(0, 15, 16, 1, '#11151a');
-      px(7, 0, 1, 7, '#11151a');
-      px(3, 8, 1, 7, '#11151a');
-      px(11, 8, 1, 7, '#11151a');
-      px(1, 1, 5, 1, '#3f4756');
-      px(9, 1, 5, 1, '#3f4756');
-      px(5, 9, 5, 1, '#3f4756');
-      px(12, 9, 3, 1, '#3f4756');
+      // Authentic Minecraft Deepslate Tiles: 4 staggered courses of chiseled slate tiles
+      fillNoise('#2f3744', 0.1, 265);
+      const courses = [
+        { y: 0, joints: [7, 15] },
+        { y: 4, joints: [3, 11] },
+        { y: 8, joints: [6, 14] },
+        { y: 12, joints: [2, 10] }
+      ];
+      for (const { y, joints } of courses) {
+        // Horizontal mortar shadow at bottom of 4px tile course
+        px(0, y + 3, 16, 1, '#11151c');
+        // Chiseled top highlight across course
+        px(0, y, 16, 1, '#586477');
+        for (const jx of joints) {
+          // Vertical mortar joint
+          px(jx, y, 1, 4, '#11151c');
+          // Left-edge chiseled highlight on next tile
+          const nx = (jx + 1) % 16;
+          px(nx, y, 1, 3, '#6b788d');
+          // Right-edge shadow before joint
+          const sx = (jx + 15) % 16;
+          px(sx, y + 1, 1, 2, '#1e242e');
+        }
+      }
       break;
     }
     case 'pale_moss': {
-      fillNoise('#9ca3ab', 0.15, 275);
-      bevel('#c4cbd2', '#6e757d');
-      // Soft desaturated lichen patches & silver moss tufts
-      px(2, 3, 3, 2, '#cfd6dc');
-      px(10, 9, 3, 2, '#cfd6dc');
-      px(6, 12, 4, 1, '#798089');
-      px(11, 4, 2, 2, '#798089');
-      px(4, 8, 2, 2, '#b6bec6');
+      // Authentic Pale Garden Pale Moss Block: organic velvety silver-ash lichen tufts & hollows
+      paintMap([
+        '2332123443212332',
+        '3443212343101233',
+        '2332101221112343',
+        '1221222112323442',
+        '2343343223432331',
+        '3454344312321121',
+        '2343223201110012',
+        '1121112112221233',
+        '1232233223432344',
+        '2343345434431233',
+        '2332234322320122',
+        '1121012111100123',
+        '2232123322212343',
+        '3443234543323442',
+        '2332123432212231',
+        '1121011211001121'
+      ], {
+        '0': '#646c75',
+        '1': '#7c858e',
+        '2': '#969fa8',
+        '3': '#aeb7c0',
+        '4': '#c7cfd7',
+        '5': '#e2e8f0'
+      });
       break;
     }
     case 'pale_oak_log': {
-      fillNoise('#6c727b', 0.15, 280);
-      // Vertical pale-ash bark ridges & dark gnarled fissures (full height)
-      for (const fx of [1, 5, 9, 13]) {
-        px(fx, 0, 1, 16, '#464b53');
-      }
-      px(2, 2, 1, 12, '#8b929c');
-      px(7, 1, 1, 14, '#8b929c');
-      px(11, 3, 1, 11, '#8b929c');
-      px(5, 6, 2, 2, '#363a40');
-      px(10, 11, 2, 2, '#363a40');
+      // Authentic Pale Oak Bark: interlocking jagged vertical ash-grey bark ridges & gnarled fissures
+      paintMap([
+        '1342023431024431',
+        '1342023421024321',
+        '0231012320123320',
+        '0232102310134310',
+        '1343101210244210',
+        '1443200011243201',
+        '1342100021133101',
+        '0232101232022102',
+        '0233212342012213',
+        '1344212443101223',
+        '1343201343100012',
+        '0232101232010012',
+        '0122112331012223',
+        '1233212442123433',
+        '1344201343123442',
+        '1233101232112332'
+      ], {
+        '0': '#2d3138',
+        '1': '#494f59',
+        '2': '#68707c',
+        '3': '#88919e',
+        '4': '#aeb6c2'
+      });
       break;
     }
     case 'creaking_heart': {
-      fillNoise('#43474e', 0.16, 290);
-      for (const fx of [1, 5, 10, 14]) {
-        px(fx, 0, 1, 16, '#26292e');
-      }
-      // Blazing layered orange/amber Resin Heart nested inside dark Pale Oak fissures
-      px(3, 3, 10, 10, '#9a3412');
-      px(4, 4, 8, 8, '#ea580c');
-      px(5, 5, 6, 6, '#f97316');
-      px(6, 6, 4, 4, '#fde047');
-      // Gnarled bark ribs clamping across the glowing heart
-      px(3, 7, 3, 2, '#26292e');
-      px(10, 7, 3, 2, '#26292e');
+      // Authentic Creaking Heart: split dark Pale Oak bark clasping branching glowing amber resin veins
+      paintMap([
+        '1210210340120121',
+        '1201200453021021',
+        '0102103564012010',
+        '0112034675302110',
+        '1221045786401221',
+        '1210357898640121',
+        '0000124798520000',
+        '0011103687401110',
+        '0122035798630220',
+        '1210046898740011',
+        '1201035787530101',
+        '0102104676401200',
+        '0112103564301210',
+        '1221000453001221',
+        '1210210340120121',
+        '0110220030220110'
+      ], {
+        '0': '#1f2228',
+        '1': '#323640',
+        '2': '#4a505c',
+        '3': '#9a3412',
+        '4': '#c2410c',
+        '5': '#ea580c',
+        '6': '#f97316',
+        '7': '#fb923c',
+        '8': '#fde047',
+        '9': '#fef9c3'
+      });
       break;
     }
     case 'sketch_block': {
-      fillNoise('#f8fafc', 0.05, 200);
-      // Hand-drawn double-inked graphite sketch frame
-      px(0, 0, 16, 2, '#1e293b');
-      px(0, 14, 16, 2, '#1e293b');
-      px(0, 0, 2, 16, '#1e293b');
-      px(14, 0, 2, 16, '#1e293b');
-      // Subtle pencil cross-hatch marks
-      for (let i = 3; i <= 11; i += 2) {
-        px(i, 3, 1, 1, '#cbd5e1');
-        px(12, i, 1, 1, '#cbd5e1');
+      // Animator vs. Animation Hand-Drawn Flash/Paper Sketch Block with blueprint grid & orange pencil glyph
+      px(0, 0, 16, 16, '#f8fafc');
+      // Crisp outer white rim so block pops on dark arenas + hand-drawn double charcoal ink frame
+      bevel('#ffffff', '#cbd5e1');
+      px(1, 1, 14, 1, '#0f172a');
+      px(1, 14, 14, 1, '#0f172a');
+      px(1, 1, 1, 14, '#0f172a');
+      px(14, 1, 1, 14, '#0f172a');
+      // Subtle cyan animation blueprint grid lines inside paper
+      px(2, 5, 12, 1, '#dbeafe');
+      px(2, 10, 12, 1, '#dbeafe');
+      px(5, 2, 1, 12, '#dbeafe');
+      px(10, 2, 1, 12, '#dbeafe');
+      // Hand-drawn graphite corner cross-hatch ticks
+      for (const [hx, hy] of [[3, 2], [2, 3], [12, 2], [13, 3], [2, 12], [3, 13], [13, 12], [12, 13]]) {
+        px(hx, hy, 1, 1, '#64748b');
       }
-      // Animator Orange center glyph
-      px(5, 5, 6, 6, '#ff7700');
-      px(6, 6, 4, 4, '#fdba74');
+      // Diagonal Animator Pencil & Orange emblem in center
+      px(10, 4, 2, 2, '#f43f5e'); // pink eraser
+      px(9, 5, 2, 2, '#94a3b8');  // ferrule
+      px(7, 6, 3, 3, '#ff7700');  // orange barrel
+      px(5, 8, 3, 3, '#fb923c');  // lower barrel
+      px(4, 10, 2, 2, '#fde68a'); // wood cone
+      px(4, 11, 1, 1, '#0f172a'); // graphite tip
       break;
     }
     case 'lava': {
-      fillNoise('#ea580c', 0.22, 78);
-      // Winding molten yellow-orange magma channels & white-hot fissures
-      px(1, 2, 6, 2, '#f97316');
-      px(2, 3, 4, 2, '#facc15');
-      px(3, 3, 2, 1, '#fef08a');
-      px(8, 7, 6, 3, '#f97316');
-      px(9, 8, 4, 2, '#facc15');
-      px(10, 8, 2, 1, '#fef08a');
-      px(2, 11, 5, 3, '#b91c1c');
-      px(4, 12, 3, 2, '#facc15');
+      // Authentic Minecraft Molten Lava: curving bright yellow/white magma rivers around dark crust islands
+      paintMap([
+        '1234543210012332',
+        '0124654210001243',
+        '0013565321012354',
+        '1001245432223465',
+        '2100123454334564',
+        '3210012356545432',
+        '4432101246653210',
+        '5654210124542100',
+        '4653210012331001',
+        '3442100001221012',
+        '1233211012343223',
+        '0124542123456543',
+        '0013565334566532',
+        '1001245445454321',
+        '2100123333232100',
+        '2210011221121001'
+      ], {
+        '0': '#7f1d1d',
+        '1': '#9a3412',
+        '2': '#c2410c',
+        '3': '#ea580c',
+        '4': '#f97316',
+        '5': '#facc15',
+        '6': '#fef08a'
+      });
       break;
     }
     default: {
@@ -376,7 +566,8 @@ export function drawCreativeBlockSingle2D(ctx, block, stageTime = 0) {
   const h = block.height || 68;
   const x = Math.round(block.x - w * 0.5);
   const y = Math.round(block.y - h);
-  const key = BLOCK_PALETTES[block.texKey] ? block.texKey : 'obsidian';
+  const rawKey = block.texKey || (block.type === 'obsidian' ? 'obsidian' : 'sketch_block');
+  const key = BLOCK_PALETTES[rawKey] ? rawKey : 'obsidian';
   const pal = getBlockPalette2D(key);
 
   ctx.save();
@@ -412,27 +603,29 @@ export function drawCreativeBlockSingle2D(ctx, block, stageTime = 0) {
     paintVoxelBlockPixels2D(ctx, key, innerX, innerY, Math.min(innerW, innerH));
   }
 
-  // Lightweight live pixel-grid pulse accents on emissive blocks (no font/blur overhead)
+  // Lightweight live pixel-grid pulse accents on emissive blocks (scaled for both 68px & 60px blocks)
+  const sx = innerW / 64;
+  const sy = innerH / 64;
   if (key === 'creaking_heart') {
     const pulse = 0.22 + (Math.sin(stageTime * 5.5) * 0.5 + 0.5) * 0.35;
     ctx.fillStyle = `rgba(254, 240, 138, ${pulse})`;
-    ctx.fillRect(innerX + 24, innerY + 24, 16, 16);
+    ctx.fillRect(innerX + 24 * sx, innerY + 20 * sy, 16 * sx, 20 * sy);
   } else if (key === 'sculk') {
-    const pulse = 0.15 + (Math.sin(stageTime * 4.2 + block.x * 0.03) * 0.5 + 0.5) * 0.3;
-    ctx.fillStyle = `rgba(103, 232, 249, ${pulse})`;
-    ctx.fillRect(innerX + 12, innerY + 16, 8, 4);
-    ctx.fillRect(innerX + 40, innerY + 44, 8, 4);
+    const pulse = 0.16 + (Math.sin(stageTime * 4.2 + block.x * 0.03) * 0.5 + 0.5) * 0.32;
+    ctx.fillStyle = `rgba(165, 243, 252, ${pulse})`;
+    ctx.fillRect(innerX + 16 * sx, innerY + 20 * sy, 8 * sx, 4 * sy);
+    ctx.fillRect(innerX + 48 * sx, innerY + 44 * sy, 8 * sx, 4 * sy);
   } else if (key === 'lava') {
     const pulse = 0.18 + (Math.sin(stageTime * 4.8 + block.x * 0.04) * 0.5 + 0.5) * 0.28;
     ctx.fillStyle = `rgba(254, 240, 138, ${pulse})`;
-    ctx.fillRect(innerX + 8, innerY + 12, 16, 8);
-    ctx.fillRect(innerX + 36, innerY + 32, 16, 8);
+    ctx.fillRect(innerX + 16 * sx, innerY + 8 * sy, 12 * sx, 8 * sy);
+    ctx.fillRect(innerX + 36 * sx, innerY + 44 * sy, 16 * sx, 8 * sy);
   } else if (key === 'command_block') {
     const blink = Math.floor(stageTime * 3.5) % 4;
     const ledOffsets = [[20, 20], [36, 20], [20, 36], [36, 36]];
     const [lx, ly] = ledOffsets[blink];
     ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-    ctx.fillRect(innerX + lx, innerY + ly, 8, 8);
+    ctx.fillRect(innerX + lx * sx, innerY + ly * sy, 8 * sx, 8 * sy);
   }
 
   ctx.restore();
@@ -443,6 +636,48 @@ export function drawCreativeBlocks2D(ctx, blocks, stageTime = 0) {
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
     if (b && !b.broken) drawCreativeBlockSingle2D(ctx, b, stageTime);
+  }
+}
+
+export function drawSketchBlocksVoxel2D(ctx, sketchBlocks, stageTime = 0) {
+  if (!Array.isArray(sketchBlocks) || sketchBlocks.length === 0) return;
+  for (let i = 0; i < sketchBlocks.length; i++) {
+    const b = sketchBlocks[i];
+    if (!b) continue;
+    const w = b.width || 60;
+    const h = b.height || 60;
+    const left = Math.round(b.x - w * 0.5);
+    const top = Math.round(b.y - h);
+    const perimeter = (w + h) * 2;
+    const age = b.maxLife !== undefined ? b.maxLife - b.life : 25;
+    const drawIn = Math.min(1, age / 0.25);
+    const eraseOut = Math.min(1, Math.max(0, b.life ?? 25) / 0.3);
+    const reveal = Math.min(drawIn, eraseOut);
+
+    if (reveal >= 1) {
+      drawCreativeBlockSingle2D(ctx, b, stageTime);
+    } else {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0.25, reveal);
+      drawCreativeBlockSingle2D(ctx, b, stageTime);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.setLineDash?.([perimeter]);
+      ctx.lineDashOffset = perimeter * (1 - reveal);
+      ctx.strokeRect(left, top, w, h);
+      ctx.setLineDash?.([]);
+      ctx.lineDashOffset = 0;
+      ctx.restore();
+    }
+
+    if (b.hp !== undefined && b.maxHp && b.hp < b.maxHp) {
+      ctx.save();
+      ctx.fillStyle = '#ff3344';
+      ctx.fillRect(b.x - 20, top - 10, 40, 4);
+      ctx.fillStyle = '#44ee44';
+      ctx.fillRect(b.x - 20, top - 10, 40 * (b.hp / b.maxHp), 4);
+      ctx.restore();
+    }
   }
 }
 

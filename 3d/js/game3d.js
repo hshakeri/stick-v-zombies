@@ -20,7 +20,7 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from './arena3d.js?v=10.3';
+} from './arena3d.js?v=10.4';
 import {
   filterPlatformsForEntity,
   resolveSweptVerticalCollision,
@@ -44,8 +44,8 @@ import {
   buildVoxelWeaponMesh,
   createTurretMesh3D,
   createViraBotMesh3D
-} from './models3d.js?v=10.3';
-import { getVoxelTexture } from './textures3d.js?v=10.3';
+} from './models3d.js?v=10.4';
+import { getVoxelTexture } from './textures3d.js?v=10.4';
 import { extendCampaignFor3D, CAMPAIGN_BEATS_3D } from './campaign3d.js?v=10.5';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
@@ -106,7 +106,7 @@ CREATIVE_BLOCK_GEO.isShared = true;
 // 5. Projectiles & Props Shared Geometries
 export const SHARED_SKETCH_BLOCK_GEO = new THREE.BoxGeometry(1, 1, 1);
 SHARED_SKETCH_BLOCK_GEO.isShared = true;
-let _sharedSketchMat = null;
+const _sharedSketchMats = new Map();
 
 export const SHARED_ANVIL_BASE_GEO = new THREE.BoxGeometry(1.8, 0.5, 1.4);
 SHARED_ANVIL_BASE_GEO.isShared = true;
@@ -460,15 +460,33 @@ export class Game3D {
       if (this.state === 'PLAYING' && !e.repeat) {
         if (e.code === 'KeyC') {
           if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
+          if (input.keys) input.keys['KeyC'] = false;
+          if (input.keysPressed) input.keysPressed['KeyC'] = false;
+          if (!input.keys?.['ShiftLeft'] && !input.keys?.['ShiftRight'] && !input.keys?.['KeyL'] && !input.touch?.roll) {
+            input.actions.roll = false;
+            input.actions.rollPressed = false;
+          }
           this.toggleCreativeMode();
         } else if (this.creativeMode && e.code === 'KeyV') {
           if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
+          if (input.keys) input.keys['KeyV'] = false;
+          if (input.keysPressed) input.keysPressed['KeyV'] = false;
+          if (!input.keys?.['KeyE'] && !input.keysPressed?.['KeyE'] && !input.touch?.block && !input.touch?.blockPressed) {
+            input.actions.block = false;
+            input.actions.blockPressed = false;
+          }
           this.placeCreativeBlock();
         } else if (this.creativeMode && e.code === 'KeyN') {
           if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
           this.spawnCreativeEntity();
         } else if (this.creativeMode && e.code === 'KeyG') {
           if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
+          if (input.keys) input.keys['KeyG'] = false;
+          if (input.keysPressed) input.keysPressed['KeyG'] = false;
+          if (!input.keys?.['KeyF'] && !input.touch?.grab) {
+            input.actions.grab = false;
+            input.actions.grabPressed = false;
+          }
           this.toggleCreativeGod();
         } else if (this.creativeMode && e.code === 'Space') {
           if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
@@ -2070,6 +2088,14 @@ export class Game3D {
 
     const effectiveGroundY = isPlayerOverFloor ? this.groundY : 99999;
     const prevPlayerY = this.player.y;
+    if (this.creativeMode && (input.keys?.['KeyV'] || input.keysPressed?.['KeyV'])) {
+      input.keys['KeyV'] = false;
+      input.keysPressed['KeyV'] = false;
+      if (!input.keys?.['KeyE'] && !input.keysPressed?.['KeyE'] && !input.touch?.block && !input.touch?.blockPressed) {
+        input.actions.block = false;
+        input.actions.blockPressed = false;
+      }
+    }
     this.player.update(simDt, input, effectiveGroundY, projectiles.sketchBlocks, hostileTargets, this.camera2D, zAlignedPlatforms);
 
     // Continuous Collision Detection (CCD) & Vertical Tunneling Prevention (F3)
@@ -3051,14 +3077,23 @@ export class Game3D {
       if (!mesh) {
         const w = (b.width || 65) * WORLD_TO_3D;
         const h = (b.height || 65) * WORLD_TO_3D;
-        if (!_sharedSketchMat) {
-          _sharedSketchMat = new THREE.MeshStandardMaterial({
-            map: getVoxelTexture('sketch_block'),
-            roughness: 0.4
+        const skTexKey = b.texKey || (
+          this.creativeMode
+            ? (this.getHudElement('creative-block-select')?.value || 'command_block')
+            : (b.type === 'obsidian' ? 'obsidian' : 'sketch_block')
+        );
+        b.texKey = skTexKey;
+        let skMat = _sharedSketchMats.get(skTexKey);
+        if (!skMat) {
+          skMat = new THREE.MeshStandardMaterial({
+            map: getVoxelTexture(skTexKey),
+            roughness: skTexKey === 'lava' ? 0.25 : 0.4,
+            metalness: skTexKey === 'gold_block' ? 0.55 : 0.15
           });
-          _sharedSketchMat.isShared = true;
+          skMat.isShared = true;
+          _sharedSketchMats.set(skTexKey, skMat);
         }
-        mesh = new THREE.Mesh(SHARED_SKETCH_BLOCK_GEO, _sharedSketchMat);
+        mesh = new THREE.Mesh(SHARED_SKETCH_BLOCK_GEO, skMat);
         mesh.scale.set(w, h, w);
         mesh.castShadow = true;
         mesh.receiveShadow = true;

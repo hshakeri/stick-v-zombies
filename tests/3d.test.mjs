@@ -112,7 +112,7 @@ if (typeof globalThis.window === 'undefined') {
 // 3D Module Imports
 // ----------------------------------------------------------------------------
 import * as THREE from '../3d/lib/three.module.min.js';
-import * as models3d from '../3d/js/models3d.js?v=10.3';
+import * as models3d from '../3d/js/models3d.js?v=10.4';
 const {
   StickRig3D,
   CreeperLordRig3D,
@@ -134,7 +134,7 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from '../3d/js/arena3d.js?v=10.3';
+} from '../3d/js/arena3d.js?v=10.4';
 import {
   extendCampaignFor3D,
   CAMPAIGN_BEATS_3D,
@@ -143,7 +143,7 @@ import {
   WardenBoss,
   CreakingBoss
 } from '../3d/js/campaign3d.js?v=10.5';
-import { getVoxelTexture, getThemeFloorTextureKey } from '../3d/js/textures3d.js?v=10.3';
+import { getVoxelTexture, getThemeFloorTextureKey, drawPixelBlock } from '../3d/js/textures3d.js?v=10.4';
 
 // ----------------------------------------------------------------------------
 // Local Verification Helpers for Resource Disposal Protocol
@@ -4971,5 +4971,61 @@ test('AvA 8 Showdown Lake [1] Stage 10 Arena3DBuilder & Title Pill: builds Outer
   );
 });
 
+test('Voxel Block Parity [1] All 15 Creative Placed Blocks Render Distinct 16x16 Pixel-Art Textures', () => {
+  const creativeBlockKeys = [
+    'command_block',
+    'obsidian',
+    'gold_block',
+    'tnt_block',
+    'lucky_block',
+    'purpur_block',
+    'holystone',
+    'rocket_corp_wall',
+    'sculk',
+    'deepslate_tiles',
+    'pale_moss',
+    'pale_oak_log',
+    'creaking_heart',
+    'sketch_block',
+    'lava'
+  ];
 
+  const signatures = new Map();
+  for (const key of creativeBlockKeys) {
+    const tex = getVoxelTexture(key);
+    assert.ok(tex && tex.isTexture, `${key} must return a valid Three.js CanvasTexture`);
 
+    const grid = new Array(16 * 16).fill('');
+    const rasterCtx = {
+      fillStyle: '#000000',
+      fillRect(rx, ry, rw, rh) {
+        const c0 = Math.max(0, Math.floor(rx));
+        const r0 = Math.max(0, Math.floor(ry));
+        const c1 = Math.min(16, Math.ceil(rx + rw));
+        const r1 = Math.min(16, Math.ceil(ry + rh));
+        for (let r = r0; r < r1; r++) {
+          for (let c = c0; c < c1; c++) {
+            grid[r * 16 + c] = String(this.fillStyle).toLowerCase();
+          }
+        }
+      }
+    };
+    drawPixelBlock(rasterCtx, key);
+
+    assert.ok(
+      grid.every((cell) => cell.length > 0),
+      `3D ${key} 16x16 texture must paint all 256 pixels`
+    );
+    const uniqueColors = new Set(grid);
+    assert.ok(
+      uniqueColors.size >= 4,
+      `3D ${key} must render multi-tone 16x16 pixel art (got ${uniqueColors.size} colors)`
+    );
+    const sig = grid.join('|');
+    for (const [otherKey, otherSig] of signatures.entries()) {
+      assert.notEqual(sig, otherSig, `3D ${key} must have a distinct 16x16 pixel texture from ${otherKey}`);
+    }
+    signatures.set(key, sig);
+  }
+  assert.equal(signatures.size, 15);
+});
