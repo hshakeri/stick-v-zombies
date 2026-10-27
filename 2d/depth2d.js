@@ -157,6 +157,15 @@ const THEME_DEPTH_PROFILES = Object.freeze({
     bokehTint: '#fdba74',
     motif: 'pale_forest'
   },
+  stronghold: {
+    farTint: '#2dd4bf',
+    midTint: '#64748b',
+    hazeTop: 'rgba(9, 13, 20, 0)',
+    hazeMid: 'rgba(15, 38, 42, 0.22)',
+    hazeBottom: 'rgba(20, 28, 36, 0.34)',
+    bokehTint: '#5eead4',
+    motif: 'stronghold_vault'
+  },
   overworld: {
     farTint: '#86efac',
     midTint: '#22c55e',
@@ -199,8 +208,17 @@ const THEME_DEPTH_PROFILES = Object.freeze({
     hazeTop: 'rgba(248, 249, 250, 0)',
     hazeMid: 'rgba(254, 243, 199, 0.14)',
     hazeBottom: 'rgba(226, 232, 240, 0.22)',
-    bokehTint: '#fde047',
+    bokehTint: '#fde08a',
     motif: 'slides_deck'
+  },
+  rocket_corp_exterior: {
+    farTint: '#ff6b00',
+    midTint: '#38bdf8',
+    hazeTop: 'rgba(15, 23, 42, 0)',
+    hazeMid: 'rgba(51, 35, 68, 0.22)',
+    hazeBottom: 'rgba(30, 41, 59, 0.32)',
+    bokehTint: '#fb923c',
+    motif: 'rocket_skyline'
   },
   rocket_corp: {
     farTint: '#64748b',
@@ -417,6 +435,29 @@ function paintDepthMotifSilhouettes(ctx, motif, profile, stageSeed, isMidLayer) 
       ctx.fillRect(cx - slideW * 0.08, slideY + slideH - 46, 16, 36);
       ctx.fillStyle = '#34a853';
       ctx.fillRect(cx + slideW * 0.14, slideY + slideH - 30, 16, 20);
+    } else if (motif === 'stronghold_vault') {
+      // Distant blurred stone-brick dungeon arches, iron grates & flickering torch/Eye-of-Ender glimmers
+      ctx.fillStyle = isMidLayer ? '#334155' : '#1e293b';
+      ctx.fillRect(cx - w * 0.42, groundLocalY - h * 0.86, w * 0.84, h * 0.86 + 35);
+      ctx.fillStyle = '#090d14';
+      ctx.fillRect(cx - w * 0.22, groundLocalY - h * 0.54, w * 0.44, h * 0.54 + 20);
+      if (i % 2 === 0) {
+        ctx.fillStyle = i % 4 === 0 ? '#2dd4bf' : '#fb923c';
+        ctx.beginPath();
+        ctx.arc(cx, groundLocalY - h * 0.62, isMidLayer ? 7 : 9, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (motif === 'rocket_skyline') {
+      // Distant Outernet industrial city skyscrapers & Rocket Corp glowing orange/cyan beacons
+      const towerH = Math.round(h * 0.92);
+      ctx.fillStyle = isMidLayer ? '#1e293b' : '#0f172a';
+      ctx.fillRect(cx - w * 0.36, groundLocalY - towerH, w * 0.72, towerH + 35);
+      ctx.fillStyle = i % 2 === 0 ? '#ff6b00' : '#38bdf8';
+      ctx.fillRect(cx - w * 0.26, groundLocalY - towerH + 14, w * 0.52, 8);
+      for (let wy = groundLocalY - towerH + 38; wy < groundLocalY - 30; wy += 32) {
+        ctx.fillRect(cx - w * 0.2, wy, 14, 10);
+        ctx.fillRect(cx + w * 0.08, wy, 14, 10);
+      }
     } else if (motif === 'facility') {
       // Distant Rocket Corp industrial testing bays & glowing cyan conduits
       ctx.fillStyle = '#0f172a';

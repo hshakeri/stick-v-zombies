@@ -918,6 +918,73 @@ export function drawPixelBlock(ctx, kind) {
       drawBevelBorder(ctx, '#3b82f6', '#1d4ed8');
       break;
     }
+    case 'stone_bricks': {
+      fillNoisyPixels(ctx, '#6e7681', 0.12, 425);
+      // Horizontal & staggered vertical stone-brick mortar joints
+      ctx.fillStyle = '#363b42';
+      ctx.fillRect(0, 0, 16, 1);
+      ctx.fillRect(0, 7, 16, 1);
+      ctx.fillRect(0, 15, 16, 1);
+      ctx.fillRect(7, 0, 1, 7);
+      ctx.fillRect(15, 0, 1, 7);
+      ctx.fillRect(3, 8, 1, 7);
+      ctx.fillRect(11, 8, 1, 7);
+      // Top bevel highlights per brick
+      ctx.fillStyle = '#9ca3af';
+      ctx.fillRect(1, 1, 5, 1);
+      ctx.fillRect(9, 1, 5, 1);
+      ctx.fillRect(5, 9, 5, 1);
+      ctx.fillRect(13, 9, 2, 1);
+      // Stronghold cracks & mossy patches
+      ctx.fillStyle = '#272b30';
+      ctx.fillRect(4, 3, 1, 3);
+      ctx.fillRect(5, 5, 1, 2);
+      ctx.fillRect(13, 11, 1, 3);
+      ctx.fillStyle = '#3f6212';
+      ctx.fillRect(1, 5, 2, 2);
+      ctx.fillRect(8, 13, 2, 2);
+      ctx.fillStyle = '#65a30d';
+      ctx.fillRect(1, 5, 1, 1);
+      ctx.fillRect(9, 13, 1, 1);
+      break;
+    }
+    case 'end_portal_frame': {
+      fillNoisyPixels(ctx, '#d6cf9f', 0.08, 435);
+      // Teal/dark-emerald ornamental corners & rim
+      ctx.fillStyle = '#0f766e';
+      ctx.fillRect(0, 0, 4, 4);
+      ctx.fillRect(12, 0, 4, 4);
+      ctx.fillRect(0, 12, 4, 4);
+      ctx.fillRect(12, 12, 4, 4);
+      ctx.fillStyle = '#14b8a6';
+      ctx.fillRect(2, 2, 12, 2);
+      ctx.fillRect(2, 12, 12, 2);
+      ctx.fillRect(2, 2, 2, 12);
+      ctx.fillRect(12, 2, 2, 12);
+      // Dark socket + glowing Eye of Ender core
+      ctx.fillStyle = '#042f2e';
+      ctx.fillRect(4, 4, 8, 8);
+      ctx.fillStyle = '#34d399';
+      ctx.fillRect(5, 5, 6, 6);
+      ctx.fillStyle = '#ecfdf5';
+      ctx.fillRect(7, 6, 2, 4);
+      drawBevelBorder(ctx, '#fef9c3', '#134e4a');
+      break;
+    }
+    case 'rocket_plaza_asphalt': {
+      fillNoisyPixels(ctx, '#1e2430', 0.14, 445);
+      // Concrete road expansion joints
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, 16, 1);
+      ctx.fillRect(0, 0, 1, 16);
+      // Subtle yellow security lane dash & cyan guide reflection
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(3, 7, 7, 2);
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(2, 2, 12, 1);
+      ctx.fillRect(2, 13, 12, 1);
+      break;
+    }
     default: {
       fillNoisyPixels(ctx, '#334155', 0.14, 999);
       drawBevelBorder(ctx, '#64748b', '#1e293b');
@@ -946,6 +1013,7 @@ export function getThemeFloorTextureKey(theme, isWhiteVoid = false) {
     case 'cloud_cache': return 'cloud_floor';
     case 'creeper_clan': return 'creeper_moss';
     case 'lucky_orb': return 'lucky_block';
+    case 'stronghold': return 'stone_bricks';
     case 'the_end': return 'end_stone';
     case 'aether': return 'aether_grass';
     case 'ancient_city': return 'sculk';
@@ -954,6 +1022,7 @@ export function getThemeFloorTextureKey(theme, isWhiteVoid = false) {
     case 'chrome': return 'chrome_floor';
     case 'spotify': return 'spotify_floor';
     case 'slides': return 'slides_floor';
+    case 'rocket_corp_exterior': return 'rocket_plaza_asphalt';
     case 'rocket_corp': return 'rocket_corp_floor';
     case 'zero_day': return 'zero_day_floor';
     case 'trophy': return 'trophy_floor';

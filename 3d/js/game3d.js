@@ -20,7 +20,7 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from './arena3d.js?v=10.7';
+} from './arena3d.js?v=10.8';
 import {
   filterPlatformsForEntity,
   resolveSweptVerticalCollision,
@@ -52,7 +52,7 @@ import {
   createTurretMesh3D,
   createViraBotMesh3D
 } from './models3d.js?v=10.6';
-import { getVoxelTexture } from './textures3d.js?v=10.6';
+import { getVoxelTexture } from './textures3d.js?v=10.7';
 import {
   extendCampaignFor3D,
   CAMPAIGN_BEATS_3D,
@@ -60,7 +60,7 @@ import {
   formatAttackerDeathMessage,
   formatProjectileDeathMessage,
   resolvePlayerDeathCause
-} from './campaign3d.js?v=10.7';
+} from './campaign3d.js?v=10.8';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
 const CAMERA_LABELS = {
@@ -721,18 +721,20 @@ export class Game3D {
       '15: Creeper Lord Replay',
       '16: Giant Cat Replay',
       '17: Lucky Dimension (Lucky Orb)',
-      '18: The End (Ender Dragon)',
-      '19: The Aether (Skylands)',
-      '20: Ancient City (The Warden)',
-      '21: Pale Garden (The Creaking)',
-      '22: ⛏️ Minecraft Overworld',
-      '23: ▶️ YouTube Studio',
-      '24: 🌐 Google Chrome',
-      '25: 🎧 Spotify Player',
-      '26: 📊 Google Slides',
-      '27: Rocket Corp (The Mercenaries)',
-      '28: Zero-Day (H4C3R)',
-      '29: 🏆 Trophy Room Epilogue'
+      '18: 🏰 The Stronghold (End Portal)',
+      '19: The End (Ender Dragon)',
+      '20: The Aether (Skylands)',
+      '21: Ancient City (The Warden)',
+      '22: Pale Garden (The Creaking)',
+      '23: ⛏️ Minecraft Overworld',
+      '24: ▶️ YouTube Studio',
+      '25: 🌐 Google Chrome',
+      '26: 🎧 Spotify Player',
+      '27: 📊 Google Slides',
+      '28: 🏢 Outside Rocket Corp',
+      '29: Rocket Corp (The Mercenaries)',
+      '30: Zero-Day (H4C3R)',
+      '31: 🏆 Trophy Room Epilogue'
     ];
     const selectorIds = ['stage-select-dropdown', 'title-stage-select', 'pause-stage-select'];
     selectorIds.forEach((id) => {
@@ -748,10 +750,10 @@ export class Game3D {
       select.addEventListener('change', () => {
         const val = Number(select.value);
         audio.init();
-        if (val === 29) {
+        if (val === 31) {
           this.startGame();
           this.enterTrophyRoom();
-        } else if (val >= 1 && val <= 28) {
+        } else if (val >= 1 && val <= 30) {
           this.jumpToStage(val);
         }
         select.blur();
@@ -761,11 +763,11 @@ export class Game3D {
     document.querySelectorAll('[data-jump-stage]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const stg = Number(btn.getAttribute('data-jump-stage'));
-        if (stg === 29) {
+        if (stg === 31) {
           audio.init();
           this.startGame();
           this.enterTrophyRoom();
-        } else if (stg >= 1 && stg <= 28) {
+        } else if (stg >= 1 && stg <= 30) {
           audio.init();
           this.jumpToStage(stg);
         }
@@ -890,7 +892,7 @@ export class Game3D {
       btnStart.addEventListener('click', () => {
         audio.init();
         const selectedStage = parseInt(document.getElementById('title-stage-select')?.value, 10);
-        if (selectedStage === 29) {
+        if (selectedStage === 31) {
           this.startGame();
           this.enterTrophyRoom();
         } else if (selectedStage && selectedStage > 1) {
@@ -907,7 +909,7 @@ export class Game3D {
         const selectedStage = parseInt(document.getElementById('title-stage-select')?.value, 10) || 1;
         this.creativeMode = true;
         this.creativeGodMode = true;
-        if (selectedStage === 29) {
+        if (selectedStage === 31) {
           this.startGame();
           this.enterTrophyRoom();
         } else {
@@ -1233,6 +1235,7 @@ export class Game3D {
     return {
       grass_block: '#4da82c',
       cobblestone: '#878787',
+      stone_bricks: '#9ca3af',
       oak_planks: '#b8945f',
       crafting_table: '#9c6b3b',
       command_block: '#d67e56',
@@ -2022,7 +2025,7 @@ export class Game3D {
 
   startGame(options = {}) {
     const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
-    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 28 ? checkpoint.stage : 1;
+    const stage = checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 30 ? checkpoint.stage : 1;
     this.hideAllModals();
     this.state = 'PLAYING';
     this.lastDamageCause = '';
@@ -2176,7 +2179,7 @@ export class Game3D {
     this.player.weaponType = 'pencil';
     this.player.stageDamageTaken = 0;
 
-    const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 18, 20, 21, 27, 28].includes(nextStage);
+    const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 19, 21, 22, 29, 30].includes(nextStage);
     const baselineHeal = this.player.maxHp * 0.18;
     const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
     this.player.heal(isBossCheckpoint ? Math.max(baselineHeal, bossSafetyHeal) : baselineHeal);
@@ -2227,7 +2230,7 @@ export class Game3D {
     this.syncContinueButton();
     audio.setIntensity(0.12);
     audio.setBGMDucked?.(false);
-    this.showMissionStrip(28, 'EPILOGUE');
+    this.showMissionStrip(30, 'EPILOGUE');
     particles.addTextBanner(this.player.x + 90, this.player.y - 90, '★ 3D TROPHY ROOM UNLOCKED! ★', '#ffd54a');
     speech.spawnSpeechBubble?.('orange', 'TROPHY ROOM UNLOCKED!', {
       style: 'comic',
@@ -2236,7 +2239,7 @@ export class Game3D {
       anchor: this.player
     });
 
-    this.syncStageSelectors(29);
+    this.syncStageSelectors(31);
   }
 
   completeGame() {
@@ -2287,7 +2290,7 @@ export class Game3D {
   }
 
   prepareWeaponPickup(stage) {
-    const type = (stage === 7 || stage === 22) ? 'staff' : ((stage === 12 || stage === 26) ? 'eraser' : null);
+    const type = (stage === 7 || stage === 23) ? 'staff' : ((stage === 12 || stage === 27) ? 'eraser' : null);
     this.weaponPickup = type ? {
       type,
       x: Math.max(-720, this.stageManager.entranceDoor.x + 250),
@@ -2345,11 +2348,13 @@ export class Game3D {
     }
     if (lesson) {
       const appLessons = {
-        22: 'MINECRAFT OVERWORLD · SMACK THE OUTPOST TNT CRATE TO BLOW UP BLOCKS & GRAB THE BLOCK STAFF!',
-        23: 'YOUTUBE STUDIO · RIDE THE TIMELINE SCRUBBER & JUMP THE SKIP-AD LASER!',
-        24: 'GOOGLE CHROME · LEAP ACROSS GOOGLE TABS & RIDE THE DOWNLOAD CHIP!',
-        25: 'SPOTIFY PLAYER · RIDE THE BOUNCING GREEN EQUALIZER LIFTS!',
-        26: 'GOOGLE SLIDES · GRAB THE GIANT PINK ERASER & CLEAR THE PRESENTATION!'
+        18: 'THE STRONGHOLD · LEAP THE END PORTAL LAVA POOL & RIDE THE STONE-BRICK BRIDGE!',
+        23: 'MINECRAFT OVERWORLD · SMACK THE OUTPOST TNT CRATE TO BLOW UP BLOCKS & GRAB THE BLOCK STAFF!',
+        24: 'YOUTUBE STUDIO · RIDE THE TIMELINE SCRUBBER & JUMP THE SKIP-AD LASER!',
+        25: 'GOOGLE CHROME · LEAP ACROSS GOOGLE TABS & RIDE THE DOWNLOAD CHIP!',
+        26: 'SPOTIFY PLAYER · RIDE THE BOUNCING GREEN EQUALIZER LIFTS!',
+        27: 'GOOGLE SLIDES · GRAB THE GIANT PINK ERASER & CLEAR THE PRESENTATION!',
+        28: 'OUTSIDE ROCKET CORP · LEAP THE PERIMETER SECURITY LASER & BREACH THE HQ LOBBY!'
       };
       lesson.textContent = this.stageManager.isTrophyRoom
         ? '3D TROPHY ROOM · WALK TO THE RESULTS PORTAL'
@@ -3316,6 +3321,7 @@ export class Game3D {
         overworld: 0x78b9ff,
         dark_core: 0x0c4a6e,
         command_realm: 0x1f1105,
+        stronghold: 0x161b22,
         the_end: 0x0c0517,
         aether: 0x1a4b75,
         ancient_city: 0x040d14,
@@ -3324,6 +3330,7 @@ export class Game3D {
         chrome: 0x161b26,
         spotify: 0x091710,
         slides: 0x1e222b,
+        rocket_corp_exterior: 0x172542,
         rocket_corp: 0x334155,
         trophy: 0x041838,
         zero_day: 0x060a14

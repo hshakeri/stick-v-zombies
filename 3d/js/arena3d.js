@@ -1,5 +1,5 @@
 import * as THREE from '../lib/three.module.min.js';
-import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.6';
+import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.7';
 import {
   StickRig3D,
   CreeperLordRig3D,
@@ -366,6 +366,8 @@ export class Arena3DBuilder {
     this.lavaSeaMat = null;
     this.floatingProps.length = 0;
     this.trophyKeyGroup = null;
+    this.strongholdEndPortal = null;
+    this.rocketExteriorSearchlights = [];
     this.ancientCityCenterPortal = null;
     this.paleGardenHeartShrine = null;
     this.youtubePlayMonument = null;
@@ -384,18 +386,26 @@ export class Arena3DBuilder {
     const floorW = 62;
     const floorD = 26;
 
-    // Hide PC monitor stand neck when inside Rocket Corp Facility, Ancient City, Pale Garden, Overworld, or AvA 8 Lake
+    // Hide PC monitor stand neck when inside non-desktop biomes & Rocket Corp exteriors/facilities
     if (this.standNeck) {
-      this.standNeck.visible = theme !== 'rocket_corp' && theme !== 'ancient_city' && theme !== 'pale_garden' && theme !== 'overworld' && theme !== 'dark_core';
+      this.standNeck.visible = theme !== 'rocket_corp' &&
+        theme !== 'rocket_corp_exterior' &&
+        theme !== 'stronghold' &&
+        theme !== 'ancient_city' &&
+        theme !== 'pale_garden' &&
+        theme !== 'overworld' &&
+        theme !== 'dark_core';
     }
 
     // 1. Voxel Arena Floor + Sub-floor Strata (dynamically sliceable for TNT craters!)
     const subTexKey = theme === 'minecraft' || theme === 'the_end'
       ? 'obsidian'
+      : (theme === 'stronghold' ? 'stone_bricks'
       : (theme === 'overworld' ? 'cobblestone'
       : (theme === 'ancient_city' || theme === 'dark_core' ? 'deepslate_tiles'
       : (theme === 'pale_garden' ? 'pale_oak_log'
-      : (theme === 'aether' ? 'holystone' : (theme === 'rocket_corp' ? 'rocket_corp_wall' : 'anvil_iron')))));
+      : (theme === 'aether' ? 'holystone'
+      : (theme === 'rocket_corp' || theme === 'rocket_corp_exterior' ? 'rocket_corp_wall' : 'anvil_iron'))))));
     this.currentTheme = theme;
     this.currentFloorKey = floorKey;
     this.currentSubTexKey = subTexKey;
@@ -412,8 +422,9 @@ export class Arena3DBuilder {
     // Glowing Arena Border Rails (or Industrial Yellow/Black Hazard Curbs in Rocket Corp!)
     // Border rails are omitted on open-edge stages (floating islands & Nether) to permit free passage and void falling
     const accentHex = this.getThemeAccentColor(theme);
+    const isRocketCurb = theme === 'rocket_corp' || theme === 'rocket_corp_exterior';
     if (!isOpenEdgeTheme(theme)) {
-      const railMat = theme === 'rocket_corp'
+      const railMat = isRocketCurb
         ? new THREE.MeshStandardMaterial({
             map: getVoxelTexture('rocket_corp_hazard', 24, 1),
             roughness: 0.4,
@@ -425,7 +436,7 @@ export class Arena3DBuilder {
             emissiveIntensity: 0.55,
             roughness: 0.25
           });
-      const sideRailMat = theme === 'rocket_corp'
+      const sideRailMat = isRocketCurb
         ? new THREE.MeshStandardMaterial({
             map: getVoxelTexture('rocket_corp_hazard', 1, 10),
             roughness: 0.4,
@@ -456,8 +467,14 @@ export class Arena3DBuilder {
     this.buildBiomeColumns(theme, accentHex);
 
     // 3. Start Portal & Exit Portal (set slightly back in Z so the full player figure is always visible in front)
-    this.buildPortal(to3DX(sm.entranceDoor.x), -2.2, false, sm.isTrophyRoom ? 'ENTRY' : (theme === 'rocket_corp' ? 'AIRLOCK IN' : 'START'));
-    this.buildPortal(to3DX(sm.exitDoor.x), -2.2, true, sm.isTrophyRoom ? 'RESULTS' : (theme === 'rocket_corp' ? 'SECTOR EXIT' : 'EXIT'));
+    const startLabel = sm.isTrophyRoom
+      ? 'ENTRY'
+      : (theme === 'rocket_corp' ? 'AIRLOCK IN' : (theme === 'rocket_corp_exterior' ? 'PLAZA GATE' : 'START'));
+    const exitLabel = sm.isTrophyRoom
+      ? 'RESULTS'
+      : (theme === 'rocket_corp' ? 'SECTOR EXIT' : (theme === 'rocket_corp_exterior' ? 'HQ LOBBY' : (theme === 'stronghold' ? 'END PORTAL' : 'EXIT')));
+    this.buildPortal(to3DX(sm.entranceDoor.x), -2.2, false, startLabel);
+    this.buildPortal(to3DX(sm.exitDoor.x), -2.2, true, exitLabel);
 
     // 4. Static Platforms (3D Voxel Slabs)
     sm.platforms.forEach((p, idx) => {
@@ -542,6 +559,7 @@ export class Arena3DBuilder {
       root_gateway: 0x22c55e,
       creeper_clan: 0xa3e635,
       lucky_orb: 0xfacc15,
+      stronghold: 0x2dd4bf,
       the_end: 0xd946ef,
       aether: 0x38d9a9,
       ancient_city: 0x22d3ee,
@@ -551,6 +569,7 @@ export class Arena3DBuilder {
       chrome: 0x4285f4,
       spotify: 0x1db954,
       slides: 0xfbbc04,
+      rocket_corp_exterior: 0xff6b00,
       rocket_corp: 0xff6b00,
       zero_day: 0x00f5ff,
       trophy: 0xffd54a
@@ -1531,7 +1550,351 @@ export class Arena3DBuilder {
     });
   }
 
+  buildStrongholdSanctum() {
+    const stoneBrickTex = getVoxelTexture('stone_bricks', 3, 5);
+    stoneBrickTex.isShared = true;
+    const stoneSlabTex = getVoxelTexture('stone_bricks', 4, 2);
+    stoneSlabTex.isShared = true;
+    const oakPlanksTex = getVoxelTexture('oak_planks', 2, 3);
+    oakPlanksTex.isShared = true;
+    const portalFrameTex = getVoxelTexture('end_portal_frame', 1, 1);
+    portalFrameTex.isShared = true;
+    const portalVoidTex = getVoxelTexture('end_portal', 3, 3);
+    portalVoidTex.isShared = true;
+
+    const stoneMat = new THREE.MeshStandardMaterial({ map: stoneBrickTex, roughness: 0.72 });
+    const daisMat = new THREE.MeshStandardMaterial({ map: stoneSlabTex, roughness: 0.68 });
+    const oakMat = new THREE.MeshStandardMaterial({ map: oakPlanksTex, roughness: 0.6 });
+    const ironMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.82, roughness: 0.28 });
+    const torchFlameMat = new THREE.MeshStandardMaterial({
+      color: 0xfef08a,
+      emissive: new THREE.Color(0xf97316),
+      emissiveIntensity: 0.95
+    });
+
+    // 1. Subterranean Vaulted Stone-Brick Pillars, Arched Lintels & Wall Torches
+    const pillarXs = [-25.5, -15.5, -6.8, 6.8, 15.5, 25.5];
+    pillarXs.forEach((px, idx) => {
+      const colH = 8.4;
+      const col = new THREE.Mesh(new THREE.BoxGeometry(2.1, colH, 2.1), stoneMat);
+      col.position.set(px, colH / 2, -11.8);
+      col.castShadow = true;
+      col.receiveShadow = true;
+      const capital = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.55, 2.5), daisMat);
+      capital.position.set(px, colH + 0.25, -11.8);
+
+      // Wall torch sconce on inner face
+      const stick = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.72, 0.16),
+        new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.75 })
+      );
+      stick.position.set(px, 4.1, -10.55);
+      stick.rotation.x = 0.28;
+      const flame = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.28, 0.26), torchFlameMat);
+      flame.position.set(px, 4.48, -10.42);
+
+      this.group.add(col, capital, stick, flame);
+      if (idx < pillarXs.length - 1) {
+        const nextX = pillarXs[idx + 1];
+        const span = nextX - px;
+        const archBeam = new THREE.Mesh(new THREE.BoxGeometry(span, 0.95, 1.5), daisMat);
+        archBeam.position.set((px + nextX) * 0.5, colH + 0.65, -11.8);
+        this.group.add(archBeam);
+      }
+    });
+
+    // 2. West Wing: Stronghold Library Two-Tier Oak Bookshelves + Enchanted Lectern
+    const libraryGroup = new THREE.Group();
+    libraryGroup.name = 'strongholdLibraryWing';
+    libraryGroup.position.set(-20.4, 0, -10.5);
+    const bookColors = [0xef4444, 0x3b82f6, 0x22c55e, 0xeab308, 0xa855f7];
+    [-2.4, 0, 2.4].forEach((bx, bIdx) => {
+      const caseMesh = new THREE.Mesh(new THREE.BoxGeometry(2.1, 4.6, 1.2), oakMat);
+      caseMesh.position.set(bx, 2.3, 0);
+      caseMesh.castShadow = true;
+      libraryGroup.add(caseMesh);
+      for (let shelf = 0; shelf < 3; shelf++) {
+        for (let tome = 0; tome < 4; tome++) {
+          const spine = new THREE.Mesh(
+            new THREE.BoxGeometry(0.32, 0.82, 0.16),
+            new THREE.MeshStandardMaterial({
+              color: bookColors[(bIdx + shelf + tome) % bookColors.length],
+              roughness: 0.5
+            })
+          );
+          spine.position.set(bx - 0.62 + tome * 0.42, 0.95 + shelf * 1.35, 0.58);
+          libraryGroup.add(spine);
+        }
+      }
+    });
+    this.group.add(libraryGroup);
+
+    // 3. East Wing: Stronghold Wrought-Iron Prison Cell & Barred Doorway
+    const prisonGroup = new THREE.Group();
+    prisonGroup.name = 'strongholdPrisonCell';
+    prisonGroup.position.set(20.4, 0, -10.4);
+    const cellHeader = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.75, 1.4), daisMat);
+    cellHeader.position.y = 4.55;
+    const cellBase = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.45, 1.4), daisMat);
+    cellBase.position.y = 0.22;
+    prisonGroup.add(cellHeader, cellBase);
+    for (let barIdx = -6; barIdx <= 6; barIdx++) {
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 4.2, 6), ironMat);
+      bar.position.set(barIdx * 0.48, 2.3, 0.42);
+      prisonGroup.add(bar);
+    }
+    [1.45, 2.95].forEach((railY) => {
+      const crossRail = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.12, 0.16), ironMat);
+      crossRail.position.set(0, railY, 0.42);
+      prisonGroup.add(crossRail);
+    });
+    this.group.add(prisonGroup);
+
+    // 4. Centerpiece: Raised Stone-Brick Dais & 12-Block End Portal Ring with Lit Eyes of Ender
+    const portalSanctum = new THREE.Group();
+    portalSanctum.name = 'strongholdEndPortalSanctum';
+    portalSanctum.position.set(0, 0, -5.6);
+
+    const lowerStep = new THREE.Mesh(new THREE.BoxGeometry(8.4, 0.48, 6.8), daisMat);
+    lowerStep.position.y = 0.24;
+    const upperStep = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.48, 5.6), daisMat);
+    upperStep.position.y = 0.72;
+    portalSanctum.add(lowerStep, upperStep);
+
+    const frameMat = new THREE.MeshStandardMaterial({
+      map: portalFrameTex,
+      roughness: 0.42,
+      metalness: 0.18
+    });
+    const eyeMat = new THREE.MeshStandardMaterial({
+      color: 0x5eead4,
+      emissive: new THREE.Color(0x14b8a6),
+      emissiveIntensity: 0.95,
+      roughness: 0.2
+    });
+    const riftMat = new THREE.MeshBasicMaterial({
+      map: portalVoidTex,
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.94
+    });
+
+    // 12 End Portal Frame Blocks (3 North, 3 South, 3 West, 3 East) + 12 Glowing Eyes of Ender
+    const ringCoords = [
+      [-1.1, -2.0], [0, -2.0], [1.1, -2.0],
+      [-1.1, 2.0], [0, 2.0], [1.1, 2.0],
+      [-2.0, -1.1], [-2.0, 0], [-2.0, 1.1],
+      [2.0, -1.1], [2.0, 0], [2.0, 1.1]
+    ];
+    ringCoords.forEach(([rx, rz]) => {
+      const fBlock = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.76, 0.96), frameMat);
+      fBlock.position.set(rx, 1.34, rz);
+      fBlock.castShadow = true;
+      const eyeBlock = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.3, 0.46), eyeMat);
+      eyeBlock.position.set(rx, 1.84, rz);
+      portalSanctum.add(fBlock, eyeBlock);
+    });
+
+    // Starry End Void Rift Plane inside the 12-block portal ring
+    const riftMesh = new THREE.Mesh(new THREE.PlaneGeometry(3.15, 3.15), riftMat);
+    riftMesh.name = 'strongholdEndRift';
+    riftMesh.rotation.x = -Math.PI / 2;
+    riftMesh.position.set(0, 1.56, 0);
+    portalSanctum.add(riftMesh);
+
+    const signTex = makeTextSignTexture('END PORTAL // 12/12 EYES', 'STRONGHOLD SANCTUM', '#0f172a', '#2dd4bf', '#ccfbf1');
+    const signBoard = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.8, 1.1),
+      new THREE.MeshBasicMaterial({ map: signTex })
+    );
+    signBoard.position.set(0, 3.25, -2.2);
+    portalSanctum.add(signBoard);
+
+    this.strongholdEndPortal = { group: portalSanctum, eyeMat, riftMat, riftMesh };
+    this.group.add(portalSanctum);
+  }
+
+  buildRocketCorpExterior() {
+    const wallMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('rocket_corp_wall', 6, 8),
+      roughness: 0.38,
+      metalness: 0.48
+    });
+    const darkSteel = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      metalness: 0.78,
+      roughness: 0.26
+    });
+    const hazardMat = new THREE.MeshStandardMaterial({
+      map: getVoxelTexture('rocket_corp_hazard', 6, 1),
+      roughness: 0.4
+    });
+    const cyanGlow = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      emissive: new THREE.Color(0x0284c7),
+      emissiveIntensity: 0.85,
+      roughness: 0.2
+    });
+    const orangeGlow = new THREE.MeshStandardMaterial({
+      color: 0xff6b00,
+      emissive: new THREE.Color(0xff6b00),
+      emissiveIntensity: 0.85,
+      roughness: 0.25
+    });
+
+    // 1. Centerpiece: Towering Monolithic Rocket Corp HQ Skyscraper Facade & Grand Main Lobby
+    const towerGroup = new THREE.Group();
+    towerGroup.name = 'rocketCorpExteriorTower';
+    towerGroup.position.set(0, 0, -12.3);
+
+    const mainTower = new THREE.Mesh(new THREE.BoxGeometry(15.2, 18.0, 3.2), wallMat);
+    mainTower.position.y = 9.0;
+    mainTower.castShadow = true;
+    mainTower.receiveShadow = true;
+    towerGroup.add(mainTower);
+
+    // Side structural buttress wings & vertical cyan neon fins
+    [-8.4, 8.4].forEach((wx) => {
+      const wing = new THREE.Mesh(new THREE.BoxGeometry(2.2, 14.2, 2.6), darkSteel);
+      wing.position.set(wx, 7.1, 0.2);
+      const neonFin = new THREE.Mesh(new THREE.BoxGeometry(0.24, 15.5, 0.3), cyanGlow);
+      neonFin.position.set(wx > 0 ? wx - 1.15 : wx + 1.15, 7.8, 1.58);
+      towerGroup.add(wing, neonFin);
+    });
+
+    // Illuminated Glass Curtain-Wall Office Window Tiers
+    for (let floorIdx = 0; floorIdx < 5; floorIdx++) {
+      const wy = 5.4 + floorIdx * 2.15;
+      for (let colIdx = -2; colIdx <= 2; colIdx++) {
+        if (floorIdx >= 3 && Math.abs(colIdx) <= 1) continue; // Leave room for giant Rocket Corp Emblem!
+        const winPane = new THREE.Mesh(
+          new THREE.BoxGeometry(2.1, 0.92, 0.14),
+          (floorIdx + colIdx) % 3 === 0 ? orangeGlow : cyanGlow
+        );
+        winPane.position.set(colIdx * 2.65, wy, 1.64);
+        towerGroup.add(winPane);
+      }
+    }
+
+    // Giant Illuminated 3D Rocket Corp Emblem high on the HQ Tower Facade
+    const hqEmblem = this.createRocketCorpEmblem3D(1.12);
+    hqEmblem.position.set(0, 13.8, 1.72);
+    towerGroup.add(hqEmblem);
+
+    // Grand Ground-Floor Rocket Corp Lobby Canopy & Glowing Revolving Glass Doors
+    const lobbyCanopy = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.65, 2.8), darkSteel);
+    lobbyCanopy.position.set(0, 3.85, 2.1);
+    const canopyTrim = new THREE.Mesh(new THREE.BoxGeometry(9.7, 0.18, 2.9), orangeGlow);
+    canopyTrim.position.set(0, 4.18, 2.1);
+    const lobbyGlass = new THREE.Mesh(
+      new THREE.BoxGeometry(6.4, 3.5, 0.28),
+      new THREE.MeshStandardMaterial({
+        color: 0xbae6fd,
+        emissive: new THREE.Color(0x0ea5e9),
+        emissiveIntensity: 0.72,
+        transparent: true,
+        opacity: 0.85
+      })
+    );
+    lobbyGlass.position.set(0, 1.75, 1.68);
+    const lobbySignTex = makeTextSignTexture('ROCKET CORP HQ', 'MAIN LOBBY // AUTHORIZED ONLY', '#0f172a', '#ff6b00', '#ffffff');
+    const lobbySign = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.8, 1.15),
+      new THREE.MeshBasicMaterial({ map: lobbySignTex })
+    );
+    lobbySign.position.set(0, 4.85, 2.25);
+    towerGroup.add(lobbyCanopy, canopyTrim, lobbyGlass, lobbySign);
+    this.group.add(towerGroup);
+
+    // 2. West Flank: Perimeter Security Gatehouse & Striped Boom Barrier
+    const gatehouse = new THREE.Group();
+    gatehouse.name = 'rocketCorpGatehouse';
+    gatehouse.position.set(-20.2, 0, -9.8);
+    const boothBody = new THREE.Mesh(new THREE.BoxGeometry(4.6, 3.8, 3.2), wallMat);
+    boothBody.position.y = 1.9;
+    boothBody.castShadow = true;
+    const boothRoof = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.5, 3.6), darkSteel);
+    boothRoof.position.y = 4.05;
+    const boothWindow = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.3, 0.18), cyanGlow);
+    boothWindow.position.set(0, 2.35, 1.62);
+    const boomPost = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.65, 0.65), darkSteel);
+    boomPost.position.set(3.2, 0.82, 1.2);
+    const boomArm = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.24, 0.24), hazardMat);
+    boomArm.position.set(5.4, 1.42, 1.2);
+    boomArm.rotation.z = 0.14;
+    const gateSignTex = makeTextSignTexture('CHECKPOINT 01', 'STOP // SCAN ID', '#0f172a', '#38bdf8', '#facc15');
+    const gateSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 0.95),
+      new THREE.MeshBasicMaterial({ map: gateSignTex })
+    );
+    gateSign.position.set(0, 4.85, 1.5);
+    gatehouse.add(boothBody, boothRoof, boothWindow, boomPost, boomArm, gateSign);
+    this.group.add(gatehouse);
+
+    // 3. East Flank: Parked Rocket Corp Mercenary Armored Hover-Van + Patrol Hover-Bike
+    const vanGroup = new THREE.Group();
+    vanGroup.name = 'rocketCorpArmoredVan';
+    vanGroup.position.set(19.6, 0, -9.4);
+    const vanHull = new THREE.Mesh(new THREE.BoxGeometry(5.8, 2.5, 2.6), darkSteel);
+    vanHull.position.y = 1.65;
+    vanHull.castShadow = true;
+    const vanCab = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.9, 2.45), darkSteel);
+    vanCab.position.set(-3.4, 1.35, 0);
+    const vanWindshield = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.9, 2.1), cyanGlow);
+    vanWindshield.position.set(-4.32, 1.65, 0);
+    const vanStripe = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.28, 2.66), orangeGlow);
+    vanStripe.position.set(-0.6, 1.55, 0);
+    const skidFront = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.82, 0.24, 14), cyanGlow);
+    skidFront.position.set(-2.6, 0.32, 0);
+    const skidRear = skidFront.clone();
+    skidRear.position.set(1.8, 0.32, 0);
+    vanGroup.add(vanHull, vanCab, vanWindshield, vanStripe, skidFront, skidRear);
+    this.group.add(vanGroup);
+
+    const patrolBike = this.createRocketCorpHoverBike3D(-1);
+    patrolBike.position.set(13.2, 0, -8.5);
+    this.group.add(patrolBike);
+
+    // 4. Sweeping Volumetric Perimeter Security Searchlight Cones
+    this.rocketExteriorSearchlights = [
+      { x: -25.2, baseAngle: -0.28, speed: 1.15, phase: 0, color: 0x38bdf8 },
+      { x: 25.2, baseAngle: 0.28, speed: 0.95, phase: 1.9, color: 0xff6b00 }
+    ].map((spec) => {
+      const rig = new THREE.Group();
+      rig.name = 'rocketExteriorSearchlight';
+      rig.position.set(spec.x, 0.4, -11.2);
+      const basePod = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.85, 0.8, 12), darkSteel);
+      rig.add(basePod);
+
+      const pivot = new THREE.Group();
+      pivot.position.y = 0.5;
+      const coneMat = new THREE.MeshBasicMaterial({
+        color: spec.color,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(2.6, 16.5, 16, 1, true), coneMat);
+      cone.position.y = 8.25;
+      cone.rotation.z = Math.PI;
+      pivot.add(cone);
+      pivot.rotation.z = spec.baseAngle;
+      rig.add(pivot);
+      this.group.add(rig);
+      return { pivot, baseAngle: spec.baseAngle, speed: spec.speed, phase: spec.phase };
+    });
+  }
+
   buildBiomeColumns(theme, accentHex) {
+    if (theme === 'stronghold') {
+      this.buildStrongholdSanctum();
+      return;
+    }
+    if (theme === 'rocket_corp_exterior') {
+      this.buildRocketCorpExterior();
+      return;
+    }
     if (theme === 'rocket_corp') {
       this.buildRocketCorpFacility();
       return;
@@ -2019,15 +2382,19 @@ export class Arena3DBuilder {
     const group = new THREE.Group();
     group.position.set(x3d, 0, z3d);
 
-    const isRocketCorp = this.stageManager?.theme === 'rocket_corp';
-    const isAncientCity = this.stageManager?.theme === 'ancient_city';
-    const isPaleGarden = this.stageManager?.theme === 'pale_garden';
-    const isOverworld = this.stageManager?.theme === 'overworld';
+    const theme = this.stageManager?.theme;
+    const isRocketCorp = theme === 'rocket_corp' || theme === 'rocket_corp_exterior';
+    const isStronghold = theme === 'stronghold';
+    const isAncientCity = theme === 'ancient_city';
+    const isPaleGarden = theme === 'pale_garden';
+    const isOverworld = theme === 'overworld';
     const frameMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(
         isRocketCorp
           ? 'rocket_corp_wall'
-          : (isAncientCity ? 'reinforced_deepslate' : (isPaleGarden ? 'pale_oak_log' : (isOverworld ? 'oak_log' : 'obsidian'))),
+          : (isStronghold ? 'stone_bricks'
+          : (isAncientCity ? 'reinforced_deepslate'
+          : (isPaleGarden ? 'pale_oak_log' : (isOverworld ? 'oak_log' : 'obsidian')))),
         1,
         2
       ),
@@ -2062,13 +2429,18 @@ export class Arena3DBuilder {
 
     const signTex = makeTextSignTexture(
       label,
-      isRocketCorp
-        ? 'ROCKET CORP'
-        : (isAncientCity ? 'DEEP DARK' : (isPaleGarden ? 'PALE GARDEN' : (isOverworld ? 'OVERWORLD' : (isExit ? 'PORTAL' : 'SPAWN')))),
+      theme === 'rocket_corp_exterior'
+        ? 'OUTSIDE HQ'
+        : (isRocketCorp ? 'ROCKET CORP'
+        : (isStronghold ? 'STRONGHOLD'
+        : (isAncientCity ? 'DEEP DARK'
+        : (isPaleGarden ? 'PALE GARDEN' : (isOverworld ? 'OVERWORLD' : (isExit ? 'PORTAL' : 'SPAWN')))))),
       '#0f172a',
       isRocketCorp
         ? '#ff6b00'
-        : (isAncientCity ? '#22d3ee' : (isPaleGarden ? '#fb923c' : (isOverworld ? '#4ade80' : (isExit ? '#10b981' : '#38bdf8'))))
+        : (isStronghold ? '#2dd4bf'
+        : (isAncientCity ? '#22d3ee'
+        : (isPaleGarden ? '#fb923c' : (isOverworld ? '#4ade80' : (isExit ? '#10b981' : '#38bdf8')))))
     );
     const signMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2.4, 0.9),
@@ -2094,6 +2466,7 @@ export class Arena3DBuilder {
     const group = new THREE.Group();
     const texKey = theme === 'command_realm' ? 'gold_block'
       : (theme === 'minecraft' ? 'obsidian'
+      : (theme === 'stronghold' ? 'stone_bricks'
       : (theme === 'overworld' ? (isMoving ? 'cobblestone' : 'oak_planks')
       : (theme === 'the_end' ? 'purpur_block'
       : (theme === 'aether' ? 'holystone'
@@ -2103,9 +2476,9 @@ export class Arena3DBuilder {
       : (theme === 'chrome' ? 'chrome_floor'
       : (theme === 'spotify' ? 'spotify_floor'
       : (theme === 'slides' ? 'slides_floor'
-      : (theme === 'rocket_corp' ? 'rocket_corp_wall'
+      : (theme === 'rocket_corp' || theme === 'rocket_corp_exterior' ? 'rocket_corp_wall'
       : (theme === 'lucky_orb' ? 'lucky_block'
-      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron')))))))))))));
+      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))))))))))));
 
     const bodyMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(texKey, Math.max(2, Math.round(w / 2)), 2),
@@ -2129,7 +2502,7 @@ export class Arena3DBuilder {
       ? new THREE.Color(p.accent).getHex()
       : (isMoving && !isAppTheme ? 0x38bdf8 : this.getThemeAccentColor(theme));
 
-    const headerMat = theme === 'rocket_corp' && !isMoving
+    const headerMat = (theme === 'rocket_corp' || theme === 'rocket_corp_exterior') && !isMoving
       ? new THREE.MeshStandardMaterial({
           map: getVoxelTexture('rocket_corp_hazard', Math.max(4, Math.round(w)), 1),
           roughness: 0.35
@@ -2879,7 +3252,7 @@ export class Arena3DBuilder {
     const bullets = [
       '• Grab the Giant Pink Eraser pickup!',
       '• Jump across Text Boxes & Chart Bars',
-      '• Next Stop: Rocket Corp HQ ("The Box")'
+      '• Next Stop: Outside Rocket Corp HQ'
     ];
     bullets.forEach((b, idx) => {
       ctx.fillStyle = '#3c4043';
@@ -2922,6 +3295,10 @@ export class Arena3DBuilder {
       ctx.fillText('untitled.fla — 100% — WHITE VOID OVERRIDE', 48, 72);
       ctx.fillStyle = '#00f5ff';
       ctx.fillRect(48, 100, w - 96, 6);
+    } else if (sm.theme === 'stronghold') {
+      this.drawStrongholdMonitorBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'rocket_corp_exterior') {
+      this.drawRocketCorpExteriorBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'rocket_corp') {
       this.drawRocketCorpControlRoom(ctx, w, h, sm);
     } else if (sm.theme === 'ancient_city') {
@@ -3280,7 +3657,7 @@ export class Arena3DBuilder {
 
     ctx.fillStyle = '#86efac';
     ctx.font = 'bold 21px monospace';
-    ctx.fillText('ACT VI // STAGE 22: MINECRAFT OVERWORLD — SUNLIT PLAINS & VILLAGE', w / 2, 52);
+    ctx.fillText('ACT VI // STAGE 23: MINECRAFT OVERWORLD — SUNLIT PLAINS & VILLAGE', w / 2, 52);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 31px monospace';
@@ -3306,6 +3683,209 @@ export class Arena3DBuilder {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#86efac';
     ctx.fillText(sm.isObjectiveComplete ? 'VILLAGE STATUS: SAFE' : 'HOSTILE RAID: ACTIVE', w - 28, h - 22);
+  }
+
+  drawStrongholdMonitorBackdrop(ctx, w, h, sm) {
+    // 1. Subterranean Cracked & Mossy Stone-Brick Vault Wall
+    ctx.fillStyle = '#1e2229';
+    ctx.fillRect(0, 0, w, h);
+
+    for (let row = 0; row < 8; row++) {
+      const by = row * 56;
+      const offset = (row % 2) * 48;
+      for (let bx = -offset; bx < w; bx += 96) {
+        const idx = Math.abs(Math.floor(bx / 48) + row * 7);
+        ctx.fillStyle = idx % 7 === 0 ? '#2b3a26' : (idx % 3 === 0 ? '#2d333c' : '#252a32');
+        ctx.fillRect(bx + 2, by + 2, 92, 52);
+        ctx.fillStyle = 'rgba(148, 163, 184, 0.12)';
+        ctx.fillRect(bx + 2, by + 2, 92, 5);
+      }
+    }
+
+    // 2. Arched Subterranean Corridors (Library Left, End Sanctum Center, Prison Right)
+    [160, w / 2, w - 160].forEach((ax, idx) => {
+      const aw = idx === 1 ? 320 : 210;
+      ctx.fillStyle = '#090d14';
+      ctx.fillRect(ax - aw / 2, 168, aw, h - 228);
+      ctx.strokeStyle = idx === 1 ? '#2dd4bf' : '#64748b';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(ax - aw / 2, 168, aw, h - 228);
+    });
+
+    // Iron bars across right corridor + bookshelf rows in left corridor
+    for (let bx = w - 248; bx <= w - 72; bx += 22) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(bx, 172, 4, h - 236);
+    }
+    for (let sy = 188; sy < h - 84; sy += 38) {
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(68, sy, 184, 8);
+      for (let tx = 76; tx < 242; tx += 18) {
+        ctx.fillStyle = tx % 36 === 0 ? '#ef4444' : (tx % 24 === 0 ? '#3b82f6' : '#22c55e');
+        ctx.fillRect(tx, sy - 20, 12, 20);
+      }
+    }
+
+    // Center End Portal Starry Rift & 12 Lit Eyes of Ender Indicator
+    ctx.fillStyle = '#040711';
+    ctx.fillRect(w / 2 - 128, 196, 256, 148);
+    for (let s = 0; s < 28; s++) {
+      ctx.fillStyle = s % 2 === 0 ? '#5eead4' : '#c084fc';
+      ctx.fillRect(w / 2 - 116 + ((s * 43) % 228), 206 + ((s * 29) % 126), 4, 4);
+    }
+    for (let e = 0; e < 12; e++) {
+      const ex = w / 2 - 132 + e * 24;
+      ctx.fillStyle = '#14b8a6';
+      ctx.fillRect(ex, 354, 16, 12);
+      ctx.fillStyle = '#ecfdf5';
+      ctx.fillRect(ex + 6, 356, 4, 8);
+    }
+
+    // 3. Stronghold Sanctum Telemetry Banner
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(w / 2 - 440, 18, 880, 132);
+    ctx.strokeStyle = '#2dd4bf';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(w / 2 - 440, 18, 880, 132);
+
+    ctx.fillStyle = '#5eead4';
+    ctx.font = 'bold 21px monospace';
+    ctx.fillText('ACT V // STAGE 18: THE STRONGHOLD — END PORTAL SANCTUM', w / 2, 52);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 31px monospace';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ END PORTAL IGNITED — ENTER THE END!' : '🏰 CLEAR THE STRONGHOLD GUARDIANS TO REACH THE END!',
+      w / 2,
+      96
+    );
+
+    ctx.fillStyle = '#fde047';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('12/12 EYES OF ENDER SOCKETED  •  LEAP CENTRAL LAVA POOL  •  NEXT: THE END', w / 2, 132);
+
+    // 4. Mossy Stone-Brick Footer Bar
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(0, h - 60, w, 60);
+    ctx.fillStyle = '#2dd4bf';
+    ctx.fillRect(0, h - 60, w, 5);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ccfbf1';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('🏰 STRONGHOLD // Y = -34  •  LIBRARY & PORTAL VAULT', 28, h - 22);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#5eead4';
+    ctx.fillText(sm.isObjectiveComplete ? 'END RIFT: OPEN' : 'PORTAL LOCK: GUARDED', w - 28, h - 22);
+  }
+
+  drawRocketCorpExteriorBackdrop(ctx, w, h, sm) {
+    // 1. Outernet Industrial Dusk / Twilight Sky Gradient (Outside Rocket Corp HQ)
+    const grad = typeof ctx.createLinearGradient === 'function' ? ctx.createLinearGradient(0, 0, 0, h) : null;
+    if (grad && typeof grad.addColorStop === 'function') {
+      grad.addColorStop(0, '#090d1a');
+      grad.addColorStop(0.45, '#172542');
+      grad.addColorStop(0.76, '#334155');
+      grad.addColorStop(1, '#7c2d12');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#172542';
+    }
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Sweeping Perimeter Security Searchlight Beams in the Dusk Sky
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+    ctx.beginPath();
+    ctx.moveTo(140, h - 68);
+    ctx.lineTo(310, 0);
+    ctx.lineTo(430, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 107, 0, 0.14)';
+    ctx.beginPath();
+    ctx.moveTo(w - 140, h - 68);
+    ctx.lineTo(w - 430, 0);
+    ctx.lineTo(w - 310, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // 3. Distant Outernet Industrial Cityscape & Monolithic Rocket Corp HQ Silhouette
+    const skyline = [
+      { x: 24, bw: 92, bh: 156 },
+      { x: 132, bw: 112, bh: 198 },
+      { x: 262, bw: 96, bh: 148 },
+      { x: w - 358, bw: 96, bh: 154 },
+      { x: w - 244, bw: 114, bh: 204 },
+      { x: w - 116, bw: 92, bh: 162 }
+    ];
+    skyline.forEach((b, idx) => {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(b.x, h - 64 - b.bh, b.bw, b.bh);
+      ctx.fillStyle = idx % 2 === 0 ? '#38bdf8' : '#ff6b00';
+      for (let wy = h - 48 - b.bh; wy < h - 82; wy += 24) {
+        ctx.fillRect(b.x + 14, wy, b.bw - 28, 6);
+      }
+    });
+
+    // Center Rocket Corp HQ Monolith Silhouette
+    ctx.fillStyle = '#0b1324';
+    ctx.fillRect(w / 2 - 134, 138, 268, h - 202);
+    ctx.strokeStyle = '#ff6b00';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(w / 2 - 134, 138, 268, h - 202);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(w / 2, 224, 42, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 190);
+    ctx.lineTo(w / 2 + 16, 224);
+    ctx.lineTo(w / 2 + 12, 252);
+    ctx.lineTo(w / 2 - 12, 252);
+    ctx.lineTo(w / 2 - 16, 224);
+    ctx.closePath();
+    ctx.fill();
+
+    // 4. Exterior Perimeter Alert Banner
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(w / 2 - 448, 16, 896, 118);
+    ctx.strokeStyle = '#ff6b00';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(w / 2 - 448, 16, 896, 118);
+
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 21px monospace';
+    ctx.fillText('ACT VIII // STAGE 28: OUTSIDE ROCKET CORP — PERIMETER PLAZA', w / 2, 50);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 30px monospace';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ MAIN LOBBY BREACHED — ENTER ROCKET CORP HQ!' : '🏢 BREACH THE ROCKET CORP EXTERIOR SECURITY GATE!',
+      w / 2,
+      90
+    );
+
+    ctx.fillStyle = '#facc15';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('LEAP PERIMETER LASER GATE  •  RIDE PATROL DRONE  •  NEXT: ROCKET CORP HQ', w / 2, 120);
+
+    // 5. Security Asphalt & Caution Curb Footer
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, h - 64, w, 64);
+    ctx.fillStyle = '#facc15';
+    for (let sx = 0; sx < w; sx += 48) {
+      ctx.fillRect(sx, h - 64, 24, 7);
+    }
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('🏢 ROCKET CORP // EXTERIOR SECURITY CHECKPOINT & HOVER-VAN BAY', 28, h - 22);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#ff6b00';
+    ctx.fillText(sm.isObjectiveComplete ? 'BLAST DOORS: UNLOCKED' : 'PERIMETER LOCKDOWN: ACTIVE', w - 28, h - 22);
   }
 
   update(dt) {
@@ -3354,6 +3934,27 @@ export class Arena3DBuilder {
       this.exitPortalMat.opacity = isOpen ? 0.65 + Math.sin(sm.stageTime * 8) * 0.2 : 0.45;
       if (this.exitSignMesh) {
         this.exitSignMesh.position.y = 4.7 + (isOpen ? Math.sin(sm.stageTime * 6) * 0.22 : 0);
+      }
+    }
+
+    // Pulse Stronghold End Portal Eyes of Ender & Starry Void Rift
+    if (this.strongholdEndPortal) {
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+      if (this.strongholdEndPortal.eyeMat) {
+        this.strongholdEndPortal.eyeMat.emissiveIntensity = 0.85 + Math.sin(t * 4.2) * 0.25;
+      }
+      if (this.strongholdEndPortal.riftMat) {
+        this.strongholdEndPortal.riftMat.opacity = 0.86 + Math.sin(t * 3.4) * 0.1;
+      }
+    }
+
+    // Sweep Outside Rocket Corp Perimeter Searchlights
+    if (this.rocketExteriorSearchlights && this.rocketExteriorSearchlights.length > 0) {
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+      for (const beam of this.rocketExteriorSearchlights) {
+        if (beam.pivot) {
+          beam.pivot.rotation.z = beam.baseAngle + Math.sin(t * beam.speed + beam.phase) * 0.34;
+        }
       }
     }
 

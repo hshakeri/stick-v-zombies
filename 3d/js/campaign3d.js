@@ -1576,7 +1576,7 @@ export class CreakingBoss {
 }
 
 // ============================================================================
-// 5. 3D CAMPAIGN EXTENSION (18: The End, 19: Aether, 20: Ancient City, 21: Pale Garden, 22: Rocket Corp, 23: H4C3R)
+// 5. 3D CAMPAIGN EXTENSION (18: Stronghold, 19: The End .. 28: Outside Rocket Corp, 29: Rocket Corp, 30: H4C3R)
 // ============================================================================
 export const CAMPAIGN_BEATS_3D = Object.freeze({
   ...CAMPAIGN_BEATS,
@@ -1592,11 +1592,19 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     act: 'V - ROOT OF LUCK',
     mission: 'OUTLUCK THE LUCKY ORB',
     clearText: 'ORB SENT HOME!',
-    clue: 'VOID RIFT: THE END',
+    clue: 'SUBTERRANEAN VAULT: THE STRONGHOLD',
     bossLabel: 'THE LUCKY ORB',
     allyReaction: Object.freeze({ ally: 'yellow', line: 'LUCK RAN OUT!' })
   }),
   18: Object.freeze({
+    act: 'VI - DIMENSIONS BEYOND',
+    mission: 'LIGHT THE STRONGHOLD END PORTAL',
+    clearText: 'END PORTAL IGNITED!',
+    clue: 'VOID RIFT OPEN: THE END',
+    bossLabel: null,
+    allyReaction: Object.freeze({ ally: 'red', line: 'ALL TWELVE EYES OF ENDER ARE LIT!' })
+  }),
+  19: Object.freeze({
     act: 'VI - DIMENSIONS BEYOND',
     mission: 'SLAY THE ENDER DRAGON',
     clearText: 'THE END LIBERATED!',
@@ -1604,7 +1612,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: 'ENDER DRAGON',
     allyReaction: Object.freeze({ ally: 'red', line: 'DRAGON DOWN! BIG EGG!' })
   }),
-  19: Object.freeze({
+  20: Object.freeze({
     act: 'VI - DIMENSIONS BEYOND',
     mission: 'CROSS THE AETHER SKYLANDS',
     clearText: 'AETHER BRIDGE CLEAR!',
@@ -1612,7 +1620,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'blue', line: 'GOLDEN TREES! SHINY!' })
   }),
-  20: Object.freeze({
+  21: Object.freeze({
     act: 'VI - DIMENSIONS BEYOND',
     mission: 'SILENCE THE WARDEN',
     clearText: 'ANCIENT CITY SILENCED!',
@@ -1620,7 +1628,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: 'THE WARDEN',
     allyReaction: Object.freeze({ ally: 'green', line: 'NO MORE NOTE BLOCKS DOWN HERE!' })
   }),
-  21: Object.freeze({
+  22: Object.freeze({
     act: 'VI - DIMENSIONS BEYOND',
     mission: 'SHATTER THE CREAKING',
     clearText: 'CREAKING HEART SHATTERED!',
@@ -1628,7 +1636,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: 'THE CREAKING',
     allyReaction: Object.freeze({ ally: 'yellow', line: 'KEEP EYES ON THE TREE!' })
   }),
-  22: Object.freeze({
+  23: Object.freeze({
     act: 'VI - MINECRAFT EXPANSION',
     mission: 'DEFEND THE OVERWORLD VILLAGE',
     clearText: 'OVERWORLD SECURED!',
@@ -1636,7 +1644,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'blue', line: 'FRESH AIR! WATCH FOR CREEPERS & TNT!' })
   }),
-  23: Object.freeze({
+  24: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'SURVIVE THE VIRAL STREAM',
     clearText: 'STREAM MONETIZED!',
@@ -1644,7 +1652,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'green', line: 'SMASH THAT SUBSCRIBE BUTTON!' })
   }),
-  24: Object.freeze({
+  25: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'CLEAR THE BROWSER TABS',
     clearText: 'CACHE PURGED!',
@@ -1652,7 +1660,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'yellow', line: 'WATCH THE RAM USAGE!' })
   }),
-  25: Object.freeze({
+  26: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'RIDE THE BASS DROP',
     clearText: 'PLAYLIST MASTERED!',
@@ -1660,15 +1668,23 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'green', line: 'THIS BEAT DROPS HARD!' })
   }),
-  26: Object.freeze({
+  27: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'CRASH THE PRESENTATION',
     clearText: 'SLIDE DECK PRESENTED!',
-    clue: 'SIGNAL LOCKED: ROCKET CORP HQ',
+    clue: 'PERIMETER CHECKPOINT: OUTSIDE ROCKET CORP',
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'blue', line: 'NEXT SLIDE, PLEASE!' })
   }),
-  27: Object.freeze({
+  28: Object.freeze({
+    act: 'VIII - ROCKET CORP CONTAINMENT',
+    mission: 'BREACH THE ROCKET CORP GATES',
+    clearText: 'PERIMETER BREACHED!',
+    clue: 'ENTERING FACILITY: ROCKET CORP HQ',
+    bossLabel: null,
+    allyReaction: Object.freeze({ ally: 'chosen', line: 'THAT TOWER... THEY ARE INSIDE.' })
+  }),
+  29: Object.freeze({
     act: 'VIII - ROCKET CORP CONTAINMENT',
     mission: 'DEFEAT THE MERCENARIES',
     clearText: 'THE BOX BREACHED!',
@@ -1676,7 +1692,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: 'AGENT · BALLISTA · PRIMAL · HAZARD',
     allyReaction: Object.freeze({ ally: 'chosen', line: 'NOT GOING BACK IN THE BOX.' })
   }),
-  28: Object.freeze({
+  30: Object.freeze({
     act: 'IX - ZERO-DAY FINALE',
     mission: 'LOG OUT H4C3R',
     clearText: 'SYSTEM RESTORED!',
@@ -1870,7 +1886,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   const origEnterTrophy = stageManager.enterTrophyRoom ? stageManager.enterTrophyRoom.bind(stageManager) : () => {};
   const origGetBeat = stageManager.getCampaignBeat ? stageManager.getCampaignBeat.bind(stageManager) : (s) => CAMPAIGN_BEATS_3D[s] || {};
 
-  stageManager.maxStage = 28;
+  stageManager.maxStage = 30;
   stageManager.lavaHazards = stageManager.currentStage === 7 ? [
     { x: -360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 },
     { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 }
@@ -1888,17 +1904,17 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   }
 
   stageManager.getCampaignBeat = (stageNum = stageManager.currentStage) => {
-    const stage = Math.max(1, Math.min(28, Math.trunc(Number(stageNum)) || 1));
+    const stage = Math.max(1, Math.min(30, Math.trunc(Number(stageNum)) || 1));
     return CAMPAIGN_BEATS_3D[stage] || origGetBeat(stage);
   };
 
   stageManager.loadStage = (stageNum) => {
     const numericStage = Number.isFinite(stageNum) ? Math.trunc(stageNum) : 1;
-    const stage = Math.max(1, Math.min(28, numericStage));
+    const stage = Math.max(1, Math.min(30, numericStage));
 
     if (stage <= 17) {
       origLoadStage(stage);
-      stageManager.maxStage = 28;
+      stageManager.maxStage = 30;
       stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
       if (stage === 7) {
         stageManager.lavaHazards = [
@@ -1919,20 +1935,20 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       return;
     }
 
-    if (stage === 28) {
-      // Stage 28 is Zero-Day Mainframe (H4C3R), built from original stage 18
+    if (stage === 30) {
+      // Stage 30 is Zero-Day Mainframe (H4C3R), built from original stage 18
       origLoadStage(18);
-      stageManager.currentStage = 28;
-      stageManager.maxStage = 28;
-      stageManager.campaignBeat = CAMPAIGN_BEATS_3D[28];
+      stageManager.currentStage = 30;
+      stageManager.maxStage = 30;
+      stageManager.campaignBeat = CAMPAIGN_BEATS_3D[30];
       stageManager.lavaHazards = [];
       return;
     }
 
-    // Reset common state via stage 1 then customize for Stages 18..27
+    // Reset common state via stage 1 then customize for Stages 18..29
     origLoadStage(1);
     stageManager.currentStage = stage;
-    stageManager.maxStage = 28;
+    stageManager.maxStage = 30;
     stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
     stageManager.platforms = [];
     stageManager.movingPlatforms = [];
@@ -1942,7 +1958,40 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
     stageManager.errorPopups = [];
 
     if (stage === 18) {
-      // STAGE 18: THE END (Ender Dragon Boss)
+      // STAGE 18: THE STRONGHOLD (Subterranean Stone-Brick Fortress & End Portal Room before The End!)
+      stageManager.stageName = 'The Stronghold';
+      stageManager.theme = 'stronghold';
+      stageManager.platforms = [
+        { x: -620, y: -165, width: 245, height: 22, title: 'Stronghold_Library_W', appType: 'stronghold' },
+        { x: 0, y: -275, width: 310, height: 24, title: 'End_Portal_Sanctum', appType: 'stronghold' },
+        { x: 620, y: -165, width: 245, height: 22, title: 'Iron_Prison_Walk_E', appType: 'stronghold' }
+      ];
+      stageManager.movingPlatforms = [
+        {
+          x: 0,
+          y: -150,
+          width: 195,
+          height: 20,
+          title: 'Stone_Brick_Bridge',
+          appType: 'stronghold',
+          minX: -320,
+          maxX: 320,
+          speed: 125,
+          dir: 1,
+          axis: 'x'
+        }
+      ];
+      stageManager.lavaHazards = [
+        { x: 0, y: 0, z: 0, width: 165, height: 10, depth3d: 185, damage: 20 }
+      ];
+      stageManager.desktopIcons = [
+        { x: -800, y: -125, label: 'Eye_of_Ender', icon: '👁', color: '#2dd4bf' },
+        { x: -320, y: -340, label: 'Stronghold_Tome', icon: '📖', color: '#facc15' },
+        { x: 320, y: -340, label: 'Silverfish_Cage', icon: '⛓', color: '#94a3b8' },
+        { x: 800, y: -125, label: 'Portal_Frame', icon: '▣', color: '#34d399' }
+      ];
+    } else if (stage === 19) {
+      // STAGE 19: THE END (Ender Dragon Boss)
       stageManager.stageName = 'The End';
       stageManager.theme = 'the_end';
       stageManager.platforms = [
@@ -1956,8 +2005,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 280, y: -330, label: 'Dragon_Egg', icon: '🥚', color: '#d946ef' },
         { x: 780, y: -130, label: 'End_Portal', icon: '▣', color: '#38bdf8' }
       ];
-    } else if (stage === 19) {
-      // STAGE 19: THE AETHER (Golden Skylands)
+    } else if (stage === 20) {
+      // STAGE 20: THE AETHER (Golden Skylands)
       stageManager.stageName = 'The Aether';
       stageManager.theme = 'aether';
       stageManager.platforms = [
@@ -1987,8 +2036,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 320, y: -360, label: 'Valkyrie_Lance', icon: '⚔', color: '#38d9a9' },
         { x: 800, y: -120, label: 'Sky_Bridge', icon: '☁', color: '#7dd3fc' }
       ];
-    } else if (stage === 20) {
-      // STAGE 20: ANCIENT CITY (Deep Dark — The Warden Boss)
+    } else if (stage === 21) {
+      // STAGE 21: ANCIENT CITY (Deep Dark — The Warden Boss)
       stageManager.stageName = 'Ancient City';
       stageManager.theme = 'ancient_city';
       stageManager.platforms = [
@@ -2017,8 +2066,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 310, y: -340, label: 'Echo_Shard', icon: '❖', color: '#06b6d4' },
         { x: 800, y: -130, label: 'Soul_Lantern', icon: '🕯', color: '#38bdf8' }
       ];
-    } else if (stage === 21) {
-      // STAGE 21: PALE GARDEN (Haunted Monochrome Grove — The Creaking Boss)
+    } else if (stage === 22) {
+      // STAGE 22: PALE GARDEN (Haunted Monochrome Grove — The Creaking Boss)
       stageManager.stageName = 'Pale Garden';
       stageManager.theme = 'pale_garden';
       stageManager.platforms = [
@@ -2047,8 +2096,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 310, y: -340, label: 'Resin_Clump', icon: '❖', color: '#facc15' },
         { x: 800, y: -130, label: 'Pale_Hanging_Moss', icon: '🌿', color: '#cbd5e1' }
       ];
-    } else if (stage === 22) {
-      // STAGE 22: MINECRAFT OVERWORLD (Sunlit Plains, Oak Village, Crafting Outpost & TNT Quarry)
+    } else if (stage === 23) {
+      // STAGE 23: MINECRAFT OVERWORLD (Sunlit Plains, Oak Village, Crafting Outpost & TNT Quarry)
       stageManager.stageName = 'Minecraft Overworld';
       stageManager.theme = 'overworld';
       stageManager.platforms = [
@@ -2077,8 +2126,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 320, y: -340, label: 'TNT_Quarry', icon: '🧨', color: '#ef4444' },
         { x: 800, y: -125, label: 'Diamond_Pick', icon: '⛏️', color: '#38bdf8' }
       ];
-    } else if (stage === 23) {
-      // STAGE 23: YOUTUBE STUDIO (Animation vs. YouTube — Viral Player Arena)
+    } else if (stage === 24) {
+      // STAGE 24: YOUTUBE STUDIO (Animation vs. YouTube — Viral Player Arena)
       stageManager.stageName = 'YouTube Studio';
       stageManager.theme = 'youtube';
       stageManager.platforms = [
@@ -2110,8 +2159,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 320, y: -340, label: 'Live_Chat', icon: '💬', color: '#f8fafc' },
         { x: 800, y: -125, label: 'Skip_Ad_5s', icon: '⏭', color: '#facc15' }
       ];
-    } else if (stage === 24) {
-      // STAGE 24: GOOGLE CHROME (Multi-Tab Browser & Offline Dino Arena)
+    } else if (stage === 25) {
+      // STAGE 25: GOOGLE CHROME (Multi-Tab Browser & Offline Dino Arena)
       stageManager.stageName = 'Google Chrome';
       stageManager.theme = 'chrome';
       stageManager.platforms = [
@@ -2142,8 +2191,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 330, y: -345, label: 'Extensions', icon: '🧩', color: '#34a853' },
         { x: 810, y: -125, label: 'New_Tab (+)', icon: '🌐', color: '#4285f4' }
       ];
-    } else if (stage === 25) {
-      // STAGE 25: SPOTIFY PLAYER (Equalizer Spectrum & Vinyl Turntable Arena)
+    } else if (stage === 26) {
+      // STAGE 26: SPOTIFY PLAYER (Equalizer Spectrum & Vinyl Turntable Arena)
       stageManager.stageName = 'Spotify Player';
       stageManager.theme = 'spotify';
       stageManager.platforms = [
@@ -2185,8 +2234,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 330, y: -350, label: 'Audio_Spectrum', icon: 'ılı', color: '#1db954' },
         { x: 810, y: -125, label: 'Loop_Track', icon: '🔁', color: '#86efac' }
       ];
-    } else if (stage === 26) {
-      // STAGE 26: GOOGLE SLIDES (Presentation Deck & Live Chart Arena)
+    } else if (stage === 27) {
+      // STAGE 27: GOOGLE SLIDES (Presentation Deck & Live Chart Arena)
       stageManager.stageName = 'Google Slides';
       stageManager.theme = 'slides';
       stageManager.platforms = [
@@ -2216,8 +2265,41 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 330, y: -345, label: 'Shape_Insert', icon: '◇', color: '#4285f4' },
         { x: 810, y: -125, label: 'Laser_Pointer', icon: '✦', color: '#34a853' }
       ];
-    } else if (stage === 27) {
-      // STAGE 27: ROCKET CORP HQ (Mercenaries Boss Squad: Agent, Ballista, Primal, Hazard)
+    } else if (stage === 28) {
+      // STAGE 28: OUTSIDE ROCKET CORP (Outernet Perimeter Plaza & Towering Rocket Corp HQ Exterior!)
+      stageManager.stageName = 'Outside Rocket Corp';
+      stageManager.theme = 'rocket_corp_exterior';
+      stageManager.platforms = [
+        { x: -630, y: -165, width: 245, height: 22, title: 'Security_Gatehouse_W', appType: 'rocket_ext' },
+        { x: 0, y: -280, width: 320, height: 24, title: 'Rocket_Plaza_Overpass', appType: 'rocket_ext' },
+        { x: 630, y: -165, width: 245, height: 22, title: 'Armored_Transport_Bay', appType: 'rocket_ext' }
+      ];
+      stageManager.movingPlatforms = [
+        {
+          x: 0,
+          y: -160,
+          width: 205,
+          height: 20,
+          title: 'Patrol_Hover_Drone',
+          appType: 'rocket_ext',
+          minX: -330,
+          maxX: 330,
+          speed: 142,
+          dir: 1,
+          axis: 'x'
+        }
+      ];
+      stageManager.laserHazards = [
+        { x: 180, y: -38, width: 300, height: 10, timer: 0, cycleDuration: 3.2, activeDuration: 1.4, damage: 20 }
+      ];
+      stageManager.desktopIcons = [
+        { x: -810, y: -125, label: 'Checkpoint_01', icon: '🚧', color: '#facc15' },
+        { x: -330, y: -345, label: 'Rocket_Tower', icon: '🏢', color: '#ff6b00' },
+        { x: 330, y: -345, label: 'Searchlight', icon: '🔦', color: '#38bdf8' },
+        { x: 810, y: -125, label: 'Mercenary_Van', icon: '🚐', color: '#94a3b8' }
+      ];
+    } else if (stage === 29) {
+      // STAGE 29: ROCKET CORP HQ (Mercenaries Boss Squad: Agent, Ballista, Primal, Hazard)
       stageManager.stageName = 'Rocket Corp HQ';
       stageManager.theme = 'rocket_corp';
       stageManager.platforms = [
@@ -2239,8 +2321,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
 
   stageManager.enterTrophyRoom = () => {
     origEnterTrophy();
-    stageManager.maxStage = 28;
-    stageManager.currentStage = 28;
+    stageManager.maxStage = 30;
+    stageManager.currentStage = 30;
     stageManager.lavaHazards = [];
     stageManager.desktopIcons = [
       { x: -900, y: -105, label: 'TITAN', icon: 'T', color: '#8cff66' },
@@ -2257,11 +2339,22 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
     ];
   };
 
-  // Extend WaveDirector for Stages 18..28
+  // Extend WaveDirector for Stages 18..30
   activeWaveDirector = waveDirector;
   const origGenerateWaveQueue = waveDirector.generateWaveQueue.bind(waveDirector);
   const origSpawnZombie = waveDirector.spawnZombie.bind(waveDirector);
   const origWaveUpdate = waveDirector.update.bind(waveDirector);
+
+  const STRONGHOLD_RECIPE = Object.freeze({
+    total: 16,
+    bossHelpers: 0,
+    packs: Object.freeze([
+      Object.freeze({ gap: 0.92, enemies: Object.freeze(['crawler', 'stalker', 'walker', 'shieldbearer']) }),
+      Object.freeze({ gap: 1.02, enemies: Object.freeze(['crawler', 'spitter', 'stalker', 'runner']) }),
+      Object.freeze({ gap: 1.1, enemies: Object.freeze(['brute', 'crawler', 'shieldbearer', 'boom_bug']) }),
+      Object.freeze({ gap: 1.18, enemies: Object.freeze(['warden', 'stalker', 'spitter', 'boom_bug']) })
+    ])
+  });
 
   const AETHER_RECIPE = Object.freeze({
     total: 16,
@@ -2329,62 +2422,83 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
     ])
   });
 
+  const ROCKET_EXTERIOR_RECIPE = Object.freeze({
+    total: 18,
+    bossHelpers: 0,
+    packs: Object.freeze([
+      Object.freeze({ gap: 0.9, enemies: Object.freeze(['shieldbearer', 'runner', 'spitter', 'runner']) }),
+      Object.freeze({ gap: 1.0, enemies: Object.freeze(['warden', 'stalker', 'shieldbearer', 'boom_bug']) }),
+      Object.freeze({ gap: 1.08, enemies: Object.freeze(['brute', 'spitter', 'stalker', 'runner', 'boom_bug']) }),
+      Object.freeze({ gap: 1.16, enemies: Object.freeze(['warden', 'brute', 'shieldbearer', 'spitter', 'stalker']) })
+    ])
+  });
+
   waveDirector.generateWaveQueue = (wave) => {
-    const stage = Math.max(1, Math.min(28, Math.trunc(Number(wave)) || 1));
+    const stage = Math.max(1, Math.min(30, Math.trunc(Number(wave)) || 1));
     if (stage <= 17) {
       origGenerateWaveQueue(stage);
       return;
     }
     if (stage === 18) {
-      // Stage 18: The End — Ender Dragon Boss
+      // Stage 18: The Stronghold — Silverfish, Endermen-Stalkers & Vault Sentries
+      waveDirector.queueWaveRecipe(STRONGHOLD_RECIPE);
+      return;
+    }
+    if (stage === 19) {
+      // Stage 19: The End — Ender Dragon Boss
       waveDirector.usesAuthoredRecipe = true;
       waveDirector.spawnQueue.push({ type: 'ender_dragon', delay: 1.1, packIndex: 0, bossHealthGate: null });
       return;
     }
-    if (stage === 19) {
-      // Stage 19: The Aether — Skylands Wave
+    if (stage === 20) {
+      // Stage 20: The Aether — Skylands Wave
       waveDirector.queueWaveRecipe(AETHER_RECIPE);
       return;
     }
-    if (stage === 20) {
-      // Stage 20: Ancient City — The Warden Boss
+    if (stage === 21) {
+      // Stage 21: Ancient City — The Warden Boss
       waveDirector.usesAuthoredRecipe = true;
       waveDirector.spawnQueue.push({ type: 'warden_boss', delay: 1.1, packIndex: 0, bossHealthGate: null });
       return;
     }
-    if (stage === 21) {
-      // Stage 21: Pale Garden — The Creaking Boss
+    if (stage === 22) {
+      // Stage 22: Pale Garden — The Creaking Boss
       waveDirector.usesAuthoredRecipe = true;
       waveDirector.spawnQueue.push({ type: 'creaking_boss', delay: 1.1, packIndex: 0, bossHealthGate: null });
       return;
     }
-    if (stage === 22) {
-      // Stage 22: Minecraft Overworld — Village Raid & Creeper/TNT Wave
+    if (stage === 23) {
+      // Stage 23: Minecraft Overworld — Village Raid & Creeper/TNT Wave
       waveDirector.queueWaveRecipe(OVERWORLD_RECIPE);
       return;
     }
-    if (stage === 23) {
-      // Stage 23: YouTube Studio — Viral Stream Wave
+    if (stage === 24) {
+      // Stage 24: YouTube Studio — Viral Stream Wave
       waveDirector.queueWaveRecipe(YOUTUBE_RECIPE);
       return;
     }
-    if (stage === 24) {
-      // Stage 24: Google Chrome — Multi-Tab Browser Wave
+    if (stage === 25) {
+      // Stage 25: Google Chrome — Multi-Tab Browser Wave
       waveDirector.queueWaveRecipe(CHROME_RECIPE);
       return;
     }
-    if (stage === 25) {
-      // Stage 25: Spotify Player — Bass Drop Wave
+    if (stage === 26) {
+      // Stage 26: Spotify Player — Bass Drop Wave
       waveDirector.queueWaveRecipe(SPOTIFY_RECIPE);
       return;
     }
-    if (stage === 26) {
-      // Stage 26: Google Slides — Presentation Deck Wave
+    if (stage === 27) {
+      // Stage 27: Google Slides — Presentation Deck Wave
       waveDirector.queueWaveRecipe(SLIDES_RECIPE);
       return;
     }
-    if (stage === 27) {
-      // Stage 27: Rocket Corp HQ — All 4 Mercenaries from AvA Season 3!
+    if (stage === 28) {
+      // Stage 28: Outside Rocket Corp — Perimeter Security Checkpoint Wave
+      waveDirector.queueWaveRecipe(ROCKET_EXTERIOR_RECIPE);
+      return;
+    }
+    if (stage === 29) {
+      // Stage 29: Rocket Corp HQ — All 4 Mercenaries from AvA Season 3!
       waveDirector.usesAuthoredRecipe = true;
       const mercs = ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard'];
       mercs.forEach((type, idx) => {
@@ -2397,8 +2511,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       });
       return;
     }
-    if (stage === 28) {
-      // Stage 28: Zero-Day Mainframe — H4C3R
+    if (stage === 30) {
+      // Stage 30: Zero-Day Mainframe — H4C3R
       waveDirector.queueWaveRecipe(WAVE_RECIPES[18]);
     }
   };

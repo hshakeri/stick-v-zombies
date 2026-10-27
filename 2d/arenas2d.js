@@ -16,6 +16,7 @@ export const CREATIVE_BLOCK_TYPES_2D = Object.freeze([
   'lucky_block',
   'grass_block',
   'cobblestone',
+  'stone_bricks',
   'oak_planks',
   'crafting_table',
   'purpur_block',
@@ -38,6 +39,7 @@ const BLOCK_PALETTES = Object.freeze({
   lucky_block: { base: '#f59e0b', dark: '#b45309', light: '#fef08a', border: '#78350f', accent: '#ffffff' },
   grass_block: { base: '#86592d', dark: '#5c3c1e', light: '#4ade80', border: '#3e2712', accent: '#22c55e' },
   cobblestone: { base: '#64748b', dark: '#334155', light: '#cbd5e1', border: '#1e293b', accent: '#94a3b8' },
+  stone_bricks: { base: '#78828f', dark: '#47505c', light: '#aeb7c2', border: '#2a3038', accent: '#4ade80' },
   oak_planks: { base: '#b88b4a', dark: '#785224', light: '#d9ae6a', border: '#5c3a18', accent: '#eab308' },
   crafting_table: { base: '#b88b4a', dark: '#5c3a18', light: '#d9ae6a', border: '#3b2110', accent: '#cbd5e1' },
   purpur_block: { base: '#a87ca8', dark: '#6b426b', light: '#d8b4d8', border: '#4a254a', accent: '#f5d0fe' },
@@ -245,6 +247,33 @@ export function paintVoxelBlockPixels2D(ctx, texKey, ox = 0, oy = 0, size = 64) 
       px(7, 7, 3, 2, '#ffffff');
       px(7, 9, 2, 1, '#ffffff');
       px(7, 11, 2, 2, '#ffffff');
+      break;
+    }
+    case 'stone_bricks': {
+      // Authentic Minecraft Stronghold Stone Bricks: 2 staggered courses, dark mortar, bevels, cracks & moss
+      fillNoise('#78828f', 0.1, 219);
+      // Horizontal mortar seams (y = 0, y = 8) + vertical offset joints (x = 0 on top course, x = 8 on bottom course)
+      px(0, 0, 16, 1, '#374151');
+      px(0, 8, 16, 1, '#374151');
+      px(0, 0, 1, 8, '#374151');
+      px(8, 8, 1, 8, '#374151');
+      // Crisp top/left highlights & bottom/right shadows on each stone brick
+      px(1, 1, 14, 1, '#aeb7c2');
+      px(1, 1, 1, 6, '#aeb7c2');
+      px(1, 7, 15, 1, '#4b5563');
+      px(15, 1, 1, 7, '#4b5563');
+      px(0, 9, 7, 1, '#aeb7c2');
+      px(9, 9, 6, 1, '#aeb7c2');
+      px(9, 9, 1, 6, '#aeb7c2');
+      px(0, 15, 8, 1, '#4b5563');
+      px(9, 15, 7, 1, '#4b5563');
+      px(7, 9, 1, 7, '#4b5563');
+      // Subtle Stronghold crack fissure & mossy emerald creeping seam
+      px(5, 3, 1, 2, '#374151');
+      px(6, 5, 1, 2, '#374151');
+      px(11, 8, 3, 1, '#15803d');
+      px(12, 9, 2, 1, '#22c55e');
+      px(2, 8, 2, 1, '#16a34a');
       break;
     }
     case 'purpur_block': {
@@ -1511,6 +1540,340 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY, onSkyP
     return true;
   }
 
+  if (theme === 'stronghold') {
+    ctx.save();
+    paintFullVoid('#070a10');
+
+    // 1. Subterranean Mossy Stone-Brick Vault Backdrop
+    const vaultGrad = ctx.createLinearGradient(0, minY, 0, groundY);
+    vaultGrad.addColorStop(0, '#0a0f18');
+    vaultGrad.addColorStop(0.5, '#161e29');
+    vaultGrad.addColorStop(1, '#1f2937');
+    ctx.fillStyle = vaultGrad;
+    ctx.fillRect(minX, minY, maxX - minX, groundY - minY);
+    onSkyPainted?.();
+
+    // Staggered Stronghold Stone-Brick Mortar Courses & Mossy Patches
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.55)';
+    ctx.lineWidth = 2;
+    for (let y = minY + 48; y < groundY; y += 44) {
+      ctx.beginPath();
+      ctx.moveTo(minX, y);
+      ctx.lineTo(maxX, y);
+      ctx.stroke();
+      const rowOffset = (((y - minY) / 44) & 1) === 0 ? 0 : 48;
+      for (let x = minX + rowOffset; x < maxX; x += 96) {
+        ctx.beginPath();
+        ctx.moveTo(x, y - 44);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.12)';
+    for (const [mx, my, mw, mh] of [
+      [-860, groundY - 210, 92, 42],
+      [-370, groundY - 310, 84, 38],
+      [330, groundY - 295, 96, 40],
+      [790, groundY - 195, 88, 44]
+    ]) {
+      ctx.fillRect(mx, my, mw, mh);
+    }
+
+    // 2. Left Alcove: Stronghold Library Bookshelves & Cobwebs
+    const libX = -760;
+    const libTop = groundY - 220;
+    ctx.fillStyle = '#451a03';
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 3;
+    ctx.fillRect(libX, libTop, 210, 220);
+    ctx.strokeRect(libX, libTop, 210, 220);
+    const bookColors = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7'];
+    for (let row = 0; row < 4; row++) {
+      const sy = libTop + 14 + row * 52;
+      ctx.fillStyle = '#291509';
+      ctx.fillRect(libX + 10, sy, 190, 36);
+      for (let b = 0; b < 11; b++) {
+        ctx.fillStyle = bookColors[(row * 3 + b) % bookColors.length];
+        ctx.fillRect(libX + 16 + b * 16, sy + 6 + ((b + row) % 2) * 3, 12, 28 - ((b + row) % 2) * 3);
+      }
+    }
+
+    // 3. Right Alcove: Wrought-Iron Stronghold Prison Cell & Silverfish Spawner Cage
+    const cellX = 550;
+    const cellTop = groundY - 215;
+    ctx.fillStyle = '#090d14';
+    ctx.fillRect(cellX, cellTop, 215, 215);
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(cellX, cellTop, 215, 215);
+    for (let bx = cellX + 24; bx < cellX + 205; bx += 26) {
+      ctx.beginPath();
+      ctx.moveTo(bx, cellTop);
+      ctx.lineTo(bx, groundY);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(cellX, cellTop + 98, 215, 10);
+
+    // 4. Flickering Dungeon Wall Torches on Stone Pillars
+    for (const tx of [-430, -250, 250, 430]) {
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(tx - 22, minY + 90, 44, groundY - (minY + 90));
+      const flicker = 0.65 + Math.sin(t * 9 + tx) * 0.2;
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(tx - 4, groundY - 190, 8, 26);
+      ctx.fillStyle = `rgba(251, 146, 60, ${flicker * 0.28})`;
+      ctx.beginPath();
+      ctx.arc(tx, groundY - 198, 34, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(tx - 5, groundY - 202, 10, 12);
+    }
+
+    // 5. Centerpiece: Raised End Portal Sanctum, 12 Lit Eyes of Ender & Bubbling Lava Pit!
+    // Stone-Brick Stepped Altar flanking the central lava basin
+    ctx.fillStyle = '#334155';
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 2;
+    ctx.fillRect(-195, groundY - 56, 95, 56);
+    ctx.strokeRect(-195, groundY - 56, 95, 56);
+    ctx.fillRect(100, groundY - 56, 95, 56);
+    ctx.strokeRect(100, groundY - 56, 95, 56);
+
+    // Starry End Rift hovering inside the active 12-Eye End Portal Ring
+    const riftTop = groundY - 178;
+    const riftW = 236;
+    const riftH = 96;
+    ctx.fillStyle = '#04020a';
+    ctx.fillRect(-riftW * 0.5, riftTop, riftW, riftH);
+    for (let s = 0; s < 18; s++) {
+      const sx = -108 + ((s * 53 + Math.floor(t * 14)) % 216);
+      const sy = riftTop + 10 + ((s * 29) % (riftH - 20));
+      ctx.fillStyle = s % 3 === 0 ? '#2dd4bf' : (s % 2 === 0 ? '#e879f9' : '#e2e8f0');
+      ctx.fillRect(sx, sy, 3, 3);
+    }
+
+    // Iconic Cream-Sandstone & Teal End Portal Frame Blocks + 12 Glowing Eyes of Ender
+    const frameY = groundY - 82;
+    ctx.fillStyle = '#d9f99d';
+    ctx.strokeStyle = '#0f766e';
+    ctx.lineWidth = 2.5;
+    ctx.fillRect(-156, frameY, 312, 26);
+    ctx.strokeRect(-156, frameY, 312, 26);
+    ctx.fillStyle = '#115e59';
+    ctx.fillRect(-154, frameY + 14, 308, 10);
+    for (let e = 0; e < 12; e++) {
+      const ex = -143 + e * 26;
+      ctx.fillStyle = '#2dd4bf';
+      ctx.fillRect(ex - 6, frameY - 9, 12, 10);
+      ctx.fillStyle = '#042f2e';
+      ctx.fillRect(ex - 2, frameY - 7, 4, 6);
+    }
+
+    // Molten Lava Pool bubbling directly beneath the End Portal Frame!
+    const lavaW = 165;
+    ctx.fillStyle = '#9a3412';
+    ctx.fillRect(-lavaW * 0.5 - 6, groundY - 8, lavaW + 12, 24);
+    ctx.fillStyle = '#ea580c';
+    ctx.fillRect(-lavaW * 0.5, groundY - 6, lavaW, 18);
+    ctx.fillStyle = '#facc15';
+    for (let lx = -lavaW * 0.5 + 10; lx < lavaW * 0.5 - 16; lx += 28) {
+      const bubbleY = Math.sin(t * 5.5 + lx * 0.08) * 2.5;
+      ctx.fillRect(lx, groundY - 5 + bubbleY, 16, 5);
+    }
+
+    // Subterranean Mossy Stone-Brick Combat Floor (preserving lava pool center)
+    ctx.fillStyle = '#0b0f17';
+    ctx.fillRect(minX - 400, groundY + 12, maxX - minX + 800, 400);
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(minX, groundY, (-lavaW * 0.5) - minX, 24);
+    ctx.fillRect(lavaW * 0.5, groundY, maxX - (lavaW * 0.5), 24);
+    ctx.fillStyle = '#2dd4bf';
+    ctx.fillRect(minX, groundY, (-lavaW * 0.5) - minX, 4);
+    ctx.fillRect(lavaW * 0.5, groundY, maxX - (lavaW * 0.5), 4);
+
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(minX, minY);
+    ctx.lineTo(minX, groundY);
+    ctx.moveTo(maxX, minY);
+    ctx.lineTo(maxX, groundY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#5eead4';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('DUNGEON://THE_STRONGHOLD — END PORTAL SANCTUM (12/12 EYES LIT)', minX + 60, minY + 58);
+    ctx.restore();
+    return true;
+  }
+
+  if (theme === 'rocket_corp_exterior') {
+    ctx.save();
+    paintFullVoid('#090d1c');
+
+    // 1. AvA Season 3 Outernet Twilight / Dusk Sky Gradient
+    const duskGrad = ctx.createLinearGradient(0, minY, 0, groundY);
+    duskGrad.addColorStop(0, '#090d1e');
+    duskGrad.addColorStop(0.38, '#1e1b4b');
+    duskGrad.addColorStop(0.74, '#4c1d95');
+    duskGrad.addColorStop(1, '#c2410c');
+    ctx.fillStyle = duskGrad;
+    ctx.fillRect(minX, minY, maxX - minX, groundY - minY);
+    onSkyPainted?.();
+
+    // 2. Sweeping Perimeter Security Searchlight Cones slicing across the twilight sky
+    for (const [sx, phase, col] of [[-720, 0.0, 'rgba(56, 189, 248, 0.14)'], [720, 2.1, 'rgba(255, 107, 0, 0.14)']]) {
+      const sway = Math.sin(t * 1.35 + phase) * 240;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(sx - 14, groundY - 24);
+      ctx.lineTo(sx + 14, groundY - 24);
+      ctx.lineTo(sx * 0.25 + sway + 110, minY);
+      ctx.lineTo(sx * 0.25 + sway - 110, minY);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 3. Distant Outernet Industrial Warehouses & Highway Skyline Silhouette
+    ctx.fillStyle = '#0f172a';
+    for (const [bx, bw, bh] of [
+      [-940, 170, 190],
+      [-740, 145, 240],
+      [-430, 155, 275],
+      [285, 155, 265],
+      [590, 150, 225],
+      [770, 175, 185]
+    ]) {
+      ctx.fillRect(bx, groundY - bh, bw, bh);
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+      for (let wy = groundY - bh + 22; wy < groundY - 36; wy += 32) {
+        ctx.fillRect(bx + 18, wy, 22, 10);
+        ctx.fillRect(bx + bw - 42, wy, 22, 10);
+      }
+      ctx.fillStyle = '#0f172a';
+    }
+
+    // 4. Centerpiece Background: Towering Monolithic ROCKET CORP HQ Skyscraper!
+    const towerW = 420;
+    const towerTop = minY + 26;
+    const towerH = groundY - towerTop;
+    ctx.fillStyle = '#111827';
+    ctx.strokeStyle = '#ff6b00';
+    ctx.lineWidth = 3.5;
+    ctx.fillRect(-towerW * 0.5, towerTop, towerW, towerH);
+    ctx.strokeRect(-towerW * 0.5, towerTop, towerW, towerH);
+
+    // Rooftop Helipad Spire & Blinking Beacon
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-130, towerTop - 18, 260, 18);
+    ctx.fillStyle = Math.sin(t * 6) > 0 ? '#ff6b00' : '#facc15';
+    ctx.beginPath();
+    ctx.arc(0, towerTop - 24, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Illuminated Glass Curtain-Wall Window Grid on Rocket Corp Tower
+    for (let wy = towerTop + 145; wy < groundY - 95; wy += 28) {
+      for (let wx = -176; wx <= 144; wx += 40) {
+        ctx.fillStyle = ((wx + wy) % 3 === 0) ? 'rgba(56, 189, 248, 0.34)' : 'rgba(148, 163, 184, 0.18)';
+        ctx.fillRect(wx, wy, 28, 14);
+      }
+    }
+
+    // Giant Glowing Rocket Corp Circle-Delta Emblem & Corporate Sign high on the Tower Facade
+    const logoY = towerTop + 74;
+    ctx.fillStyle = 'rgba(255, 107, 0, 0.18)';
+    ctx.strokeStyle = '#ff6b00';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, logoY, 38, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(0, logoY - 24);
+    ctx.lineTo(18, logoY + 16);
+    ctx.lineTo(0, logoY + 8);
+    ctx.lineTo(-18, logoY + 16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 15px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('ROCKET CORP', 0, logoY + 56);
+    ctx.textAlign = 'left';
+
+    // Grand Glass Lobby Entrance Doors at Base of Rocket Corp Tower
+    ctx.fillStyle = '#020617';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3;
+    ctx.fillRect(-95, groundY - 78, 190, 78);
+    ctx.strokeRect(-95, groundY - 78, 190, 78);
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
+    ctx.fillRect(-88, groundY - 72, 84, 70);
+    ctx.fillRect(4, groundY - 72, 84, 70);
+
+    // 5. Left Perimeter Security Gatehouse & Striped Boom Barrier
+    const gateX = -790;
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 2.5;
+    ctx.fillRect(gateX, groundY - 118, 148, 118);
+    ctx.strokeRect(gateX, groundY - 118, 148, 118);
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.32)';
+    ctx.fillRect(gateX + 16, groundY - 88, 116, 42);
+    ctx.fillStyle = '#ff6b00';
+    ctx.fillRect(gateX - 8, groundY - 128, 164, 12);
+    // Striped Security Boom Arm
+    for (let s = 0; s < 6; s++) {
+      ctx.fillStyle = s % 2 === 0 ? '#facc15' : '#111827';
+      ctx.fillRect(gateX + 148 + s * 22, groundY - 46, 22, 9);
+    }
+
+    // 6. Right Transport Bay: Parked Rocket Corp Armored Hover-Van (AvA 9 "Wanted")
+    const vanX = 585;
+    const vanHover = Math.sin(t * 3.8) * 2.5;
+    ctx.fillStyle = '#334155';
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2.5;
+    ctx.fillRect(vanX, groundY - 82 + vanHover, 188, 62);
+    ctx.strokeRect(vanX, groundY - 82 + vanHover, 188, 62);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(vanX + 14, groundY - 70 + vanHover, 48, 24);
+    ctx.fillStyle = '#ff6b00';
+    ctx.fillRect(vanX + 76, groundY - 56 + vanHover, 94, 8);
+    ctx.fillStyle = '#22d3ee';
+    ctx.fillRect(vanX + 22, groundY - 18 + vanHover, 44, 6);
+    ctx.fillRect(vanX + 122, groundY - 18 + vanHover, 44, 6);
+
+    // 7. Asphalt Security Plaza Roadway, Traffic Dashes & Hazard Curb
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(minX - 400, groundY, maxX - minX + 800, 400);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(minX, groundY, maxX - minX, 28);
+    for (let x = minX; x < maxX; x += 64) {
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(x, groundY + 12, 34, 5);
+    }
+    ctx.fillStyle = '#ff6b00';
+    ctx.fillRect(minX, groundY, maxX - minX, 3);
+
+    ctx.strokeStyle = '#ff6b00';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(minX, minY);
+    ctx.lineTo(minX, groundY);
+    ctx.moveTo(maxX, minY);
+    ctx.lineTo(maxX, groundY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fb923c';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('OUTERNET://OUTSIDE_ROCKET_CORP — PERIMETER SECURITY PLAZA', minX + 60, minY + 58);
+    ctx.restore();
+    return true;
+  }
+
   if (theme === 'rocket_corp') {
     ctx.save();
     paintFullVoid('#0f172a');
@@ -2621,6 +2984,7 @@ export function drawBossFloorTelegraphs2D(ctx, zombies, groundY, stageTime = 0) 
 export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
   const theme = stageManager.theme;
   if (
+    theme !== 'stronghold' &&
     theme !== 'the_end' &&
     theme !== 'aether' &&
     theme !== 'ancient_city' &&
@@ -2630,6 +2994,7 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
     theme !== 'chrome' &&
     theme !== 'spotify' &&
     theme !== 'slides' &&
+    theme !== 'rocket_corp_exterior' &&
     theme !== 'rocket_corp' &&
     theme !== 'dark_core'
   ) {
@@ -2644,7 +3009,25 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
     const topY = p.y - p.height;
 
     ctx.save();
-    if (theme === 'the_end') {
+    if (theme === 'stronghold') {
+      // Cracked & Mossy Stronghold Stone-Brick Ledges + Moving Stone-Brick Bridge
+      const isBridge = Boolean(p.axis);
+      ctx.fillStyle = isBridge ? '#283240' : '#374151';
+      ctx.strokeStyle = isBridge ? '#2dd4bf' : '#64748b';
+      ctx.lineWidth = 2;
+      ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+      ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+      ctx.fillStyle = isBridge ? '#2dd4bf' : '#22c55e';
+      ctx.fillRect(p.x - halfW + 2, topY + 2, p.width - 4, 4);
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 1.5;
+      for (let bx = p.x - halfW + 28; bx < p.x + halfW - 14; bx += 32) {
+        ctx.beginPath();
+        ctx.moveTo(bx, topY + 6);
+        ctx.lineTo(bx, p.y - 2);
+        ctx.stroke();
+      }
+    } else if (theme === 'the_end') {
       ctx.fillStyle = '#2d123f';
       ctx.strokeStyle = '#d946ef';
       ctx.lineWidth = 2;
@@ -2788,6 +3171,23 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
       ctx.fillStyle = '#1e293b';
       ctx.font = 'bold 10px monospace';
       ctx.fillText(p.title || 'Slide_Box', p.x - halfW + 10, topY + 15);
+    } else if (theme === 'rocket_corp_exterior') {
+      // Rocket Corp Perimeter Security Overpass & Hover-Drone Patrol Platform
+      const isDrone = Boolean(p.axis);
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = isDrone ? '#38bdf8' : '#ff6b00';
+      ctx.lineWidth = 2;
+      ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+      ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+      ctx.fillStyle = isDrone ? '#38bdf8' : '#facc15';
+      for (let cx = p.x - halfW + 8; cx < p.x + halfW - 14; cx += 24) {
+        ctx.fillRect(cx, topY + 3, 12, 4);
+      }
+      if (isDrone) {
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.72)';
+        ctx.fillRect(p.x - halfW + 18, p.y + 1, 26, 4);
+        ctx.fillRect(p.x + halfW - 44, p.y + 1, 26, 4);
+      }
     } else if (theme === 'rocket_corp') {
       ctx.fillStyle = '#1e293b';
       ctx.strokeStyle = '#ff6b00';
@@ -2855,7 +3255,14 @@ export function drawGroundCraters2D(ctx, groundHoles, groundY = 0, theme = 'desk
   let strataMid = '#334155';
   let strataDeep = '#1e293b';
 
-  if (theme === 'overworld') {
+  if (theme === 'stronghold') {
+    voidTop = '#090d14';
+    voidDeep = '#03060a';
+    lipCol = '#2dd4bf';
+    strataUpper = '#64748b';
+    strataMid = '#374151';
+    strataDeep = '#1f2937';
+  } else if (theme === 'overworld') {
     voidTop = '#111827';
     voidDeep = '#030712';
     lipCol = '#4ade80';
@@ -2912,7 +3319,7 @@ export function drawGroundCraters2D(ctx, groundHoles, groundY = 0, theme = 'desk
     lipCol = '#4285f4';
   } else if (theme === 'slides') {
     lipCol = '#fbbc04';
-  } else if (theme === 'rocket_corp') {
+  } else if (theme === 'rocket_corp_exterior' || theme === 'rocket_corp') {
     lipCol = '#ff6b00';
   }
 
