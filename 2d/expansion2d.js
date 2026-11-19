@@ -60,6 +60,19 @@ import {
   installOldUpdatesMenu,
   isKingOrangeWithPlayer
 } from '../3d/js/purple_ally.js?v=10.9';
+import {
+  BOSS_WEAPON_CATALOG,
+  PLAYABLE_CHARACTERS,
+  BOSS_RUSH_ROSTER,
+  ENDLESS_MUTATORS,
+  ROGUELIKE_PERKS,
+  TROPHY_MONUMENT_BOSSES,
+  P2_KEY_CODES,
+  computeStageRank,
+  installSecretBossesOnWaves,
+  MegaFeaturesController,
+  mountMegaFeaturesUI
+} from '../3d/js/gameplay_features.js?v=10.9';
 
 import {
   CREATIVE_BLOCK_TYPES_2D,
@@ -420,9 +433,13 @@ export function install2DExpansion(game) {
 
   install2DBossAndWeaponRenderers();
   extendCampaignFor3D(game.stageManager, waves);
+  installSecretBossesOnWaves(waves);
   installPurpleAllySystem(allies, input, speech2d, speech3d, shop);
   ensure2DExpansionDOM();
   const oldUpdatesMenu = installOldUpdatesMenu({ isSubdir: false, from: '2d' });
+  const mega = new MegaFeaturesController({ is3D: false });
+  mega.installKillHook(() => game.groundY);
+  let megaUI = null;
 
   const stageManager = game.stageManager;
 
@@ -764,6 +781,7 @@ export function install2DExpansion(game) {
 
       // Check Creative Block hits (ignite TNT, crack Lucky Block, pulse Creaking Heart)
       triggerCreativeBlockStrike(player.x + player.facing * 68, player.y - 30, 95);
+      mega.onPlayerMeleeOrWeaponHit(player, zombies, camera, true);
       return true;
     };
 
@@ -772,9 +790,21 @@ export function install2DExpansion(game) {
       const started = origExecuteLightCombo(zombies, camera);
       if (started) {
         triggerCreativeBlockStrike(player.x + player.facing * 52, player.y - 30, 78);
+        mega.onPlayerMeleeOrWeaponHit(player, zombies, camera, false);
       }
       return started;
     };
+
+    if (typeof player.resolveGrabContact === 'function') {
+      const origResolveGrab = player.resolveGrabContact.bind(player);
+      player.resolveGrabContact = (target, camera) => {
+        const res = origResolveGrab(target, camera);
+        mega.onPlayerMeleeOrWeaponHit(player, waves.zombies, camera, false);
+        return res;
+      };
+    }
+
+    mega.applyCharacterToPlayer(player);
 
     if (sandbox.enabled) {
       player.isGodMode = sandbox.godMode;
@@ -1342,6 +1372,39 @@ export function install2DExpansion(game) {
     }
   }
 
+  function resetMegaStageState(suppressModeReset = false) {
+    if (!suppressModeReset) {
+      mega.mode = 'campaign';
+      mega.bossRushActive = false;
+      if (mega.p2.mode === 'versus') mega.stopP2Mode();
+    }
+    mega.stageElapsed = 0;
+    mega.stageRankAwardedFor = -1;
+    mega.lootDrops.length = 0;
+    mega.spawnStageToys(stageManager, game.groundY);
+    if (game.player) mega.applyCharacterToPlayer(game.player);
+    if (mega.p2.active && mega.p2.mode === 'coop') {
+      mega.p2.x = clamp((stageManager.entranceDoor?.x ?? -900) + 75, -900, 900);
+      mega.p2.y = game.groundY;
+      mega.p2.vx = 0;
+      mega.p2.vy = 0;
+      mega.p2.hp = mega.p2.maxHp;
+      mega.p2.isDead = false;
+    }
+  }
+
+  function launchSecretBoss(bossType) {
+    const targetStage = bossType === 'herobrine_boss' ? 23 : 29;
+    jumpToStage(targetStage, { freshStart: game.state === 'TITLE', creative: false, suppressModeReset: false });
+    waves.spawnQueue.length = 0;
+    waves.zombies.length = 0;
+    waves.bossZombie = null;
+    waves.isWaveActive = true;
+    waves.isWaveClearing = false;
+    waves.spawnZombie(bossType, game.player, game.groundY, game.camera);
+    syncStageSelectors();
+  }
+
   function jumpToStage(stageValue, options = {}) {
     const requested = Number(stageValue);
     if (!Number.isFinite(requested)) return;
@@ -1357,6 +1420,7 @@ export function install2DExpansion(game) {
       stageManager.isTrophyRoom = false;
       game.enterTrophyRoom();
       decoratePlayerInstance(game.player);
+      resetMegaStageState(Boolean(options.suppressModeReset));
       setCreativeMode(sandbox.enabled);
       syncStageSelectors();
       return;
@@ -1364,9 +1428,9 @@ export function install2DExpansion(game) {
 
     const targetStage = clamp(Math.trunc(requested), 1, 30);
     if (game.state === 'TITLE' || options.freshStart) {
-      game.startGame({ stage: targetStage, creative: sandbox.enabled });
+      game.startGame({ stage: targetStage, creative: sandbox.enabled, suppressModeReset: Boolean(options.suppressModeReset) });
     } else {
-      game.advanceStage(targetStage);
+      game.advanceStage(targetStage, { suppressModeReset: Boolean(options.suppressModeReset) });
     }
     syncStageSelectors();
   }
@@ -1476,6 +1540,7 @@ export function install2DExpansion(game) {
     game.prepareWeaponPickup(stage);
     game.captureStageCheckpoint();
     game.showMissionStrip(stage, checkpoint && !requestedStage ? 'CONTINUE' : '');
+    resetMegaStageState(Boolean(options.suppressModeReset));
     syncStageSelectors();
   };
 
@@ -1497,10 +1562,11 @@ export function install2DExpansion(game) {
       game.player.isGodMode = sandbox.godMode;
       game.player.isCreativeFlight = sandbox.flight;
     }
+    resetMegaStageState(mega.mode === 'boss_rush' || mega.mode === 'endless');
     syncStageSelectors();
   };
 
-  game.advanceStage = (nextStage) => {
+  game.advanceStage = (nextStage, options = {}) => {
     const clampedNext = clamp(Math.trunc(Number(nextStage) || 1), 1, 30);
     clearCreativeBlocks();
     sandbox.lastDamageCause = '';
@@ -1540,7 +1606,10 @@ export function install2DExpansion(game) {
     game.player.squashY = 1.0;
     if (game.player.isAwakened) game.player.deactivateAwakening?.();
     game.player.temporaryWeaponTimer = 0;
-    game.player.weaponType = sandbox.enabled ? sandbox.selectedWeapon : 'pencil';
+    const prevWeapon = game.player.weaponType;
+    game.player.weaponType = sandbox.enabled
+      ? sandbox.selectedWeapon
+      : (mega.unlockedWeapons.has(prevWeapon) ? prevWeapon : 'pencil');
     game.player.stageDamageTaken = 0;
     sandbox.lastSafeIslandX = clamp(game.player.x, -860, 860);
 
@@ -1565,6 +1634,7 @@ export function install2DExpansion(game) {
     if (isBossCheckpoint) {
       particles.addDamageText(game.player.x, game.player.y - 120, 'BOSS CHECKPOINT: HP READY', false, '#34d399');
     }
+    resetMegaStageState(Boolean(options?.suppressModeReset));
     syncStageSelectors();
   };
 
@@ -1573,6 +1643,7 @@ export function install2DExpansion(game) {
     clearCreativeBlocks();
     origEnterTrophyRoom();
     decoratePlayerInstance(game.player);
+    resetMegaStageState(false);
     game.showMissionStrip(30, 'EPILOGUE');
     syncStageSelectors();
   };
@@ -1607,6 +1678,7 @@ export function install2DExpansion(game) {
         status.style.opacity = cd > 0 ? '1' : '0';
       }
     }
+    megaUI?.syncMegaHUD(game.player, sandbox.enabled);
   };
 
   function wrapEnemyFor2D(z) {
@@ -1781,6 +1853,8 @@ export function install2DExpansion(game) {
       }
     }
 
+    mega.isolateP1InputsForCoop(input);
+
     try {
       player.update(
         simDt,
@@ -1794,6 +1868,8 @@ export function install2DExpansion(game) {
       if (input.actions.ally7 && !player.isDead && !player.isRolling) {
         allies.summonAlly('purple', player.x, game.groundY, player.facing, hostileTargets);
       }
+      mega.checkPerfectDodge(player, hostileTargets, projectiles, stageManager, game.camera);
+      mega.updateCharacterPassives(player, simDt, input, hostileTargets, game.camera, game.groundY);
     } catch (e) {
       console.error('Player update error:', e);
     }
@@ -1924,14 +2000,14 @@ export function install2DExpansion(game) {
       }
     }
 
-    if (player.isDead && player.deathTimer <= 0) {
+    if (player.isDead && player.deathTimer <= 0 && mega.mode !== 'versus') {
       game.gameOver();
       return;
     }
 
-    // 5. Enemy Waves Update (with Freeze AI, Attacker Death Tracking, Void Fall & Lava Burn)
+    // 5. Enemy Waves Update (with Freeze AI, YouTube Pause Freeze, Attacker Death Tracking, Void Fall & Lava Burn)
     try {
-      if (!sandbox.freezeAI) {
+      if (!sandbox.freezeAI && mega.videoPauseTimer <= 0) {
         for (const z of waves.zombies) {
           if (z && !z.isDead) {
             sandbox.prevEnemyYs.set(z, z.y);
@@ -2060,6 +2136,23 @@ export function install2DExpansion(game) {
     }
 
     try {
+      mega.updateAllySynergies(simDt, allies, player, hostileTargets, game.camera, game.groundY);
+      mega.updateStageToys(simDt, player, hostileTargets, game.camera, stageManager, game.groundY, (monument) => {
+        jumpToStage(monument.stage, { freshStart: false });
+      });
+      mega.updateLootDrops(simDt, player, waves.zombies, allies, game.groundY, game.camera);
+      mega.updateP2(simDt, player, hostileTargets, game.groundY, currentPlatforms, game.camera);
+      mega.updateGameModes(simDt, stageManager, waves, player, game.groundY, game.camera, {
+        jumpToStage,
+        onOfferPerks: (perks) => megaUI?.showPerkModal(perks),
+        onSpawnRainTNT: (x) => placeCreativeBlock('tnt_block', { x, y: game.groundY - 260, silent: true })
+      });
+      mega.endP2Frame();
+    } catch (e) {
+      console.error('Mega features update error:', e);
+    }
+
+    try {
       combat.update(simDt, player);
     } catch (e) {
       console.error('Combat update error:', e);
@@ -2160,6 +2253,7 @@ export function install2DExpansion(game) {
         depth2d.drawPlatformDepthShadows(layerCtx, sandbox.blocks);
         drawCreativeBlocks2D(layerCtx, sandbox.blocks, stageManager.stageTime);
       });
+      game.renderLayer('stage-toys', (layerCtx) => mega.drawStageToys2D(layerCtx, stageManager.stageTime, game.groundY));
       game.renderLayer('boss-telegraphs', (layerCtx) => drawBossFloorTelegraphs2D(layerCtx, waves.zombies, game.groundY, stageManager.stageTime));
       game.renderLayer('projectiles', (layerCtx) => {
         const savedSketchBlocks = projectiles.sketchBlocks;
@@ -2188,9 +2282,14 @@ export function install2DExpansion(game) {
       ));
       game.renderLayer('enemies', (layerCtx) => waves.draw(layerCtx));
       game.renderLayer('weapon-pickup', (layerCtx) => game.drawWeaponPickup(layerCtx));
+      game.renderLayer('loot-drops', (layerCtx) => mega.drawLootDrops2D(layerCtx));
       game.renderLayer('allies', (layerCtx) => allies.draw(layerCtx, crowded));
-      const playerDrawn = game.renderLayer('player', (layerCtx) => game.player.draw(layerCtx));
+      const playerDrawn = game.renderLayer('player', (layerCtx) => {
+        game.player.draw(layerCtx);
+        mega.drawPlayerCharacterOverlay2D(layerCtx, game.player);
+      });
       if (!playerDrawn) game.renderLayer('player-fallback', (layerCtx) => game.drawFallbackPlayer(layerCtx));
+      game.renderLayer('player2', (layerCtx) => mega.drawP22D(layerCtx));
       game.renderLayer('effects', (layerCtx) => particles.draw(layerCtx));
       game.renderLayer('foreground-depth', (layerCtx) => depth2d.drawForegroundBokeh(
         layerCtx,
@@ -2212,6 +2311,50 @@ export function install2DExpansion(game) {
   // Bind DOM Controls & Keyboard Shortcuts (C, V, N, Double-Tap Space)
   // --------------------------------------------------------------------------
   if (typeof document !== 'undefined') {
+    megaUI = mountMegaFeaturesUI(mega, {
+      getPlayer: () => game.player,
+      onCharacterChanged: () => {
+        if (game.player) mega.applyCharacterToPlayer(game.player);
+      },
+      onStartBossRush: () => {
+        audio.init?.();
+        mega.stopP2Mode();
+        mega.beginBossRush(jumpToStage, waves, () => game.player, game.groundY, game.camera);
+      },
+      onStartEndless: () => {
+        audio.init?.();
+        mega.stopP2Mode();
+        mega.beginEndlessHorde(jumpToStage, waves, () => game.player, game.groundY, game.camera);
+      },
+      onStartCoop: () => {
+        audio.init?.();
+        const chosen = Number(document.getElementById('title-stage-select')?.value) || 1;
+        jumpToStage(chosen, { freshStart: true, creative: false, suppressModeReset: false });
+        mega.startP2Mode('coop', game.player, game.groundY);
+        particles.addTextBanner(game.player.x, game.player.y - 105, '👥 2P CO-OP: P1 WASD+J/K • P2 ARROWS+NUM/SLASH! 👥', '#c084fc');
+      },
+      onStartVersus: () => {
+        audio.init?.();
+        const chosen = Number(document.getElementById('title-stage-select')?.value) || 1;
+        jumpToStage(chosen, { freshStart: true, creative: false, suppressModeReset: true });
+        waves.spawnQueue.length = 0;
+        waves.zombies.length = 0;
+        waves.bossZombie = null;
+        waves.isWaveActive = false;
+        mega.startP2Mode('versus', game.player, game.groundY);
+        particles.addTextBanner(0, game.groundY - 115, '⚔️ 1V1 STICKMAN DUEL — BEST OF 3! ⚔️', '#facc15');
+      },
+      onLaunchSecretBoss: (bossType) => {
+        audio.init?.();
+        launchSecretBoss(bossType);
+      },
+      onCycleWeapon: () => {
+        if (game.state === 'PLAYING') mega.cycleWeapon(game.player, sandbox.enabled);
+      },
+      onPickPerk: (perkId) => {
+        mega.applyPerk(perkId, game.player, allies);
+      }
+    });
     syncStageSelectors();
     syncCreativeUI();
 
@@ -2356,6 +2499,44 @@ export function install2DExpansion(game) {
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (game.state !== 'PLAYING') return;
 
+    // 1. Roguelike Perk Picker Shortcuts (1 / 2 / 3)
+    if (mega.perkPickerOpen && (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3')) {
+      const idx = e.code === 'Digit1' ? 0 : (e.code === 'Digit2' ? 1 : 2);
+      const picked = mega.perkOfferings?.[idx];
+      if (picked) {
+        e.preventDefault?.();
+        if (input.keys) input.keys[e.code] = false;
+        if (input.keysPressed) input.keysPressed[e.code] = false;
+        mega.perkPickerOpen = false;
+        if (typeof document !== 'undefined') {
+          document.getElementById('perk-picker-modal')?.classList.remove('active');
+        }
+        mega.applyPerk(picked.id, game.player, allies);
+      }
+      return;
+    }
+
+    // 2. Local Player 2 Keys (Arrows + Numpad / Slash / Period / Comma)
+    if (mega.p2.active && P2_KEY_CODES.includes(e.code)) {
+      if (e.code.startsWith('Arrow')) e.preventDefault?.();
+      mega.handleP2KeyDown(e.code);
+      return;
+    }
+
+    // 3. Boss Weapon Hot-Swap (Key T)
+    if (e.code === 'KeyT') {
+      if (tag === 'SELECT') { e.preventDefault?.(); e.target?.blur?.(); }
+      mega.cycleWeapon(game.player, sandbox.enabled);
+      return;
+    }
+
+    // 4. Interactive Trophy Room Boss Rematch (Key E)
+    if (e.code === 'KeyE' && stageManager.isTrophyRoom && mega.nearbyTrophyBoss) {
+      e.preventDefault?.();
+      if (game.player) game.player._trophyRematchTriggered = true;
+      return;
+    }
+
     if (e.code === 'KeyC') {
       if (tag === 'SELECT') {
         e.preventDefault?.();
@@ -2407,16 +2588,27 @@ export function install2DExpansion(game) {
     }
   }
 
+  function handleCreativeKeyUp(e) {
+    if (!e) return;
+    if (P2_KEY_CODES.includes(e.code)) {
+      mega.handleP2KeyUp(e.code);
+    }
+  }
+
   if (typeof window !== 'undefined') {
     window._2dCreativeKeyHandler = handleCreativeKeyDown;
+    window._2dCreativeKeyUpHandler = handleCreativeKeyUp;
     if (!window._bound2DCreativeKeys) {
       window._bound2DCreativeKeys = true;
       window.addEventListener('keydown', (e) => window._2dCreativeKeyHandler?.(e));
+      window.addEventListener('keyup', (e) => window._2dCreativeKeyUpHandler?.(e));
     }
   }
 
   const controller = {
     sandbox,
+    mega,
+    megaUI,
     speech3d,
     depth2d,
     cameraAdapter2D,
@@ -2436,13 +2628,22 @@ export function install2DExpansion(game) {
     maxAllStats,
     unlockStageExit,
     jumpToStage,
+    launchSecretBoss,
     syncStageSelectors,
     updateDeathBannerDOM,
     getLastDeathReason: () => sandbox.lastDeathReason || game.player?.lastDeathReason || '',
     handleCreativeKeyDown,
+    handleCreativeKeyUp,
     oldUpdatesMenu,
     OLD_UPDATES_ARCHIVE,
     PURPLE_ALLY_CONFIG,
+    BOSS_WEAPON_CATALOG,
+    PLAYABLE_CHARACTERS,
+    BOSS_RUSH_ROSTER,
+    ENDLESS_MUTATORS,
+    ROGUELIKE_PERKS,
+    TROPHY_MONUMENT_BOSSES,
+    computeStageRank,
     isKingOrangeWithPlayer: () => isKingOrangeWithPlayer(allies)
   };
 

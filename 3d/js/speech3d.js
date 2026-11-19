@@ -148,6 +148,10 @@ export const SPEAKER_BADGES = Object.freeze({
   the_creeking: '🪵 THE CREAKING',
   'THE CREAKING': '🪵 THE CREAKING',
   h4c3r: '👾 H4C3R',
+  herobrine_boss: '👁️ HEROBRINE',
+  herobrine: '👁️ HEROBRINE',
+  victim_boss: '🕵️ VICTIM',
+  victim: '🕵️ VICTIM',
   virabot: '👾 VIRABOT',
   zombie: '🧟 ZOMBIE',
   zombieGroan: '🧟 ZOMBIE'
@@ -644,7 +648,9 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
     if (options.style && BUBBLE_STYLES.includes(options.style)) return options.style;
     const s = String(speakerType || '').toLowerCase();
     if (s === 'h4c3r' || s === 'virabot' || s === 'terminal') return 'cyber';
+    if (s.includes('victim')) return 'pixel';
     if (s.includes('dragon') || s.includes('warden') || s.includes('creaking') || s.includes('creeking') ||
+        s.includes('herobrine') ||
         s.includes('titan') || s.includes('dark_lord') || s.includes('darklord') ||
         s.includes('cat') || s.includes('creeper') || s.includes('orb') || s.includes('boss') ||
         s.includes('roar') || s.includes('shout') || s.includes('boom') || s.includes('nuke') ||
@@ -675,6 +681,7 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
       s === 'campaign' || s === 'h4c3r' || s === 'ender_dragon' || s === 'enderDragon' ||
       s === 'warden_boss' || s === 'the_warden' || s === 'THE WARDEN' ||
       s === 'creaking_boss' || s === 'the_creaking' || s === 'creaking' || s === 'creeking' || s === 'the_creeking' || s === 'THE CREAKING' ||
+      s === 'herobrine_boss' || s === 'herobrine' || s === 'victim_boss' || s === 'victim' ||
       s === 'titan'
     ) return 5;
     if (s === 'dark_lord' || s === 'darkLord' || s === 'king_orange' || s === 'kingOrange' || s === 'creeper_lord' || s === 'creeperLord' || s === 'giant_cat' || s === 'giantCat' || s === 'lucky_orb' || s === 'luckyOrb') return 4;
@@ -1787,7 +1794,7 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
           'ender_dragon', 'warden_boss', 'creaking_boss', 'creeking',
           'mercenary_squad', 'mercenary_agent', 'mercenary_ballista',
           'mercenary_primal', 'mercenary_hazard', 'h4c3r', 'king_orange',
-          'dark_lord', 'lucky_orb', 'creeper_lord', 'giant_cat', 'titan_boss', 'boss'
+          'dark_lord', 'lucky_orb', 'creeper_lord', 'giant_cat', 'titan_boss', 'herobrine_boss', 'herobrine', 'victim_boss', 'victim', 'boss'
         ]);
         const isBoss = BOSS_SET.has(ent) || ent.includes('boss') || ent.includes('lord') || ent.includes('dragon') || ent.includes('titan') || ent.includes('mercenary') || ent.includes('h4c3r') || ent.includes('king');
 

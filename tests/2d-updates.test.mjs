@@ -17,6 +17,7 @@ import { StageManager } from '../js/systems/stages.js?v=9.8';
 import { waves } from '../js/systems/waves.js?v=9.8';
 import { combat } from '../js/systems/combat.js?v=9.8';
 import { shop } from '../js/systems/shop.js?v=9.8';
+import { save } from '../js/systems/save.js?v=9.8';
 
 import {
   EnderDragonBoss,
@@ -53,6 +54,19 @@ import {
   installOldUpdatesMenu,
   resolveLegacyUpdateUrl
 } from '../3d/js/purple_ally.js?v=10.9';
+import {
+  HerobrineBoss,
+  VictimBoss
+} from '../3d/js/secret_bosses.js?v=10.9';
+import {
+  BOSS_WEAPON_CATALOG,
+  PLAYABLE_CHARACTERS,
+  BOSS_RUSH_ROSTER,
+  ENDLESS_MUTATORS,
+  ROGUELIKE_PERKS,
+  TROPHY_MONUMENT_BOSSES,
+  computeStageRank
+} from '../3d/js/gameplay_features.js?v=10.9';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -140,7 +154,9 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
     '3d/js/campaign3d.js',
     '3d/js/physics3d.js',
     '3d/js/speech3d.js',
-    '3d/js/purple_ally.js'
+    '3d/js/purple_ally.js',
+    '3d/js/secret_bosses.js',
+    '3d/js/gameplay_features.js'
   ];
 
   for (const rel of filesToAudit) {
@@ -1910,6 +1926,381 @@ test('2D Expansion [20] Old Updates Main Menu Button & Playable Legacy Archive (
     globalThis.document = prevDoc;
   }
 });
+
+test('2D Expansion [21] Unlockable Boss Weapons & T Hot-Swap + 8 Playable Stickman Characters (incl. Purple Elytra Glide & King Orange)', () => {
+  resetGlobalSystems();
+  const { game, controller, calls } = create2DGameHarness();
+  const mega = controller.mega;
+
+  // 1. Boss Weapon Unlocks & KeyT Hot-Swap Arsenal
+  assert.equal(BOSS_WEAPON_CATALOG.length, 8, 'Catalog must define all 8 weapons');
+  mega.unlockedWeapons = new Set(['pencil']);
+  if (save.data) save.data.unlockedWeapons = ['pencil'];
+
+  controller.jumpToStage(10, { freshStart: true, creative: false });
+  const darkLord = controller.spawnCreativeEntity('dark_lord');
+  assert.ok(darkLord, 'Dark Lord boss must spawn');
+  darkLord.takeDamage(99999, 1, 0, true);
+  assert.ok(mega.unlockedWeapons.has('vira_blades'), 'Defeating The Dark Lord must permanently unlock Dual Vira-Blades');
+  assert.ok(save.data.unlockedWeapons.includes('vira_blades'), 'Unlocked weapon must persist to save.data');
+
+  game.player.weaponType = 'pencil';
+  controller.handleCreativeKeyDown({ code: 'KeyT', repeat: false, target: { tagName: 'BODY' } });
+  assert.equal(game.player.weaponType, 'vira_blades', 'Pressing KeyT must hot-swap to unlocked Dual Vira-Blades');
+  controller.handleCreativeKeyDown({ code: 'KeyT', repeat: false, target: { tagName: 'BODY' } });
+  assert.equal(game.player.weaponType, 'pencil', 'Pressing KeyT again must cycle back to Giant Pencil');
+
+  // Creative mode exposes all 8 weapons in T-cycle
+  assert.equal(mega.getUnlockedWeaponList(true).length, 8, 'Creative mode must expose all 8 weapons');
+
+  // 2. All 8 Playable Stickman Characters
+  assert.equal(PLAYABLE_CHARACTERS.length, 8, 'Roster must contain 8 playable stickman characters');
+
+  // King Orange: +30 HP, Golden Crown, starts with Command Staff!
+  mega.setCharacter('king', game.player);
+  assert.equal(game.player.characterId, 'king');
+  assert.equal(game.player.hasCrown, true, 'King Orange must wear a golden crown');
+  assert.equal(game.player.weaponType, 'staff', 'King Orange must start with Command Staff');
+
+  // Purple: Interactive mid-air Elytra Glide when holding Space while falling
+  mega.setCharacter('purple', game.player);
+  assert.equal(game.player.hasElytra, true, 'Purple playable character must have Elytra wings');
+  game.player.y = -220;
+  game.player.vy = 260;
+  game.player.isGrounded = false;
+  input.actions.jump = true;
+  input.actions.right = true;
+  mega.updateCharacterPassives(game.player, 1 / 60, input, [], game.camera, 0);
+  assert.equal(game.player.isElytraGliding, true, 'Holding Space mid-air as Purple must activate Elytra glide');
+  assert.ok(game.player.vy <= 115, 'Purple Elytra glide must cap downward fall velocity smoothly');
+  assert.equal(game.player.pose, 'elytra_glide', 'Purple must adopt elytra_glide pose while gliding');
+
+  // Render Purple + King overlays with balanced save/restore
+  calls.save = 0;
+  calls.restore = 0;
+  mega.drawPlayerCharacterOverlay2D(game.ctx, game.player);
+  assert.equal(calls.save, calls.restore, 'Purple playable overlay must balance ctx.save/ctx.restore');
+
+  // Chosen One: Fire Dash Roll burns nearby zombies
+  mega.setCharacter('chosen', game.player);
+  const burnTarget = controller.spawnCreativeEntity('walker');
+  burnTarget.x = game.player.x + 20;
+  burnTarget.y = 0;
+  const hpBeforeFire = burnTarget.hp;
+  game.player.y = 0;
+  game.player.isRolling = true;
+  game.player._fireDashTick = 0;
+  mega.updateCharacterPassives(game.player, 0.05, input, [burnTarget], game.camera, 0);
+  assert.ok(burnTarget.hp < hpBeforeFire, 'Chosen One Fire Dash Roll must burn adjacent enemies');
+
+  // Blue: Passive Alchemist HP regeneration
+  mega.setCharacter('blue', game.player);
+  game.player.hp = 50;
+  mega.updateCharacterPassives(game.player, 1.0, input, [], game.camera, 0);
+  assert.ok(game.player.hp > 50, 'Blue Alchemist must passively regenerate HP');
+
+  mega.setCharacter('orange', game.player);
+  input.resetHeldInputs();
+  resetGlobalSystems();
+});
+
+test('2D Expansion [22] Boss Rush (13 Bosses incl. Herobrine & Victim), Endless Horde Mutators & Stage Clear Rank Cards (S/A/B/C)', () => {
+  resetGlobalSystems();
+  const { game, controller } = create2DGameHarness();
+  const mega = controller.mega;
+
+  // 1. Stage Clear Rank Card grading (S, A, B, C)
+  assert.equal(computeStageRank(25, 0, 20).rank, 'S');
+  assert.equal(computeStageRank(35, 30, 8).rank, 'A');
+  assert.equal(computeStageRank(55, 50, 2).rank, 'B');
+  assert.equal(computeStageRank(95, 110, 0).rank, 'C');
+
+  // 2. Boss Rush Mode: 13 rounds ending with Herobrine (12) & Victim (13)
+  assert.equal(BOSS_RUSH_ROSTER.length, 13);
+  assert.equal(BOSS_RUSH_ROSTER[11].bossType, 'herobrine_boss');
+  assert.equal(BOSS_RUSH_ROSTER[12].bossType, 'victim_boss');
+
+  mega.beginBossRush(controller.jumpToStage, waves, () => game.player, game.groundY, game.camera);
+  assert.equal(mega.mode, 'boss_rush');
+  assert.equal(mega.bossRushIndex, 0);
+  assert.equal(waves.zombies.length, 1);
+  assert.equal(waves.zombies[0].type, 'titan_boss', 'Boss Rush Round 1 must spawn Titan Undead');
+
+  // Jump straight to Round 12 (Herobrine) and clear -> advances to Round 13 (Victim) -> completes Boss Rush!
+  mega.loadBossRushRound(11, controller.jumpToStage, waves, () => game.player, game.groundY, game.camera);
+  assert.equal(waves.zombies[0].type, 'herobrine_boss', 'Boss Rush Round 12 must spawn HerobrineBoss');
+  waves.zombies[0].die(true);
+  waves.zombies.length = 0;
+  mega.updateGameModes(0.1, game.stageManager, waves, game.player, game.groundY, game.camera, {
+    jumpToStage: controller.jumpToStage
+  });
+  assert.equal(mega.bossRushIndex, 12, 'Clearing Round 12 must advance to Round 13');
+  assert.equal(waves.zombies[0].type, 'victim_boss', 'Boss Rush Round 13 must spawn VictimBoss');
+
+  waves.zombies[0].die(true);
+  waves.zombies.length = 0;
+  mega.updateGameModes(0.1, game.stageManager, waves, game.player, game.groundY, game.camera, {
+    jumpToStage: controller.jumpToStage
+  });
+  assert.equal(mega.bossRushComplete, true, 'Clearing Round 13 must complete Boss Rush');
+  assert.equal(save.data.unlocks.bossRush, true);
+  assert.ok(Number.isFinite(save.data.best.bossRushTime), 'Boss Rush completion must save best time');
+
+  // 3. Endless Horde Mode: valid { type, delay } spawnQueue items + wave progression + mutators
+  assert.ok(ENDLESS_MUTATORS.length >= 6);
+  mega.beginEndlessHorde(controller.jumpToStage, waves, () => game.player, game.groundY, game.camera);
+  assert.equal(mega.mode, 'endless');
+  assert.equal(mega.endlessWave, 1);
+  assert.ok(waves.spawnQueue.length >= 8, 'Endless Wave 1 must populate spawnQueue');
+  assert.equal(typeof waves.spawnQueue[0], 'object', 'Endless spawnQueue entries must be { type, delay } objects');
+  assert.equal(typeof waves.spawnQueue[0].type, 'string');
+
+  // Step waves.update to confirm Endless spawnQueue spawns real Zombie entities cleanly!
+  waves.spawnTimer = 0;
+  waves.update(0.05, game.player, game.groundY, [], game.camera);
+  assert.ok(waves.zombies.length >= 1, 'Endless spawnQueue must spawn live zombies cleanly');
+
+  // Clear wave 1 -> advances to wave 2 with mutator!
+  waves.spawnQueue.length = 0;
+  waves.zombies.length = 0;
+  mega.updateGameModes(0.1, game.stageManager, waves, game.player, game.groundY, game.camera, {
+    jumpToStage: controller.jumpToStage
+  });
+  assert.equal(mega.endlessWave, 2, 'Clearing Endless Wave 1 must launch Wave 2');
+  assert.ok(save.data.best.endlessWave >= 2, 'Endless Wave record must persist in save.data');
+
+  resetGlobalSystems();
+});
+
+test('2D Expansion [23] Tag-Team Ally Combo Synergies & Interactive Stage Toys + Trophy Room Boss Rematch', () => {
+  resetGlobalSystems();
+  const { game, controller, calls } = create2DGameHarness();
+  const mega = controller.mega;
+
+  // 1. All 4 Tag-Team Synergies trigger & affect enemies
+  controller.jumpToStage(1, { freshStart: true });
+  controller.nukeAllEnemies();
+  const foe = controller.spawnCreativeEntity('brute');
+  foe.x = 0;
+  foe.y = 0;
+  foe.hp = 1000;
+  foe.maxHp = 1000;
+
+  // Synergy A: Purple + King Orange -> Sky Command Dive
+  allies.activeAllies = [
+    { type: 'purple', x: 0, y: 0, facing: 1, hasActed: true, isDead: false, retreating: false },
+    { type: 'king', x: -60, y: 0, facing: 1, isDead: false, retreating: false }
+  ];
+  mega.updateAllySynergies(1 / 60, allies, game.player, [foe], game.camera, 0);
+  assert.ok(mega.triggeredSynergies.includes('purple_king'), 'Purple + King must trigger Sky Command Dive synergy');
+  assert.ok(foe.hp < 1000, 'Sky Command Dive must deal AoE damage');
+
+  // Synergy B: Blue + Yellow Turret -> Frost Turret Overclock
+  allies.activeAllies = [{ type: 'blue', x: 0, y: 0, facing: 1, isDead: false, retreating: false }];
+  allies.turrets = [{ x: 40, y: 0, duration: 3, isDead: false }];
+  mega.updateAllySynergies(1 / 60, allies, game.player, [foe], game.camera, 0);
+  assert.ok(mega.triggeredSynergies.includes('blue_yellow'), 'Blue + Yellow Turret must trigger Frost Turret synergy');
+  assert.equal(allies.turrets[0].isFrostTurret, true);
+  assert.ok(foe.freezeTimer > 0, 'Frost Turret synergy must freeze enemies');
+
+  // Synergy C: Red + Green -> Bass Meteor Dunk
+  const hpBeforeBass = foe.hp;
+  allies.activeAllies = [
+    { type: 'red', x: 0, y: 0, facing: 1, isDead: false, retreating: false },
+    { type: 'green', x: 30, y: 0, facing: 1, isDead: false, retreating: false }
+  ];
+  mega.updateAllySynergies(1 / 60, allies, game.player, [foe], game.camera, 0);
+  assert.ok(mega.triggeredSynergies.includes('red_green'), 'Red + Green must trigger Bass Meteor Dunk synergy');
+  assert.ok(foe.hp < hpBeforeBass);
+
+  // Synergy D: The Chosen One + Awakened Orange -> Twin Hollow Beam
+  const hpBeforeBeam = foe.hp;
+  game.player.x = -100;
+  game.player.facing = 1;
+  game.player.isAwakened = true;
+  allies.activeAllies = [{ type: 'chosen', x: -80, y: 0, facing: 1, isDead: false, retreating: false }];
+  mega.updateAllySynergies(1 / 60, allies, game.player, [foe], game.camera, 0);
+  assert.ok(mega.triggeredSynergies.includes('tco_orange'), 'TCO + Awakened Orange must trigger Twin Hollow Beam');
+  assert.ok(foe.hp < hpBeforeBeam);
+  game.player.isAwakened = false;
+
+  // 2. Interactive Stage Toys: Stage 23 Overworld (Slime Pads & Minecart)
+  controller.jumpToStage(23, { freshStart: true });
+  assert.ok(mega.stageToys.some((t) => t.kind === 'slime_pad'), 'Stage 23 Overworld must spawn bouncy Slime Pads');
+  assert.ok(mega.stageToys.some((t) => t.kind === 'minecart'), 'Stage 23 Overworld must spawn a kickable Minecart');
+
+  const pad = mega.stageToys.find((t) => t.kind === 'slime_pad');
+  game.player.x = pad.x;
+  game.player.y = 0;
+  game.player.vy = 0;
+  mega.updateStageToys(1 / 60, game.player, [], game.camera, game.stageManager, 0);
+  assert.equal(game.player.vy, -780, 'Stepping on Slime Pad must launch player sky-high');
+
+  const cart = mega.stageToys.find((t) => t.kind === 'minecart');
+  const bowlingTarget = controller.spawnCreativeEntity('walker');
+  bowlingTarget.x = cart.x + 25;
+  bowlingTarget.y = 0;
+  const hpBeforeCart = bowlingTarget.hp;
+  mega.triggerStageToy(cart, { facing: 1 }, [bowlingTarget], game.camera, 0);
+  mega.updateStageToys(0.04, game.player, [bowlingTarget], game.camera, game.stageManager, 0);
+  assert.ok(Math.abs(cart.vx) > 200, 'Minecart must roll forward when kicked');
+  assert.ok(bowlingTarget.hp < hpBeforeCart, 'Rolling Minecart must bowl through zombies');
+
+  // 3. Stage 24 YouTube Pause, Stage 26 Spotify Skip, Stage 27 Slides Present
+  controller.jumpToStage(24);
+  const ytPause = mega.stageToys.find((t) => t.kind === 'app_pause_btn');
+  assert.ok(ytPause, 'Stage 24 YouTube must spawn interactive Pause button');
+  const frozenFoe = controller.spawnCreativeEntity('walker');
+  mega.triggerStageToy(ytPause, game.player, [frozenFoe], game.camera, 0);
+  assert.equal(mega.videoPauseTimer, 3.5, 'Hitting YouTube Pause must set 3.5s video freeze timer');
+  assert.ok(frozenFoe.freezeTimer > 0, 'YouTube Pause must freeze enemies');
+
+  controller.jumpToStage(26);
+  const spSkip = mega.stageToys.find((t) => t.kind === 'app_skip_btn');
+  assert.ok(spSkip, 'Stage 26 Spotify must spawn interactive Skip button');
+  const stunnedFoe = controller.spawnCreativeEntity('brute');
+  mega.triggerStageToy(spSkip, game.player, [stunnedFoe], game.camera, 0);
+  assert.ok(stunnedFoe.stunTimer > 0, 'Spotify Skip must stun enemies with a bass drop');
+
+  controller.jumpToStage(27);
+  const slPresent = mega.stageToys.find((t) => t.kind === 'app_present_btn');
+  assert.ok(slPresent, 'Stage 27 Slides must spawn interactive Present button');
+  mega.triggerStageToy(slPresent, game.player, [], game.camera, 0);
+  assert.equal(mega.slideWipeX, -960, 'Slides Present button must launch the slide wipe curtain');
+
+  calls.save = 0;
+  calls.restore = 0;
+  mega.drawStageToys2D(game.ctx, 0.5, 0);
+  assert.equal(calls.save, calls.restore, 'drawStageToys2D must balance ctx.save/ctx.restore');
+
+  // 4. Interactive Trophy Room Boss Rematch (Stage 31 -> Stage 10 Dark Lord via KeyE)
+  assert.equal(TROPHY_MONUMENT_BOSSES.length, 11);
+  controller.jumpToStage(31);
+  assert.equal(game.stageManager.isTrophyRoom, true);
+  game.player.x = -685; // Dark Lord monument
+  mega.updateStageToys(1 / 60, game.player, [], game.camera, game.stageManager, 0);
+  assert.equal(mega.nearbyTrophyBoss?.stage, 10, 'Standing near Dark Lord monument must prompt Stage 10 rematch');
+  controller.handleCreativeKeyDown({ code: 'KeyE', repeat: false, target: { tagName: 'BODY' }, preventDefault() {} });
+  mega.updateStageToys(1 / 60, game.player, [], game.camera, game.stageManager, 0, (m) => controller.jumpToStage(m.stage));
+  assert.equal(game.stageManager.currentStage, 10, 'Pressing KeyE at Dark Lord trophy must launch instant Stage 10 rematch');
+
+  resetGlobalSystems();
+});
+
+test('2D Expansion [24] Perfect Dodge, Rare Loot Drops, Roguelike Perks, Secret Bosses (Herobrine & Victim) & 2P Co-op / 1v1 Versus', () => {
+  resetGlobalSystems();
+  const { game, controller, calls } = create2DGameHarness();
+  const mega = controller.mega;
+
+  // 1. Perfect Dodge ("FRAME PERFECT!") + Counter Crit
+  controller.jumpToStage(1, { freshStart: true });
+  controller.nukeAllEnemies();
+  const threat = controller.spawnCreativeEntity('brute');
+  threat.x = game.player.x + 85;
+  threat.y = 0;
+  mega.prevRollState = false;
+  game.player.isRolling = true;
+  const superBefore = game.player.superMeter;
+  const dodged = mega.checkPerfectDodge(game.player, [threat], projectiles, game.stageManager, game.camera);
+  assert.equal(dodged, true, 'Rolling near an enemy must trigger Perfect Dodge');
+  assert.equal(game.player.perfectCounterReady, true, 'Perfect Dodge must prime Counter Crit');
+  assert.ok(game.player.superMeter > superBefore, 'Perfect Dodge must grant bonus Awakening meter');
+
+  const hpBeforeCounter = threat.hp;
+  mega.onPlayerMeleeOrWeaponHit(game.player, [threat], game.camera, false);
+  assert.equal(game.player.perfectCounterReady, false, 'Counter Crit must consume perfectCounterReady');
+  assert.ok(threat.hp < hpBeforeCounter, 'Counter Crit must deal bonus burst damage');
+
+  // 2. Rare Loot Drops (Golden Apple, Firework Rocket, Lucky Dice, Glitch Bomb)
+  game.player.hp = 40;
+  mega.spawnLootDrop(game.player.x, 0, 'golden_apple');
+  mega.spawnLootDrop(game.player.x + 120, 0, 'glitch_bomb');
+  calls.save = 0;
+  calls.restore = 0;
+  mega.drawLootDrops2D(game.ctx);
+  assert.equal(calls.save, calls.restore, 'drawLootDrops2D must balance ctx.save/ctx.restore');
+  mega.updateLootDrops(1 / 60, game.player, [threat], allies, 0, game.camera);
+  assert.ok(game.player.hp >= 80 && mega.goldenShieldTimer > 0, 'Collecting Golden Apple must heal +40 HP & grant shield');
+
+  // 3. Roguelike Perks (1-of-3 Picker + Stat Effects)
+  assert.equal(ROGUELIKE_PERKS.length, 8);
+  const picks = mega.rollPerkChoices(3);
+  assert.equal(picks.length, 3, 'Perk picker must offer 3 choices');
+  assert.equal(new Set(picks.map((p) => p.id)).size, 3, 'All 3 offered perks must be distinct');
+  const prevJump = game.player.jumpForce;
+  mega.applyPerk('slime_boots', game.player, allies);
+  assert.ok(game.player.jumpForce >= prevJump + 110, 'Slime Bounce Boots perk must increase jumpForce');
+
+  // 4. Secret Bosses: HerobrineBoss & VictimBoss AI, Phase 2, Defeat & Balanced 2D Render
+  controller.launchSecretBoss('herobrine_boss');
+  const herobrine = waves.zombies.find((z) => z.type === 'herobrine_boss');
+  assert.ok(herobrine instanceof HerobrineBoss, 'launchSecretBoss must spawn HerobrineBoss');
+  for (let i = 0; i < 45; i++) herobrine.update(0.04, 0, game.player, [], game.camera);
+  herobrine.takeDamage(herobrine.maxHp * 0.55, 1, 100, true);
+  herobrine.update(0.04, 0, game.player, [], game.camera);
+  assert.equal(herobrine.phase, 2, 'HerobrineBoss must enter Phase 2 below 50% HP');
+  calls.save = 0;
+  calls.restore = 0;
+  herobrine.draw(game.ctx, false);
+  assert.equal(calls.save, calls.restore, 'HerobrineBoss.draw must balance ctx.save/ctx.restore');
+  herobrine.takeDamage(99999, 1, 100, true);
+  assert.equal(herobrine.isDead, true);
+
+  controller.launchSecretBoss('victim_boss');
+  const victim = waves.zombies.find((z) => z.type === 'victim_boss');
+  assert.ok(victim instanceof VictimBoss, 'launchSecretBoss must spawn VictimBoss');
+  for (let i = 0; i < 50; i++) victim.update(0.04, 0, game.player, [], game.camera);
+  victim.takeDamage(victim.maxHp * 0.55, 1, 100, true);
+  victim.update(0.04, 0, game.player, [], game.camera);
+  assert.equal(victim.phase, 2, 'VictimBoss must enter Phase 2 below 50% HP');
+  calls.save = 0;
+  calls.restore = 0;
+  victim.draw(game.ctx, false);
+  assert.equal(calls.save, calls.restore, 'VictimBoss.draw must balance ctx.save/ctx.restore');
+  victim.takeDamage(99999, 1, 100, true);
+  assert.equal(victim.isDead, true);
+
+  // 5. Local 2P Co-op & 1v1 Stickman Versus Duel
+  controller.jumpToStage(1, { freshStart: true });
+  controller.nukeAllEnemies();
+  mega.startP2Mode('coop', game.player, 0);
+  assert.equal(mega.p2.active, true);
+  const p2StartX = mega.p2.x;
+  mega.handleP2KeyDown('ArrowRight');
+  input.keys.ArrowRight = true;
+  input.keys.KeyD = false;
+  mega.isolateP1InputsForCoop(input);
+  assert.equal(input.actions.right, false, 'ArrowRight must be isolated from P1 when P2 Co-op is active');
+  for (let i = 0; i < 12; i++) {
+    mega.updateP2(1 / 60, game.player, [], 0, [], game.camera);
+    mega.endP2Frame();
+  }
+  assert.ok(mega.p2.x > p2StartX + 10, 'P2 must move smoothly with ArrowRight in Co-op');
+  mega.handleP2KeyUp('ArrowRight');
+
+  calls.save = 0;
+  calls.restore = 0;
+  mega.drawP22D(game.ctx);
+  assert.equal(calls.save, calls.restore, 'drawP22D must balance ctx.save/ctx.restore');
+
+  // 1v1 Versus Best-of-3 Duel
+  mega.startP2Mode('versus', game.player, 0);
+  assert.equal(mega.mode, 'versus');
+  mega.p2.hp = 0;
+  mega.updateP2(1 / 60, game.player, [], 0, [], game.camera);
+  assert.equal(mega.versusP1Wins, 1, 'KOing P2 in Round 1 must award P1 a round win');
+  mega.versusRoundResetTimer = 0.01;
+  mega.updateP2(0.05, game.player, [], 0, [], game.camera);
+  assert.equal(mega.versusRound, 2, 'Versus must transition cleanly to Round 2');
+  mega.p2.hp = 0;
+  mega.updateP2(1 / 60, game.player, [], 0, [], game.camera);
+  assert.equal(mega.versusWinner, 'P1', 'Winning 2 rounds must crown P1 as Best-of-3 Duel Champion');
+
+  mega.stopP2Mode();
+  input.resetHeldInputs();
+  resetGlobalSystems();
+});
+
 
 
 

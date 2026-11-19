@@ -157,6 +157,16 @@ import {
   OLD_UPDATES_ARCHIVE,
   installPurpleAllySystem
 } from '../3d/js/purple_ally.js?v=10.9';
+import {
+  HerobrineBoss,
+  VictimBoss
+} from '../3d/js/secret_bosses.js?v=10.9';
+import {
+  MegaFeaturesController,
+  PLAYABLE_CHARACTERS,
+  BOSS_WEAPON_CATALOG,
+  BOSS_RUSH_ROSTER
+} from '../3d/js/gameplay_features.js?v=10.9';
 
 // ----------------------------------------------------------------------------
 // Local Verification Helpers for Resource Disposal Protocol
@@ -5944,5 +5954,109 @@ test('Purple Elytra Ally 3D [2]: 3D Game Integration, Swoop Physics, King Orange
   allies.reset(true, false, false);
   speech3dMod.speech3d.reset();
 });
+
+test('Mega Features 3D [1]: Secret Bosses (Herobrine & Victim) 3D StickRig3D Anatomy, Speech Badges & Clean Disposal', async () => {
+  const speech3dMod = await import('../3d/js/speech3d.js?v=10.3');
+  assert.equal(speech3dMod.SPEAKER_BADGES.herobrine_boss, '👁️ HEROBRINE');
+  assert.equal(speech3dMod.SPEAKER_BADGES.victim_boss, '🕵️ VICTIM');
+  assert.equal(speech3dMod.speech3d.resolveStyle('herobrine_boss'), 'shout');
+  assert.equal(speech3dMod.speech3d.resolveStyle('victim_boss'), 'pixel');
+  assert.equal(speech3dMod.speech3d._getSpeakerPriority('herobrine_boss'), 5);
+  assert.equal(speech3dMod.speech3d._getSpeakerPriority('victim_boss'), 5);
+
+  const herobrine = new HerobrineBoss(240, 0);
+  const victim = new VictimBoss(-240, 0);
+
+  const hbRig = Game3D.prototype.createEnemyRig3D.call({}, herobrine);
+  assert.ok(hbRig instanceof StickRig3D, 'Herobrine must build a StickRig3D');
+  assert.ok(hbRig.headGroup.children.some((c) => c.name === 'herobrineEyes'), 'Herobrine 3D rig must mount glowing white eyes');
+  assert.ok(hbRig.herobrineMotes, 'Herobrine 3D rig must mount orbiting ender motes');
+  const prevMoteY = hbRig.herobrineMotes.rotation.y;
+  hbRig.update({ pose: 'attack_cross', animTimer: 1.5, dt: 0.016 });
+  assert.notEqual(hbRig.herobrineMotes.rotation.y, prevMoteY, 'Herobrine ender motes must orbit smoothly');
+  verifyDisposeHierarchy(hbRig.root, true);
+
+  const vRig = Game3D.prototype.createEnemyRig3D.call({}, victim);
+  assert.ok(vRig instanceof StickRig3D, 'Victim must build a StickRig3D');
+  assert.equal(vRig.isHollowHead, true, 'Victim 3D rig must use classic AvA hollow head ring');
+  assert.ok(vRig.victimReticle, 'Victim 3D rig must mount glowing cyan Rocket Corp UI reticle');
+  vRig.update({ pose: 'weapon_slash', animTimer: 1.2, dt: 0.016 });
+  verifyDisposeHierarchy(vRig.root, true);
+});
+
+test('Mega Features 3D [2]: 3D Playable Character Rig Switching, 3D Stage Toys, 3D Loot Drops & 3D P2 StickRig3D Sync/Disposal', () => {
+  assert.equal(PLAYABLE_CHARACTERS.length, 8);
+  assert.equal(BOSS_WEAPON_CATALOG.length, 8);
+  assert.equal(BOSS_RUSH_ROSTER.length, 13);
+
+  const scene = new THREE.Scene();
+  const dynamicGroup = new THREE.Group();
+  scene.add(dynamicGroup);
+
+  const mega = new MegaFeaturesController({ is3D: true });
+  const player = new Player(-200, 0);
+  player.z = 0;
+
+  const fakeGame3D = {
+    scene,
+    dynamicGroup,
+    mega,
+    player,
+    groundY: 0,
+    creativeMode: false,
+    creativeWeaponOverride: null,
+    playerRig: null,
+    playerLight: new THREE.PointLight(0xff7700, 1.2, 14),
+    stageManager: { theme: 'overworld', stageTime: 0.5 },
+    stageToyMeshes3D: new Map(),
+    lootDropMeshes3D: new Map(),
+    p2Rig3D: null,
+    p2RigCharId: null,
+    _scratchEntitySet: new Set()
+  };
+
+  // 1. Playable Character 3D Rig Switching: Purple (Elytra), King Orange (Crown + Staff), Chosen One (Hollow Head)
+  mega.setCharacter('purple', player);
+  const purpleRig = Game3D.prototype.rebuildPlayerRig3D.call(fakeGame3D);
+  assert.equal(purpleRig.hasElytra, true, '3D Purple player rig must mount Elytra wings');
+  assert.equal(purpleRig.root.rotation.order, 'YXZ', '3D player rig must use YXZ order for glide pitch');
+
+  mega.setCharacter('king', player);
+  const kingRig = Game3D.prototype.rebuildPlayerRig3D.call(fakeGame3D);
+  assert.equal(kingRig.currentWeaponType, 'staff', '3D King Orange player rig must equip Command Staff');
+  assert.ok(kingRig.headGroup.children.length >= 2, '3D King Orange player rig must mount golden crown');
+
+  mega.setCharacter('chosen', player);
+  const chosenRig = Game3D.prototype.rebuildPlayerRig3D.call(fakeGame3D);
+  assert.equal(chosenRig.isHollowHead, true, '3D Chosen One player rig must use hollow head ring');
+
+  // 2. 3D Stage Toys (Overworld Slime Pads + Minecart), 3D Loot Drops & 3D P2 StickRig3D
+  mega.spawnStageToys({ theme: 'overworld' }, 0);
+  mega.spawnLootDrop(40, 0, 'golden_apple');
+  mega.spawnLootDrop(120, 0, 'lucky_dice');
+  mega.startP2Mode('coop', player, 0);
+
+  Game3D.prototype.syncMega3DEntities.call(fakeGame3D, 1 / 60);
+  assert.ok(fakeGame3D.p2Rig3D instanceof StickRig3D, '3D syncMega3DEntities must build P2 StickRig3D');
+  assert.equal(fakeGame3D.stageToyMeshes3D.size, 3, 'Overworld 3D must render 2 Slime Pads + 1 Minecart');
+  assert.equal(fakeGame3D.lootDropMeshes3D.size, 2, '3D must render both active rare loot drops');
+
+  // Rotate loot drops & remove when stopped/cleared
+  const firstLoot = [...fakeGame3D.lootDropMeshes3D.values()][0];
+  const prevLootRot = firstLoot.rotation.y;
+  Game3D.prototype.syncMega3DEntities.call(fakeGame3D, 0.1);
+  assert.notEqual(firstLoot.rotation.y, prevLootRot, '3D loot drops must spin smoothly');
+
+  mega.stopP2Mode();
+  mega.stageToys.length = 0;
+  mega.lootDrops.length = 0;
+  Game3D.prototype.syncMega3DEntities.call(fakeGame3D, 1 / 60);
+  assert.equal(fakeGame3D.p2Rig3D, null, 'Stopping P2 mode must remove & dispose 3D P2 rig');
+  assert.equal(fakeGame3D.stageToyMeshes3D.size, 0, 'Clearing stage toys must remove & dispose 3D toy meshes');
+  assert.equal(fakeGame3D.lootDropMeshes3D.size, 0, 'Collecting loot drops must remove & dispose 3D drop meshes');
+
+  verifyDisposeHierarchy(scene, true);
+});
+
 
 

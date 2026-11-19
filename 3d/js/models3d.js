@@ -688,6 +688,45 @@ export class StickRig3D {
       borderFrame.position.set(0, 0.08, 0);
       this.chest.add(borderFrame, signPlate);
       this.eyeGroup.visible = false;
+    } else if (type === 'herobrine_boss') {
+      // Herobrine (Possessed Red): blazing white rectangular eyes + orbiting ender motes
+      this.eyeGroup.visible = false;
+      const whiteGlowMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const moteMat = new THREE.MeshBasicMaterial({ color: 0xc084fc });
+      const hbEyes = new THREE.Group();
+      hbEyes.name = 'herobrineEyes';
+      const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.075, 0.08), whiteGlowMat);
+      eyeL.position.set(-0.12, 0.04, 0.34);
+      const eyeR = eyeL.clone();
+      eyeR.position.x = 0.12;
+      hbEyes.add(eyeL, eyeR);
+      this.headGroup.add(hbEyes);
+
+      this.herobrineMotes = new THREE.Group();
+      this.herobrineMotes.name = 'herobrineMotes';
+      for (let i = 0; i < 4; i++) {
+        const ang = (i / 4) * Math.PI * 2;
+        const mote = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.13), i % 2 === 0 ? moteMat : whiteGlowMat);
+        mote.position.set(Math.cos(ang) * 0.56, ((i % 2) - 0.5) * 0.42, Math.sin(ang) * 0.56);
+        this.herobrineMotes.add(mote);
+      }
+      this.chest.add(this.herobrineMotes);
+    } else if (type === 'victim_boss') {
+      // Victim (Rocket Corp CEO): hollow grey head + glowing cyan UI containment reticle on chest
+      this.eyeGroup.visible = false;
+      const cyanMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+      this.victimReticle = new THREE.Group();
+      this.victimReticle.name = 'victimReticle';
+      const topBar = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.06, 0.08), cyanMat);
+      topBar.position.set(0, 0.34, 0.24);
+      const botBar = topBar.clone();
+      botBar.position.y = -0.34;
+      const leftBar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.74, 0.08), cyanMat);
+      leftBar.position.set(-0.32, 0, 0.24);
+      const rightBar = leftBar.clone();
+      rightBar.position.x = 0.32;
+      this.victimReticle.add(topBar, botBar, leftBar, rightBar);
+      this.chest.add(this.victimReticle);
     }
 
     // Warm up V8 inline caches and polymorphic feedback vectors across poses and float fields
@@ -785,6 +824,12 @@ export class StickRig3D {
     }
     if (this.glitchShards) {
       this.glitchShards.rotation.y = animTimer * 5;
+    }
+    if (this.herobrineMotes) {
+      this.herobrineMotes.rotation.y = animTimer * 4.2;
+    }
+    if (this.victimReticle) {
+      this.victimReticle.scale.setScalar(1 + Math.sin(animTimer * 6) * 0.06);
     }
     if (this.boomCore) {
       this.boomCore.scale.setScalar(1 + Math.sin(animTimer * 16) * 0.14);

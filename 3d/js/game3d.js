@@ -67,6 +67,20 @@ import {
   installOldUpdatesMenu,
   isKingOrangeWithPlayer
 } from './purple_ally.js?v=10.9';
+import {
+  BOSS_WEAPON_CATALOG,
+  PLAYABLE_CHARACTERS,
+  getCharacterDef,
+  BOSS_RUSH_ROSTER,
+  ENDLESS_MUTATORS,
+  ROGUELIKE_PERKS,
+  TROPHY_MONUMENT_BOSSES,
+  P2_KEY_CODES,
+  computeStageRank,
+  installSecretBossesOnWaves,
+  MegaFeaturesController,
+  mountMegaFeaturesUI
+} from './gameplay_features.js?v=10.9';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
 const CAMERA_LABELS = {
@@ -266,7 +280,11 @@ export class Game3D {
     this.camera2D = new Camera(this.overlayCanvas);
     this.stageManager = stages;
     extendCampaignFor3D(this.stageManager, waves);
+    installSecretBossesOnWaves(waves);
     installPurpleAllySystem(allies, input, null, speech, shop);
+    this.mega = new MegaFeaturesController({ is3D: true });
+    this.mega.installKillHook(() => this.groundY);
+    this.megaUI = null;
 
     this.activeDamagePhase = null;
     this.lastDamageCause = '';
@@ -314,6 +332,10 @@ export class Game3D {
     this.hazardMeshes = new Map();
     this.inkMeshes = new Map();
     this.telegraphMeshes = new Map();
+    this.stageToyMeshes3D = new Map();
+    this.lootDropMeshes3D = new Map();
+    this.p2Rig3D = null;
+    this.p2RigCharId = null;
     // Zero-allocation persistent scratch structures (F2.1)
     this._scratchEntitySet = new Set();
     this._alignedPlatforms = [];
@@ -400,12 +422,16 @@ export class Game3D {
   }
 
   buildPlayer3D() {
+    const def = getCharacterDef(this.mega?.selectedCharacter || 'orange');
     this.playerRig = new StickRig3D({
-      color: '#ff7700',
-      scale: 1.05,
-      isHollowHead: true,
-      weaponType: 'pencil'
+      color: def.color,
+      scale: def.id === 'king' ? 1.15 : 1.05,
+      isHollowHead: def.isHollowHead,
+      hasCrown: def.hasCrown,
+      hasElytra: def.hasElytra,
+      weaponType: this.player?.weaponType || def.starterWeapon || 'pencil'
     });
+    this.playerRig.root.rotation.order = 'YXZ';
     this.scene.add(this.playerRig.root);
 
     // 3D Shadow Blob under player for crisp platforming depth reading
@@ -419,6 +445,30 @@ export class Game3D {
     this.playerShadowBlob = new THREE.Mesh(shadowGeo, shadowMat);
     this.playerShadowBlob.rotation.x = -Math.PI / 2;
     this.scene.add(this.playerShadowBlob);
+  }
+
+  rebuildPlayerRig3D() {
+    if (this.playerRig?.root) {
+      this.scene.remove(this.playerRig.root);
+      disposeHierarchy(this.playerRig.root, true);
+    }
+    const def = getCharacterDef(this.mega?.selectedCharacter || 'orange');
+    this.playerRig = new StickRig3D({
+      color: def.color,
+      scale: def.id === 'king' ? 1.15 : 1.05,
+      isHollowHead: def.isHollowHead,
+      hasCrown: def.hasCrown,
+      hasElytra: def.hasElytra,
+      weaponType: (this.creativeMode && this.creativeWeaponOverride)
+        ? this.creativeWeaponOverride
+        : (this.player?.weaponType || def.starterWeapon || 'pencil')
+    });
+    this.playerRig.root.rotation.order = 'YXZ';
+    this.scene.add(this.playerRig.root);
+    if (this.playerLight?.color) {
+      this.playerLight.color.set(def.color);
+    }
+    return this.playerRig;
   }
 
   buildSpecialEffectMeshes() {
@@ -532,6 +582,35 @@ export class Game3D {
         this.cycleCameraMode();
       }
       if (this.state === 'PLAYING' && !e.repeat) {
+        if (this.mega?.perkPickerOpen && (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3')) {
+          const idx = e.code === 'Digit1' ? 0 : (e.code === 'Digit2' ? 1 : 2);
+          const picked = this.mega.perkOfferings?.[idx];
+          if (picked) {
+            e.preventDefault();
+            if (input.keys) input.keys[e.code] = false;
+            if (input.keysPressed) input.keysPressed[e.code] = false;
+            this.mega.perkPickerOpen = false;
+            document.getElementById('perk-picker-modal')?.classList.remove('active');
+            this.mega.applyPerk(picked.id, this.player, allies);
+          }
+          return;
+        }
+        if (this.mega?.p2?.active && P2_KEY_CODES.includes(e.code)) {
+          if (e.code.startsWith('Arrow')) e.preventDefault();
+          this.mega.handleP2KeyDown(e.code);
+          return;
+        }
+        if (e.code === 'KeyT') {
+          if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
+          const nextW = this.mega?.cycleWeapon(this.player, this.creativeMode);
+          if (this.creativeMode && nextW) this.creativeWeaponOverride = nextW;
+          return;
+        }
+        if (e.code === 'KeyE' && this.stageManager?.isTrophyRoom && this.mega?.nearbyTrophyBoss) {
+          e.preventDefault();
+          if (this.player) this.player._trophyRematchTriggered = true;
+          return;
+        }
         if (e.code === 'KeyC') {
           if (tag === 'SELECT') { e.preventDefault(); e.target?.blur?.(); }
           if (input.keys) input.keys['KeyC'] = false;
@@ -574,6 +653,9 @@ export class Game3D {
     });
     window.addEventListener('keyup', (e) => {
       this.keys3D[e.code] = false;
+      if (P2_KEY_CODES.includes(e.code)) {
+        this.mega?.handleP2KeyUp(e.code);
+      }
     });
     window.addEventListener('contextmenu', (e) => e.preventDefault());
   }
@@ -690,6 +772,7 @@ export class Game3D {
         const started = origExecWeapon(zombies, camera);
         if (started) {
           this.triggerCreativeBlockStrike3D(player.x + player.facing * 68, player.y - 30, player.z || 0, 105);
+          this.mega?.onPlayerMeleeOrWeaponHit(player, zombies, camera, true);
         }
         return started;
       };
@@ -701,10 +784,22 @@ export class Game3D {
         const started = origExecCombo(zombies, camera);
         if (started) {
           this.triggerCreativeBlockStrike3D(player.x + player.facing * 52, player.y - 30, player.z || 0, 88);
+          this.mega?.onPlayerMeleeOrWeaponHit(player, zombies, camera, false);
         }
         return started;
       };
     }
+
+    if (typeof player.resolveGrabContact === 'function') {
+      const origResolveGrab = player.resolveGrabContact.bind(player);
+      player.resolveGrabContact = (target, camera) => {
+        const res = origResolveGrab(target, camera);
+        this.mega?.onPlayerMeleeOrWeaponHit(player, waves.zombies, camera, false);
+        return res;
+      };
+    }
+
+    this.mega?.applyCharacterToPlayer(player);
 
     return player;
   }
@@ -789,7 +884,48 @@ export class Game3D {
     }
   }
 
-  jumpToStage(stageNum) {
+  resetMegaStageState(suppressModeReset = false) {
+    if (!this.mega) return;
+    if (!suppressModeReset) {
+      this.mega.mode = 'campaign';
+      this.mega.bossRushActive = false;
+      if (this.mega.p2.mode === 'versus') this.mega.stopP2Mode();
+    }
+    this.mega.stageElapsed = 0;
+    this.mega.stageRankAwardedFor = -1;
+    this.mega.lootDrops.length = 0;
+    this.mega.spawnStageToys(this.stageManager, this.groundY);
+    if (this.player) this.mega.applyCharacterToPlayer(this.player);
+    if (this.mega.p2.active && this.mega.p2.mode === 'coop') {
+      this.mega.p2.x = Math.max(-900, Math.min(900, (this.stageManager.entranceDoor?.x ?? -900) + 75));
+      this.mega.p2.y = this.groundY;
+      this.mega.p2.z = 0;
+      this.mega.p2.vx = 0;
+      this.mega.p2.vy = 0;
+      this.mega.p2.hp = this.mega.p2.maxHp;
+      this.mega.p2.isDead = false;
+    }
+  }
+
+  launchSecretBoss(bossType) {
+    const targetStage = bossType === 'herobrine_boss' ? 23 : 29;
+    this.jumpToStage(targetStage, { suppressModeReset: false });
+    waves.spawnQueue.length = 0;
+    waves.zombies.length = 0;
+    waves.bossZombie = null;
+    waves.isWaveActive = true;
+    waves.isWaveClearing = false;
+    waves.spawnZombie(bossType, this.player, this.groundY, this.camera2D);
+    const spawned = waves.zombies[waves.zombies.length - 1];
+    if (spawned) {
+      spawned.z = 0;
+      wrapEnemyUpdate3D(spawned, this);
+    }
+    this.syncStageSelectors(targetStage);
+    return spawned;
+  }
+
+  jumpToStage(stageNum, options = {}) {
     this.hideAllModals();
     this.state = 'PLAYING';
     this.lastDamageCause = '';
@@ -820,8 +956,10 @@ export class Game3D {
     this.player._fallingHole3D = null;
     this.lastSafeIslandPos = { x: this.player.x, y: this.groundY, z: 0 };
     this.player.isGrounded = true;
-    this.player.weaponType = 'pencil';
+    const prevWeapon = this.player.weaponType;
+    this.player.weaponType = this.mega?.unlockedWeapons.has(prevWeapon) ? prevWeapon : 'pencil';
     this.player.temporaryWeaponTimer = 0;
+    this.resetMegaStageState(Boolean(options?.suppressModeReset));
     this.player.beginDrawIn?.();
 
     this.camera2D.snapTo(this.player);
@@ -1160,6 +1298,54 @@ export class Game3D {
     bindAllyClick('ally-purple-slot', 'purple');
 
     this.oldUpdatesMenu = installOldUpdatesMenu({ isSubdir: true, from: '3d' });
+    this.megaUI = mountMegaFeaturesUI(this.mega, {
+      getPlayer: () => this.player,
+      onCharacterChanged: () => {
+        if (this.player) this.mega.applyCharacterToPlayer(this.player);
+        this.rebuildPlayerRig3D();
+      },
+      onStartBossRush: () => {
+        audio.init();
+        this.mega.stopP2Mode();
+        this.mega.beginBossRush((st, opts) => this.jumpToStage(st, opts), waves, () => this.player, this.groundY, this.camera2D);
+      },
+      onStartEndless: () => {
+        audio.init();
+        this.mega.stopP2Mode();
+        this.mega.beginEndlessHorde((st, opts) => this.jumpToStage(st, opts), waves, () => this.player, this.groundY, this.camera2D);
+      },
+      onStartCoop: () => {
+        audio.init();
+        const stg = Number(document.getElementById('title-stage-select')?.value) || 1;
+        this.jumpToStage(stg, { suppressModeReset: false });
+        this.mega.startP2Mode('coop', this.player, this.groundY);
+        particles.addTextBanner(this.player.x, this.player.y - 105, '👥 2P CO-OP: P1 WASD+J/K • P2 ARROWS+NUM/SLASH! 👥', '#c084fc');
+      },
+      onStartVersus: () => {
+        audio.init();
+        const stg = Number(document.getElementById('title-stage-select')?.value) || 1;
+        this.jumpToStage(stg, { suppressModeReset: true });
+        waves.spawnQueue.length = 0;
+        waves.zombies.length = 0;
+        waves.bossZombie = null;
+        waves.isWaveActive = false;
+        this.mega.startP2Mode('versus', this.player, this.groundY);
+        particles.addTextBanner(0, this.groundY - 115, '⚔️ 1V1 3D STICKMAN DUEL — BEST OF 3! ⚔️', '#facc15');
+      },
+      onLaunchSecretBoss: (bossType) => {
+        audio.init();
+        this.launchSecretBoss(bossType);
+      },
+      onCycleWeapon: () => {
+        if (this.state === 'PLAYING') {
+          const nextW = this.mega.cycleWeapon(this.player, this.creativeMode);
+          if (this.creativeMode && nextW) this.creativeWeaponOverride = nextW;
+        }
+      },
+      onPickPerk: (perkId) => {
+        this.mega.applyPerk(perkId, this.player, allies);
+      }
+    });
   }
 
   toggleCreativeMode(forceState) {
@@ -1857,7 +2043,7 @@ export class Game3D {
   }
 
   triggerCreativeWeaponEffect(hostileTargets) {
-    const w = this.creativeWeaponOverride;
+    const w = (this.creativeMode && this.creativeWeaponOverride) ? this.creativeWeaponOverride : this.player?.weaponType;
     if (!w || w === 'pencil' || w === 'staff' || w === 'eraser') return;
 
     const px = this.player.x + this.player.facing * 65;
@@ -1950,6 +2136,10 @@ export class Game3D {
     this.projectileMeshes.clear();
     this.hazardMeshes.clear();
     this.inkMeshes.clear();
+    this.stageToyMeshes3D?.clear();
+    this.lootDropMeshes3D?.clear();
+    this.p2Rig3D = null;
+    this.p2RigCharId = null;
     if (this.groundHoles) this.groundHoles.length = 0;
     if (this.player) this.player._fallingHole3D = null;
     this.currentLookTarget = null;
@@ -2081,6 +2271,7 @@ export class Game3D {
     }
 
     this.player.beginDrawIn?.();
+    this.resetMegaStageState(Boolean(options?.suppressModeReset));
     this.camera2D.snapTo(this.player);
     waves.startWave(stage);
     this.prepareWeaponPickup(stage);
@@ -2136,6 +2327,7 @@ export class Game3D {
     this.player.isGrounded = true;
     this.player.weaponType = 'pencil';
     this.player.temporaryWeaponTimer = 0;
+    this.resetMegaStageState(this.mega?.mode === 'boss_rush' || this.mega?.mode === 'endless');
     this.player.beginDrawIn?.();
 
     this.camera2D.snapTo(this.player);
@@ -2188,13 +2380,15 @@ export class Game3D {
     this.player.cancelHook?.(true);
     if (this.player.isAwakened) this.player.deactivateAwakening?.();
     this.player.temporaryWeaponTimer = 0;
-    this.player.weaponType = 'pencil';
+    const prevWeapon = this.player.weaponType;
+    this.player.weaponType = this.mega?.unlockedWeapons.has(prevWeapon) ? prevWeapon : 'pencil';
     this.player.stageDamageTaken = 0;
 
     const isBossCheckpoint = [5, 10, 11, 15, 16, 17, 19, 21, 22, 29, 30].includes(nextStage);
     const baselineHeal = this.player.maxHp * 0.18;
     const bossSafetyHeal = Math.max(0, this.player.maxHp * 0.75 - this.player.hp);
     this.player.heal(isBossCheckpoint ? Math.max(baselineHeal, bossSafetyHeal) : baselineHeal);
+    this.resetMegaStageState(false);
     this.player.beginDrawIn?.();
 
     this.camera2D.snapTo(this.player);
@@ -2233,6 +2427,7 @@ export class Game3D {
     this.player.isGrounded = true;
     this.player.weaponType = 'pencil';
     this.player.temporaryWeaponTimer = 0;
+    this.resetMegaStageState(false);
     this.player.beginDrawIn?.();
     this.weaponPickup = null;
 
@@ -2466,8 +2661,9 @@ export class Game3D {
     try {
       input.update();
       if (this.state === 'PLAYING') {
-        const upHeld = Boolean(this.keys3D.KeyW || this.keys3D.ArrowUp || input.touch?.up);
-        const downHeld = Boolean(this.keys3D.KeyS || this.keys3D.ArrowDown || input.touch?.down);
+        const p2On = Boolean(this.mega?.p2?.active);
+        const upHeld = Boolean(this.keys3D.KeyW || (!p2On && this.keys3D.ArrowUp) || input.touch?.up);
+        const downHeld = Boolean(this.keys3D.KeyS || (!p2On && this.keys3D.ArrowDown) || input.touch?.down);
         this.zInput = (downHeld ? 1 : 0) - (upHeld ? 1 : 0);
 
         // Spacebar or touch jump triggers vertical Jump; W/S/Up/Down move in 3D Z-axis
@@ -2549,7 +2745,7 @@ export class Game3D {
     const zAlignedPlatforms = filterPlatformsForEntity(this.player, allPlatforms, 0);
 
     const hostileTargets = this.collectHostileTargets();
-    if (this.creativeMode && input.actions.weaponPressed) {
+    if (input.actions.weaponPressed) {
       this.triggerCreativeWeaponEffect(hostileTargets);
     }
 
@@ -2605,10 +2801,13 @@ export class Game3D {
         input.actions.blockPressed = false;
       }
     }
+    this.mega?.isolateP1InputsForCoop(input);
     this.player.update(simDt, input, effectiveGroundY, projectiles.sketchBlocks, hostileTargets, this.camera2D, zAlignedPlatforms);
     if (input.actions.ally7 && !this.player.isDead && !this.player.isRolling) {
       allies.summonAlly('purple', this.player.x, this.groundY, this.player.facing, hostileTargets);
     }
+    this.mega?.checkPerfectDodge(this.player, hostileTargets, projectiles, this.stageManager, this.camera2D);
+    this.mega?.updateCharacterPassives(this.player, simDt, input, hostileTargets, this.camera2D, this.groundY);
 
     // Continuous Collision Detection (CCD) & Vertical Tunneling Prevention (F3)
     if (prevPlayerY <= this.groundY + 18) {
@@ -2638,12 +2837,12 @@ export class Game3D {
     // Features 7 & 8: Void Fall Damage, Death & Safe Respawn
     this.checkPlayerVoidFall();
 
-    if (this.player.isDead && this.player.deathTimer <= 0) {
+    if (this.player.isDead && this.player.deathTimer <= 0 && this.mega?.mode !== 'versus') {
       this.gameOver();
       return;
     }
 
-    if (!(this.creativeMode && this.creativeFreezeAI)) {
+    if (!(this.creativeMode && this.creativeFreezeAI) && (this.mega?.videoPauseTimer || 0) <= 0) {
       // Ensure each enemy in the wave only lands on platforms matching their Z lane,
       // prevent high-speed vertical tunneling via CCD (F2, F3), and fall into void when off island (F9).
       const enemies = waves.zombies;
@@ -2740,6 +2939,20 @@ export class Game3D {
     }
 
     allies.update(simDt, this.groundY, hostileTargets, this.player, this.camera2D);
+    if (this.mega) {
+      this.mega.updateAllySynergies(simDt, allies, this.player, hostileTargets, this.camera2D, this.groundY);
+      this.mega.updateStageToys(simDt, this.player, hostileTargets, this.camera2D, this.stageManager, this.groundY, (monument) => {
+        this.jumpToStage(monument.stage);
+      });
+      this.mega.updateLootDrops(simDt, this.player, waves.zombies, allies, this.groundY, this.camera2D);
+      this.mega.updateP2(simDt, this.player, hostileTargets, this.groundY, allPlatforms, this.camera2D);
+      this.mega.updateGameModes(simDt, this.stageManager, waves, this.player, this.groundY, this.camera2D, {
+        jumpToStage: (st, opts) => this.jumpToStage(st, opts),
+        onOfferPerks: (perks) => this.megaUI?.showPerkModal(perks),
+        onSpawnRainTNT: (x) => this.placeCreativeBlock('tnt_block', { x, y: this.groundY - 260, z: 0, silent: true, allowWhenIdle: true })
+      });
+      this.mega.endP2Frame();
+    }
     combat.update(simDt, this.player);
     particles.update(simDt);
     speech.update(simDt, this.player);
@@ -3363,9 +3576,16 @@ export class Game3D {
 
     const isPureZRun = !this.player.isDead && this.player.isGrounded !== false &&
       Math.abs(this.player.vz || 0) > 20 && Math.abs(this.player.vx || 0) <= 20;
-    const playerPose = (isPureZRun && (this.player.pose === 'idle' || this.player.pose === 'crouch'))
-      ? 'run'
-      : this.player.pose;
+    const playerPose = this.player.isElytraGliding
+      ? 'elytra_glide'
+      : ((isPureZRun && (this.player.pose === 'idle' || this.player.pose === 'crouch'))
+        ? 'run'
+        : this.player.pose);
+
+    const targetPlayerPitch = this.player.isElytraGliding
+      ? Math.max(-0.7, Math.min(0.7, (this.player.pitchAngle || 0) * 0.72))
+      : 0;
+    this.playerRig.root.rotation.x += (targetPlayerPitch - this.playerRig.root.rotation.x) * Math.min(1, dt * 16);
 
     this.playerRig.update({
       pose: playerPose,
@@ -3375,6 +3595,7 @@ export class Game3D {
       isAwakened: this.player.isAwakened,
       weaponType: (this.creativeMode && this.creativeWeaponOverride) ? this.creativeWeaponOverride : (this.player.weaponType || 'pencil'),
       actionPhase: this.player.moveProgress || (this.player.diveKick ? Math.max(0, Math.min(1, 1 - (this.player.diveKickTimer || 0.5) / 0.5)) : 0),
+      wingSpread: this.player.hasElytra ? this.player.wingSpread : null,
       dt
     });
 
@@ -3479,8 +3700,161 @@ export class Game3D {
     // 9. Sync Sketch Blocks, Anvils, Projectiles, Hazards, and Ink Drops
     this.syncProjectilesAndProps3D();
 
+    // 9b. Sync 3D Player 2 Rig, Stage Toys & Rare Power-Up Loot Drops
+    this.syncMega3DEntities(dt);
+
     // 10. Update 3D Camera
     this.updateCamera3D(dt);
+  }
+
+  syncMega3DEntities(dt = 0.016) {
+    if (!this.mega) return;
+
+    // 1. Player 2 3D StickRig3D (Co-op & 1v1 Versus)
+    const p2 = this.mega.p2;
+    if (p2?.active && !p2.isDead) {
+      if (!this.p2Rig3D || this.p2RigCharId !== p2.characterId) {
+        if (this.p2Rig3D?.root) {
+          this.dynamicGroup.remove(this.p2Rig3D.root);
+          disposeHierarchy(this.p2Rig3D.root, true);
+        }
+        const ch = getCharacterDef(p2.characterId);
+        this.p2Rig3D = new StickRig3D({
+          color: ch.color,
+          scale: ch.id === 'king' ? 1.15 : 1.05,
+          isHollowHead: ch.isHollowHead,
+          hasCrown: ch.hasCrown,
+          hasElytra: ch.hasElytra,
+          weaponType: p2.weaponType || ch.starterWeapon || 'pencil'
+        });
+        this.p2Rig3D.root.rotation.order = 'YXZ';
+        this.p2RigCharId = p2.characterId;
+        this.dynamicGroup.add(this.p2Rig3D.root);
+      }
+      this.p2Rig3D.root.visible = true;
+      this.p2Rig3D.root.position.set(to3DX(p2.x), to3DY(p2.y), to3DZ(p2.z || 0));
+      this.p2Rig3D.root.rotation.y = p2.facing >= 0 ? Math.PI / 2 : -Math.PI / 2;
+      this.p2Rig3D.update({
+        pose: p2.pose || 'idle',
+        animTimer: p2.animTimer || 0,
+        isGrounded: p2.isGrounded !== false,
+        isHurt: p2.isHurt,
+        isAwakened: false,
+        weaponType: p2.weaponTimer > 0 ? p2.weaponType : null,
+        wingSpread: getCharacterDef(p2.characterId).hasElytra ? p2.wingSpread : null,
+        dt
+      });
+    } else if (this.p2Rig3D) {
+      this.dynamicGroup.remove(this.p2Rig3D.root);
+      disposeHierarchy(this.p2Rig3D.root, true);
+      this.p2Rig3D = null;
+      this.p2RigCharId = null;
+    }
+
+    // 2. Interactive 3D Stage Toys (Slime Pads, Minecart, App Pause/Skip/Present Consoles)
+    const toys = this.mega.stageToys || [];
+    const toySet = this._scratchEntitySet;
+    toySet.clear();
+    for (let i = 0; i < toys.length; i++) toySet.add(toys[i]);
+    for (const [toy, mesh] of this.stageToyMeshes3D.entries()) {
+      if (!toySet.has(toy)) {
+        this.dynamicGroup.remove(mesh);
+        disposeHierarchy(mesh, true);
+        this.stageToyMeshes3D.delete(toy);
+      }
+    }
+    for (let i = 0; i < toys.length; i++) {
+      const toy = toys[i];
+      let mesh = this.stageToyMeshes3D.get(toy);
+      if (!mesh) {
+        if (toy.kind === 'slime_pad') {
+          const mat = new THREE.MeshStandardMaterial({
+            color: 0x4ade80,
+            emissive: 0x16a34a,
+            emissiveIntensity: 0.35,
+            transparent: true,
+            opacity: 0.85,
+            roughness: 0.2
+          });
+          mesh = new THREE.Mesh(new THREE.BoxGeometry(toy.width * WORLD_TO_3D, toy.height * WORLD_TO_3D, 2.2), mat);
+        } else if (toy.kind === 'minecart') {
+          mesh = new THREE.Group();
+          const bodyMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.65, roughness: 0.35 });
+          const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6 });
+          const tub = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.85, 1.3), bodyMat);
+          tub.position.y = 0.6;
+          const wheelL = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 1.4, 8), wheelMat);
+          wheelL.rotation.x = Math.PI / 2;
+          wheelL.position.set(-0.55, 0.24, 0);
+          const wheelR = wheelL.clone();
+          wheelR.position.x = 0.55;
+          mesh.add(tub, wheelL, wheelR);
+        } else {
+          const accent = toy.kind === 'app_pause_btn' ? 0xef4444 : (toy.kind === 'app_skip_btn' ? 0x22c55e : 0xfacc15);
+          mesh = new THREE.Group();
+          const base = new THREE.Mesh(
+            new THREE.BoxGeometry(2.2, 1.5, 1.2),
+            new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.4 })
+          );
+          base.position.y = 0.75;
+          const beacon = new THREE.Mesh(
+            new THREE.BoxGeometry(1.6, 0.9, 1.3),
+            new THREE.MeshBasicMaterial({ color: accent })
+          );
+          beacon.position.y = 0.85;
+          mesh.add(base, beacon);
+        }
+        this.dynamicGroup.add(mesh);
+        this.stageToyMeshes3D.set(toy, mesh);
+      }
+      if (toy.kind === 'slime_pad') {
+        mesh.position.set(to3DX(toy.x), (toy.height * WORLD_TO_3D) * 0.5, 0);
+        const sq = toy.bounceCooldown > 0 ? 1.18 : 1.0 + Math.sin((this.stageManager?.stageTime || 0) * 5) * 0.04;
+        mesh.scale.set(sq, 1 / sq, sq);
+      } else {
+        mesh.position.set(to3DX(toy.x), to3DY(toy.y), 0);
+      }
+    }
+
+    // 3. 3D Rare Loot Drops (Golden Apple, Firework Rocket, Lucky Dice, Glitch Bomb)
+    const drops = this.mega.lootDrops || [];
+    const dropSet = this._scratchEntitySet;
+    dropSet.clear();
+    for (let i = 0; i < drops.length; i++) dropSet.add(drops[i]);
+    for (const [d, mesh] of this.lootDropMeshes3D.entries()) {
+      if (!dropSet.has(d)) {
+        this.dynamicGroup.remove(mesh);
+        disposeHierarchy(mesh, true);
+        this.lootDropMeshes3D.delete(d);
+      }
+    }
+    const lootColors = {
+      golden_apple: 0xfacc15,
+      firework_rocket: 0xf43f5e,
+      lucky_dice: 0xc084fc,
+      glitch_bomb: 0x38bdf8
+    };
+    for (let i = 0; i < drops.length; i++) {
+      const d = drops[i];
+      let mesh = this.lootDropMeshes3D.get(d);
+      if (!mesh) {
+        const col = lootColors[d.kind] || 0xfacc15;
+        const geo = d.kind === 'lucky_dice' ? new THREE.BoxGeometry(0.68, 0.68, 0.68) : new THREE.OctahedronGeometry(0.48, 0);
+        const mat = new THREE.MeshStandardMaterial({
+          color: col,
+          emissive: col,
+          emissiveIntensity: 0.75,
+          roughness: 0.25,
+          metalness: 0.3
+        });
+        mesh = new THREE.Mesh(geo, mat);
+        this.dynamicGroup.add(mesh);
+        this.lootDropMeshes3D.set(d, mesh);
+      }
+      const bob = Math.sin(d.bobPhase || 0) * 0.2;
+      mesh.position.set(to3DX(d.x), Math.max(0.55, to3DY(d.y)) + bob, to3DZ(this.player?.z || 0));
+      mesh.rotation.y += dt * 2.8;
+    }
   }
 
   createEnemyRig3D(enemy) {
@@ -3523,6 +3897,24 @@ export class Game3D {
         scale: 1.34,
         isHollowHead: true,
         zombieType: 'h4c3r'
+      });
+    }
+    if (enemy.type === 'herobrine_boss') {
+      return new StickRig3D({
+        color: '#dc2626',
+        scale: 1.28,
+        isHollowHead: false,
+        isZombie: false,
+        zombieType: 'herobrine_boss'
+      });
+    }
+    if (enemy.type === 'victim_boss') {
+      return new StickRig3D({
+        color: '#94a3b8',
+        scale: 1.24,
+        isHollowHead: true,
+        isZombie: false,
+        zombieType: 'victim_boss'
       });
     }
     return new StickRig3D({
@@ -3987,6 +4379,41 @@ export class Game3D {
     }
     ctx.restore();
 
+    // Trophy Room Rematch Prompt & Player 2 Overhead Tag in 3D Overlay
+    if (this.mega?.nearbyTrophyBoss) {
+      const m = this.mega.nearbyTrophyBoss;
+      const scr = this.projectWorldToOverlay(m.x, this.groundY - 145, 0);
+      if (scr.visible) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 2;
+        ctx.fillRect(scr.x - 115, scr.y - 16, 230, 30);
+        ctx.strokeRect(scr.x - 115, scr.y - 16, 230, 30);
+        ctx.fillStyle = '#fde047';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`[E] REMATCH: ${m.label.toUpperCase()}`, scr.x, scr.y + 3);
+        ctx.restore();
+      }
+    }
+    if (this.mega?.p2?.active && !this.mega.p2.isDead) {
+      const p2 = this.mega.p2;
+      const scr = this.projectWorldToOverlay(p2.x, p2.y - 98, p2.z || 0);
+      if (scr.visible) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+        ctx.fillRect(scr.x - 24, scr.y - 6, 48, 8);
+        ctx.fillStyle = '#c084fc';
+        ctx.fillRect(scr.x - 23, scr.y - 5, 46 * Math.max(0, p2.hp / p2.maxHp), 6);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('P2', scr.x, scr.y - 10);
+        ctx.restore();
+      }
+    }
+
     waves.drawScreenIndicators?.(ctx, cameraAdapter, width, height);
     this.stageManager.drawScreenGuide?.(ctx, cameraAdapter, width, height);
     speech.draw(ctx, this.cameraAdapter, width, height, this.camera3D);
@@ -4218,6 +4645,7 @@ export class Game3D {
     syncSkillCooldown('skill-block', 'cd-block-overlay', this.player.blockCooldown);
     syncSkillCooldown('skill-hook', 'cd-hook-overlay', this.player.hookCooldown);
     syncSkillCooldown('skill-grab', 'cd-grab-overlay', this.player.grabCooldown);
+    this.megaUI?.syncMegaHUD(this.player, this.creativeMode);
   }
 }
 
