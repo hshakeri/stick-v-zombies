@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -46,7 +46,13 @@ import {
 import {
   STAGE_OPTIONS_2D,
   install2DExpansion
-} from '../2d/expansion2d.js?v=10.6';
+} from '../2d/expansion2d.js?v=10.7';
+import {
+  OLD_UPDATES_ARCHIVE,
+  PURPLE_ALLY_CONFIG,
+  installOldUpdatesMenu,
+  resolveLegacyUpdateUrl
+} from '../3d/js/purple_ally.js?v=10.9';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -133,7 +139,8 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
     '2d/depth2d.js',
     '3d/js/campaign3d.js',
     '3d/js/physics3d.js',
-    '3d/js/speech3d.js'
+    '3d/js/speech3d.js',
+    '3d/js/purple_ally.js'
   ];
 
   for (const rel of filesToAudit) {
@@ -160,8 +167,8 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
 
 test('2D Expansion [2] Prominent Level Selector & Title UI: index.html + expansion2d expose Creative Mode, Stage Select, and Stages 18–30 pills', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
-  assert.match(html, /href="2d\/style2d\.css\?v=10\.4"/);
-  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.6"/);
+  assert.match(html, /href="2d\/style2d\.css\?v=10\.5"/);
+  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.7"/);
   assert.match(html, /id="btn-start-creative"/);
   assert.match(html, /id="title-stage-select"/);
   for (const stage of [19, 20, 21, 22, 29, 30]) {
@@ -1685,6 +1692,223 @@ test('2D Expansion [18] Stage 18 The Stronghold (Before The End) & Stage 28 Outs
   assert.equal(controller.getLastDeathReason(), 'The Second Coming was vaporized by a Security Laser');
 
   resetGlobalSystems();
+});
+
+test('2D Expansion [19] Purple Ally: Smooth Elytra Swoop, AoE Wind Strike, 2D Elytra Drawing, Wave & King Orange Hi Greeting', () => {
+  resetGlobalSystems();
+  const { game, controller, calls } = create2DGameHarness();
+  controller.jumpToStage(1, { freshStart: true });
+  controller.nukeAllEnemies();
+
+  // 1. Purple starts unlocked, has Elytra cooldown, and responds to Key 7 (Digit7)
+  assert.equal(allies.unlocked.purple, true, 'Purple must be unlocked by default');
+  assert.equal(allies.maxCooldowns.purple, PURPLE_ALLY_CONFIG.cooldown);
+
+  // Spawn a zombie in front of Orange to test Elytra swoop strike damage & launch
+  const target = {
+    x: game.player.x + 220,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    hp: 300,
+    maxHp: 300,
+    isDead: false,
+    isBoss: false,
+    isGrounded: true,
+    takeDamage(dmg) {
+      this.hp -= dmg;
+      return dmg;
+    }
+  };
+  waves.zombies.push(target);
+
+  // Trigger via Digit7 keyboard input
+  input.keysPressed.Digit7 = true;
+  input.update();
+  assert.equal(input.actions.ally7, true, 'Digit7 must trigger input.actions.ally7');
+  game.update(1 / 60);
+  input.endFrame();
+  assert.equal(input.actions.ally7, false, 'endFrame must reset input.actions.ally7');
+
+  const purple = allies.activeAllies.find((a) => a.type === 'purple');
+  assert.ok(purple, 'Pressing 7 must summon Purple ally');
+  assert.equal(purple.flightPhase, 'swoop_in');
+  assert.equal(purple.pose, 'elytra_glide');
+  assert.ok(purple.y < -300, 'Purple must start high in the sky for his Elytra swoop');
+  assert.ok(purple.wingSpread > 0.8, 'Elytra wings must start spread wide');
+
+  // Step through smooth swoop_in -> swoop_strike -> landed (WITHOUT King Orange)
+  const ys = [];
+  let sawDivePitch = false;
+  let sawStrike = false;
+  let sawLanded = false;
+  let sawTakeoff = false;
+  let sawTakeoffUpPitch = false;
+
+  for (let frame = 0; frame < 220; frame++) {
+    game.update(1 / 60);
+    if (frame % 15 === 0) {
+      calls.save = 0;
+      calls.restore = 0;
+      game.render();
+      assert.equal(calls.save, calls.restore, 'Purple Elytra 2D render must balance ctx.save/restore');
+    }
+    if (purple.flightPhase === 'swoop_in') {
+      ys.push(purple.y);
+      if (purple.pitchAngle > 0.2) sawDivePitch = true;
+    } else if (purple.flightPhase === 'swoop_strike') {
+      sawStrike = true;
+    } else if (purple.flightPhase === 'landed') {
+      sawLanded = true;
+    } else if (purple.flightPhase === 'takeoff') {
+      sawTakeoff = true;
+      if (purple.pitchAngle < -0.15) sawTakeoffUpPitch = true;
+    }
+  }
+
+  assert.ok(sawDivePitch, 'Purple must pitch smoothly nose-down during Elytra swoop');
+  assert.ok(ys.length > 10 && ys[ys.length - 1] > ys[0], 'Purple must smoothly descend along the Bezier swoop curve');
+  assert.ok(sawStrike, 'Purple must transition into low-altitude swoop_strike');
+  assert.ok(target.hp < 300, 'Purple Elytra swoop must damage zombies along the swoop corridor');
+  assert.ok(sawLanded, 'Purple must smoothly land on the ground');
+  assert.equal(purple.saidHiToKing, false, 'Without King Orange, Purple must not greet King Orange');
+  assert.ok(sawTakeoff && sawTakeoffUpPitch, 'Purple must smoothly pitch nose-up and soar away with his Elytra');
+  assert.equal(allies.activeAllies.some((a) => a === purple), false, 'Purple must despawn cleanly after takeoff');
+
+  // 2. Now test WITH King Orange by your side (Stage 12+ / recruited King Orange)
+  controller.jumpToStage(12, { freshStart: true });
+  controller.nukeAllEnemies();
+  speech3d.reset();
+
+  // Let King Orange spawn alongside Orange
+  game.update(1 / 60);
+  const king = allies.activeAllies.find((a) => a.type === 'king');
+  assert.ok(king, 'King Orange must be with the player on Stage 12+');
+
+  allies.cooldowns.purple = 0;
+  assert.equal(allies.summonAlly('purple', game.player.x, 0, 1, []), true);
+  const purpleWithKing = allies.activeAllies.find((a) => a.type === 'purple');
+  assert.ok(purpleWithKing);
+
+  let sawWavePose = false;
+  let sawPurpleHiBubble = false;
+  let sawKingHiBubble = false;
+  for (let frame = 0; frame < 180; frame++) {
+    game.update(1 / 60);
+    if (purpleWithKing.pose === 'wave') sawWavePose = true;
+    for (const b of speech3d.activeBubbles) {
+      if (b.text === 'HI, KING!' && String(b.badge).includes('PURPLE')) sawPurpleHiBubble = true;
+      if (b.text === 'HI, PURPLE!' && String(b.badge).includes('KING')) sawKingHiBubble = true;
+    }
+  }
+
+  assert.equal(purpleWithKing.saidHiToKing, true, 'Purple must say Hi when King Orange is with you');
+  assert.equal(purpleWithKing.kingReplied, true, 'King Orange must reply Hi to Purple');
+  assert.ok(sawWavePose, 'Purple must wave at King Orange upon landing');
+  assert.ok(sawPurpleHiBubble, 'Purple must display HI, KING! speech bubble');
+  assert.ok(sawKingHiBubble, 'King Orange must display HI, PURPLE! reply bubble');
+
+  // 3. Creative "All Allies" summons both King Orange and Purple
+  allies.reset(false, false, false);
+  controller.summonAllAllies();
+  assert.ok(allies.activeAllies.some((a) => a.type === 'king'), 'summonAllAllies must summon King Orange');
+  assert.ok(allies.activeAllies.some((a) => a.type === 'purple'), 'summonAllAllies must summon Purple');
+
+  resetGlobalSystems();
+});
+
+test('2D Expansion [20] Old Updates Main Menu Button & Playable Legacy Archive (v1.0, v2.0, v3.0, v4.0 3D)', () => {
+  assert.ok(OLD_UPDATES_ARCHIVE.length >= 4, 'Archive must include v1.0, v2.0, v3.0, and v4.0 3D');
+
+  // Verify every archived update build exists on disk, has return_banner.js, and zero external asset URLs
+  const badUrl = /(?:src|href)=["']https?:\/\/|url\(\s*["']?https?:\/\//i;
+  for (const entry of OLD_UPDATES_ARCHIVE) {
+    const fullPath = join(ROOT, entry.path);
+    assert.ok(existsSync(fullPath), `Legacy build file must exist: ${entry.path}`);
+    const html = readFileSync(fullPath, 'utf8');
+    assert.ok(html.includes('return_banner.js'), `${entry.path} must include return_banner.js to go back to Latest Update`);
+    assert.doesNotMatch(html, badUrl, `${entry.path} must stay asset-free`);
+    assert.equal(
+      resolveLegacyUpdateUrl(entry.path, { isSubdir: false, from: '2d' }),
+      `${entry.path}?from=2d`
+    );
+    assert.equal(
+      resolveLegacyUpdateUrl(entry.path, { isSubdir: true, from: '3d' }),
+      `../${entry.path}?from=3d`
+    );
+  }
+  assert.ok(existsSync(join(ROOT, 'legacy/return_banner.js')), 'Shared return_banner.js must exist');
+
+  // Verify Main Menu button & modal DOM open/close behavior in mock DOM
+  const elements = new Map();
+  const makeEl = (tag, id = '') => {
+    const classes = new Set();
+    const listeners = new Map();
+    const el = {
+      tagName: tag.toUpperCase(),
+      id,
+      className: '',
+      textContent: '',
+      innerHTML: '',
+      children: [],
+      attributes: {},
+      classList: {
+        add(c) { classes.add(c); },
+        remove(c) { classes.delete(c); },
+        contains(c) { return classes.has(c); }
+      },
+      setAttribute(k, v) { this.attributes[k] = v; },
+      appendChild(child) {
+        this.children.push(child);
+        if (child.id) elements.set(child.id, child);
+        return child;
+      },
+      addEventListener(ev, fn) {
+        if (!listeners.has(ev)) listeners.set(ev, []);
+        listeners.get(ev).push(fn);
+      },
+      click() {
+        for (const fn of listeners.get('click') || []) fn({ target: el });
+      }
+    };
+    if (id) elements.set(id, el);
+    return el;
+  };
+
+  const titleActions = makeEl('div');
+  const gameContainer = makeEl('div', 'game-container');
+  const closeBtn = makeEl('button', 'btn-close-old-updates');
+  const stayBtn = makeEl('button', 'btn-stay-latest');
+
+  const prevDoc = globalThis.document;
+  globalThis.document = {
+    body: gameContainer,
+    getElementById: (id) => elements.get(id) || null,
+    querySelector: (sel) => (sel === '#title-screen .title-actions' ? titleActions : null),
+    createElement: (tag) => makeEl(tag)
+  };
+  try {
+    const menu = installOldUpdatesMenu({ isSubdir: false, from: '2d' });
+    assert.ok(menu.btn, 'installOldUpdatesMenu must create #btn-old-updates button on Main Menu');
+    assert.equal(menu.btn.id, 'btn-old-updates');
+    assert.ok(menu.btn.textContent.includes('OLD UPDATES'));
+    assert.ok(menu.modal, 'installOldUpdatesMenu must create #old-updates-modal');
+    assert.ok(menu.modal.innerHTML.includes('legacy/v1/index.html?from=2d'));
+    assert.ok(menu.modal.innerHTML.includes('legacy/v2/index.html?from=2d'));
+    assert.ok(menu.modal.innerHTML.includes('legacy/v3/index.html?from=2d'));
+    assert.ok(menu.modal.innerHTML.includes('legacy/v4-3d/index.html?from=2d'));
+
+    assert.equal(menu.modal.classList.contains('active'), false);
+    menu.btn.click();
+    assert.equal(menu.modal.classList.contains('active'), true, 'Clicking OLD UPDATES button must open archive modal');
+    closeBtn.click();
+    assert.equal(menu.modal.classList.contains('active'), false, 'Clicking Close must close archive modal');
+    menu.btn.click();
+    stayBtn.click();
+    assert.equal(menu.modal.classList.contains('active'), false, 'Clicking Stay on Latest must close archive modal');
+  } finally {
+    globalThis.document = prevDoc;
+  }
 });
 
 

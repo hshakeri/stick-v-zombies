@@ -53,6 +53,13 @@ import {
   findSafeGroundPoint
 } from '../3d/js/physics3d.js?v=10.4';
 import { speech3d } from '../3d/js/speech3d.js?v=10.3';
+import {
+  OLD_UPDATES_ARCHIVE,
+  PURPLE_ALLY_CONFIG,
+  installPurpleAllySystem,
+  installOldUpdatesMenu,
+  isKingOrangeWithPlayer
+} from '../3d/js/purple_ally.js?v=10.9';
 
 import {
   CREATIVE_BLOCK_TYPES_2D,
@@ -226,6 +233,32 @@ function ensure2DExpansionDOM() {
     else goModalBox.appendChild(banner);
   }
 
+  // 0c. Purple Ally HUD Slot (Key 7) inside .hud-allies
+  const hudAllies = document.querySelector('.hud-allies');
+  if (hudAllies && !document.getElementById('ally-purple-slot')) {
+    const slot = document.createElement('div');
+    slot.className = 'ally-slot purple';
+    slot.id = 'ally-purple-slot';
+    slot.title = 'Purple: Elytra Swoop (7)';
+    slot.innerHTML = '<div class="ally-badge purple">P</div><div class="skill-key">7</div><div class="ally-cd-overlay" id="ally-purple-status"></div>';
+    hudAllies.appendChild(slot);
+  }
+
+  // 0d. Add Key 7 badge to Title Screen Controls Guide for Allies
+  const controlsRows = document.querySelectorAll('.controls-row');
+  for (const row of controlsRows) {
+    if (row.textContent?.includes('Allies + Cursor')) {
+      const keysSpan = row.querySelector('.control-keys');
+      if (keysSpan && !keysSpan.textContent?.includes('7')) {
+        const kbd = document.createElement('kbd');
+        kbd.className = 'key-badge';
+        kbd.textContent = '7';
+        keysSpan.appendChild(kbd);
+      }
+      break;
+    }
+  }
+
   // 1. HUD Stage Selector inside .wave-badge
   const waveBadge = document.querySelector('.wave-badge');
   if (waveBadge && !document.getElementById('hud-stage-select')) {
@@ -364,7 +397,7 @@ function ensure2DExpansionDOM() {
           <button type="button" id="creative-spawn-btn" class="creative-action-btn spawn" title="Spawn selected Boss or Zombie (Shortcut: N)">⚡ [N]</button>
         </div>
         <div class="creative-row creative-actions-grid">
-          <button type="button" id="creative-allies-btn" class="creative-action-btn" title="Summon Red, Blue, Yellow, Green, Cursor, TCO & Friendly King Orange!">🤝 All Allies</button>
+          <button type="button" id="creative-allies-btn" class="creative-action-btn" title="Summon Red, Blue, Yellow, Green, Cursor, TCO, Purple (Elytra) & Friendly King Orange!">🤝 All Allies</button>
           <button type="button" id="creative-nuke-btn" class="creative-action-btn danger" title="Obliterate all active enemies">💥 Nuke Enemies</button>
           <button type="button" id="creative-max-shop-btn" class="creative-action-btn" title="Max out all Shop upgrades">⬆️ Max Stats</button>
           <button type="button" id="creative-portal-btn" class="creative-action-btn" title="Unlock the Stage Exit Portal">🚪 Open Exit</button>
@@ -387,7 +420,9 @@ export function install2DExpansion(game) {
 
   install2DBossAndWeaponRenderers();
   extendCampaignFor3D(game.stageManager, waves);
+  installPurpleAllySystem(allies, input, speech2d, speech3d, shop);
   ensure2DExpansionDOM();
+  const oldUpdatesMenu = installOldUpdatesMenu({ isSubdir: false, from: '2d' });
 
   const stageManager = game.stageManager;
 
@@ -1152,13 +1187,14 @@ export function install2DExpansion(game) {
 
   function summonAllAllies() {
     allies.unlocked.king = true;
+    allies.unlocked.purple = true;
     for (const k of Object.keys(allies.cooldowns)) {
       allies.cooldowns[k] = 0;
       allies.recoveryStates[k] = false;
     }
-    const roster = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen', 'king'];
+    const roster = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen', 'king', 'purple'];
     roster.forEach((allyType, idx) => {
-      const offsetX = clamp(game.player.x + (idx - 3) * 55, -900, 900);
+      const offsetX = clamp(game.player.x + (idx - 3.5) * 52, -900, 900);
       allies.summonAlly(allyType, offsetX, game.groundY, game.player.facing, waves.zombies);
     });
     speech3d.spawnSpeechBubble('orange', 'STICK SQUAD ASSEMBLE!', {
@@ -1550,13 +1586,26 @@ export function install2DExpansion(game) {
     origGameOver();
   };
 
-  // Fix HUD boss label so dynamic squad / Creative-spawned bosses show their exact name
+  // Fix HUD boss label & sync Purple ally slot cooldown in 2D HUD
   const origSyncHUD = game.syncHUD.bind(game);
   game.syncHUD = () => {
     origSyncHUD();
     const bossLabel = game.getHudElement('boss-name-label');
     if (bossLabel && waves.bossZombie && !waves.bossZombie.isDead && waves.bossZombie.name) {
       bossLabel.innerText = waves.bossZombie.name;
+    }
+    const purpleSlot = game.getHudElement('ally-purple-slot');
+    if (purpleSlot) {
+      const cd = allies.cooldowns.purple || 0;
+      const recovering = allies.recoveryStates?.purple === true;
+      purpleSlot.style.opacity = cd > 0 ? '0.5' : '1.0';
+      purpleSlot.style.filter = cd > 0 ? 'grayscale(0.6)' : 'none';
+      purpleSlot.classList.toggle('recovering', recovering && cd > 0);
+      const status = game.getHudElement('ally-purple-status');
+      if (status) {
+        status.innerText = cd > 0 ? `${recovering ? '↻' : ''}${Math.ceil(cd)}` : '';
+        status.style.opacity = cd > 0 ? '1' : '0';
+      }
     }
   };
 
@@ -1742,6 +1791,9 @@ export function install2DExpansion(game) {
         game.camera,
         currentPlatforms
       );
+      if (input.actions.ally7 && !player.isDead && !player.isRolling) {
+        allies.summonAlly('purple', player.x, game.groundY, player.facing, hostileTargets);
+      }
     } catch (e) {
       console.error('Player update error:', e);
     }
@@ -2282,6 +2334,11 @@ export function install2DExpansion(game) {
     });
 
     document.getElementById('creative-allies-btn')?.addEventListener('click', () => summonAllAllies());
+    document.getElementById('ally-purple-slot')?.addEventListener('click', () => {
+      if (game.state === 'PLAYING') {
+        allies.summonAlly('purple', game.player.x, game.groundY, game.player.facing, waves.zombies);
+      }
+    });
     document.getElementById('creative-nuke-btn')?.addEventListener('click', () => nukeAllEnemies());
     document.getElementById('creative-max-shop-btn')?.addEventListener('click', () => maxAllStats());
     document.getElementById('creative-portal-btn')?.addEventListener('click', () => unlockStageExit());
@@ -2382,7 +2439,11 @@ export function install2DExpansion(game) {
     syncStageSelectors,
     updateDeathBannerDOM,
     getLastDeathReason: () => sandbox.lastDeathReason || game.player?.lastDeathReason || '',
-    handleCreativeKeyDown
+    handleCreativeKeyDown,
+    oldUpdatesMenu,
+    OLD_UPDATES_ARCHIVE,
+    PURPLE_ALLY_CONFIG,
+    isKingOrangeWithPlayer: () => isKingOrangeWithPlayer(allies)
   };
 
   game._expansion2D = controller;

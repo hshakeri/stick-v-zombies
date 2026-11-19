@@ -117,6 +117,8 @@ export const SPEAKER_BADGES = Object.freeze({
   'ally-cursor': '🖱️ CURSOR',
   chosen: '⭐ CHOSEN',
   'ally-chosen': '⭐ CHOSEN',
+  purple: '🟣 PURPLE',
+  'ally-purple': '🟣 PURPLE',
   king: '👑 KING',
   'ally-king': '👑 KING',
   king_orange: '👑 KING ORANGE',
@@ -328,6 +330,21 @@ export const BANTER_CHAINS = Object.freeze({
   team_orange_king_3: [
     { speaker: 'king', text: 'LOOP IS BROKEN.', delay: 0.0, options: { style: 'comic', badge: '👑 KING ORANGE', mood: '★', priority: 2, duration: 1.5 } },
     { speaker: 'orange', text: 'WE WRITE THE FUTURE!', delay: 0.6, options: { style: 'comic', badge: '🟠 ORANGE', mood: '★', priority: 2, duration: 1.5 } }
+  ],
+
+  team_orange_purple_1: [
+    { speaker: 'purple', text: 'ELYTRA INCOMING!', delay: 0.0, options: { style: 'comic', badge: '🟣 PURPLE', mood: '⚡', priority: 2, duration: 1.5 } },
+    { speaker: 'orange', text: 'SMOOTH LANDING, PURPLE!', delay: 0.6, options: { style: 'comic', badge: '🟠 ORANGE', mood: '★', priority: 2, duration: 1.5 } }
+  ],
+
+  team_orange_purple_2: [
+    { speaker: 'purple', text: 'SKY SUPPORT HERE!', delay: 0.0, options: { style: 'comic', badge: '🟣 PURPLE', mood: '!', priority: 2, duration: 1.5 } },
+    { speaker: 'orange', text: 'RIGHT ON TIME!', delay: 0.6, options: { style: 'comic', badge: '🟠 ORANGE', mood: '★', priority: 2, duration: 1.5 } }
+  ],
+
+  team_purple_king_hi: [
+    { speaker: 'purple', text: 'HI, KING!', delay: 0.0, options: { style: 'comic', badge: '🟣 PURPLE', mood: '★', priority: 4, duration: 1.7 } },
+    { speaker: 'king', text: 'HI, PURPLE!', delay: 0.4, options: { style: 'comic', badge: '👑 KING ORANGE', mood: '★', priority: 4, duration: 1.65 } }
   ],
 
   team_allies_assemble: [
@@ -662,7 +679,7 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
     ) return 5;
     if (s === 'dark_lord' || s === 'darkLord' || s === 'king_orange' || s === 'kingOrange' || s === 'creeper_lord' || s === 'creeperLord' || s === 'giant_cat' || s === 'giantCat' || s === 'lucky_orb' || s === 'luckyOrb') return 4;
     if (s === 'orange_awakened' || s === 'playerAwakened') return 3;
-    if (['red', 'blue', 'yellow', 'green', 'agent', 'ballista', 'primal', 'hazard', 'cursor', 'chosen', 'king', 'virabot'].includes(s)) return 2;
+    if (['red', 'blue', 'yellow', 'green', 'purple', 'agent', 'ballista', 'primal', 'hazard', 'cursor', 'chosen', 'king', 'virabot'].includes(s)) return 2;
     return 1;
   }
 
@@ -959,6 +976,7 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
       cursor: ['team_orange_cursor_1', 'team_orange_cursor_2', 'team_orange_cursor_3'],
       chosen: ['team_orange_chosen_1', 'team_orange_chosen_2', 'team_orange_chosen_3'],
       chosen_one: ['team_orange_chosen_1', 'team_orange_chosen_2', 'team_orange_chosen_3'],
+      purple: ['team_orange_purple_1', 'team_orange_purple_2'],
       king: ['team_orange_king_1', 'team_orange_king_2', 'team_orange_king_3'],
       king_orange: ['team_orange_king_1', 'team_orange_king_2', 'team_orange_king_3']
     };
@@ -1773,7 +1791,7 @@ export class SpeechBubbleManager3D extends SpeechBubbleManager {
         ]);
         const isBoss = BOSS_SET.has(ent) || ent.includes('boss') || ent.includes('lord') || ent.includes('dragon') || ent.includes('titan') || ent.includes('mercenary') || ent.includes('h4c3r') || ent.includes('king');
 
-        const ALLY_SET = new Set(['red', 'blue', 'yellow', 'green', 'cursor', 'chosen', 'chosen_one', 'king', 'ally']);
+        const ALLY_SET = new Set(['red', 'blue', 'yellow', 'green', 'purple', 'cursor', 'chosen', 'chosen_one', 'king', 'ally']);
         const isAlly = ALLY_SET.has(ent) || ent.startsWith('ally');
 
         if (isBoss) {

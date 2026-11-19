@@ -250,6 +250,7 @@ export class StickRig3D {
       isZombie = false,
       isHunched = false,
       hasCrown = false,
+      hasElytra = false,
       zombieType = null,
       weaponType = null
     } = options;
@@ -259,10 +260,15 @@ export class StickRig3D {
     this.isHollowHead = isHollowHead;
     this.isZombie = isZombie;
     this.isHunched = isHunched;
+    this.hasElytra = Boolean(hasElytra);
     this.zombieType = zombieType;
     this.shoulderY = SHOULDER_Y;
     this.lastPose = null;
     this._emissiveKey = -1;
+    this._wingSpread = 0.2;
+    this.elytraGroup = null;
+    this.elytraWingL = null;
+    this.elytraWingR = null;
 
     this._targetPose = {
       torsoLean: 0.0,
@@ -399,6 +405,10 @@ export class StickRig3D {
       this.headGroup.add(crownGroup);
     }
 
+    if (hasElytra) {
+      this._buildElytraRig();
+    }
+
     // Eyes for solid-headed zombies
     this.eyeGroup = new THREE.Group();
     const eyeMat = new THREE.MeshBasicMaterial({ color: isZombie ? 0xff1744 : 0xffffff });
@@ -442,6 +452,70 @@ export class StickRig3D {
     }
 
     this.update({ pose: 'idle', animTimer: 0 });
+  }
+
+  _buildElytraRig() {
+    const carapaceMat = new THREE.MeshStandardMaterial({
+      color: 0x64748b,
+      roughness: 0.4,
+      metalness: 0.25,
+      emissive: 0x3b0764,
+      emissiveIntensity: 0.22
+    });
+    const wingMat = new THREE.MeshStandardMaterial({
+      color: 0xb8c4d4,
+      roughness: 0.35,
+      metalness: 0.2,
+      emissive: 0x9333ea,
+      emissiveIntensity: 0.2
+    });
+    const tipMat = new THREE.MeshStandardMaterial({
+      color: 0x94a3b8,
+      roughness: 0.42,
+      metalness: 0.18,
+      emissive: 0x6b21a8,
+      emissiveIntensity: 0.16
+    });
+    const trimMat = new THREE.MeshStandardMaterial({
+      color: 0xc084fc,
+      emissive: 0xa855f7,
+      emissiveIntensity: 0.55,
+      roughness: 0.25
+    });
+
+    const buildWing = (side) => {
+      const pivot = new THREE.Group();
+      pivot.position.set(side * 0.08, 0.24, -0.1);
+
+      // Shoulder carapace
+      const shoulder = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.28, 0.065), carapaceMat);
+      shoulder.position.set(side * 0.07, -0.1, 0);
+      shoulder.castShadow = true;
+
+      // Primary Minecraft Elytra membrane blade
+      const mainBlade = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.02, 0.05), wingMat);
+      mainBlade.position.set(side * 0.19, -0.52, -0.02);
+      mainBlade.castShadow = true;
+
+      // Scalloped lower wingtip fin
+      const lowerTip = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.38, 0.045), tipMat);
+      lowerTip.position.set(side * 0.24, -1.12, -0.03);
+      lowerTip.castShadow = true;
+
+      // Violet enchanted leading-edge trim
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.96, 0.065), trimMat);
+      trim.position.set(side * 0.36, -0.52, -0.01);
+
+      pivot.add(shoulder, mainBlade, lowerTip, trim);
+      return pivot;
+    };
+
+    this.elytraGroup = new THREE.Group();
+    this.elytraGroup.name = 'elytraGroup';
+    this.elytraWingL = buildWing(-1);
+    this.elytraWingR = buildWing(1);
+    this.elytraGroup.add(this.elytraWingL, this.elytraWingR);
+    this.chest.add(this.elytraGroup);
   }
 
   setWeapon(weaponType) {
@@ -677,6 +751,7 @@ export class StickRig3D {
       weaponType = this.currentWeaponType,
       actionKind = null,
       actionPhase = 0,
+      wingSpread = null,
       dt = 0.016
     } = state;
 
@@ -790,6 +865,8 @@ export class StickRig3D {
     let hipY;
     if (pose === 'roll') {
       hipY = 0.72;
+    } else if (pose === 'elytra_glide') {
+      hipY = 1.05;
     } else if (pose === 'crouch' || this.zombieType === 'crawler') {
       const cHip = -minRelFootY + 0.03 + a.liftY;
       hipY = cHip > 0.28 ? cHip : 0.28;
@@ -876,6 +953,26 @@ export class StickRig3D {
     }
     this.handR.rotation.x = weaponPitch;
     this.handL.rotation.x = fAngleL * 0.65 + 0.15;
+
+    // 6. Articulated Minecraft Elytra wings (smooth spread/fold + airflow flutter)
+    if (this.elytraGroup && this.elytraWingL && this.elytraWingR) {
+      const desiredSpread = Number.isFinite(wingSpread)
+        ? Math.max(0.12, Math.min(1.05, wingSpread))
+        : (pose === 'elytra_glide' ? 1.0 : 0.18);
+      const wingAlpha = 1.0 - Math.exp(-14.0 * safeDt);
+      this._wingSpread += (desiredSpread - this._wingSpread) * wingAlpha;
+      const s = this._wingSpread;
+      const flutter = s > 0.35 ? Math.sin((animTimer || 0) * 20) * 0.075 * s : 0;
+
+      this.elytraGroup.rotation.x = a.torsoLean * 0.85;
+      // Folded cape rests sleekly down back; spread sweeps wide horizontally
+      this.elytraWingL.rotation.z = -(0.14 + s * 1.18 + flutter);
+      this.elytraWingR.rotation.z = 0.14 + s * 1.18 + flutter;
+      this.elytraWingL.rotation.x = 0.18 + s * 0.36;
+      this.elytraWingR.rotation.x = 0.18 + s * 0.36;
+      this.elytraWingL.rotation.y = s * 0.24;
+      this.elytraWingR.rotation.y = -s * 0.24;
+    }
   }
 
   computeNaturalPoseAngles(pose, timer, isGrounded, isHurt, actionKind, actionPhase) {
@@ -1257,6 +1354,36 @@ export class StickRig3D {
         out.elbowL = 0.75;
         out.uArmR = slashArc;
         out.elbowR = 0.24;
+        break;
+      }
+      case 'elytra_glide': {
+        const flutter = Math.sin((timer || 0) * 16) * 0.08;
+        out.torsoLean = 1.24;
+        out.headTilt = -0.52;
+        out.liftY = 0.35;
+        out.thighL = -1.08 + flutter;
+        out.kneeL = 0.16;
+        out.thighR = -1.16 - flutter;
+        out.kneeR = 0.16;
+        out.uArmL = -0.32 + flutter * 0.4;
+        out.elbowL = 0.18;
+        out.uArmR = -0.32 - flutter * 0.4;
+        out.elbowR = 0.18;
+        break;
+      }
+      case 'wave': {
+        const wave = Math.sin((timer || 0) * 13);
+        const bob = Math.sin((timer || 0) * 3.5);
+        out.torsoLean = 0.04 + bob * 0.02;
+        out.headTilt = -0.06;
+        out.thighL = -0.14;
+        out.kneeL = 0.12;
+        out.thighR = 0.18;
+        out.kneeR = 0.14;
+        out.uArmL = -0.16;
+        out.elbowL = 0.62;
+        out.uArmR = 2.48 + wave * 0.28;
+        out.elbowR = 0.56 + Math.abs(wave) * 0.22;
         break;
       }
       case 'awakening_god': {

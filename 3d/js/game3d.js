@@ -61,6 +61,12 @@ import {
   formatProjectileDeathMessage,
   resolvePlayerDeathCause
 } from './campaign3d.js?v=10.8';
+import {
+  OLD_UPDATES_ARCHIVE,
+  installPurpleAllySystem,
+  installOldUpdatesMenu,
+  isKingOrangeWithPlayer
+} from './purple_ally.js?v=10.9';
 
 const CAMERA_MODES = ['CHASE_3D', 'ISOMETRIC_3D', 'SIDE_25D'];
 const CAMERA_LABELS = {
@@ -74,7 +80,7 @@ const _scratchProj = new THREE.Vector3();
 const _screenPoint = { x: 0, y: 0, zDepth: 0, visible: true, scale: 1.0 };
 const _camLookTarget = new THREE.Vector3();
 const _camDesiredPos = new THREE.Vector3();
-const ALLY_TYPES = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen', 'king'];
+const ALLY_TYPES = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen', 'purple', 'king'];
 
 // ============================================================================
 // Feature F2.2: Shared Static Geometries & Materials (flagged isShared = true)
@@ -260,6 +266,7 @@ export class Game3D {
     this.camera2D = new Camera(this.overlayCanvas);
     this.stageManager = stages;
     extendCampaignFor3D(this.stageManager, waves);
+    installPurpleAllySystem(allies, input, null, speech, shop);
 
     this.activeDamagePhase = null;
     this.lastDamageCause = '';
@@ -1136,7 +1143,9 @@ export class Game3D {
               const summonedAlly = type === 'cursor'
                 ? allies.activeCursors?.[allies.activeCursors.length - 1]
                 : allies.activeAllies?.[allies.activeAllies.length - 1];
-              speech.triggerTeamBanter(type, 'summon', { anchor: summonedAlly });
+              if (type !== 'purple' || !isKingOrangeWithPlayer(allies)) {
+                speech.triggerTeamBanter(type, 'summon', { anchor: summonedAlly });
+              }
             }
           }
         });
@@ -1148,6 +1157,9 @@ export class Game3D {
     bindAllyClick('ally-green-slot', 'green');
     bindAllyClick('ally-cursor-slot', 'cursor');
     bindAllyClick('ally-chosen-slot', 'chosen');
+    bindAllyClick('ally-purple-slot', 'purple');
+
+    this.oldUpdatesMenu = installOldUpdatesMenu({ isSubdir: true, from: '3d' });
   }
 
   toggleCreativeMode(forceState) {
@@ -1802,12 +1814,12 @@ export class Game3D {
         if (allies.recoveryStates) allies.recoveryStates[k] = false;
       }
     }
-    const types = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen'];
+    allies.unlockKingAlly?.(this.player.x - this.player.facing * 70, this.groundY, this.player.facing);
+    const types = ['red', 'blue', 'yellow', 'green', 'cursor', 'chosen', 'purple'];
     types.forEach((t, idx) => {
       allies.cooldowns[t] = 0;
-      allies.summonAlly(t, this.player.x + (idx - 2.5) * 45, this.groundY, this.player.facing, waves.zombies);
+      allies.summonAlly(t, this.player.x + (idx - 3) * 45, this.groundY, this.player.facing, waves.zombies);
     });
-    allies.unlockKingAlly?.(this.player.x - this.player.facing * 70, this.groundY);
     particles.addTextBanner(this.player.x, this.player.y - 95, '★ ALL STICK ALLIES DEPLOYED! ★', '#ffea00');
     speech.onCreativeAction?.('summon_allies', { anchor: this.player });
     speech.triggerNamedBanter?.('team_allies_assemble');
@@ -2594,6 +2606,9 @@ export class Game3D {
       }
     }
     this.player.update(simDt, input, effectiveGroundY, projectiles.sketchBlocks, hostileTargets, this.camera2D, zAlignedPlatforms);
+    if (input.actions.ally7 && !this.player.isDead && !this.player.isRolling) {
+      allies.summonAlly('purple', this.player.x, this.groundY, this.player.facing, hostileTargets);
+    }
 
     // Continuous Collision Detection (CCD) & Vertical Tunneling Prevention (F3)
     if (prevPlayerY <= this.groundY + 18) {
@@ -3590,6 +3605,7 @@ export class Game3D {
       yellow: '#ffcc00',
       green: '#33dd66',
       chosen: '#0a0a0a',
+      purple: '#9333ea',
       king: '#ff8a00'
     };
     for (const ally of activeAllies) {
@@ -3600,20 +3616,31 @@ export class Game3D {
           scale: ally.type === 'king' ? 1.18 : (ally.type === 'chosen' ? 1.08 : 1.02),
           isHollowHead: ally.type === 'chosen',
           hasCrown: ally.type === 'king',
+          hasElytra: ally.type === 'purple',
           weaponType: ally.type === 'king' ? 'staff' : null
         });
+        rig.root.rotation.order = 'YXZ';
         this.dynamicGroup.add(rig.root);
         this.allyRigs.set(ally, rig);
       }
-      rig.root.position.set(to3DX(ally.x), to3DY(ally.y), to3DZ((this.player.z || 0) - 45));
+      const allyZ = (this.player.z || 0) - (ally.type === 'purple' ? 28 : 45);
+      rig.root.position.set(to3DX(ally.x), to3DY(ally.y), to3DZ(allyZ));
       rig.root.rotation.y = ally.facing >= 0 ? Math.PI / 2 : -Math.PI / 2;
+      const targetPitch = ally.type === 'purple' && ally.pose === 'elytra_glide'
+        ? Math.max(-0.8, Math.min(0.8, (ally.pitchAngle || 0) * 0.72))
+        : 0;
+      rig.root.rotation.x += (targetPitch - rig.root.rotation.x) * Math.min(1, dt * 16);
       rig.update({
         pose: ally.pose || 'idle',
         animTimer: ally.timer || 0,
         isHurt: ally.isHurt,
         isAwakened: false,
+        wingSpread: ally.type === 'purple' ? ally.wingSpread : null,
         dt
       });
+      if (ally.type === 'purple' && ally.pose === 'elytra_glide' && Math.random() < 0.35) {
+        this.spawnVoxelBurst(ally.x - ally.facing * 20, ally.y - 28, allyZ, '#d8b4fe', 1);
+      }
     }
 
     // Yellow Turrets
@@ -4165,6 +4192,7 @@ export class Game3D {
     syncAlly('ally-green-slot', 'green', 'ally-green-status');
     syncAlly('ally-cursor-slot', 'cursor', 'ally-cursor-status');
     syncAlly('ally-chosen-slot', 'chosen', 'ally-chosen-status');
+    syncAlly('ally-purple-slot', 'purple', 'ally-purple-status');
 
     // 8. Combat Skill Cooldowns
     const syncSkillCooldown = (slotId, overlayId, remaining) => {

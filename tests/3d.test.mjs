@@ -148,10 +148,15 @@ import {
   CreakingBoss
 } from '../3d/js/campaign3d.js?v=10.8';
 import { getVoxelTexture, getThemeFloorTextureKey, drawPixelBlock } from '../3d/js/textures3d.js?v=10.7';
-import { Game3D } from '../3d/js/game3d.js?v=11.6';
+import { Game3D } from '../3d/js/game3d.js?v=11.7';
 import { Player } from '../js/entities/player.js?v=9.8';
+import { allies } from '../js/entities/allies.js?v=9.8';
 import { projectiles } from '../js/entities/projectiles.js?v=9.8';
 import { waves } from '../js/systems/waves.js?v=9.8';
+import {
+  OLD_UPDATES_ARCHIVE,
+  installPurpleAllySystem
+} from '../3d/js/purple_ally.js?v=10.9';
 
 // ----------------------------------------------------------------------------
 // Local Verification Helpers for Resource Disposal Protocol
@@ -5215,7 +5220,7 @@ test('App Gauntlet [3] 3D HTML Quick-Jump Pills & Game3D Integration: 3d/index.h
   assert.ok(html.includes('data-jump-stage="28">🏢 28: Outside Rocket Corp'), '3d/index.html must include Stage 28 Outside Rocket Corp pill');
   assert.ok(html.includes('data-jump-stage="29">🕶️ 29: Rocket Corp (Mercenaries)'), '3d/index.html must include Stage 29 Rocket Corp pill');
   assert.ok(html.includes('data-jump-stage="30">⌁ 30: Zero-Day (H4C3R)'), '3d/index.html must include Stage 30 Zero-Day pill');
-  assert.ok(html.includes('src="js/game3d.js?v=11.6"'), '3d/index.html must load game3d.js?v=11.6');
+  assert.ok(html.includes('src="js/game3d.js?v=11.7"'), '3d/index.html must load game3d.js?v=11.7');
   assert.ok(html.includes('id="gameover-death-reason"'), '3d/index.html must include #gameover-death-reason banner');
   assert.ok(html.includes('id="gameover-death-text"'), '3d/index.html must include #gameover-death-text span');
   for (const key of ['grass_block', 'cobblestone', 'stone_bricks', 'oak_planks', 'crafting_table']) {
@@ -5841,6 +5846,103 @@ test('Stronghold & Outside Rocket Corp 3D [5]: Stage 18 Stronghold End Portal Sa
   assert.equal(laserPlayer.isDead, true, '15 HP player touching Stage 28 security laser gate must die');
 
   verifyDisposeHierarchy(arena.group, true);
+});
+
+test('Purple Elytra Ally 3D [1]: StickRig3D hasElytra Wings, elytra_glide & wave Poses, Smooth Spread/Fold & Resource Disposal', () => {
+  const rig = new StickRig3D({
+    color: '#9333ea',
+    scale: 1.02,
+    isHollowHead: false,
+    hasElytra: true
+  });
+
+  assert.equal(rig.hasElytra, true);
+  assert.ok(rig.elytraGroup, 'Purple 3D rig must construct elytraGroup');
+  assert.ok(rig.elytraWingL && rig.elytraWingR, 'Purple 3D rig must construct left & right articulated Elytra wings');
+  assert.ok(rig.chest.children.includes(rig.elytraGroup), 'Elytra group must attach to Purple chest');
+
+  // Spread smoothly during elytra_glide
+  for (let i = 0; i < 40; i++) {
+    rig.update({ pose: 'elytra_glide', animTimer: i * 0.016, wingSpread: 1.0, dt: 0.016 });
+  }
+  const spreadAngle = Math.abs(rig.elytraWingR.rotation.z);
+  assert.ok(spreadAngle > 1.0, `Elytra wings must spread wide during glide (got ${spreadAngle.toFixed(3)})`);
+  assert.ok(rig.poseAngles.torsoLean > 1.0, 'elytra_glide must lean torso smoothly forward horizontally');
+
+  // Fold sleekly when standing & waving at King Orange
+  for (let i = 0; i < 45; i++) {
+    rig.update({ pose: 'wave', animTimer: i * 0.016, wingSpread: 0.18, dt: 0.016 });
+  }
+  const foldedAngle = Math.abs(rig.elytraWingR.rotation.z);
+  assert.ok(foldedAngle < 0.5, `Elytra wings must fold neatly on landing (got ${foldedAngle.toFixed(3)})`);
+  assert.ok(rig.poseAngles.uArmR > 2.0, `wave pose must lift right arm overhead (got ${rig.poseAngles.uArmR.toFixed(3)})`);
+
+  // Verify clean disposal while keeping shared segment/head geometries intact
+  verifyDisposeHierarchy(rig.root, true);
+});
+
+test('Purple Elytra Ally 3D [2]: 3D Game Integration, Swoop Physics, King Orange Hi Greeting & Old Updates Main Menu Button', async () => {
+  const html3d = readFileSync(fileURLToPath(new URL('../3d/index.html', import.meta.url)), 'utf8');
+  assert.ok(html3d.includes('id="ally-purple-slot"'), '3d/index.html must expose Purple ally slot');
+  assert.ok(html3d.includes('id="btn-old-updates"'), '3d/index.html must expose Old Updates button on Main Menu');
+  assert.ok(html3d.includes('OLD UPDATES'), '3d/index.html Old Updates button must have clear label');
+
+  const speech3dMod = await import('../3d/js/speech3d.js?v=10.3');
+  assert.equal(speech3dMod.SPEAKER_BADGES.purple, '🟣 PURPLE');
+  assert.ok(Array.isArray(speech3dMod.BANTER_CHAINS.team_purple_king_hi), 'speech3d must define team_purple_king_hi banter');
+
+  // Exercise Purple 3D syncAllies3D + King Orange greeting end-to-end
+  installPurpleAllySystem(allies, null, null, speech3dMod.speech3d, null);
+  allies.reset(true, false, true);
+  speech3dMod.speech3d.reset();
+
+  const fakePlayer = { x: 0, y: 0, z: 0, facing: 1, isDead: false, heal() {} };
+  const fakeCam = { addShake() {}, addZoomPunch() {} };
+  const fakeGame3D = {
+    player: fakePlayer,
+    groundY: 0,
+    dynamicGroup: new THREE.Group(),
+    allyRigs: new Map(),
+    turretMeshes: new Map(),
+    _scratchEntitySet: new Set(),
+    cursorGroup3D: { visible: false, position: new THREE.Vector3() },
+    cursorSelectBox: { visible: false },
+    spawnVoxelBurst() {}
+  };
+
+  // Spawn King Orange beside player, then call Purple
+  allies.update(1 / 60, 0, [], fakePlayer, fakeCam);
+  assert.ok(allies.activeAllies.some((a) => a.type === 'king'), 'King Orange must join the player');
+  assert.equal(allies.summonAlly('purple', fakePlayer.x, 0, 1, []), true);
+  const purple = allies.activeAllies.find((a) => a.type === 'purple');
+  assert.ok(purple);
+
+  Game3D.prototype.syncAllies3D.call(fakeGame3D, 1 / 60);
+  const purpleRig = fakeGame3D.allyRigs.get(purple);
+  assert.ok(purpleRig && purpleRig.hasElytra === true, '3D syncAllies3D must build an Elytra StickRig3D for Purple');
+  assert.equal(purpleRig.root.rotation.order, 'YXZ', 'Purple 3D rig must use YXZ order for smooth dive pitch');
+
+  let sawPositivePitch = false;
+  let sawPurpleHi = false;
+  let sawKingReply = false;
+  for (let frame = 0; frame < 200; frame++) {
+    allies.update(1 / 60, 0, [], fakePlayer, fakeCam);
+    Game3D.prototype.syncAllies3D.call(fakeGame3D, 1 / 60);
+    if (purple.flightPhase === 'swoop_in' && purpleRig.root.rotation.x > 0.1) sawPositivePitch = true;
+    for (const b of speech3dMod.speech3d.activeBubbles) {
+      if (b.text === 'HI, KING!') sawPurpleHi = true;
+      if (b.text === 'HI, PURPLE!') sawKingReply = true;
+    }
+  }
+
+  assert.ok(sawPositivePitch, 'Purple 3D rig must pitch smoothly nose-down during his Elytra swoop');
+  assert.ok(sawPurpleHi, 'Purple must say HI, KING! in 3D when King Orange is with you');
+  assert.ok(sawKingReply, 'King Orange must reply HI, PURPLE! in 3D');
+  assert.equal(fakeGame3D.allyRigs.has(purple), false, 'Purple 3D rig must be cleanly removed & disposed after takeoff');
+  assert.ok(OLD_UPDATES_ARCHIVE.length >= 4, 'Old Updates Archive must contain at least 4 historical builds');
+
+  allies.reset(true, false, false);
+  speech3dMod.speech3d.reset();
 });
 
 
