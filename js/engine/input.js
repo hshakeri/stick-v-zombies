@@ -201,7 +201,7 @@ class InputManager {
 	this.pollGamepad();
   }
   pollGamepad() {
-	const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+	const gamepads = (typeof navigator !== 'undefined' && navigator.getGamepads) ? navigator.getGamepads() : [];
 	if (!gamepads || !gamepads[0]) {
 	  this.gamepadButtonStates = [];
 	  return;
