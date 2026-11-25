@@ -17,6 +17,11 @@ export const CREATIVE_BLOCK_TYPES_2D = Object.freeze([
   'grass_block',
   'cobblestone',
   'stone_bricks',
+  'packed_ice',
+  'blue_ice',
+  'sandstone',
+  'chiseled_sandstone',
+  'terracotta_orange',
   'oak_planks',
   'crafting_table',
   'purpur_block',
@@ -40,6 +45,11 @@ const BLOCK_PALETTES = Object.freeze({
   grass_block: { base: '#86592d', dark: '#5c3c1e', light: '#4ade80', border: '#3e2712', accent: '#22c55e' },
   cobblestone: { base: '#64748b', dark: '#334155', light: '#cbd5e1', border: '#1e293b', accent: '#94a3b8' },
   stone_bricks: { base: '#78828f', dark: '#47505c', light: '#aeb7c2', border: '#2a3038', accent: '#4ade80' },
+  packed_ice: { base: '#7dd3fc', dark: '#0284c7', light: '#e0f2fe', border: '#0369a1', accent: '#bae6fd' },
+  blue_ice: { base: '#2563eb', dark: '#1e3a8a', light: '#7dd3fc', border: '#172554', accent: '#38bdf8' },
+  sandstone: { base: '#e2c78c', dark: '#9e7a42', light: '#f5e6bf', border: '#78572a', accent: '#ebd5a3' },
+  chiseled_sandstone: { base: '#dfc184', dark: '#7c5a28', light: '#f5e6bf', border: '#6b4d22', accent: '#c8a466' },
+  terracotta_orange: { base: '#b95826', dark: '#733010', light: '#e0854a', border: '#5c240a', accent: '#d47138' },
   oak_planks: { base: '#b88b4a', dark: '#785224', light: '#d9ae6a', border: '#5c3a18', accent: '#eab308' },
   crafting_table: { base: '#b88b4a', dark: '#5c3a18', light: '#d9ae6a', border: '#3b2110', accent: '#cbd5e1' },
   purpur_block: { base: '#a87ca8', dark: '#6b426b', light: '#d8b4d8', border: '#4a254a', accent: '#f5d0fe' },
@@ -274,6 +284,86 @@ export function paintVoxelBlockPixels2D(ctx, texKey, ox = 0, oy = 0, size = 64) 
       px(11, 8, 3, 1, '#15803d');
       px(12, 9, 2, 1, '#22c55e');
       px(2, 8, 2, 1, '#16a34a');
+      break;
+    }
+    case 'packed_ice': {
+      // Glacial cyan-blue Packed Ice with diagonal crystalline highlights & frost bevel
+      fillNoise('#7dd3fc', 0.1, 455);
+      px(1, 3, 4, 2, '#38bdf8');
+      px(9, 8, 5, 2, '#38bdf8');
+      px(3, 12, 6, 2, '#38bdf8');
+      for (let i = 0; i < 6; i++) {
+        px(2 + i, 1 + i, 2, 1, '#bae6fd');
+        px(8 + Math.min(6, i), 5 + i, 2, 1, '#bae6fd');
+      }
+      px(2, 2, 3, 1, '#e0f2fe');
+      px(10, 4, 3, 1, '#e0f2fe');
+      px(4, 10, 2, 1, '#e0f2fe');
+      bevel('#e0f2fe', '#0284c7');
+      break;
+    }
+    case 'blue_ice': {
+      // Compressed deep sapphire-cyan Blue Ice with bright electric crystal streaks
+      fillNoise('#2563eb', 0.12, 465);
+      px(1, 5, 5, 3, '#1d4ed8');
+      px(8, 10, 6, 3, '#1d4ed8');
+      for (let i = 0; i < 7; i++) {
+        px(1 + i, 2 + i, 2, 1, '#38bdf8');
+        px(7 + i, 1 + i, 2, 1, '#38bdf8');
+      }
+      px(3, 3, 3, 1, '#7dd3fc');
+      px(10, 6, 3, 1, '#7dd3fc');
+      px(5, 11, 4, 1, '#7dd3fc');
+      px(4, 3, 1, 1, '#f0f9ff');
+      px(11, 6, 1, 1, '#f0f9ff');
+      px(7, 11, 1, 1, '#f0f9ff');
+      bevel('#7dd3fc', '#1e3a8a');
+      break;
+    }
+    case 'sandstone': {
+      // Warm layered Minecraft Desert Sandstone with smooth cap & sedimentary strata
+      fillNoise('#e2c78c', 0.09, 485);
+      px(0, 0, 16, 4, '#ebd5a3');
+      px(0, 4, 16, 1, '#c9a66b');
+      px(0, 10, 16, 1, '#c9a66b');
+      px(3, 6, 3, 1, '#b89052');
+      px(10, 7, 4, 1, '#b89052');
+      px(2, 12, 4, 1, '#b89052');
+      px(9, 13, 3, 1, '#b89052');
+      px(1, 1, 6, 1, '#f5e6bf');
+      px(9, 2, 5, 1, '#f5e6bf');
+      px(5, 8, 3, 1, '#f5e6bf');
+      bevel('#f5e6bf', '#9e7a42');
+      break;
+    }
+    case 'chiseled_sandstone': {
+      // Iconic Minecraft Chiseled Sandstone featuring the carved Creeper-face temple relief
+      fillNoise('#dfc184', 0.07, 495);
+      px(0, 0, 16, 2, '#f3e2b7');
+      px(0, 14, 16, 1, '#f3e2b7');
+      px(0, 2, 16, 1, '#9c7840');
+      px(0, 13, 16, 1, '#9c7840');
+      px(2, 4, 12, 8, '#c8a466');
+      px(4, 5, 2, 2, '#7c5a28');
+      px(10, 5, 2, 2, '#7c5a28');
+      px(6, 7, 4, 2, '#7c5a28');
+      px(5, 9, 6, 2, '#7c5a28');
+      px(5, 10, 2, 2, '#7c5a28');
+      px(9, 10, 2, 2, '#7c5a28');
+      px(3, 4, 10, 1, '#f5e6bf');
+      bevel('#f5e6bf', '#8c6934');
+      break;
+    }
+    case 'terracotta_orange': {
+      // Classic Minecraft Desert Pyramid Orange Terracotta ceramic tile
+      fillNoise('#b95826', 0.09, 505);
+      px(1, 1, 14, 2, '#d47138');
+      px(2, 6, 5, 1, '#d47138');
+      px(9, 11, 4, 1, '#d47138');
+      px(3, 4, 4, 1, '#8a3d17');
+      px(10, 8, 3, 1, '#8a3d17');
+      px(2, 13, 12, 1, '#8a3d17');
+      bevel('#e0854a', '#733010');
       break;
     }
     case 'purpur_block': {
@@ -1326,6 +1416,293 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY, onSkyP
     ctx.fillStyle = '#fdba74';
     ctx.font = 'bold 14px monospace';
     ctx.fillText('BIOME://PALE_GARDEN — KEEP EYES ON THE CREAKING', minX + 60, minY + 58);
+    ctx.restore();
+    return true;
+  }
+
+  if (theme === 'ice_caves') {
+    ctx.save();
+    paintFullVoid('#04101f');
+
+    // 1. Subterranean Glacial Cavern Gradient Backdrop
+    const caveGrad = ctx.createLinearGradient(0, minY, 0, groundY);
+    caveGrad.addColorStop(0, '#041224');
+    caveGrad.addColorStop(0.45, '#0b2b4a');
+    caveGrad.addColorStop(1, '#164e63');
+    ctx.fillStyle = caveGrad;
+    ctx.fillRect(minX, minY, maxX - minX, groundY - minY);
+    onSkyPainted?.();
+
+    // 2. Jagged Cavern Ceiling Rock & Hanging Crystalline Ice Stalactites
+    ctx.fillStyle = '#0c233c';
+    ctx.fillRect(minX, minY, maxX - minX, 72);
+    const stalactites = [
+      [-920, 74, 155], [-740, 56, 128], [-540, 82, 178], [-320, 62, 134],
+      [-120, 76, 152], [120, 78, 158], [330, 64, 138], [550, 86, 182],
+      [750, 58, 132], [930, 72, 160]
+    ];
+    for (let i = 0; i < stalactites.length; i++) {
+      const [sx, sw, sh] = stalactites[i];
+      ctx.fillStyle = i % 2 === 0 ? '#38bdf8' : '#7dd3fc';
+      ctx.beginPath();
+      ctx.moveTo(sx - sw * 0.5, minY + 62);
+      ctx.lineTo(sx + sw * 0.5, minY + 62);
+      ctx.lineTo(sx, minY + 62 + sh);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(224, 242, 254, 0.55)';
+      ctx.beginPath();
+      ctx.moveTo(sx - sw * 0.18, minY + 62);
+      ctx.lineTo(sx + sw * 0.06, minY + 62);
+      ctx.lineTo(sx, minY + 62 + sh * 0.85);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 3. Vaulted Packed-Ice Columns Flanking the Glacial Cavern
+    for (const px of [-820, -450, 450, 820]) {
+      ctx.fillStyle = '#1e3a5f';
+      ctx.fillRect(px - 28, minY + 64, 56, groundY - (minY + 64));
+      ctx.fillStyle = 'rgba(125, 211, 252, 0.35)';
+      ctx.fillRect(px - 22, minY + 64, 16, groundY - (minY + 64));
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillRect(px - 34, groundY - 24, 68, 24);
+    }
+
+    // 4. Centerpiece: Frozen Icefall & Pulsing Giant Blue Ice Crystal Spire
+    const glow = 0.25 + Math.sin(t * 3.4) * 0.1;
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.24)';
+    ctx.fillRect(-135, minY + 68, 270, groundY - (minY + 68));
+    for (const fx of [-102, -48, 48, 102]) {
+      ctx.fillStyle = fx % 96 === 0 ? '#7dd3fc' : '#38bdf8';
+      ctx.fillRect(fx - 18, minY + 72, 36, groundY - (minY + 72));
+      ctx.fillStyle = 'rgba(240, 249, 255, 0.45)';
+      ctx.fillRect(fx - 10, minY + 72, 8, groundY - (minY + 72));
+    }
+    ctx.fillStyle = `rgba(56, 189, 248, ${glow})`;
+    ctx.beginPath();
+    ctx.arc(0, groundY - 150, 128, 0, Math.PI * 2);
+    ctx.fill();
+    // Main crystalline Blue Ice spire
+    ctx.fillStyle = '#2563eb';
+    ctx.beginPath();
+    ctx.moveTo(-48, groundY);
+    ctx.lineTo(0, groundY - 236);
+    ctx.lineTo(48, groundY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#7dd3fc';
+    ctx.beginPath();
+    ctx.moveTo(-22, groundY);
+    ctx.lineTo(0, groundY - 224);
+    ctx.lineTo(12, groundY);
+    ctx.closePath();
+    ctx.fill();
+    // Side crystal shards
+    for (const [cx, cw, ch] of [[-82, 30, 118], [82, 30, 118], [-640, 44, 146], [640, 44, 146]]) {
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.moveTo(cx - cw * 0.5, groundY);
+      ctx.lineTo(cx, groundY - ch);
+      ctx.lineTo(cx + cw * 0.5, groundY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#bae6fd';
+      ctx.beginPath();
+      ctx.moveTo(cx - cw * 0.18, groundY);
+      ctx.lineTo(cx, groundY - ch * 0.9);
+      ctx.lineTo(cx + cw * 0.08, groundY);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 5. Snowdrift Banks & Drifting Cavern Snowflakes
+    ctx.fillStyle = '#e0f2fe';
+    for (const [dx, dw, dh] of [[-700, 180, 24], [-210, 140, 18], [210, 140, 18], [700, 180, 24]]) {
+      ctx.fillRect(dx - dw * 0.5, groundY - dh, dw, dh);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(dx - dw * 0.42, groundY - dh - 8, dw * 0.84, 10);
+      ctx.fillStyle = '#e0f2fe';
+    }
+    ctx.fillStyle = 'rgba(240, 249, 255, 0.78)';
+    for (let f = 0; f < 22; f++) {
+      const fx = minX + 40 + ((f * 131 + Math.sin(t * 1.3 + f) * 28) % (maxX - minX - 80));
+      const fy = minY + 80 + (((f * 97) + t * (42 + (f % 4) * 12)) % (groundY - minY - 96));
+      ctx.fillRect(fx, fy, 4, 4);
+    }
+
+    // 6. Glossy Packed-Ice & Blue-Ice Sub-floor
+    ctx.fillStyle = '#071b33';
+    ctx.fillRect(minX - 400, groundY + 14, maxX - minX + 800, 400);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(minX, groundY, maxX - minX, 24);
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillRect(minX, groundY, maxX - minX, 6);
+    ctx.fillStyle = 'rgba(240, 249, 255, 0.45)';
+    for (let gx = minX + 32; gx < maxX - 32; gx += 120) {
+      ctx.fillRect(gx, groundY + 7, 56, 4);
+    }
+
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(minX, minY);
+    ctx.lineTo(minX, groundY);
+    ctx.moveTo(maxX, minY);
+    ctx.lineTo(maxX, groundY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('BIOME://ICE_CAVES — SUBTERRANEAN PACKED & BLUE ICE CAVERN', minX + 60, minY + 58);
+    ctx.restore();
+    return true;
+  }
+
+  if (theme === 'desert_pyramid') {
+    ctx.save();
+    paintFullVoid('#180d04');
+
+    // 1. Warm Torchlit Sandstone Desert Pyramid Interior Backdrop
+    const pyrGrad = ctx.createLinearGradient(0, minY, 0, groundY);
+    pyrGrad.addColorStop(0, '#1c1006');
+    pyrGrad.addColorStop(0.5, '#3e230d');
+    pyrGrad.addColorStop(1, '#6b3e18');
+    ctx.fillStyle = pyrGrad;
+    ctx.fillRect(minX, minY, maxX - minX, groundY - minY);
+    onSkyPainted?.();
+
+    // Sandstone masonry courses across interior backdrop
+    ctx.strokeStyle = 'rgba(28, 16, 6, 0.42)';
+    ctx.lineWidth = 2;
+    for (let y = minY + 48; y < groundY; y += 44) {
+      ctx.beginPath();
+      ctx.moveTo(minX, y);
+      ctx.lineTo(maxX, y);
+      ctx.stroke();
+      const offset = (((y - minY) / 44) & 1) === 0 ? 0 : 48;
+      for (let x = minX + offset; x < maxX; x += 96) {
+        ctx.beginPath();
+        ctx.moveTo(x, y - 44);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+    }
+
+    // 2. Sloped Stepped Inner Pyramid Sandstone Walls converging inward toward central apex skylight
+    for (let step = 0; step < 5; step++) {
+      const sh = 112;
+      const sy = groundY - (step + 1) * sh;
+      const sw = 190 + step * 92;
+      ctx.fillStyle = step % 2 === 0 ? '#a87d44' : '#946c36';
+      ctx.fillRect(minX, sy, sw, sh);
+      ctx.fillRect(maxX - sw, sy, sw, sh);
+      ctx.fillStyle = '#c25925';
+      ctx.fillRect(minX, sy, sw, 10);
+      ctx.fillRect(maxX - sw, sy, sw, 10);
+    }
+
+    // 3. Golden Volumetric Desert Sunbeams Pouring Down Through Pyramid Apex Skylight
+    const beamAlpha = 0.14 + Math.sin(t * 2.1) * 0.035;
+    ctx.fillStyle = `rgba(253, 224, 71, ${beamAlpha})`;
+    ctx.beginPath();
+    ctx.moveTo(-110, minY);
+    ctx.lineTo(110, minY);
+    ctx.lineTo(310, groundY);
+    ctx.lineTo(-310, groundY);
+    ctx.closePath();
+    ctx.fill();
+
+    // 4. Monumental Chiseled Sandstone Pillars with Orange Terracotta Bands & Flickering Wall Torches
+    for (const px of [-470, -245, 245, 470]) {
+      ctx.fillStyle = '#c8a466';
+      ctx.fillRect(px - 26, minY + 95, 52, groundY - (minY + 95));
+      ctx.fillStyle = '#b95826';
+      ctx.fillRect(px - 28, groundY - 124, 56, 26);
+      ctx.fillStyle = '#ebd5a3';
+      ctx.fillRect(px - 32, minY + 95, 64, 24);
+      const flicker = 0.65 + Math.sin(t * 9.5 + px) * 0.2;
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(px - 4, groundY - 188, 8, 26);
+      ctx.fillStyle = `rgba(251, 146, 60, ${flicker * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(px, groundY - 196, 36, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fde047';
+      ctx.fillRect(px - 5, groundY - 200, 10, 12);
+    }
+
+    // 5. Left Alcove: Desert Pyramid Treasure Vault (Gold Blocks & Ornate Chest)
+    ctx.fillStyle = '#92400e';
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 3;
+    ctx.fillRect(-750, groundY - 64, 92, 64);
+    ctx.strokeRect(-750, groundY - 64, 92, 64);
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-712, groundY - 40, 16, 16);
+    for (const [gx, gy] of [[-635, groundY - 48], [-585, groundY - 48], [-610, groundY - 96]]) {
+      ctx.fillStyle = '#eab308';
+      ctx.fillRect(gx, gy, 46, 46);
+      ctx.strokeStyle = '#fef08a';
+      ctx.strokeRect(gx, gy, 46, 46);
+    }
+
+    // 6. Right Alcove: Gilded Pharaoh Sarcophagus & Braziers
+    ctx.fillStyle = '#b89052';
+    ctx.fillRect(560, groundY - 54, 178, 54);
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(574, groundY - 64, 150, 14);
+    ctx.fillStyle = '#b95826';
+    ctx.fillRect(520, groundY - 46, 32, 46);
+    ctx.fillRect(746, groundY - 46, 32, 46);
+    ctx.fillStyle = '#fb923c';
+    ctx.fillRect(528, groundY - 64, 16, 18);
+    ctx.fillRect(754, groundY - 64, 16, 18);
+
+    // 7. Centerpiece: Iconic Minecraft Desert Temple Orange & Blue Terracotta Mosaic & Creeper-Glyph Shrine
+    ctx.fillStyle = '#c8a466';
+    ctx.strokeStyle = '#f5e6bf';
+    ctx.lineWidth = 3;
+    ctx.fillRect(-130, groundY - 210, 260, 210);
+    ctx.strokeRect(-130, groundY - 210, 260, 210);
+    // Iconic Orange Terracotta cross & central Blue Terracotta seal!
+    ctx.fillStyle = '#b95826';
+    ctx.fillRect(-108, groundY - 122, 216, 44);
+    ctx.fillRect(-22, groundY - 196, 44, 196);
+    ctx.fillStyle = '#3b528c';
+    ctx.fillRect(-34, groundY - 134, 68, 68);
+    ctx.strokeStyle = '#93c5fd';
+    ctx.strokeRect(-34, groundY - 134, 68, 68);
+    // Carved Creeper-face sandstone relief above mosaic
+    ctx.fillStyle = '#7c5a28';
+    ctx.fillRect(-28, groundY - 186, 14, 14);
+    ctx.fillRect(14, groundY - 186, 14, 14);
+    ctx.fillRect(-14, groundY - 172, 28, 12);
+
+    // 8. Sandstone Combat Floor with Inlaid Orange & Blue Terracotta Center Seal
+    ctx.fillStyle = '#241407';
+    ctx.fillRect(minX - 400, groundY + 14, maxX - minX + 800, 400);
+    ctx.fillStyle = '#d6b676';
+    ctx.fillRect(minX, groundY, maxX - minX, 24);
+    ctx.fillStyle = '#f5e6bf';
+    ctx.fillRect(minX, groundY, maxX - minX, 5);
+    ctx.fillStyle = '#b95826';
+    ctx.fillRect(-136, groundY, 272, 16);
+    ctx.fillStyle = '#3b528c';
+    ctx.fillRect(-38, groundY, 76, 16);
+
+    ctx.strokeStyle = '#b95826';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(minX, minY);
+    ctx.lineTo(minX, groundY);
+    ctx.moveTo(maxX, minY);
+    ctx.lineTo(maxX, groundY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('DUNGEON://DESERT_PYRAMID_INTERIOR — ANCIENT SANDSTONE VAULT & TNT TRAP', minX + 60, minY + 58);
     ctx.restore();
     return true;
   }
@@ -2642,7 +3019,7 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY, onSkyP
 
     ctx.fillStyle = '#1db954';
     ctx.font = 'bold 12px monospace';
-    ctx.fillText('VERIFIED PLAYLIST • STAGE 24', -56, vinylY - 36);
+    ctx.fillText('VERIFIED PLAYLIST • STAGE 28', -56, vinylY - 36);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 26px sans-serif';
     ctx.fillText('STICK VS ZOMBIES OST', -56, vinylY - 4);
@@ -2989,6 +3366,8 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
     theme !== 'aether' &&
     theme !== 'ancient_city' &&
     theme !== 'pale_garden' &&
+    theme !== 'ice_caves' &&
+    theme !== 'desert_pyramid' &&
     theme !== 'overworld' &&
     theme !== 'youtube' &&
     theme !== 'chrome' &&
@@ -3071,6 +3450,41 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
         ctx.moveTo(mx, p.y);
         ctx.lineTo(mx + sway, p.y + 18 + ((Math.abs(mx) | 0) % 10));
         ctx.stroke();
+      }
+    } else if (theme === 'ice_caves') {
+      // Glacial Packed-Ice Ledges with Snow Cap + Hanging Icicles, and Glowing Blue-Ice Drifting Floe
+      const isFloe = Boolean(p.axis);
+      ctx.fillStyle = isFloe ? '#2563eb' : '#38bdf8';
+      ctx.strokeStyle = isFloe ? '#bae6fd' : '#0284c7';
+      ctx.lineWidth = 2;
+      ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+      ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+      ctx.fillStyle = isFloe ? '#7dd3fc' : '#f0f9ff';
+      ctx.fillRect(p.x - halfW + 1, topY + 1, p.width - 2, 6);
+      // Crystalline hanging pixel icicles underneath ice ledges
+      ctx.fillStyle = '#bae6fd';
+      for (let ix = p.x - halfW + 18; ix < p.x + halfW - 14; ix += 34) {
+        const icLen = 10 + ((Math.abs(ix) | 0) % 9);
+        ctx.beginPath();
+        ctx.moveTo(ix - 5, p.y);
+        ctx.lineTo(ix + 5, p.y);
+        ctx.lineTo(ix, p.y + icLen);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (theme === 'desert_pyramid') {
+      // Stepped Sandstone Pyramid Galleries with Orange Terracotta Trim + Chiseled Sandstone Counterweight
+      const isCounterweight = Boolean(p.axis);
+      ctx.fillStyle = isCounterweight ? '#c8a466' : '#dfc184';
+      ctx.strokeStyle = isCounterweight ? '#f59e0b' : '#7c5a28';
+      ctx.lineWidth = 2;
+      ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+      ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+      ctx.fillStyle = isCounterweight ? '#f59e0b' : '#b95826';
+      ctx.fillRect(p.x - halfW + 2, topY + 2, p.width - 4, 6);
+      ctx.fillStyle = '#7c5a28';
+      for (let gx = p.x - halfW + 20; gx < p.x + halfW - 16; gx += 32) {
+        ctx.fillRect(gx, topY + 11, 10, 6);
       }
     } else if (theme === 'overworld') {
       const isMinecart = Boolean(p.axis);
@@ -3262,6 +3676,20 @@ export function drawGroundCraters2D(ctx, groundHoles, groundY = 0, theme = 'desk
     strataUpper = '#64748b';
     strataMid = '#374151';
     strataDeep = '#1f2937';
+  } else if (theme === 'ice_caves') {
+    voidTop = '#041224';
+    voidDeep = '#020814';
+    lipCol = '#7dd3fc';
+    strataUpper = '#38bdf8';
+    strataMid = '#2563eb';
+    strataDeep = '#1e3a8a';
+  } else if (theme === 'desert_pyramid') {
+    voidTop = '#180d04';
+    voidDeep = '#0a0502';
+    lipCol = '#f59e0b';
+    strataUpper = '#e2c78c';
+    strataMid = '#b95826';
+    strataDeep = '#523012';
   } else if (theme === 'overworld') {
     voidTop = '#111827';
     voidDeep = '#030712';

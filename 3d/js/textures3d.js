@@ -971,6 +971,136 @@ export function drawPixelBlock(ctx, kind) {
       drawBevelBorder(ctx, '#fef9c3', '#134e4a');
       break;
     }
+    case 'packed_ice': {
+      // Crisp glacial cyan-blue packed ice with diagonal crystalline specular facets
+      fillNoisyPixels(ctx, '#7dd3fc', 0.1, 455);
+      // Crystalline fracture lines & diagonal ice sheen
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(1, 3, 4, 2);
+      ctx.fillRect(9, 8, 5, 2);
+      ctx.fillRect(3, 12, 6, 2);
+      ctx.fillStyle = '#bae6fd';
+      for (let i = 0; i < 6; i++) {
+        ctx.fillRect(2 + i, 1 + i, 2, 1);
+        ctx.fillRect(8 + Math.min(6, i), 5 + i, 2, 1);
+      }
+      ctx.fillStyle = '#e0f2fe';
+      ctx.fillRect(2, 2, 3, 1);
+      ctx.fillRect(10, 4, 3, 1);
+      ctx.fillRect(4, 10, 2, 1);
+      drawBevelBorder(ctx, '#e0f2fe', '#0284c7');
+      break;
+    }
+    case 'blue_ice': {
+      // Deep compressed sapphire-cyan Blue Ice with electric glacial crystal streaks
+      fillNoisyPixels(ctx, '#2563eb', 0.12, 465);
+      ctx.fillStyle = '#1d4ed8';
+      ctx.fillRect(1, 5, 5, 3);
+      ctx.fillRect(8, 10, 6, 3);
+      ctx.fillStyle = '#38bdf8';
+      for (let i = 0; i < 7; i++) {
+        ctx.fillRect(1 + i, 2 + i, 2, 1);
+        ctx.fillRect(7 + i, 1 + i, 2, 1);
+      }
+      ctx.fillStyle = '#7dd3fc';
+      ctx.fillRect(3, 3, 3, 1);
+      ctx.fillRect(10, 6, 3, 1);
+      ctx.fillRect(5, 11, 4, 1);
+      ctx.fillStyle = '#f0f9ff';
+      ctx.fillRect(4, 3, 1, 1);
+      ctx.fillRect(11, 6, 1, 1);
+      ctx.fillRect(7, 11, 1, 1);
+      drawBevelBorder(ctx, '#7dd3fc', '#1e3a8a');
+      break;
+    }
+    case 'snow_block': {
+      // Crisp alpine snowdrift pixels with soft glacial shadows
+      fillNoisyPixels(ctx, '#f0f9ff', 0.04, 475);
+      ctx.fillStyle = '#e0f2fe';
+      ctx.fillRect(2, 4, 4, 2);
+      ctx.fillRect(9, 10, 5, 2);
+      ctx.fillRect(4, 13, 3, 1);
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillRect(1, 14, 14, 1);
+      ctx.fillRect(14, 2, 1, 13);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(1, 1, 14, 2);
+      break;
+    }
+    case 'sandstone': {
+      // Authentic Minecraft layered golden desert sandstone with smooth upper band & sedimentary strata
+      fillNoisyPixels(ctx, '#e2c78c', 0.09, 485);
+      // Smooth carved top band
+      ctx.fillStyle = '#ebd5a3';
+      ctx.fillRect(0, 0, 16, 4);
+      ctx.fillStyle = '#c9a66b';
+      ctx.fillRect(0, 4, 16, 1);
+      ctx.fillRect(0, 10, 16, 1);
+      // Sedimentary desert stone flecks & mortar hints
+      ctx.fillStyle = '#b89052';
+      ctx.fillRect(3, 6, 3, 1);
+      ctx.fillRect(10, 7, 4, 1);
+      ctx.fillRect(2, 12, 4, 1);
+      ctx.fillRect(9, 13, 3, 1);
+      ctx.fillStyle = '#f5e6bf';
+      ctx.fillRect(1, 1, 6, 1);
+      ctx.fillRect(9, 2, 5, 1);
+      ctx.fillRect(5, 8, 3, 1);
+      drawBevelBorder(ctx, '#f5e6bf', '#9e7a42');
+      break;
+    }
+    case 'chiseled_sandstone': {
+      // Iconic Minecraft Chiseled Sandstone with carved Creeper-face / pyramid hieroglyph relief
+      fillNoisyPixels(ctx, '#dfc184', 0.07, 495);
+      // Carved upper & lower temple cornice borders
+      ctx.fillStyle = '#f3e2b7';
+      ctx.fillRect(0, 0, 16, 2);
+      ctx.fillRect(0, 14, 16, 1);
+      ctx.fillStyle = '#9c7840';
+      ctx.fillRect(0, 2, 16, 1);
+      ctx.fillRect(0, 13, 16, 1);
+      // Recessed central hieroglyph medallion panel
+      ctx.fillStyle = '#c8a466';
+      ctx.fillRect(2, 4, 12, 8);
+      // Iconic Creeper-face carved glyph
+      ctx.fillStyle = '#7c5a28';
+      ctx.fillRect(4, 5, 2, 2); // Left eye
+      ctx.fillRect(10, 5, 2, 2); // Right eye
+      ctx.fillRect(6, 7, 4, 2); // Nose bridge
+      ctx.fillRect(5, 9, 6, 2); // Mouth bar
+      ctx.fillRect(5, 10, 2, 2); // Left fang
+      ctx.fillRect(9, 10, 2, 2); // Right fang
+      // Highlight rim inside carving
+      ctx.fillStyle = '#f5e6bf';
+      ctx.fillRect(3, 4, 10, 1);
+      drawBevelBorder(ctx, '#f5e6bf', '#8c6934');
+      break;
+    }
+    case 'terracotta_orange': {
+      // Classic Desert Pyramid Orange Terracotta ceramic tile
+      fillNoisyPixels(ctx, '#b95826', 0.09, 505);
+      ctx.fillStyle = '#d47138';
+      ctx.fillRect(1, 1, 14, 2);
+      ctx.fillRect(2, 6, 5, 1);
+      ctx.fillRect(9, 11, 4, 1);
+      ctx.fillStyle = '#8a3d17';
+      ctx.fillRect(3, 4, 4, 1);
+      ctx.fillRect(10, 8, 3, 1);
+      ctx.fillRect(2, 13, 12, 1);
+      drawBevelBorder(ctx, '#e0854a', '#733010');
+      break;
+    }
+    case 'terracotta_blue': {
+      // Iconic Desert Pyramid center Blue Terracotta trap-chamber seal tile
+      fillNoisyPixels(ctx, '#3b528c', 0.09, 515);
+      ctx.fillStyle = '#5370b5';
+      ctx.fillRect(1, 1, 14, 2);
+      ctx.fillRect(4, 5, 8, 6);
+      ctx.fillStyle = '#283966';
+      ctx.fillRect(6, 7, 4, 2);
+      drawBevelBorder(ctx, '#6886cf', '#1e2c52');
+      break;
+    }
     case 'rocket_plaza_asphalt': {
       fillNoisyPixels(ctx, '#1e2430', 0.14, 445);
       // Concrete road expansion joints
@@ -1018,6 +1148,8 @@ export function getThemeFloorTextureKey(theme, isWhiteVoid = false) {
     case 'aether': return 'aether_grass';
     case 'ancient_city': return 'sculk';
     case 'pale_garden': return 'pale_moss';
+    case 'ice_caves': return 'packed_ice';
+    case 'desert_pyramid': return 'sandstone';
     case 'youtube': return 'youtube_floor';
     case 'chrome': return 'chrome_floor';
     case 'spotify': return 'spotify_floor';

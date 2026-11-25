@@ -25,10 +25,11 @@ import {
   CreakingBoss,
   MercenaryBoss,
   OVERWORLD_OUTPOST_BLOCKS,
+  DESERT_PYRAMID_TRAP_BLOCKS,
   formatAttackerDeathMessage,
   formatProjectileDeathMessage,
   resolvePlayerDeathCause
-} from '../3d/js/campaign3d.js?v=10.8';
+} from '../3d/js/campaign3d.js?v=10.9';
 import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 
 import {
@@ -38,22 +39,22 @@ import {
   drawSketchBlocksVoxel2D,
   getCreativeBlockSprite2D,
   paintVoxelBlockPixels2D
-} from '../2d/arenas2d.js?v=10.6';
+} from '../2d/arenas2d.js?v=10.7';
 import {
   DEPTH_PARALLAX,
   Depth2DRenderer,
   getDepthProfile2D
-} from '../2d/depth2d.js?v=10.6';
+} from '../2d/depth2d.js?v=10.7';
 import {
   STAGE_OPTIONS_2D,
   install2DExpansion
-} from '../2d/expansion2d.js?v=10.7';
+} from '../2d/expansion2d.js?v=10.8';
 import {
   OLD_UPDATES_ARCHIVE,
   PURPLE_ALLY_CONFIG,
   installOldUpdatesMenu,
   resolveLegacyUpdateUrl
-} from '../3d/js/purple_ally.js?v=10.9';
+} from '../3d/js/purple_ally.js?v=11.0';
 import {
   HerobrineBoss,
   VictimBoss
@@ -66,7 +67,7 @@ import {
   ROGUELIKE_PERKS,
   TROPHY_MONUMENT_BOSSES,
   computeStageRank
-} from '../3d/js/gameplay_features.js?v=10.9';
+} from '../3d/js/gameplay_features.js?v=11.0';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -181,28 +182,28 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
   );
 });
 
-test('2D Expansion [2] Prominent Level Selector & Title UI: index.html + expansion2d expose Creative Mode, Stage Select, and Stages 18–30 pills', () => {
+test('2D Expansion [2] Prominent Level Selector & Title UI: index.html + expansion2d expose Creative Mode, Stage Select, and Stages 18–32 pills', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
   assert.match(html, /href="2d\/style2d\.css\?v=10\.5"/);
-  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.7"/);
+  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.8"/);
   assert.match(html, /id="btn-start-creative"/);
   assert.match(html, /id="title-stage-select"/);
-  for (const stage of [19, 20, 21, 22, 29, 30]) {
+  for (const stage of [19, 20, 21, 22, 31, 32]) {
     assert.match(html, new RegExp(`data-jump-stage="${stage}"`), `missing quick-jump pill for stage ${stage}`);
   }
   const expansionSrc = readFileSync(join(ROOT, '2d/expansion2d.js'), 'utf8');
   assert.match(expansionSrc, /setAttribute\(['"]data-jump-stage['"],\s*['"]18['"]\)/, 'expansion2d.js must inject quick-jump pill for Stage 18');
-  for (const stage of [23, 24, 25, 26, 27, 28]) {
+  for (const stage of [23, 24, 25, 26, 27, 28, 29, 30]) {
     assert.match(expansionSrc, new RegExp(`stage:\\s*['"]?${stage}['"]?`), `expansion2d.js must inject quick-jump pill for Stage ${stage}`);
   }
-  assert.equal(STAGE_OPTIONS_2D.length, 31, 'selector must expose Stages 1–30 plus Stage 31 Trophy Room');
+  assert.equal(STAGE_OPTIONS_2D.length, 33, 'selector must expose Stages 1–32 plus Stage 33 Trophy Room');
 });
 
-test('2D Expansion [3] 30-Stage Campaign + 11-Boss Trophy Room: Stronghold (18) precedes The End (19), Overworld (23), App Gauntlet (24–27), Outside Rocket Corp (28) precedes Rocket Corp (29) & Zero-Day (30)', () => {
+test('2D Expansion [3] 32-Stage Campaign + 11-Boss Trophy Room: Stronghold (18) precedes The End (19), Ice Caves (23) & Desert Pyramid Interior (24) precede Overworld Village (25), App Gauntlet (26–29), Outside Rocket Corp (30) precedes Rocket Corp (31) & Zero-Day (32)', () => {
   resetGlobalSystems();
   const { game, controller } = create2DGameHarness();
 
-  assert.equal(game.stageManager.maxStage, 30);
+  assert.equal(game.stageManager.maxStage, 32);
 
   // Verify Stage 18: The Stronghold right before The End
   controller.jumpToStage(18, { freshStart: true });
@@ -239,33 +240,44 @@ test('2D Expansion [3] 30-Stage Campaign + 11-Boss Trophy Room: Stronghold (18) 
   assert.equal(game.stageManager.movingPlatforms[0]?.axis, 'x', 'Hanging_Moss_Bough must move horizontally in 2D');
   assert.ok(waves.zombies.some((z) => z instanceof CreakingBoss), 'Stage 22 must spawn CreakingBoss');
 
-  // Verify Stage 23: Minecraft Overworld
+  // Verify Stage 23: Ice Caves & Stage 24: Desert Pyramid Interior immediately precede Stage 25: Minecraft Overworld (Village)
   controller.jumpToStage(23);
   assert.equal(game.stageManager.currentStage, 23);
+  assert.equal(game.stageManager.theme, 'ice_caves');
+  assert.equal(game.stageManager.stageName, 'Ice Caves');
+
+  controller.jumpToStage(24);
+  assert.equal(game.stageManager.currentStage, 24);
+  assert.equal(game.stageManager.theme, 'desert_pyramid');
+  assert.equal(game.stageManager.stageName, 'Desert Pyramid Interior');
+
+  // Verify Stage 25: Minecraft Overworld (Village)
+  controller.jumpToStage(25);
+  assert.equal(game.stageManager.currentStage, 25);
   assert.equal(game.stageManager.theme, 'overworld');
 
-  // Verify Stage 28: Outside Rocket Corp immediately precedes Stage 29: Rocket Corp HQ
-  controller.jumpToStage(28);
-  assert.equal(game.stageManager.currentStage, 28);
+  // Verify Stage 30: Outside Rocket Corp immediately precedes Stage 31: Rocket Corp HQ
+  controller.jumpToStage(30);
+  assert.equal(game.stageManager.currentStage, 30);
   assert.equal(game.stageManager.theme, 'rocket_corp_exterior');
   assert.equal(game.stageManager.stageName, 'Outside Rocket Corp');
 
-  // Verify Stage 29: Rocket Corp HQ (4 Mercenaries) immediately precedes Stage 30: Zero-Day (H4C3R)
-  controller.jumpToStage(29);
+  // Verify Stage 31: Rocket Corp HQ (4 Mercenaries) immediately precedes Stage 32: Zero-Day (H4C3R)
+  controller.jumpToStage(31);
   advanceWaveSpawns(game, 4.0);
-  assert.equal(game.stageManager.currentStage, 29);
+  assert.equal(game.stageManager.currentStage, 31);
   assert.equal(game.stageManager.theme, 'rocket_corp');
   const mercs = waves.zombies.filter((z) => z instanceof MercenaryBoss);
-  assert.equal(mercs.length, 4, 'Stage 29 must spawn Agent, Ballista, Primal, and Hazard');
+  assert.equal(mercs.length, 4, 'Stage 31 must spawn Agent, Ballista, Primal, and Hazard');
 
-  controller.jumpToStage(30);
+  controller.jumpToStage(32);
   advanceWaveSpawns(game, 2.0);
-  assert.equal(game.stageManager.currentStage, 30);
+  assert.equal(game.stageManager.currentStage, 32);
   assert.equal(game.stageManager.theme, 'zero_day');
-  assert.ok(waves.zombies.some((z) => z.type === 'h4c3r'), 'Stage 30 must spawn H4C3R');
+  assert.ok(waves.zombies.some((z) => z.type === 'h4c3r'), 'Stage 32 must spawn H4C3R');
 
-  // Verify Stage 31: Trophy Room Epilogue with all 11 Boss Monuments
-  controller.jumpToStage(31);
+  // Verify Stage 33: Trophy Room Epilogue with all 11 Boss Monuments
+  controller.jumpToStage(33);
   assert.equal(game.stageManager.isTrophyRoom, true);
   assert.equal(game.stageManager.desktopIcons.length, 11, 'Trophy Room must honor all 11 campaign bosses');
 
@@ -276,10 +288,10 @@ test('2D Expansion [4] Pure 2D Canvas Rendering & Gaze-Freeze: all new arenas, v
   resetGlobalSystems();
   const { game, controller, ctx, calls } = create2DGameHarness();
 
-  // Render Stages 7, 18..31 through full game.render()
-  for (const stage of [7, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]) {
+  // Render Stages 7, 18..33 through full game.render()
+  for (const stage of [7, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]) {
     controller.jumpToStage(stage, { freshStart: stage === 7 });
-    if (stage < 31) advanceWaveSpawns(game, 2.5);
+    if (stage < 33) advanceWaveSpawns(game, 2.5);
     calls.save = 0;
     calls.restore = 0;
     game.update(1 / 60);
@@ -767,7 +779,7 @@ test('2D Expansion [9] Crisp 16x16 Voxel Block Pixel-Art Textures & Selector Syn
     assert.ok(!signatures.has(sig), `${texKey} pixel-art texture must be visually distinct from every other block`);
     signatures.add(sig);
   }
-  assert.equal(signatures.size, 20, 'all 20 2D Creative voxel block types must produce unique pixel-art textures');
+  assert.equal(signatures.size, 25, 'all 25 2D Creative voxel block types must produce unique pixel-art textures');
 
   // Calling placeCreativeBlock() with no explicit arg uses sandbox.selectedBlock and preserves texKey
   const { game, controller } = create2DGameHarness();
@@ -839,8 +851,8 @@ test('2D Expansion [10] Creative Mob & Boss Spawner On-Screen Visibility Across 
   assert.ok(inwardMob.x < game.player.x && inwardMob.x >= -870, 'spawning near right arena boundary must flip inward onto safe floor');
   assert.equal(inwardMob.facing, 1, 'mob spawned to the left of Orange must face right toward Orange');
 
-  // 4. Spawning inside Stage 31 (Trophy Room, where waves start inactive) activates waves and updates spawned mobs
-  controller.jumpToStage(31, { creative: true });
+  // 4. Spawning inside Stage 33 (Trophy Room, where waves start inactive) activates waves and updates spawned mobs
+  controller.jumpToStage(33, { creative: true });
   assert.equal(waves.isWaveActive, false, 'Trophy Room starts with waves inactive');
   game.player.x = 0;
   game.player.facing = 1;
@@ -926,11 +938,11 @@ test('2D Expansion [11] Stage 10 AvA 8 Showdown Lake Arena: Outernet Lake, Water
   resetGlobalSystems();
 });
 
-test('2D Expansion [12] All 20 Placed Block Voxel Textures, KeyV Isolation & E-Key Voxel SketchBlocks', () => {
+test('2D Expansion [12] All 25 Placed Block Voxel Textures, KeyV Isolation & E-Key Voxel SketchBlocks', () => {
   resetGlobalSystems();
 
-  // 1. Rasterize all 20 16x16 voxel block sprites into an exact 16x16 pixel grid and verify richness + uniqueness
-  assert.equal(CREATIVE_BLOCK_TYPES_2D.length, 20, 'All 20 Creative block types must be registered');
+  // 1. Rasterize all 25 16x16 voxel block sprites into an exact 16x16 pixel grid and verify richness + uniqueness
+  assert.equal(CREATIVE_BLOCK_TYPES_2D.length, 25, 'All 25 Creative block types must be registered');
   const signatures = new Map();
   for (const key of CREATIVE_BLOCK_TYPES_2D) {
     const grid = new Array(16 * 16).fill('');
@@ -965,7 +977,7 @@ test('2D Expansion [12] All 20 Placed Block Voxel Textures, KeyV Isolation & E-K
     }
     signatures.set(key, sig);
   }
-  assert.equal(signatures.size, 20);
+  assert.equal(signatures.size, 25);
 
   // 2. Verify KeyV in Creative Mode places each of the 19 blocks WITHOUT double-spawning a flat #1c1b29 SketchBlock
   const { game, controller, ctx } = create2DGameHarness();
@@ -1047,13 +1059,13 @@ test('2D Expansion [12] All 20 Placed Block Voxel Textures, KeyV Isolation & E-K
   resetGlobalSystems();
 });
 
-test('2D Expansion [13] Dedicated App Levels (Stages 24–27): YouTube, Chrome, Spotify & Slides Arenas, Vertical Equalizer Lifts, Eraser Pickup & Depth Motifs', () => {
+test('2D Expansion [13] Dedicated App Levels (Stages 26–29): YouTube, Chrome, Spotify & Slides Arenas, Vertical Equalizer Lifts, Eraser Pickup & Depth Motifs', () => {
   resetGlobalSystems();
   const { game, controller, calls } = create2DGameHarness();
 
   const expectedApps = [
     {
-      stage: 24,
+      stage: 26,
       theme: 'youtube',
       stageName: 'YouTube Studio',
       motif: 'youtube_ui',
@@ -1064,7 +1076,7 @@ test('2D Expansion [13] Dedicated App Levels (Stages 24–27): YouTube, Chrome, 
       uiSnippet: 'YouTube'
     },
     {
-      stage: 25,
+      stage: 27,
       theme: 'chrome',
       stageName: 'Google Chrome',
       motif: 'chrome_tabs',
@@ -1075,7 +1087,7 @@ test('2D Expansion [13] Dedicated App Levels (Stages 24–27): YouTube, Chrome, 
       uiSnippet: 'chrome.google.com/stick-vs-zombies/arena'
     },
     {
-      stage: 26,
+      stage: 28,
       theme: 'spotify',
       stageName: 'Spotify Player',
       motif: 'spotify_eq',
@@ -1086,7 +1098,7 @@ test('2D Expansion [13] Dedicated App Levels (Stages 24–27): YouTube, Chrome, 
       uiSnippet: 'Spotify'
     },
     {
-      stage: 27,
+      stage: 29,
       theme: 'slides',
       stageName: 'Google Slides',
       motif: 'slides_deck',
@@ -1128,9 +1140,9 @@ test('2D Expansion [13] Dedicated App Levels (Stages 24–27): YouTube, Chrome, 
     assert.equal(bakedCount, 2, `${app.theme} (${app.motif}) must bake both Far and Mid blurred depth planes cleanly`);
   }
 
-  // 2. Jump to each App Stage (24..27), verify layouts, wave counts, UI rendering, and taskbar suppression
+  // 2. Jump to each App Stage (26..29), verify layouts, wave counts, UI rendering, and taskbar suppression
   for (const app of expectedApps) {
-    controller.jumpToStage(app.stage, { freshStart: app.stage === 24 });
+    controller.jumpToStage(app.stage, { freshStart: app.stage === 26 });
     assert.equal(game.stageManager.currentStage, app.stage);
     assert.equal(game.stageManager.theme, app.theme);
     assert.equal(game.stageManager.stageName, app.stageName);
@@ -1141,11 +1153,11 @@ test('2D Expansion [13] Dedicated App Levels (Stages 24–27): YouTube, Chrome, 
     const totalQueuedAndActive = waves.zombies.length + waves.spawnQueue.length;
     assert.equal(totalQueuedAndActive, app.waveTotal, `${app.stageName} must queue ${app.waveTotal} enemies`);
 
-    if (app.stage === 24) {
-      assert.equal(game.stageManager.laserHazards.length, 1, 'Stage 24 YouTube must feature the red skip-ad/buffering laser hazard');
+    if (app.stage === 26) {
+      assert.equal(game.stageManager.laserHazards.length, 1, 'Stage 26 YouTube must feature the red skip-ad/buffering laser hazard');
     }
-    if (app.stage === 27) {
-      assert.ok(game.weaponPickup && game.weaponPickup.type === 'eraser', 'Stage 27 Google Slides must spawn the Giant Pink Eraser pickup');
+    if (app.stage === 29) {
+      assert.ok(game.weaponPickup && game.weaponPickup.type === 'eraser', 'Stage 29 Google Slides must spawn the Giant Pink Eraser pickup');
     }
 
     calls.save = 0;
@@ -1166,8 +1178,8 @@ test('2D Expansion [13] Dedicated App Levels (Stages 24–27): YouTube, Chrome, 
     );
   }
 
-  // 3. Verify Stage 26 Spotify's vertical bouncing equalizer lift (`axis: 'y'`) carries Orange smoothly upward & downward
-  controller.jumpToStage(26);
+  // 3. Verify Stage 28 Spotify's vertical bouncing equalizer lift (`axis: 'y'`) carries Orange smoothly upward & downward
+  controller.jumpToStage(28);
   const bassLift = game.stageManager.movingPlatforms[0];
   assert.equal(bassLift.title, 'Equalizer_Bass_W');
   assert.equal(bassLift.axis, 'y');
@@ -1198,19 +1210,19 @@ test('2D Expansion [13] Dedicated App Levels (Stages 24–27): YouTube, Chrome, 
   resetGlobalSystems();
 });
 
-test('2D Expansion [14] Stage 23 Minecraft Overworld Level: Sunny Grasslands, Minecart Rail Track, Destructible Outpost Voxel Blocks & Block Staff Pickup', () => {
+test('2D Expansion [14] Stage 25 Minecraft Overworld Level: Sunny Grasslands, Minecart Rail Track, Destructible Outpost Voxel Blocks & Block Staff Pickup', () => {
   resetGlobalSystems();
   const { game, controller, calls } = create2DGameHarness();
 
   // 1. Selector option & depth-of-field motif
-  const stage23Opt = STAGE_OPTIONS_2D.find((o) => o.value === 23);
-  assert.ok(stage23Opt && stage23Opt.label.includes('Minecraft Overworld'), 'Stage 23 option must advertise Minecraft Overworld');
+  const stage25Opt = STAGE_OPTIONS_2D.find((o) => o.value === 25);
+  assert.ok(stage25Opt && stage25Opt.label.includes('Minecraft Overworld'), 'Stage 25 option must advertise Minecraft Overworld');
   const depthProfile = getDepthProfile2D('overworld');
   assert.equal(depthProfile.motif, 'overworld_hills', 'overworld theme must map to overworld_hills depth motif');
 
-  // 2. Jump to Stage 23 and inspect arena, wave recipe, weapon pickup, and pre-placed destructible voxel outpost
-  controller.jumpToStage(23, { freshStart: true, creative: false });
-  assert.equal(game.stageManager.currentStage, 23);
+  // 2. Jump to Stage 25 and inspect arena, wave recipe, weapon pickup, and pre-placed destructible voxel outpost
+  controller.jumpToStage(25, { freshStart: true, creative: false });
+  assert.equal(game.stageManager.currentStage, 25);
   assert.equal(game.stageManager.theme, 'overworld');
   assert.equal(game.stageManager.stageName, 'Minecraft Overworld');
   assert.equal(game.stageManager.platforms.length, 3, 'Overworld must have 3 static terrain/canopy ledges');
@@ -1218,31 +1230,31 @@ test('2D Expansion [14] Stage 23 Minecraft Overworld Level: Sunny Grasslands, Mi
   assert.equal(game.stageManager.movingPlatforms[0].title, 'Minecart_Rail_Track');
   assert.equal(game.stageManager.movingPlatforms[0].axis, 'x');
   assert.equal(waves.zombies.length + waves.spawnQueue.length, 16, 'Overworld wave recipe must queue 16 enemies');
-  assert.ok(game.weaponPickup && game.weaponPickup.type === 'staff', 'Stage 23 Overworld must spawn the Block Staff pickup');
+  assert.ok(game.weaponPickup && game.weaponPickup.type === 'staff', 'Stage 25 Overworld must spawn the Block Staff pickup');
 
   assert.equal(
     controller.sandbox.blocks.length,
     OVERWORLD_OUTPOST_BLOCKS.length,
-    'Stage 23 Overworld must spawn pre-placed destructible voxel outpost blocks'
+    'Stage 25 Overworld must spawn pre-placed destructible voxel outpost blocks'
   );
   const outpostTNT = controller.sandbox.blocks.find((b) => b.texKey === 'tnt_block');
-  assert.ok(outpostTNT, 'Stage 23 Overworld outpost must include a hit-ignitable TNT block');
+  assert.ok(outpostTNT, 'Stage 25 Overworld outpost must include a hit-ignitable TNT block');
 
-  // 3. Render Stage 23 and confirm Overworld banner + taskbar suppression + zero layer errors
+  // 3. Render Stage 25 and confirm Overworld banner + taskbar suppression + zero layer errors
   calls.save = 0;
   calls.restore = 0;
   calls.fillText.length = 0;
   game.update(1 / 60);
   game.render();
-  assert.equal(calls.save, calls.restore, 'Stage 23 Overworld must balance ctx.save and ctx.restore');
-  assert.equal(game.reportedLayerErrors.size, 0, 'Stage 23 Overworld must render with zero layer errors');
+  assert.equal(calls.save, calls.restore, 'Stage 25 Overworld must balance ctx.save and ctx.restore');
+  assert.equal(game.reportedLayerErrors.size, 0, 'Stage 25 Overworld must render with zero layer errors');
   assert.ok(
     calls.fillText.some((t) => t.includes('MINECRAFT_OVERWORLD')),
-    'Stage 23 Overworld must paint the MINECRAFT_OVERWORLD header'
+    'Stage 25 Overworld must paint the MINECRAFT_OVERWORLD header'
   );
   assert.ok(
     !calls.fillText.some((t) => t.includes('🪟 START') || t.includes('Stick_vs_Zombies.exe')),
-    'Stage 23 Overworld must suppress the Windows taskbar'
+    'Stage 25 Overworld must suppress the Windows taskbar'
   );
 
   resetGlobalSystems();
@@ -1333,8 +1345,8 @@ test('2D Expansion [15] How You Died Attribution & Game Over Death Banner: Zombi
     else globalThis.document = prevDoc;
   }
 
-  // 3. End-to-end Stage 24 YouTube Skip-Ad Laser kill -> records YouTube Skip-Ad Laser death cause
-  controller.jumpToStage(24, { freshStart: true, creative: false });
+  // 3. End-to-end Stage 26 YouTube Skip-Ad Laser kill -> records YouTube Skip-Ad Laser death cause
+  controller.jumpToStage(26, { freshStart: true, creative: false });
   controller.nukeAllEnemies();
   const laser = game.stageManager.laserHazards[0];
   assert.ok(laser);
@@ -1386,8 +1398,8 @@ test('2D Expansion [16] TNT Blows Up Blocks: Destroys Creative & Sketch Blocks, 
   resetGlobalSystems();
   const { game, controller } = create2DGameHarness();
 
-  // 1. Jump to Stage 23 (Minecraft Overworld) and smack the outpost TNT crate with Orange's attack!
-  controller.jumpToStage(23, { freshStart: true, creative: false });
+  // 1. Jump to Stage 25 (Minecraft Overworld) and smack the outpost TNT crate with Orange's attack!
+  controller.jumpToStage(25, { freshStart: true, creative: false });
   controller.nukeAllEnemies();
   const initialOutpostCount = controller.sandbox.blocks.length;
   const outpostTNT = controller.sandbox.blocks.find((b) => b.texKey === 'tnt_block');
@@ -1466,8 +1478,8 @@ test('2D Expansion [17] TNT Blows Up The Ground: Ground TNT carves 2D craters, s
   resetGlobalSystems();
   const { game, controller, ctx, calls } = create2DGameHarness();
 
-  // 1. Stage 23 (Minecraft Overworld): ground-level TNT carves a crater, sky TNT does not, and entrance/exit portals stay protected!
-  controller.jumpToStage(23, { freshStart: true, creative: false });
+  // 1. Stage 25 (Minecraft Overworld): ground-level TNT carves a crater, sky TNT does not, and entrance/exit portals stay protected!
+  controller.jumpToStage(25, { freshStart: true, creative: false });
   controller.nukeAllEnemies();
   controller.clearCreativeBlocks();
   assert.equal(controller.sandbox.groundHoles.length, 0);
@@ -1584,19 +1596,19 @@ test('2D Expansion [17] TNT Blows Up The Ground: Ground TNT carves 2D craters, s
   resetGlobalSystems();
 });
 
-test('2D Expansion [18] Stage 18 The Stronghold (Before The End) & Stage 28 Outside Rocket Corp (Before Rocket Corp HQ): Arenas, Depth Motifs, Hazards & Stone Bricks Block', () => {
+test('2D Expansion [18] Stage 18 The Stronghold (Before The End) & Stage 30 Outside Rocket Corp (Before Rocket Corp HQ): Arenas, Depth Motifs, Hazards & Stone Bricks Block', () => {
   resetGlobalSystems();
   const { game, controller, ctx, calls } = create2DGameHarness();
 
   // 1. Campaign ordering & selector checks
   const opt18 = STAGE_OPTIONS_2D.find((o) => o.value === 18);
   const opt19 = STAGE_OPTIONS_2D.find((o) => o.value === 19);
-  const opt28 = STAGE_OPTIONS_2D.find((o) => o.value === 28);
-  const opt29 = STAGE_OPTIONS_2D.find((o) => o.value === 29);
+  const opt30 = STAGE_OPTIONS_2D.find((o) => o.value === 30);
+  const opt31 = STAGE_OPTIONS_2D.find((o) => o.value === 31);
   assert.ok(opt18 && opt18.label.includes('Stronghold'), 'Stage 18 selector must be The Stronghold');
   assert.ok(opt19 && opt19.label.includes('The End'), 'Stage 19 selector must be The End right after The Stronghold');
-  assert.ok(opt28 && opt28.label.includes('Outside Rocket Corp'), 'Stage 28 selector must be Outside Rocket Corp');
-  assert.ok(opt29 && opt29.label.includes('Rocket Corp HQ'), 'Stage 29 selector must be Rocket Corp HQ right after Outside Rocket Corp');
+  assert.ok(opt30 && opt30.label.includes('Outside Rocket Corp'), 'Stage 30 selector must be Outside Rocket Corp');
+  assert.ok(opt31 && opt31.label.includes('Rocket Corp HQ'), 'Stage 31 selector must be Rocket Corp HQ right after Outside Rocket Corp');
 
   assert.equal(getDepthProfile2D('stronghold').motif, 'stronghold_vault', 'stronghold theme must use stronghold_vault depth motif');
   assert.equal(getDepthProfile2D('rocket_corp_exterior').motif, 'rocket_skyline', 'rocket_corp_exterior theme must use rocket_skyline depth motif');
@@ -1651,9 +1663,9 @@ test('2D Expansion [18] Stage 18 The Stronghold (Before The End) & Stage 28 Outs
   assert.equal(game.player.isDead, true);
   assert.equal(controller.getLastDeathReason(), 'The Second Coming tried to swim in lava');
 
-  // 3. Stage 28: Outside Rocket Corp — perimeter plaza platforms, hover drone, security laser gate, skyscraper background & ground craters
-  controller.jumpToStage(28, { freshStart: true, creative: false });
-  assert.equal(game.stageManager.currentStage, 28);
+  // 3. Stage 30: Outside Rocket Corp — perimeter plaza platforms, hover drone, security laser gate, skyscraper background & ground craters
+  controller.jumpToStage(30, { freshStart: true, creative: false });
+  assert.equal(game.stageManager.currentStage, 30);
   assert.equal(game.stageManager.theme, 'rocket_corp_exterior');
   assert.equal(game.stageManager.stageName, 'Outside Rocket Corp');
   assert.equal(game.stageManager.platforms.length, 3, 'Outside Rocket Corp must have Gatehouse, Overpass, and Armored Van platforms');
@@ -2124,10 +2136,10 @@ test('2D Expansion [23] Tag-Team Ally Combo Synergies & Interactive Stage Toys +
   assert.ok(foe.hp < hpBeforeBeam);
   game.player.isAwakened = false;
 
-  // 2. Interactive Stage Toys: Stage 23 Overworld (Slime Pads & Minecart)
-  controller.jumpToStage(23, { freshStart: true });
-  assert.ok(mega.stageToys.some((t) => t.kind === 'slime_pad'), 'Stage 23 Overworld must spawn bouncy Slime Pads');
-  assert.ok(mega.stageToys.some((t) => t.kind === 'minecart'), 'Stage 23 Overworld must spawn a kickable Minecart');
+  // 2. Interactive Stage Toys: Stage 25 Overworld (Slime Pads & Minecart)
+  controller.jumpToStage(25, { freshStart: true });
+  assert.ok(mega.stageToys.some((t) => t.kind === 'slime_pad'), 'Stage 25 Overworld must spawn bouncy Slime Pads');
+  assert.ok(mega.stageToys.some((t) => t.kind === 'minecart'), 'Stage 25 Overworld must spawn a kickable Minecart');
 
   const pad = mega.stageToys.find((t) => t.kind === 'slime_pad');
   game.player.x = pad.x;
@@ -2146,25 +2158,25 @@ test('2D Expansion [23] Tag-Team Ally Combo Synergies & Interactive Stage Toys +
   assert.ok(Math.abs(cart.vx) > 200, 'Minecart must roll forward when kicked');
   assert.ok(bowlingTarget.hp < hpBeforeCart, 'Rolling Minecart must bowl through zombies');
 
-  // 3. Stage 24 YouTube Pause, Stage 26 Spotify Skip, Stage 27 Slides Present
-  controller.jumpToStage(24);
+  // 3. Stage 26 YouTube Pause, Stage 28 Spotify Skip, Stage 29 Slides Present
+  controller.jumpToStage(26);
   const ytPause = mega.stageToys.find((t) => t.kind === 'app_pause_btn');
-  assert.ok(ytPause, 'Stage 24 YouTube must spawn interactive Pause button');
+  assert.ok(ytPause, 'Stage 26 YouTube must spawn interactive Pause button');
   const frozenFoe = controller.spawnCreativeEntity('walker');
   mega.triggerStageToy(ytPause, game.player, [frozenFoe], game.camera, 0);
   assert.equal(mega.videoPauseTimer, 3.5, 'Hitting YouTube Pause must set 3.5s video freeze timer');
   assert.ok(frozenFoe.freezeTimer > 0, 'YouTube Pause must freeze enemies');
 
-  controller.jumpToStage(26);
+  controller.jumpToStage(28);
   const spSkip = mega.stageToys.find((t) => t.kind === 'app_skip_btn');
-  assert.ok(spSkip, 'Stage 26 Spotify must spawn interactive Skip button');
+  assert.ok(spSkip, 'Stage 28 Spotify must spawn interactive Skip button');
   const stunnedFoe = controller.spawnCreativeEntity('brute');
   mega.triggerStageToy(spSkip, game.player, [stunnedFoe], game.camera, 0);
   assert.ok(stunnedFoe.stunTimer > 0, 'Spotify Skip must stun enemies with a bass drop');
 
-  controller.jumpToStage(27);
+  controller.jumpToStage(29);
   const slPresent = mega.stageToys.find((t) => t.kind === 'app_present_btn');
-  assert.ok(slPresent, 'Stage 27 Slides must spawn interactive Present button');
+  assert.ok(slPresent, 'Stage 29 Slides must spawn interactive Present button');
   mega.triggerStageToy(slPresent, game.player, [], game.camera, 0);
   assert.equal(mega.slideWipeX, -960, 'Slides Present button must launch the slide wipe curtain');
 
@@ -2173,9 +2185,9 @@ test('2D Expansion [23] Tag-Team Ally Combo Synergies & Interactive Stage Toys +
   mega.drawStageToys2D(game.ctx, 0.5, 0);
   assert.equal(calls.save, calls.restore, 'drawStageToys2D must balance ctx.save/ctx.restore');
 
-  // 4. Interactive Trophy Room Boss Rematch (Stage 31 -> Stage 10 Dark Lord via KeyE)
+  // 4. Interactive Trophy Room Boss Rematch (Stage 33 -> Stage 10 Dark Lord via KeyE)
   assert.equal(TROPHY_MONUMENT_BOSSES.length, 11);
-  controller.jumpToStage(31);
+  controller.jumpToStage(33);
   assert.equal(game.stageManager.isTrophyRoom, true);
   game.player.x = -685; // Dark Lord monument
   mega.updateStageToys(1 / 60, game.player, [], game.camera, game.stageManager, 0);
@@ -2298,6 +2310,121 @@ test('2D Expansion [24] Perfect Dodge, Rare Loot Drops, Roguelike Perks, Secret 
 
   mega.stopP2Mode();
   input.resetHeldInputs();
+  resetGlobalSystems();
+});
+
+test('2D Expansion [25] Stage 23 Ice Caves & Stage 24 Desert Pyramid Interior (2 Levels Before Overworld Village): Arenas, Depth Motifs, Pyramid TNT Trap & Creative Blocks', () => {
+  resetGlobalSystems();
+  const { game, controller, ctx, calls } = create2DGameHarness();
+
+  // 1. Verify exact campaign order: Pale Garden (22) -> Ice Caves (23) -> Desert Pyramid Interior (24) -> Minecraft Overworld Village (25)
+  const opt22 = STAGE_OPTIONS_2D.find((o) => o.value === 22);
+  const opt23 = STAGE_OPTIONS_2D.find((o) => o.value === 23);
+  const opt24 = STAGE_OPTIONS_2D.find((o) => o.value === 24);
+  const opt25 = STAGE_OPTIONS_2D.find((o) => o.value === 25);
+  assert.ok(opt22 && opt22.label.includes('Pale Garden'));
+  assert.ok(opt23 && opt23.label.includes('Ice Caves'), 'Stage 23 must be Ice Caves');
+  assert.ok(opt24 && opt24.label.includes('Desert Pyramid Interior'), 'Stage 24 must be Desert Pyramid Interior');
+  assert.ok(opt25 && opt25.label.includes('Minecraft Overworld'), 'Stage 25 must be Minecraft Overworld Village right after the 2 new levels');
+
+  // Verify depth-of-field profiles & offscreen plane baking for both new biomes
+  assert.equal(getDepthProfile2D('ice_caves').motif, 'ice_cavern');
+  assert.equal(getDepthProfile2D('desert_pyramid').motif, 'pyramid_chambers');
+  for (const [stg, theme] of [[23, 'ice_caves'], [24, 'desert_pyramid']]) {
+    let baked = 0;
+    const depth = new Depth2DRenderer({
+      createCanvas: (w, h) => ({
+        width: w,
+        height: h,
+        getContext: () => {
+          baked += 1;
+          return createCanvasMock().ctx;
+        }
+      })
+    });
+    depth.drawBackgroundDepthPlanes(
+      createCanvasMock().ctx,
+      { currentStage: stg, theme, isTrophyRoom: false, bounds: { minX: -1200, maxX: 1200, minY: -620 } },
+      { x: 0, y: -140 },
+      0,
+      false
+    );
+    assert.equal(baked, 2, `${theme} must bake both Far and Mid blurred depth planes`);
+  }
+
+  // Stage 22 clue points into Ice Caves
+  controller.jumpToStage(22, { freshStart: true, creative: false });
+  assert.match(String(game.stageManager.campaignBeat?.clue || ''), /ICE CAVES/i);
+
+  // 2. Stage 23: Ice Caves — platforms, drifting ice floe, wave count, rendering, taskbar suppression & Creative ice blocks
+  controller.jumpToStage(23, { freshStart: true, creative: false });
+  assert.equal(game.stageManager.currentStage, 23);
+  assert.equal(game.stageManager.theme, 'ice_caves');
+  assert.equal(game.stageManager.stageName, 'Ice Caves');
+  assert.match(String(game.stageManager.campaignBeat?.clue || ''), /DESERT PYRAMID/i);
+  assert.equal(game.stageManager.platforms.length, 3);
+  assert.equal(game.stageManager.movingPlatforms.length, 1);
+  assert.equal(game.stageManager.movingPlatforms[0]?.title, 'Drifting_Ice_Floe');
+  assert.equal(game.stageManager.movingPlatforms[0]?.axis, 'x');
+  assert.equal(waves.zombies.length + waves.spawnQueue.length, 16, 'Ice Caves must queue 16 enemies');
+
+  const packedIce = controller.placeCreativeBlock('packed_ice');
+  const blueIce = controller.placeCreativeBlock('blue_ice');
+  assert.equal(packedIce.texKey, 'packed_ice');
+  assert.equal(blueIce.texKey, 'blue_ice');
+
+  calls.save = 0;
+  calls.restore = 0;
+  calls.fillText.length = 0;
+  game.update(1 / 60);
+  game.render();
+  assert.equal(calls.save, calls.restore, 'Stage 23 Ice Caves must balance ctx.save and ctx.restore');
+  assert.equal(game.reportedLayerErrors.size, 0, 'Stage 23 Ice Caves must render with zero layer errors');
+  assert.ok(calls.fillText.some((t) => t.includes('BIOME://ICE_CAVES')), 'Stage 23 must paint BIOME://ICE_CAVES header');
+  assert.ok(!calls.fillText.some((t) => t.includes('🪟 START')), 'Stage 23 Ice Caves must suppress Windows taskbar');
+
+  // 3. Stage 24: Desert Pyramid Interior — sandstone platforms, counterweight, pre-placed Pyramid TNT trap blocks, rendering & ground craters
+  controller.jumpToStage(24, { freshStart: true, creative: false });
+  assert.equal(game.stageManager.currentStage, 24);
+  assert.equal(game.stageManager.theme, 'desert_pyramid');
+  assert.equal(game.stageManager.stageName, 'Desert Pyramid Interior');
+  assert.match(String(game.stageManager.campaignBeat?.clue || ''), /OVERWORLD/i);
+  assert.equal(game.stageManager.platforms.length, 3);
+  assert.equal(game.stageManager.movingPlatforms.length, 1);
+  assert.equal(game.stageManager.movingPlatforms[0]?.title, 'Sandstone_Counterweight');
+  assert.equal(game.stageManager.movingPlatforms[0]?.axis, 'x');
+  assert.equal(waves.zombies.length + waves.spawnQueue.length, 16, 'Desert Pyramid Interior must queue 16 enemies');
+
+  assert.equal(
+    controller.sandbox.blocks.length,
+    DESERT_PYRAMID_TRAP_BLOCKS.length,
+    'Stage 24 Desert Pyramid Interior must pre-spawn its 5 sandstone/terracotta/TNT vault blocks'
+  );
+  const pyramidTNT = controller.sandbox.blocks.find((b) => b.texKey === 'tnt_block');
+  assert.ok(pyramidTNT, 'Desert Pyramid Interior vault must include an armed-on-hit TNT trap block');
+
+  // Ground crater rendering balances save/restore on both new biomes
+  controller.carveGroundCrater2D(-260, 0);
+  calls.save = 0;
+  calls.restore = 0;
+  drawGroundCraters2D(ctx, controller.sandbox.groundHoles, 0, 'ice_caves', 1.0);
+  drawGroundCraters2D(ctx, controller.sandbox.groundHoles, 0, 'desert_pyramid', 1.0);
+  assert.equal(calls.save, calls.restore, 'drawGroundCraters2D for ice_caves & desert_pyramid must balance save/restore');
+  controller.clearCreativeBlocks();
+
+  calls.save = 0;
+  calls.restore = 0;
+  calls.fillText.length = 0;
+  game.update(1 / 60);
+  game.render();
+  assert.equal(calls.save, calls.restore, 'Stage 24 Desert Pyramid Interior must balance ctx.save and ctx.restore');
+  assert.equal(game.reportedLayerErrors.size, 0, 'Stage 24 Desert Pyramid Interior must render with zero layer errors');
+  assert.ok(
+    calls.fillText.some((t) => t.includes('DUNGEON://DESERT_PYRAMID_INTERIOR')),
+    'Stage 24 must paint DUNGEON://DESERT_PYRAMID_INTERIOR header'
+  );
+  assert.ok(!calls.fillText.some((t) => t.includes('🪟 START')), 'Stage 24 Desert Pyramid Interior must suppress Windows taskbar');
+
   resetGlobalSystems();
 });
 

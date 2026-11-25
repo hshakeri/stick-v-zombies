@@ -166,6 +166,24 @@ const THEME_DEPTH_PROFILES = Object.freeze({
     bokehTint: '#5eead4',
     motif: 'stronghold_vault'
   },
+  ice_caves: {
+    farTint: '#7dd3fc',
+    midTint: '#38bdf8',
+    hazeTop: 'rgba(4, 18, 36, 0)',
+    hazeMid: 'rgba(14, 116, 144, 0.20)',
+    hazeBottom: 'rgba(56, 189, 248, 0.24)',
+    bokehTint: '#e0f2fe',
+    motif: 'ice_cavern'
+  },
+  desert_pyramid: {
+    farTint: '#fbbf24',
+    midTint: '#c25925',
+    hazeTop: 'rgba(28, 16, 6, 0)',
+    hazeMid: 'rgba(120, 62, 18, 0.22)',
+    hazeBottom: 'rgba(180, 108, 38, 0.26)',
+    bokehTint: '#fde68a',
+    motif: 'pyramid_chambers'
+  },
   overworld: {
     farTint: '#86efac',
     midTint: '#22c55e',
@@ -445,6 +463,42 @@ function paintDepthMotifSilhouettes(ctx, motif, profile, stageSeed, isMidLayer) 
         ctx.fillStyle = i % 4 === 0 ? '#2dd4bf' : '#fb923c';
         ctx.beginPath();
         ctx.arc(cx, groundLocalY - h * 0.62, isMidLayer ? 7 : 9, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (motif === 'ice_cavern') {
+      // Distant blurred crystalline hanging stalactites & rising glacial stalagmites
+      ctx.fillStyle = isMidLayer ? '#0284c7' : '#0c4a6e';
+      ctx.beginPath();
+      ctx.moveTo(cx - w * 0.36, 0);
+      ctx.lineTo(cx, 130 + (hash % 165));
+      ctx.lineTo(cx + w * 0.36, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = tint;
+      ctx.beginPath();
+      ctx.moveTo(cx - w * 0.32, groundLocalY + 35);
+      ctx.lineTo(cx, groundLocalY - h * 0.72);
+      ctx.lineTo(cx + w * 0.32, groundLocalY + 35);
+      ctx.closePath();
+      ctx.fill();
+      if (i % 2 === 0) {
+        ctx.fillStyle = '#e0f2fe';
+        ctx.beginPath();
+        ctx.arc(cx, groundLocalY - h * 0.46, isMidLayer ? 6 : 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (motif === 'pyramid_chambers') {
+      // Distant blurred stepped inner pyramid sandstone walls & recessed temple colonnades
+      ctx.fillStyle = isMidLayer ? '#78481d' : '#523012';
+      ctx.fillRect(cx - w * 0.44, groundLocalY - h * 0.84, w * 0.88, h * 0.84 + 35);
+      ctx.fillStyle = '#241407';
+      ctx.fillRect(cx - w * 0.22, groundLocalY - h * 0.52, w * 0.44, h * 0.52 + 20);
+      ctx.fillStyle = tint;
+      ctx.fillRect(cx - w * 0.44, groundLocalY - h * 0.66, w * 0.88, 12);
+      if (i % 2 === 1) {
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(cx, groundLocalY - h * 0.58, isMidLayer ? 6 : 8, 0, Math.PI * 2);
         ctx.fill();
       }
     } else if (motif === 'rocket_skyline') {

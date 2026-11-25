@@ -1,5 +1,5 @@
 import * as THREE from '../lib/three.module.min.js';
-import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.7';
+import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.8';
 import {
   StickRig3D,
   CreeperLordRig3D,
@@ -302,7 +302,9 @@ export class Arena3DBuilder {
       roughness: 0.78
     });
     const rubbleMat = new THREE.MeshStandardMaterial({
-      color: theme === 'overworld' ? 0x57534e : 0x1e293b,
+      color: theme === 'overworld'
+        ? 0x57534e
+        : (theme === 'ice_caves' ? 0x38bdf8 : (theme === 'desert_pyramid' ? 0xc9a66b : 0x1e293b)),
       roughness: 0.85
     });
     const abyssMat = (!isFloating && !isLava)
@@ -370,6 +372,10 @@ export class Arena3DBuilder {
     this.rocketExteriorSearchlights = [];
     this.ancientCityCenterPortal = null;
     this.paleGardenHeartShrine = null;
+    this.iceCavesCrystalShrine = null;
+    this.iceCavesFrostMotes = [];
+    this.desertPyramidSunbeams = [];
+    this.desertPyramidFlames = [];
     this.youtubePlayMonument = null;
     this.chromeLogoGroup = null;
     this.spotifyEqualizerBars = [];
@@ -393,6 +399,8 @@ export class Arena3DBuilder {
         theme !== 'stronghold' &&
         theme !== 'ancient_city' &&
         theme !== 'pale_garden' &&
+        theme !== 'ice_caves' &&
+        theme !== 'desert_pyramid' &&
         theme !== 'overworld' &&
         theme !== 'dark_core';
     }
@@ -401,11 +409,13 @@ export class Arena3DBuilder {
     const subTexKey = theme === 'minecraft' || theme === 'the_end'
       ? 'obsidian'
       : (theme === 'stronghold' ? 'stone_bricks'
+      : (theme === 'ice_caves' ? 'blue_ice'
+      : (theme === 'desert_pyramid' ? 'chiseled_sandstone'
       : (theme === 'overworld' ? 'cobblestone'
       : (theme === 'ancient_city' || theme === 'dark_core' ? 'deepslate_tiles'
       : (theme === 'pale_garden' ? 'pale_oak_log'
       : (theme === 'aether' ? 'holystone'
-      : (theme === 'rocket_corp' || theme === 'rocket_corp_exterior' ? 'rocket_corp_wall' : 'anvil_iron'))))));
+      : (theme === 'rocket_corp' || theme === 'rocket_corp_exterior' ? 'rocket_corp_wall' : 'anvil_iron'))))))));
     this.currentTheme = theme;
     this.currentFloorKey = floorKey;
     this.currentSubTexKey = subTexKey;
@@ -469,10 +479,17 @@ export class Arena3DBuilder {
     // 3. Start Portal & Exit Portal (set slightly back in Z so the full player figure is always visible in front)
     const startLabel = sm.isTrophyRoom
       ? 'ENTRY'
-      : (theme === 'rocket_corp' ? 'AIRLOCK IN' : (theme === 'rocket_corp_exterior' ? 'PLAZA GATE' : 'START'));
+      : (theme === 'rocket_corp' ? 'AIRLOCK IN'
+      : (theme === 'rocket_corp_exterior' ? 'PLAZA GATE'
+      : (theme === 'ice_caves' ? 'CAVE ENTRY'
+      : (theme === 'desert_pyramid' ? 'TOMB ENTRY' : 'START'))));
     const exitLabel = sm.isTrophyRoom
       ? 'RESULTS'
-      : (theme === 'rocket_corp' ? 'SECTOR EXIT' : (theme === 'rocket_corp_exterior' ? 'HQ LOBBY' : (theme === 'stronghold' ? 'END PORTAL' : 'EXIT')));
+      : (theme === 'rocket_corp' ? 'SECTOR EXIT'
+      : (theme === 'rocket_corp_exterior' ? 'HQ LOBBY'
+      : (theme === 'stronghold' ? 'END PORTAL'
+      : (theme === 'ice_caves' ? 'PYRAMID GATE'
+      : (theme === 'desert_pyramid' ? 'VILLAGE EXIT' : 'EXIT')))));
     this.buildPortal(to3DX(sm.entranceDoor.x), -2.2, false, startLabel);
     this.buildPortal(to3DX(sm.exitDoor.x), -2.2, true, exitLabel);
 
@@ -564,6 +581,8 @@ export class Arena3DBuilder {
       aether: 0x38d9a9,
       ancient_city: 0x22d3ee,
       pale_garden: 0xf97316,
+      ice_caves: 0x38bdf8,
+      desert_pyramid: 0xf59e0b,
       overworld: 0x4ade80,
       youtube: 0xff0033,
       chrome: 0x4285f4,
@@ -1886,9 +1905,373 @@ export class Arena3DBuilder {
     });
   }
 
+  buildIceCavesCavern() {
+    const packedIceTex = getVoxelTexture('packed_ice', 2, 4);
+    packedIceTex.isShared = true;
+    const blueIceTex = getVoxelTexture('blue_ice', 2, 3);
+    blueIceTex.isShared = true;
+    const snowTex = getVoxelTexture('snow_block', 3, 1);
+    snowTex.isShared = true;
+
+    const packedIceMat = new THREE.MeshStandardMaterial({
+      map: packedIceTex,
+      roughness: 0.22,
+      metalness: 0.14
+    });
+    const blueIceMat = new THREE.MeshStandardMaterial({
+      map: blueIceTex,
+      roughness: 0.16,
+      metalness: 0.22,
+      emissive: new THREE.Color(0x0284c7),
+      emissiveIntensity: 0.35
+    });
+    const crystalGlowMat = new THREE.MeshStandardMaterial({
+      color: 0x7dd3fc,
+      emissive: new THREE.Color(0x38bdf8),
+      emissiveIntensity: 0.9,
+      roughness: 0.15,
+      metalness: 0.18,
+      transparent: true,
+      opacity: 0.9
+    });
+    const snowMat = new THREE.MeshStandardMaterial({
+      map: snowTex,
+      roughness: 0.82
+    });
+    const frostRockMat = new THREE.MeshStandardMaterial({
+      color: 0x1e3a5f,
+      roughness: 0.78
+    });
+
+    // 1. Subterranean Ice Cavern Vault Columns, Overhead Rib Arches & Hanging Icicles/Stalactites
+    const archesGroup = new THREE.Group();
+    archesGroup.name = 'iceCavesCeilingArches';
+    const pillarXs = [-25.5, -16.2, -7.4, 7.4, 16.2, 25.5];
+    pillarXs.forEach((px, idx) => {
+      const colH = idx === 2 || idx === 3 ? 9.8 : 8.6;
+      const col = new THREE.Mesh(new THREE.BoxGeometry(2.2, colH, 2.2), packedIceMat);
+      col.position.set(px, colH / 2, -11.9);
+      col.castShadow = true;
+      col.receiveShadow = true;
+      const baseRock = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.1, 2.8), frostRockMat);
+      baseRock.position.set(px, 0.55, -11.9);
+      const snowCap = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.38, 2.7), snowMat);
+      snowCap.position.set(px, 1.24, -11.9);
+      archesGroup.add(col, baseRock, snowCap);
+
+      if (idx < pillarXs.length - 1) {
+        const nextX = pillarXs[idx + 1];
+        const span = nextX - px;
+        const midX = (px + nextX) * 0.5;
+        const archY = Math.max(colH, 8.8) + 0.55;
+        const archBeam = new THREE.Mesh(new THREE.BoxGeometry(span + 0.6, 1.15, 2.1), packedIceMat);
+        archBeam.position.set(midX, archY, -11.9);
+        archesGroup.add(archBeam);
+
+        // Hanging stepped crystalline icicle stalactites descending from ceiling rib
+        for (let s = -1; s <= 1; s++) {
+          const sx = midX + s * (span * 0.26);
+          const icicleLen = s === 0 ? 2.8 : 1.9;
+          const icicle = new THREE.Mesh(
+            new THREE.ConeGeometry(s === 0 ? 0.48 : 0.34, icicleLen, 4),
+            s === 0 ? crystalGlowMat : blueIceMat
+          );
+          icicle.rotation.x = Math.PI;
+          icicle.position.set(sx, archY - 0.55 - icicleLen * 0.5, -11.2 + (s === 0 ? 0.4 : 0));
+          archesGroup.add(icicle);
+        }
+      }
+    });
+    this.group.add(archesGroup);
+
+    // 2. Centerpiece: Giant Glowing Blue Ice Crystal Spire & Frozen Waterfall Shrine
+    const crystalShrine = new THREE.Group();
+    crystalShrine.name = 'iceCavesCrystalShrine';
+    crystalShrine.position.set(0, 0, -10.2);
+
+    const shrineBase = new THREE.Mesh(new THREE.BoxGeometry(9.4, 0.72, 4.4), packedIceMat);
+    shrineBase.position.y = 0.36;
+    const snowTrim = new THREE.Mesh(new THREE.BoxGeometry(9.8, 0.26, 4.8), snowMat);
+    snowTrim.position.y = 0.76;
+    crystalShrine.add(shrineBase, snowTrim);
+
+    // Frozen waterfall ice columns cascading behind the crystal core
+    [-2.4, -1.1, 1.1, 2.4].forEach((fx, fIdx) => {
+      const fh = fIdx === 1 || fIdx === 2 ? 7.6 : 5.8;
+      const fall = new THREE.Mesh(new THREE.BoxGeometry(1.15, fh, 1.0), fIdx % 2 === 0 ? packedIceMat : blueIceMat);
+      fall.position.set(fx, fh * 0.5 + 0.6, -1.15);
+      crystalShrine.add(fall);
+    });
+
+    // Central faceted glowing Blue Ice Crystal Spire
+    const coreSpire = new THREE.Mesh(new THREE.OctahedronGeometry(1.85, 0), crystalGlowMat);
+    coreSpire.scale.set(0.85, 2.4, 0.85);
+    coreSpire.position.set(0, 4.5, 0.2);
+    coreSpire.castShadow = true;
+    const shardL = new THREE.Mesh(new THREE.ConeGeometry(0.68, 3.6, 5), blueIceMat);
+    shardL.position.set(-1.95, 2.5, 0.45);
+    shardL.rotation.z = 0.26;
+    const shardR = new THREE.Mesh(new THREE.ConeGeometry(0.68, 3.6, 5), blueIceMat);
+    shardR.position.set(1.95, 2.5, 0.45);
+    shardR.rotation.z = -0.26;
+    const signTex = makeTextSignTexture('ICE CAVES // Y = -18', 'BLUE ICE CAVERN', '#082038', '#38bdf8', '#e0f2fe');
+    const signBoard = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.8, 1.05),
+      new THREE.MeshBasicMaterial({ map: signTex })
+    );
+    signBoard.position.set(0, 8.6, 0.4);
+    crystalShrine.add(coreSpire, shardL, shardR, signBoard);
+
+    this.iceCavesCrystalShrine = { group: crystalShrine, coreSpire, crystalGlowMat };
+    this.group.add(crystalShrine);
+
+    // 3. West Wing: Frozen Glacier Stalagmites & Snowdrifts
+    const westGlacier = new THREE.Group();
+    westGlacier.name = 'iceCavesWestGlacier';
+    westGlacier.position.set(-20.4, 0, -9.8);
+    const driftBase = new THREE.Mesh(new THREE.BoxGeometry(6.8, 1.15, 3.4), snowMat);
+    driftBase.position.y = 0.58;
+    const driftTop = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.75, 2.5), snowMat);
+    driftTop.position.set(-0.6, 1.5, -0.2);
+    westGlacier.add(driftBase, driftTop);
+    [
+      { x: -2.1, h: 4.8, r: 0.72, mat: packedIceMat },
+      { x: -0.4, h: 6.2, r: 0.84, mat: blueIceMat },
+      { x: 1.4, h: 4.1, r: 0.62, mat: crystalGlowMat },
+      { x: 2.6, h: 3.1, r: 0.48, mat: packedIceMat }
+    ].forEach((sp) => {
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(sp.r, sp.h, 4), sp.mat);
+      spire.position.set(sp.x, sp.h * 0.5 + 0.85, 0.1);
+      spire.castShadow = true;
+      westGlacier.add(spire);
+    });
+    this.group.add(westGlacier);
+
+    // 4. East Wing: Frozen Ice Tunnel Arch & Encased Glowing Crystal Monolith
+    const eastTunnel = new THREE.Group();
+    eastTunnel.name = 'iceCavesEastTunnel';
+    eastTunnel.position.set(20.4, 0, -9.8);
+    const tunnelL = new THREE.Mesh(new THREE.BoxGeometry(1.4, 5.2, 2.4), packedIceMat);
+    tunnelL.position.set(-2.4, 2.6, 0);
+    const tunnelR = tunnelL.clone();
+    tunnelR.position.set(2.4, 2.6, 0);
+    const tunnelTop = new THREE.Mesh(new THREE.BoxGeometry(6.4, 1.35, 2.6), packedIceMat);
+    tunnelTop.position.set(0, 5.65, 0);
+    const encasedIce = new THREE.Mesh(
+      new THREE.BoxGeometry(2.1, 3.3, 1.8),
+      new THREE.MeshStandardMaterial({
+        color: 0xbae6fd,
+        emissive: new THREE.Color(0x0284c7),
+        emissiveIntensity: 0.35,
+        transparent: true,
+        opacity: 0.68,
+        roughness: 0.12
+      })
+    );
+    encasedIce.position.set(0, 1.65, 0.1);
+    const encasedCore = new THREE.Mesh(new THREE.OctahedronGeometry(0.68, 0), crystalGlowMat);
+    encasedCore.position.set(0, 1.85, 0.1);
+    eastTunnel.add(tunnelL, tunnelR, tunnelTop, encasedIce, encasedCore);
+    this.group.add(eastTunnel);
+
+    // 5. Drifting 3D Crystalline Snow / Frost Motes across the Glacial Cavern
+    const moteGeo = new THREE.BoxGeometry(0.24, 0.24, 0.24);
+    const moteMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.85 });
+    this.iceCavesFrostMotes = Array.from({ length: 16 }, (_, idx) => {
+      const mote = new THREE.Mesh(moteGeo, moteMat);
+      mote.name = 'iceCavesFrostMote';
+      const baseX = -26 + idx * 3.45;
+      const startY = 2.0 + ((idx * 3.7) % 10.0);
+      const baseZ = -9.5 + ((idx % 4) * 3.2);
+      mote.position.set(baseX, startY, baseZ);
+      this.group.add(mote);
+      return {
+        mesh: mote,
+        baseX,
+        speedY: 0.85 + (idx % 4) * 0.26,
+        phase: idx * 0.9
+      };
+    });
+  }
+
+  buildDesertPyramidInterior() {
+    const sandstoneTex = getVoxelTexture('sandstone', 3, 4);
+    sandstoneTex.isShared = true;
+    const chiseledTex = getVoxelTexture('chiseled_sandstone', 2, 2);
+    chiseledTex.isShared = true;
+    const orangeTerrTex = getVoxelTexture('terracotta_orange', 2, 2);
+    orangeTerrTex.isShared = true;
+    const blueTerrTex = getVoxelTexture('terracotta_blue', 1, 1);
+    blueTerrTex.isShared = true;
+    const goldTex = getVoxelTexture('gold_block', 1, 1);
+    goldTex.isShared = true;
+    const oakTex = getVoxelTexture('oak_planks', 2, 1);
+    oakTex.isShared = true;
+
+    const sandstoneMat = new THREE.MeshStandardMaterial({ map: sandstoneTex, roughness: 0.78 });
+    const chiseledMat = new THREE.MeshStandardMaterial({ map: chiseledTex, roughness: 0.7 });
+    const orangeTerrMat = new THREE.MeshStandardMaterial({ map: orangeTerrTex, roughness: 0.65 });
+    const blueTerrMat = new THREE.MeshStandardMaterial({ map: blueTerrTex, roughness: 0.58 });
+    const goldMat = new THREE.MeshStandardMaterial({ map: goldTex, roughness: 0.3, metalness: 0.65 });
+    const chestMat = new THREE.MeshStandardMaterial({ map: oakTex, roughness: 0.68 });
+    const flameMat = new THREE.MeshStandardMaterial({
+      color: 0xfef08a,
+      emissive: new THREE.Color(0xf97316),
+      emissiveIntensity: 1.0
+    });
+
+    // 1. Sloped Stepped Inner Pyramid Sandstone Vault Walls converging toward the central apex skylight
+    const vaultGroup = new THREE.Group();
+    vaultGroup.name = 'desertPyramidVaultWalls';
+    for (let step = 0; step < 5; step++) {
+      const y = 1.2 + step * 2.25;
+      const inset = step * 3.1;
+      const tierH = 2.3;
+      const leftTier = new THREE.Mesh(new THREE.BoxGeometry(5.6, tierH, 2.2), sandstoneMat);
+      leftTier.position.set(-26.5 + inset, y, -12.3);
+      const rightTier = new THREE.Mesh(new THREE.BoxGeometry(5.6, tierH, 2.2), sandstoneMat);
+      rightTier.position.set(26.5 - inset, y, -12.3);
+      const trimL = new THREE.Mesh(new THREE.BoxGeometry(5.7, 0.32, 2.3), orangeTerrMat);
+      trimL.position.set(-26.5 + inset, y + tierH * 0.42, -12.22);
+      const trimR = trimL.clone();
+      trimR.position.set(26.5 - inset, y + tierH * 0.42, -12.22);
+      vaultGroup.add(leftTier, rightTier, trimL, trimR);
+    }
+
+    // 6 Monumental Interior Chiseled Sandstone Pillars with Orange Terracotta Bands & Wall Torches
+    const pillarXs = [-23.5, -14.8, -6.6, 6.6, 14.8, 23.5];
+    this.desertPyramidFlames = [];
+    pillarXs.forEach((px, idx) => {
+      const colH = Math.abs(px) < 10 ? 10.2 : (Math.abs(px) < 18 ? 8.4 : 6.6);
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(2.0, colH, 2.0), sandstoneMat);
+      shaft.position.set(px, colH * 0.5, -11.4);
+      shaft.castShadow = true;
+      shaft.receiveShadow = true;
+      const band = new THREE.Mesh(new THREE.BoxGeometry(2.24, 1.05, 2.24), orangeTerrMat);
+      band.position.set(px, 2.6, -11.4);
+      const capital = new THREE.Mesh(new THREE.BoxGeometry(2.45, 1.1, 2.45), chiseledMat);
+      capital.position.set(px, colH - 0.35, -11.4);
+
+      const torchStick = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.72, 0.16),
+        new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.75 })
+      );
+      torchStick.position.set(px, 4.1, -10.25);
+      torchStick.rotation.x = 0.28;
+      const flame = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.32, 0.28), flameMat);
+      flame.position.set(px, 4.5, -10.12);
+      this.desertPyramidFlames.push({ mesh: flame, baseY: 4.5, phase: idx * 1.15 });
+
+      vaultGroup.add(shaft, band, capital, torchStick, flame);
+    });
+    this.group.add(vaultGroup);
+
+    // 2. Centerpiece: Iconic Minecraft Desert Temple Orange & Blue Terracotta Mosaic + Pharaoh Altar + Sunbeams!
+    const sanctum = new THREE.Group();
+    sanctum.name = 'desertPyramidCenterSanctum';
+    sanctum.position.set(0, 0, -5.8);
+
+    // Floor-inlaid Orange Terracotta Diamond Cross + Iconic Center Blue Terracotta Trap Tile
+    const crossNS = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 6.2), orangeTerrMat);
+    crossNS.position.set(0, 0.06, 0);
+    const crossEW = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.12, 1.5), orangeTerrMat);
+    crossEW.position.set(0, 0.06, 0);
+    const diamondRing = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.1, 4.2), orangeTerrMat);
+    diamondRing.rotation.y = Math.PI / 4;
+    diamondRing.position.set(0, 0.05, 0);
+    const blueCenterTile = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.16, 1.55), blueTerrMat);
+    blueCenterTile.name = 'desertPyramidBlueTerracottaTile';
+    blueCenterTile.position.set(0, 0.08, 0);
+    sanctum.add(crossNS, crossEW, diamondRing, blueCenterTile);
+
+    // Carved Chiseled Sandstone Hieroglyphic Shrine behind the mosaic
+    const altarBase = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.9, 2.4), sandstoneMat);
+    altarBase.position.set(0, 0.45, -4.4);
+    const altarCore = new THREE.Mesh(new THREE.BoxGeometry(4.2, 4.2, 1.9), chiseledMat);
+    altarCore.position.set(0, 3.0, -4.4);
+    altarCore.castShadow = true;
+    const altarCap = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.72, 2.3), orangeTerrMat);
+    altarCap.position.set(0, 5.42, -4.4);
+    const goldSunDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.25, 16), goldMat);
+    goldSunDisc.rotation.x = Math.PI / 2;
+    goldSunDisc.position.set(0, 3.4, -3.38);
+
+    const signTex = makeTextSignTexture('DESERT PYRAMID', 'MIND THE BLUE TILE!', '#2a1608', '#f59e0b', '#fef3c7');
+    const signBoard = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.8, 1.05),
+      new THREE.MeshBasicMaterial({ map: signTex })
+    );
+    signBoard.position.set(0, 6.75, -3.8);
+    sanctum.add(altarBase, altarCore, altarCap, goldSunDisc, signBoard);
+
+    // Volumetric Golden Sunbeams streaming down from the Pyramid Apex Skylight
+    this.desertPyramidSunbeams = [-1.6, 0, 1.6].map((bx, bIdx) => {
+      const beamMat = new THREE.MeshBasicMaterial({
+        color: 0xfde68a,
+        transparent: true,
+        opacity: bIdx === 1 ? 0.18 : 0.12,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      const beam = new THREE.Mesh(new THREE.ConeGeometry(bIdx === 1 ? 2.4 : 1.5, 13.5, 12, 1, true), beamMat);
+      beam.name = 'desertPyramidSunbeam';
+      beam.position.set(bx, 6.8, -0.4);
+      beam.rotation.z = bx * 0.06;
+      sanctum.add(beam);
+      return { mesh: beam, mat: beamMat, baseOpacity: bIdx === 1 ? 0.18 : 0.12, phase: bIdx * 1.4 };
+    });
+    this.group.add(sanctum);
+
+    // 3. West Wing: Desert Temple Treasure Vault (Gold Blocks, Chests & Spilling Sand Mounds)
+    const treasureVault = new THREE.Group();
+    treasureVault.name = 'desertPyramidTreasureVault';
+    treasureVault.position.set(-19.2, 0, -9.2);
+    const chestBody = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.35, 1.4), chestMat);
+    chestBody.position.set(-1.3, 0.68, 0.2);
+    const chestLatch = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.42, 0.16), goldMat);
+    chestLatch.position.set(-1.3, 0.88, 0.94);
+    const goldStack1 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1.4), goldMat);
+    goldStack1.position.set(1.2, 0.7, 0);
+    const goldStack2 = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 1.3), goldMat);
+    goldStack2.position.set(2.55, 0.65, -0.2);
+    const goldStackTop = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.25, 1.25), goldMat);
+    goldStackTop.position.set(1.85, 1.98, -0.1);
+    treasureVault.add(chestBody, chestLatch, goldStack1, goldStack2, goldStackTop);
+    this.group.add(treasureVault);
+
+    // 4. East Wing: Gilded Pharaoh Sarcophagus & Burning Temple Braziers
+    const sarcophagus = new THREE.Group();
+    sarcophagus.name = 'desertPyramidSarcophagus';
+    sarcophagus.position.set(19.2, 0, -9.2);
+    const tombBase = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.65, 2.8), sandstoneMat);
+    tombBase.position.y = 0.32;
+    const coffin = new THREE.Mesh(new THREE.BoxGeometry(3.8, 1.25, 1.85), chiseledMat);
+    coffin.position.y = 1.25;
+    const goldLid = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.28, 1.5), goldMat);
+    goldLid.position.y = 2.0;
+    sarcophagus.add(tombBase, coffin, goldLid);
+    [-2.8, 2.8].forEach((bx, bIdx) => {
+      const bowl = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.15, 0.95), orangeTerrMat);
+      bowl.position.set(bx, 0.58, 0.4);
+      const bFlame = new THREE.Mesh(new THREE.ConeGeometry(0.36, 0.75, 5), flameMat);
+      bFlame.position.set(bx, 1.52, 0.4);
+      this.desertPyramidFlames.push({ mesh: bFlame, baseY: 1.52, phase: 4.5 + bIdx * 1.7 });
+      sarcophagus.add(bowl, bFlame);
+    });
+    this.group.add(sarcophagus);
+  }
+
   buildBiomeColumns(theme, accentHex) {
     if (theme === 'stronghold') {
       this.buildStrongholdSanctum();
+      return;
+    }
+    if (theme === 'ice_caves') {
+      this.buildIceCavesCavern();
+      return;
+    }
+    if (theme === 'desert_pyramid') {
+      this.buildDesertPyramidInterior();
       return;
     }
     if (theme === 'rocket_corp_exterior') {
@@ -2387,6 +2770,8 @@ export class Arena3DBuilder {
     const isStronghold = theme === 'stronghold';
     const isAncientCity = theme === 'ancient_city';
     const isPaleGarden = theme === 'pale_garden';
+    const isIceCaves = theme === 'ice_caves';
+    const isDesertPyramid = theme === 'desert_pyramid';
     const isOverworld = theme === 'overworld';
     const frameMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(
@@ -2394,11 +2779,14 @@ export class Arena3DBuilder {
           ? 'rocket_corp_wall'
           : (isStronghold ? 'stone_bricks'
           : (isAncientCity ? 'reinforced_deepslate'
-          : (isPaleGarden ? 'pale_oak_log' : (isOverworld ? 'oak_log' : 'obsidian')))),
+          : (isPaleGarden ? 'pale_oak_log'
+          : (isIceCaves ? 'blue_ice'
+          : (isDesertPyramid ? 'chiseled_sandstone'
+          : (isOverworld ? 'oak_log' : 'obsidian')))))),
         1,
         2
       ),
-      roughness: 0.35,
+      roughness: isIceCaves ? 0.2 : 0.35,
       metalness: isRocketCorp ? 0.65 : 0.3
     });
 
@@ -2434,13 +2822,19 @@ export class Arena3DBuilder {
         : (isRocketCorp ? 'ROCKET CORP'
         : (isStronghold ? 'STRONGHOLD'
         : (isAncientCity ? 'DEEP DARK'
-        : (isPaleGarden ? 'PALE GARDEN' : (isOverworld ? 'OVERWORLD' : (isExit ? 'PORTAL' : 'SPAWN')))))),
+        : (isPaleGarden ? 'PALE GARDEN'
+        : (isIceCaves ? 'ICE CAVES'
+        : (isDesertPyramid ? 'DESERT PYRAMID'
+        : (isOverworld ? 'OVERWORLD' : (isExit ? 'PORTAL' : 'SPAWN')))))))),
       '#0f172a',
       isRocketCorp
         ? '#ff6b00'
         : (isStronghold ? '#2dd4bf'
         : (isAncientCity ? '#22d3ee'
-        : (isPaleGarden ? '#fb923c' : (isOverworld ? '#4ade80' : (isExit ? '#10b981' : '#38bdf8')))))
+        : (isPaleGarden ? '#fb923c'
+        : (isIceCaves ? '#38bdf8'
+        : (isDesertPyramid ? '#f59e0b'
+        : (isOverworld ? '#4ade80' : (isExit ? '#10b981' : '#38bdf8')))))))
     );
     const signMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2.4, 0.9),
@@ -2467,6 +2861,8 @@ export class Arena3DBuilder {
     const texKey = theme === 'command_realm' ? 'gold_block'
       : (theme === 'minecraft' ? 'obsidian'
       : (theme === 'stronghold' ? 'stone_bricks'
+      : (theme === 'ice_caves' ? (isMoving ? 'blue_ice' : 'packed_ice')
+      : (theme === 'desert_pyramid' ? (isMoving ? 'chiseled_sandstone' : 'sandstone')
       : (theme === 'overworld' ? (isMoving ? 'cobblestone' : 'oak_planks')
       : (theme === 'the_end' ? 'purpur_block'
       : (theme === 'aether' ? 'holystone'
@@ -2478,11 +2874,11 @@ export class Arena3DBuilder {
       : (theme === 'slides' ? 'slides_floor'
       : (theme === 'rocket_corp' || theme === 'rocket_corp_exterior' ? 'rocket_corp_wall'
       : (theme === 'lucky_orb' ? 'lucky_block'
-      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))))))))))));
+      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))))))))))))));
 
     const bodyMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(texKey, Math.max(2, Math.round(w / 2)), 2),
-      roughness: 0.45,
+      roughness: theme === 'ice_caves' ? 0.22 : 0.45,
       metalness: 0.25
     });
 
@@ -2512,11 +2908,21 @@ export class Arena3DBuilder {
             map: getVoxelTexture('grass_top', Math.max(2, Math.round(w / 2)), 2),
             roughness: 0.55
           })
-        : new THREE.MeshStandardMaterial({
-            color: accentHex,
-            emissive: accentHex,
-            emissiveIntensity: 0.38
-          }));
+        : (theme === 'ice_caves' && !isMoving
+          ? new THREE.MeshStandardMaterial({
+              map: getVoxelTexture('snow_block', Math.max(2, Math.round(w / 2)), 2),
+              roughness: 0.72
+            })
+          : (theme === 'desert_pyramid' && !isMoving
+            ? new THREE.MeshStandardMaterial({
+                map: getVoxelTexture('terracotta_orange', Math.max(2, Math.round(w / 2)), 2),
+                roughness: 0.6
+              })
+            : new THREE.MeshStandardMaterial({
+                color: accentHex,
+                emissive: accentHex,
+                emissiveIntensity: 0.38
+              }))));
     const headerBar = new THREE.Mesh(
       new THREE.BoxGeometry(w + 0.04, barH, d + 0.04),
       headerMat
@@ -3305,6 +3711,10 @@ export class Arena3DBuilder {
       this.drawAncientCityCavernBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'pale_garden') {
       this.drawPaleGardenBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'ice_caves') {
+      this.drawIceCavesMonitorBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'desert_pyramid') {
+      this.drawDesertPyramidMonitorBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'overworld') {
       this.drawOverworldMonitorBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'dark_core') {
@@ -3657,7 +4067,7 @@ export class Arena3DBuilder {
 
     ctx.fillStyle = '#86efac';
     ctx.font = 'bold 21px monospace';
-    ctx.fillText('ACT VI // STAGE 23: MINECRAFT OVERWORLD — SUNLIT PLAINS & VILLAGE', w / 2, 52);
+    ctx.fillText('ACT VI // STAGE 25: MINECRAFT OVERWORLD — SUNLIT PLAINS & VILLAGE', w / 2, 52);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 31px monospace';
@@ -3683,6 +4093,184 @@ export class Arena3DBuilder {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#86efac';
     ctx.fillText(sm.isObjectiveComplete ? 'VILLAGE STATUS: SAFE' : 'HOSTILE RAID: ACTIVE', w - 28, h - 22);
+  }
+
+  drawIceCavesMonitorBackdrop(ctx, w, h, sm) {
+    // 1. Subterranean Glacial Cavern Gradient
+    const grad = typeof ctx.createLinearGradient === 'function' ? ctx.createLinearGradient(0, 0, 0, h) : null;
+    if (grad && typeof grad.addColorStop === 'function') {
+      grad.addColorStop(0, '#041224');
+      grad.addColorStop(0.5, '#0b2b4a');
+      grad.addColorStop(1, '#164e63');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#0b2b4a';
+    }
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Hanging Crystalline Ice Stalactites & Glacial Ceiling Fissures
+    const icicles = [
+      { x: 64, w: 72, len: 168 },
+      { x: 186, w: 54, len: 130 },
+      { x: 312, w: 86, len: 185 },
+      { x: 632, w: 84, len: 180 },
+      { x: 778, w: 58, len: 138 },
+      { x: 900, w: 76, len: 172 }
+    ];
+    icicles.forEach((ic, idx) => {
+      ctx.fillStyle = idx % 2 === 0 ? '#38bdf8' : '#7dd3fc';
+      ctx.beginPath();
+      ctx.moveTo(ic.x - ic.w * 0.5, 0);
+      ctx.lineTo(ic.x + ic.w * 0.5, 0);
+      ctx.lineTo(ic.x, ic.len);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(224, 242, 254, 0.55)';
+      ctx.beginPath();
+      ctx.moveTo(ic.x - ic.w * 0.2, 0);
+      ctx.lineTo(ic.x + ic.w * 0.08, 0);
+      ctx.lineTo(ic.x, ic.len * 0.85);
+      ctx.closePath();
+      ctx.fill();
+    });
+
+    // 3. Distant Glowing Blue Ice Crystal Clusters & Snowdrifts
+    ctx.fillStyle = '#1e3a8a';
+    ctx.fillRect(0, h - 142, w, 82);
+    ctx.fillStyle = '#7dd3fc';
+    ctx.fillRect(0, h - 142, w, 16);
+    ctx.fillStyle = '#e0f2fe';
+    ctx.fillRect(0, h - 142, w, 6);
+    for (let c = 0; c < 6; c++) {
+      const cx = 100 + c * 165;
+      const ch = 78 + (c % 3) * 38;
+      ctx.fillStyle = c % 2 === 0 ? '#2563eb' : '#0284c7';
+      ctx.beginPath();
+      ctx.moveTo(cx - 28, h - 142);
+      ctx.lineTo(cx, h - 142 - ch);
+      ctx.lineTo(cx + 28, h - 142);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 4. Ice Caves Telemetry Banner
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#082038';
+    ctx.fillRect(w / 2 - 440, 18, 880, 130);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(w / 2 - 440, 18, 880, 130);
+
+    ctx.fillStyle = '#7dd3fc';
+    ctx.font = 'bold 21px monospace';
+    ctx.fillText('ACT VI // STAGE 23: ICE CAVES — SUBTERRANEAN GLACIAL CAVERN', w / 2, 52);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 31px monospace';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ ICE CAVES CLEARED — PYRAMID TUNNEL OPEN!' : '🧊 SURVIVE THE FROZEN ICE CAVES!',
+      w / 2,
+      94
+    );
+
+    ctx.fillStyle = '#bae6fd';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('PACKED ICE & BLUE ICE CRYSTALS  •  RIDE DRIFTING ICE FLOE  •  NEXT: DESERT PYRAMID', w / 2, 128);
+
+    // 5. Glacial Footer Bar
+    ctx.fillStyle = '#0c1f35';
+    ctx.fillRect(0, h - 60, w, 60);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(0, h - 60, w, 5);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#e0f2fe';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('🧊 ICE CAVES // SUB-ZERO BIOME  •  PACKED & BLUE ICE VAULT', 28, h - 22);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#7dd3fc';
+    ctx.fillText(sm.isObjectiveComplete ? 'CAVERN EXIT: OPEN' : 'FROST AMBUSH: ACTIVE', w - 28, h - 22);
+  }
+
+  drawDesertPyramidMonitorBackdrop(ctx, w, h, sm) {
+    // 1. Warm Torchlit Sandstone Interior Backdrop
+    const grad = typeof ctx.createLinearGradient === 'function' ? ctx.createLinearGradient(0, 0, 0, h) : null;
+    if (grad && typeof grad.addColorStop === 'function') {
+      grad.addColorStop(0, '#1c1006');
+      grad.addColorStop(0.55, '#42260f');
+      grad.addColorStop(1, '#78481d');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#42260f';
+    }
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Sloped Stepped Inner Pyramid Sandstone Masonry Silhouette
+    for (let step = 0; step < 5; step++) {
+      const sy = h - 120 - step * 68;
+      const bw = 210 - step * 28;
+      ctx.fillStyle = step % 2 === 0 ? '#a1743d' : '#8a5f2d';
+      ctx.fillRect(0, sy, bw, 68);
+      ctx.fillRect(w - bw, sy, bw, 68);
+      ctx.fillStyle = '#c25925';
+      ctx.fillRect(0, sy, bw, 8);
+      ctx.fillRect(w - bw, sy, bw, 8);
+    }
+
+    // 3. Golden Desert Sunbeams Streaming Down from the Pyramid Apex Skylight
+    ctx.fillStyle = 'rgba(253, 224, 71, 0.14)';
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 58, 0);
+    ctx.lineTo(w / 2 + 58, 0);
+    ctx.lineTo(w / 2 + 210, h - 60);
+    ctx.lineTo(w / 2 - 210, h - 60);
+    ctx.closePath();
+    ctx.fill();
+
+    // 4. Iconic Orange & Blue Terracotta Temple Mosaic Emblem in Center
+    ctx.fillStyle = '#c25925';
+    ctx.fillRect(w / 2 - 86, h - 208, 172, 128);
+    ctx.strokeStyle = '#f5e6bf';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(w / 2 - 86, h - 208, 172, 128);
+    ctx.fillStyle = '#3b528c';
+    ctx.fillRect(w / 2 - 28, h - 172, 56, 56);
+
+    // 5. Desert Pyramid Telemetry Banner
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#241407';
+    ctx.fillRect(w / 2 - 446, 18, 892, 130);
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(w / 2 - 446, 18, 892, 130);
+
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = 'bold 21px monospace';
+    ctx.fillText('ACT VI // STAGE 24: DESERT PYRAMID INTERIOR — ANCIENT TEMPLE VAULT', w / 2, 52);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 31px monospace';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ PYRAMID VAULT CLEARED — VILLAGE AHEAD!' : '🏜️ RAID THE DESERT PYRAMID & WATCH THE TNT TRAP!',
+      w / 2,
+      94
+    );
+
+    ctx.fillStyle = '#fde68a';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('CHISELED SANDSTONE & TERRACOTTA SEAL  •  STRIKE VAULT TNT  •  NEXT: OVERWORLD VILLAGE', w / 2, 128);
+
+    // 6. Sandstone & Terracotta Footer Bar
+    ctx.fillStyle = '#2a1709';
+    ctx.fillRect(0, h - 60, w, 60);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(0, h - 60, w, 5);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#fef3c7';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('🏜️ DESERT PYRAMID // INNER SANCTUM  •  TNT TREASURE TRAP ACTIVE', 28, h - 22);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillText(sm.isObjectiveComplete ? 'TOMB SEAL: BROKEN' : 'TEMPLE GUARDIANS: ACTIVE', w - 28, h - 22);
   }
 
   drawStrongholdMonitorBackdrop(ctx, w, h, sm) {
@@ -3858,7 +4446,7 @@ export class Arena3DBuilder {
 
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 21px monospace';
-    ctx.fillText('ACT VIII // STAGE 28: OUTSIDE ROCKET CORP — PERIMETER PLAZA', w / 2, 50);
+    ctx.fillText('ACT VIII // STAGE 30: OUTSIDE ROCKET CORP — PERIMETER PLAZA', w / 2, 50);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 30px monospace';
@@ -3972,6 +4560,45 @@ export class Arena3DBuilder {
       }
       if (this.paleGardenHeartShrine.resinRing) {
         this.paleGardenHeartShrine.resinRing.rotation.z = t * 0.9;
+      }
+    }
+
+    // Pulse Ice Caves Blue Ice Crystal Spire & Drift Falling Frost Motes
+    if (this.iceCavesCrystalShrine) {
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+      if (this.iceCavesCrystalShrine.crystalGlowMat) {
+        this.iceCavesCrystalShrine.crystalGlowMat.emissiveIntensity = 0.78 + Math.sin(t * 3.6) * 0.24;
+      }
+      if (this.iceCavesCrystalShrine.coreSpire) {
+        this.iceCavesCrystalShrine.coreSpire.rotation.y += dt * 0.65;
+      }
+    }
+    if (this.iceCavesFrostMotes && this.iceCavesFrostMotes.length > 0) {
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+      for (const mote of this.iceCavesFrostMotes) {
+        mote.mesh.position.y -= dt * mote.speedY;
+        mote.mesh.position.x = mote.baseX + Math.sin(t * 1.4 + mote.phase) * 0.65;
+        if (mote.mesh.position.y < 0.6) {
+          mote.mesh.position.y = 11.8;
+        }
+      }
+    }
+
+    // Shimmer Desert Pyramid Golden Sunbeams & Flicker Temple Torch/Brazier Flames
+    if (this.desertPyramidSunbeams && this.desertPyramidSunbeams.length > 0) {
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+      for (const beam of this.desertPyramidSunbeams) {
+        if (beam.mat) {
+          beam.mat.opacity = beam.baseOpacity + Math.sin(t * 2.2 + beam.phase) * 0.045;
+        }
+      }
+    }
+    if (this.desertPyramidFlames && this.desertPyramidFlames.length > 0) {
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+      for (const flame of this.desertPyramidFlames) {
+        const s = 0.88 + Math.sin(t * 10.5 + flame.phase) * 0.18;
+        flame.mesh.scale.set(1, s, 1);
+        flame.mesh.position.y = flame.baseY + (s - 1) * 0.14;
       }
     }
 
