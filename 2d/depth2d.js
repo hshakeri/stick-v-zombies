@@ -193,6 +193,15 @@ const THEME_DEPTH_PROFILES = Object.freeze({
     bokehTint: '#fef08a',
     motif: 'overworld_hills'
   },
+  far_lands: {
+    farTint: '#e879f9',
+    midTint: '#22d3ee',
+    hazeTop: 'rgba(26, 16, 51, 0)',
+    hazeMid: 'rgba(107, 33, 168, 0.22)',
+    hazeBottom: 'rgba(34, 211, 238, 0.20)',
+    bokehTint: '#f0abfc',
+    motif: 'far_lands_wall'
+  },
   youtube: {
     farTint: '#ff0033',
     midTint: '#f87171',
@@ -347,6 +356,32 @@ function paintDepthMotifSilhouettes(ctx, motif, profile, stageSeed, isMidLayer) 
         ctx.fillStyle = tint;
         ctx.fillRect(treeX - 44, groundLocalY - hillH - trunkH - 36, 88, 44);
         ctx.fillRect(treeX - 28, groundLocalY - hillH - trunkH - 56, 56, 24);
+      }
+    } else if (motif === 'far_lands_wall') {
+      // Distant blurred Corner Far Lands towering Swiss-cheese terrain monoliths & glitched tunnels
+      const cliffH = Math.round(h * 1.15);
+      const cliffTop = Math.max(24, groundLocalY - cliffH);
+      ctx.fillStyle = isMidLayer ? '#475569' : '#312e81';
+      ctx.fillRect(cx - w * 0.56, cliffTop, w * 1.12, groundLocalY - cliffTop + 40);
+      // Grass crust on top of the sheer cliff
+      ctx.fillStyle = isMidLayer ? '#22c55e' : '#15803d';
+      ctx.fillRect(cx - w * 0.56, cliffTop, w * 1.12, 16);
+      // Signature horizontal Swiss-cheese tunnel cutouts punched into the monolith wall
+      ctx.fillStyle = '#09061a';
+      for (let t = 0; t < 3; t++) {
+        const ty = cliffTop + 44 + t * 76 + ((hash + t * 29) % 24);
+        if (ty < groundLocalY - 30) {
+          const tw = Math.round(w * (0.48 + (t % 2) * 0.2));
+          ctx.fillRect(cx - tw * 0.5, ty, tw, 24 + (t % 2) * 10);
+        }
+      }
+      // Magenta & cyan floating-point overflow seam highlights
+      ctx.fillStyle = i % 2 === 0 ? tint : '#22d3ee';
+      ctx.fillRect(cx - w * 0.56, cliffTop + 26 + (hash % 60), w * 1.12, 6);
+      if (i % 3 === 0) {
+        // Detached drifting glitch chunk sliver
+        ctx.fillStyle = '#e879f9';
+        ctx.fillRect(cx - 20, Math.max(12, cliffTop - 44), 40, 22);
       }
     } else if (motif === 'cavern') {
       // Distant Deep Dark hanging stalactites & ruined Deepslate arches

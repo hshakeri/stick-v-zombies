@@ -1,6 +1,6 @@
 // ============================================================================
 // Stick vs Zombies — 2D Expanded Arenas, Floating Islands, Lava Hazards,
-// 15-Block Voxel Builder Renderer & Boss Telegraph Overlays
+// 27-Block Voxel Builder Renderer & Boss Telegraph Overlays
 // ============================================================================
 
 import {
@@ -22,6 +22,8 @@ export const CREATIVE_BLOCK_TYPES_2D = Object.freeze([
   'sandstone',
   'chiseled_sandstone',
   'terracotta_orange',
+  'far_lands_stone',
+  'glitch_bedrock',
   'oak_planks',
   'crafting_table',
   'purpur_block',
@@ -50,6 +52,8 @@ const BLOCK_PALETTES = Object.freeze({
   sandstone: { base: '#e2c78c', dark: '#9e7a42', light: '#f5e6bf', border: '#78572a', accent: '#ebd5a3' },
   chiseled_sandstone: { base: '#dfc184', dark: '#7c5a28', light: '#f5e6bf', border: '#6b4d22', accent: '#c8a466' },
   terracotta_orange: { base: '#b95826', dark: '#733010', light: '#e0854a', border: '#5c240a', accent: '#d47138' },
+  far_lands_stone: { base: '#64707d', dark: '#1e293b', light: '#86efac', border: '#0f172a', accent: '#e879f9' },
+  glitch_bedrock: { base: '#272a30', dark: '#090b10', light: '#94a3b8', border: '#05070c', accent: '#d946ef' },
   oak_planks: { base: '#b88b4a', dark: '#785224', light: '#d9ae6a', border: '#5c3a18', accent: '#eab308' },
   crafting_table: { base: '#b88b4a', dark: '#5c3a18', light: '#d9ae6a', border: '#3b2110', accent: '#cbd5e1' },
   purpur_block: { base: '#a87ca8', dark: '#6b426b', light: '#d8b4d8', border: '#4a254a', accent: '#f5d0fe' },
@@ -364,6 +368,42 @@ export function paintVoxelBlockPixels2D(ctx, texKey, ox = 0, oy = 0, size = 64) 
       px(10, 8, 3, 1, '#8a3d17');
       px(2, 13, 12, 1, '#8a3d17');
       bevel('#e0854a', '#733010');
+      break;
+    }
+    case 'far_lands_stone': {
+      // Glitched Minecraft Far Lands Swiss-Cheese Strata: fractured stone/dirt/grass + cyan/magenta overflow seams
+      fillNoise('#64707d', 0.14, 525);
+      px(0, 0, 10, 3, '#4d9b2a');
+      px(12, 0, 4, 2, '#4d9b2a');
+      px(0, 3, 9, 2, '#85532f');
+      px(11, 2, 5, 3, '#85532f');
+      // Iconic Far Lands dark Swiss-cheese tunnel pockets
+      px(2, 6, 4, 3, '#0f172a');
+      px(10, 7, 4, 2, '#0f172a');
+      px(5, 11, 5, 3, '#0f172a');
+      // Coordinate-overflow magenta & cyan pixel-shear seams
+      px(1, 5, 5, 1, '#e879f9');
+      px(9, 10, 5, 1, '#e879f9');
+      px(7, 6, 3, 1, '#22d3ee');
+      px(2, 13, 4, 1, '#22d3ee');
+      px(12, 13, 3, 1, '#22d3ee');
+      bevel('#86efac', '#1e293b');
+      break;
+    }
+    case 'glitch_bedrock': {
+      // Corrupted Far Lands Bedrock with jagged static & magenta/cyan overflow rift veins
+      fillNoise('#272a30', 0.24, 535);
+      px(1, 2, 5, 3, '#090b10');
+      px(9, 5, 5, 4, '#090b10');
+      px(3, 10, 6, 4, '#090b10');
+      px(6, 1, 4, 2, '#94a3b8');
+      px(1, 7, 5, 2, '#94a3b8');
+      px(10, 11, 4, 2, '#94a3b8');
+      px(4, 5, 4, 1, '#d946ef');
+      px(11, 9, 3, 1, '#d946ef');
+      px(8, 3, 3, 1, '#38bdf8');
+      px(2, 13, 5, 1, '#38bdf8');
+      bevel('#64748b', '#05070c');
       break;
     }
     case 'purpur_block': {
@@ -1917,6 +1957,210 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY, onSkyP
     return true;
   }
 
+  if (theme === 'far_lands') {
+    ctx.save();
+    paintFullVoid('#0b071a');
+
+    // 1. World-Edge Glitch Twilight Sky Gradient (X: 12,550,821)
+    const flSky = ctx.createLinearGradient(0, minY, 0, groundY);
+    flSky.addColorStop(0, '#0b071a');
+    flSky.addColorStop(0.38, '#1e1b4b');
+    flSky.addColorStop(0.72, '#3b0764');
+    flSky.addColorStop(1, '#164e63');
+    ctx.fillStyle = flSky;
+    ctx.fillRect(minX, minY, maxX - minX, groundY - minY);
+    onSkyPainted?.();
+
+    // Chromatic Jittering Pixel Sun/Moon Cube & Floating-Point Scanlines
+    const sunJitterX = Math.round(Math.sin(t * 7.5) * 4);
+    const sunJitterY = Math.round(Math.cos(t * 5.2) * 3);
+    const sunX = 560 + sunJitterX;
+    const sunY = minY + 116 + sunJitterY;
+    ctx.fillStyle = 'rgba(34, 211, 238, 0.35)';
+    ctx.fillRect(sunX - 42, sunY - 34, 72, 72);
+    ctx.fillStyle = 'rgba(232, 121, 249, 0.35)';
+    ctx.fillRect(sunX - 28, sunY - 40, 72, 72);
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(sunX - 35, sunY - 37, 70, 70);
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(sunX - 25, sunY - 27, 50, 50);
+
+    // Subtle horizontal coordinate-overflow scan-shears across the sky
+    for (let sy = minY + 60; sy < groundY - 40; sy += 78) {
+      const shift = Math.sin(t * 2.4 + sy * 0.03) * 18;
+      ctx.fillStyle = (sy % 156 === 0) ? 'rgba(232, 121, 249, 0.07)' : 'rgba(34, 211, 238, 0.06)';
+      ctx.fillRect(minX + shift, sy, maxX - minX, 3);
+    }
+
+    // 2. Iconic Towering Minecraft Far Lands Swiss-Cheese Monolith Wall across the Horizon
+    const wallColumns = [
+      { x: -1020, w: 230, top: groundY - 495 },
+      { x: -790, w: 215, top: groundY - 460 },
+      { x: -575, w: 225, top: groundY - 510 },
+      { x: -350, w: 230, top: groundY - 472 },
+      { x: -120, w: 240, top: groundY - 525 },
+      { x: 120, w: 230, top: groundY - 480 },
+      { x: 350, w: 225, top: groundY - 515 },
+      { x: 575, w: 215, top: groundY - 465 },
+      { x: 790, w: 230, top: groundY - 500 }
+    ];
+    for (let ci = 0; ci < wallColumns.length; ci++) {
+      const col = wallColumns[ci];
+      const wallH = groundY - col.top;
+      // Sheer cliff body (layered stone/deepslate strata)
+      ctx.fillStyle = ci % 2 === 0 ? '#475569' : '#3b475a';
+      ctx.fillRect(col.x, col.top, col.w, wallH);
+      // Exposed dirt band & grass overhang crust at cliff summit
+      ctx.fillStyle = '#784c2a';
+      ctx.fillRect(col.x, col.top + 16, col.w, 22);
+      ctx.fillStyle = '#15803d';
+      ctx.fillRect(col.x, col.top, col.w, 16);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(col.x, col.top, col.w, 6);
+      // Vertical chunk boundary fracture seam
+      ctx.fillStyle = ci % 2 === 0 ? 'rgba(232, 121, 249, 0.35)' : 'rgba(34, 211, 238, 0.32)';
+      ctx.fillRect(col.x, col.top, 4, wallH);
+
+      // Signature Horizontal Swiss-Cheese Tunnel Holes punched through the monolith wall
+      for (let tier = 0; tier < 5; tier++) {
+        const holeY = col.top + 56 + tier * 82 + ((ci * 17 + tier * 23) % 24);
+        if (holeY + 34 >= groundY - 12) continue;
+        const holeW = 68 + ((ci * 31 + tier * 41) % 72);
+        const holeH = 26 + ((ci + tier) % 2) * 14;
+        const holeX = col.x + 18 + ((ci * 29 + tier * 19) % Math.max(18, col.w - holeW - 32));
+        // Deep cave void
+        ctx.fillStyle = '#090617';
+        ctx.fillRect(holeX, holeY, holeW, holeH);
+        // Inner stone tunnel shadow lip + overflow glitch rim
+        ctx.fillStyle = '#1e1b4b';
+        ctx.fillRect(holeX + 4, holeY + 4, holeW - 8, 6);
+        ctx.fillStyle = (tier + ci) % 2 === 0 ? 'rgba(232, 121, 249, 0.45)' : 'rgba(34, 211, 238, 0.45)';
+        ctx.fillRect(holeX, holeY + holeH - 3, holeW, 3);
+      }
+
+      // Perched Glitched Oak Trees atop alternating Far Lands cliff summits
+      if (ci % 2 === 1) {
+        const tx = col.x + col.w * 0.5;
+        ctx.fillStyle = '#6b4423';
+        ctx.fillRect(tx - 10, col.top - 52, 20, 52);
+        ctx.fillStyle = '#15803d';
+        ctx.fillRect(tx - 44, col.top - 84, 88, 38);
+        ctx.fillStyle = '#22c55e';
+        ctx.fillRect(tx - 30, col.top - 106, 60, 26);
+        // Chromatic glitch leaf slice
+        ctx.fillStyle = 'rgba(232, 121, 249, 0.35)';
+        ctx.fillRect(tx - 40 + ((ci % 3) * 6), col.top - 72, 28, 6);
+      }
+    }
+
+    // 3. Cascading Waterfalls & Lavafalls pouring out of the Swiss-Cheese Wall
+    const cascades = [
+      { x: -720, top: groundY - 340, w: 30, lava: false },
+      { x: -240, top: groundY - 385, w: 26, lava: true },
+      { x: 255, top: groundY - 365, w: 32, lava: false },
+      { x: 705, top: groundY - 320, w: 26, lava: true }
+    ];
+    for (let i = 0; i < cascades.length; i++) {
+      const c = cascades[i];
+      const h = groundY - c.top;
+      ctx.fillStyle = c.lava ? 'rgba(234, 88, 12, 0.78)' : 'rgba(14, 165, 233, 0.68)';
+      ctx.fillRect(c.x, c.top, c.w, h);
+      const scroll = (t * (c.lava ? 48 : 115) + i * 37) % 36;
+      ctx.fillStyle = c.lava ? '#facc15' : '#bae6fd';
+      for (let fy = c.top + scroll; fy < groundY - 8; fy += 36) {
+        ctx.fillRect(c.x + 5, fy, c.w - 10, 10);
+      }
+      // Misty splash glow at base
+      ctx.fillStyle = c.lava ? 'rgba(251, 146, 60, 0.32)' : 'rgba(56, 189, 248, 0.3)';
+      ctx.fillRect(c.x - 14, groundY - 14, c.w + 28, 14);
+    }
+
+    // 4. Center Coordinate-Overflow Beacon (X: 12,550,821)
+    const beaconPulse = 0.65 + Math.sin(t * 5.2) * 0.3;
+    ctx.fillStyle = `rgba(232, 121, 249, ${beaconPulse * 0.22})`;
+    ctx.fillRect(-26, minY, 52, groundY - minY);
+    ctx.fillStyle = `rgba(34, 211, 238, ${beaconPulse * 0.45})`;
+    ctx.fillRect(-10, minY, 20, groundY - minY);
+    // Floating Coordinate Display Plate
+    ctx.fillStyle = 'rgba(11, 7, 26, 0.86)';
+    ctx.fillRect(-170, minY + 76, 340, 54);
+    ctx.strokeStyle = '#e879f9';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-170, minY + 76, 340, 54);
+    ctx.fillStyle = '#22d3ee';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('X: 12,550,821  //  Z: 12,550,821', 0, minY + 100);
+    ctx.fillStyle = '#f0abfc';
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText('FLOAT32 NOISE OVERFLOW • CHUNK BOUNDARY UNSTABLE', 0, minY + 120);
+    ctx.textAlign = 'left';
+
+    // 5. Detached Jittering Floating Chunk Slices drifting in front of the Wall
+    const floatChunks = [
+      { x: -640, y: groundY - 305, w: 62, h: 36, seed: 1.1 },
+      { x: -380, y: groundY - 355, w: 48, h: 48, seed: 2.3 },
+      { x: -95, y: groundY - 335, w: 56, h: 32, seed: 3.7 },
+      { x: 165, y: groundY - 360, w: 52, h: 40, seed: 4.5 },
+      { x: 470, y: groundY - 315, w: 66, h: 34, seed: 5.8 },
+      { x: 760, y: groundY - 345, w: 46, h: 44, seed: 6.4 }
+    ];
+    for (let fi = 0; fi < floatChunks.length; fi++) {
+      const fc = floatChunks[fi];
+      const jx = Math.round(Math.sin(t * 6.5 + fc.seed * 2) * 5);
+      const jy = Math.round(Math.cos(t * 3.8 + fc.seed) * 7);
+      // Chromatic ghost offset
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.28)';
+      ctx.fillRect(fc.x + jx - 4, fc.y + jy, fc.w, fc.h);
+      ctx.fillStyle = 'rgba(232, 121, 249, 0.28)';
+      ctx.fillRect(fc.x + jx + 4, fc.y + jy, fc.w, fc.h);
+      // Main glitched voxel chunk slice
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(fc.x + jx, fc.y + jy, fc.w, fc.h);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(fc.x + jx, fc.y + jy, fc.w, 8);
+      ctx.fillStyle = '#090617';
+      ctx.fillRect(fc.x + jx + 12, fc.y + jy + 14, Math.max(12, fc.w - 26), 10);
+    }
+
+    // 6. Fractured Far Lands Combat Floor & Glitched Bedrock Strata
+    ctx.fillStyle = '#3b475a';
+    ctx.fillRect(minX, groundY, maxX - minX, 340);
+    ctx.fillStyle = '#1e1b4b';
+    ctx.fillRect(minX, groundY + 72, maxX - minX, 268);
+    // Warped grass-and-glitch top crust
+    ctx.fillStyle = '#15803d';
+    ctx.fillRect(minX, groundY, maxX - minX, 16);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(minX, groundY, maxX - minX, 6);
+    for (let gx = minX; gx < maxX; gx += 48) {
+      const idx = Math.abs((gx / 48) | 0);
+      // Swiss-cheese subsurface cracks & magenta/cyan overflow veins
+      ctx.fillStyle = '#090617';
+      ctx.fillRect(gx + 8, groundY + 24 + (idx % 3) * 14, 24, 14);
+      ctx.fillStyle = idx % 2 === 0 ? '#e879f9' : '#22d3ee';
+      ctx.fillRect(gx + 2, groundY + 16, 18, 3);
+      if (idx % 3 === 0) {
+        ctx.fillStyle = '#272a30';
+        ctx.fillRect(gx + 14, groundY + 4, 20, 12);
+      }
+    }
+
+    // Glowing Glitch Horizon Line
+    ctx.strokeStyle = '#e879f9';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(minX, groundY);
+    ctx.lineTo(maxX, groundY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#f0abfc';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('BIOME://THE_FAR_LANDS — X: 12,550,821 · WORLD EDGE OVERFLOW', minX + 60, minY + 58);
+    ctx.restore();
+    return true;
+  }
+
   if (theme === 'stronghold') {
     ctx.save();
     paintFullVoid('#070a10');
@@ -3019,7 +3263,7 @@ export function drawExpandedStageBackground2D(stageManager, ctx, groundY, onSkyP
 
     ctx.fillStyle = '#1db954';
     ctx.font = 'bold 12px monospace';
-    ctx.fillText('VERIFIED PLAYLIST • STAGE 28', -56, vinylY - 36);
+    ctx.fillText('VERIFIED PLAYLIST • STAGE 29', -56, vinylY - 36);
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 26px sans-serif';
     ctx.fillText('STICK VS ZOMBIES OST', -56, vinylY - 4);
@@ -3369,6 +3613,7 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
     theme !== 'ice_caves' &&
     theme !== 'desert_pyramid' &&
     theme !== 'overworld' &&
+    theme !== 'far_lands' &&
     theme !== 'youtube' &&
     theme !== 'chrome' &&
     theme !== 'spotify' &&
@@ -3518,6 +3763,45 @@ export function drawCustomStagePlatforms2D(stageManager, ctx, platforms) {
         ctx.fillRect(p.x - halfW + 1, topY + 1, p.width - 2, 7);
         ctx.fillStyle = '#4ade80';
         ctx.fillRect(p.x - halfW + 2, topY + 1, p.width - 4, 4);
+      }
+    } else if (theme === 'far_lands') {
+      const isJitter = Boolean(p.axis);
+      if (isJitter) {
+        // Moving Corrupted Glitch-Bedrock Chunk with chromatic shear shimmer
+        const jOff = Math.round(Math.sin(t * 14 + p.x * 0.04) * 2);
+        ctx.fillStyle = 'rgba(34, 211, 238, 0.35)';
+        ctx.fillRect(p.x - halfW - 3 + jOff, topY, p.width, p.height);
+        ctx.fillStyle = '#272a30';
+        ctx.strokeStyle = '#e879f9';
+        ctx.lineWidth = 2;
+        ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+        ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+        ctx.fillStyle = '#22d3ee';
+        ctx.fillRect(p.x - halfW + 2, topY + 2, p.width - 4, 5);
+        ctx.fillStyle = '#090b10';
+        for (let bx = p.x - halfW + 14; bx < p.x + halfW - 18; bx += 28) {
+          ctx.fillRect(bx, topY + 10, 14, Math.max(6, p.height - 14));
+        }
+      } else {
+        // Fractured Far Lands Swiss-Cheese Overhang Ledge with Grass Crust & Glitch Seams
+        ctx.fillStyle = '#52606d';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        ctx.fillRect(p.x - halfW, topY, p.width, p.height);
+        ctx.strokeRect(p.x - halfW, topY, p.width, p.height);
+        ctx.fillStyle = '#16a34a';
+        ctx.fillRect(p.x - halfW + 1, topY + 1, p.width - 2, 7);
+        ctx.fillStyle = '#4ade80';
+        ctx.fillRect(p.x - halfW + 2, topY + 1, p.width - 4, 3);
+        // Dark Swiss-cheese pockets + magenta/cyan pixel-shear line
+        ctx.fillStyle = '#090617';
+        for (let hx = p.x - halfW + 16; hx < p.x + halfW - 22; hx += 38) {
+          ctx.fillRect(hx, topY + 11, 18, Math.max(6, p.height - 14));
+        }
+        ctx.fillStyle = '#e879f9';
+        ctx.fillRect(p.x - halfW + 2, p.y - 3, p.width * 0.45, 2);
+        ctx.fillStyle = '#22d3ee';
+        ctx.fillRect(p.x + 4, p.y - 3, p.width * 0.42, 2);
       }
     } else if (theme === 'youtube') {
       ctx.fillStyle = '#18181b';
@@ -3697,6 +3981,13 @@ export function drawGroundCraters2D(ctx, groundHoles, groundY = 0, theme = 'desk
     strataUpper = '#92400e';
     strataMid = '#64748b';
     strataDeep = '#1e293b';
+  } else if (theme === 'far_lands') {
+    voidTop = '#0b071a';
+    voidDeep = '#04020b';
+    lipCol = '#e879f9';
+    strataUpper = '#64707d';
+    strataMid = '#312e81';
+    strataDeep = '#090b10';
   } else if (theme === 'minecraft') {
     voidTop = '#2a080c';
     voidDeep = '#120307';

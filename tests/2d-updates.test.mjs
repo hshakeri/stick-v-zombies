@@ -26,10 +26,11 @@ import {
   MercenaryBoss,
   OVERWORLD_OUTPOST_BLOCKS,
   DESERT_PYRAMID_TRAP_BLOCKS,
+  FAR_LANDS_GLITCH_BLOCKS,
   formatAttackerDeathMessage,
   formatProjectileDeathMessage,
   resolvePlayerDeathCause
-} from '../3d/js/campaign3d.js?v=10.9';
+} from '../3d/js/campaign3d.js?v=11.0';
 import { speech3d } from '../3d/js/speech3d.js?v=10.3';
 
 import {
@@ -39,22 +40,22 @@ import {
   drawSketchBlocksVoxel2D,
   getCreativeBlockSprite2D,
   paintVoxelBlockPixels2D
-} from '../2d/arenas2d.js?v=10.7';
+} from '../2d/arenas2d.js?v=10.8';
 import {
   DEPTH_PARALLAX,
   Depth2DRenderer,
   getDepthProfile2D
-} from '../2d/depth2d.js?v=10.7';
+} from '../2d/depth2d.js?v=10.8';
 import {
   STAGE_OPTIONS_2D,
   install2DExpansion
-} from '../2d/expansion2d.js?v=10.8';
+} from '../2d/expansion2d.js?v=10.9';
 import {
   OLD_UPDATES_ARCHIVE,
   PURPLE_ALLY_CONFIG,
   installOldUpdatesMenu,
   resolveLegacyUpdateUrl
-} from '../3d/js/purple_ally.js?v=11.0';
+} from '../3d/js/purple_ally.js?v=11.1';
 import {
   HerobrineBoss,
   VictimBoss
@@ -67,7 +68,7 @@ import {
   ROGUELIKE_PERKS,
   TROPHY_MONUMENT_BOSSES,
   computeStageRank
-} from '../3d/js/gameplay_features.js?v=11.0';
+} from '../3d/js/gameplay_features.js?v=11.1';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
@@ -182,28 +183,28 @@ test('2D Expansion [1] Zero Three.js & Singleton Module Parity: 2D never loads T
   );
 });
 
-test('2D Expansion [2] Prominent Level Selector & Title UI: index.html + expansion2d expose Creative Mode, Stage Select, and Stages 18–32 pills', () => {
+test('2D Expansion [2] Prominent Level Selector & Title UI: index.html + expansion2d expose Creative Mode, Stage Select, and Stages 18–33 pills', () => {
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
   assert.match(html, /href="2d\/style2d\.css\?v=10\.5"/);
-  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.8"/);
+  assert.match(html, /src="2d\/expansion2d\.js\?v=10\.9"/);
   assert.match(html, /id="btn-start-creative"/);
   assert.match(html, /id="title-stage-select"/);
-  for (const stage of [19, 20, 21, 22, 31, 32]) {
+  for (const stage of [19, 20, 21, 22, 32, 33]) {
     assert.match(html, new RegExp(`data-jump-stage="${stage}"`), `missing quick-jump pill for stage ${stage}`);
   }
   const expansionSrc = readFileSync(join(ROOT, '2d/expansion2d.js'), 'utf8');
   assert.match(expansionSrc, /setAttribute\(['"]data-jump-stage['"],\s*['"]18['"]\)/, 'expansion2d.js must inject quick-jump pill for Stage 18');
-  for (const stage of [23, 24, 25, 26, 27, 28, 29, 30]) {
+  for (const stage of [23, 24, 25, 26, 27, 28, 29, 30, 31]) {
     assert.match(expansionSrc, new RegExp(`stage:\\s*['"]?${stage}['"]?`), `expansion2d.js must inject quick-jump pill for Stage ${stage}`);
   }
-  assert.equal(STAGE_OPTIONS_2D.length, 33, 'selector must expose Stages 1–32 plus Stage 33 Trophy Room');
+  assert.equal(STAGE_OPTIONS_2D.length, 34, 'selector must expose Stages 1–33 plus Stage 34 Trophy Room');
 });
 
-test('2D Expansion [3] 32-Stage Campaign + 11-Boss Trophy Room: Stronghold (18) precedes The End (19), Ice Caves (23) & Desert Pyramid Interior (24) precede Overworld Village (25), App Gauntlet (26–29), Outside Rocket Corp (30) precedes Rocket Corp (31) & Zero-Day (32)', () => {
+test('2D Expansion [3] 33-Stage Campaign + 11-Boss Trophy Room: Stronghold (18) precedes The End (19), Ice Caves (23) & Desert Pyramid Interior (24) precede Overworld Village (25), Far Lands (26), App Gauntlet (27–30), Outside Rocket Corp (31) precedes Rocket Corp (32) & Zero-Day (33)', () => {
   resetGlobalSystems();
   const { game, controller } = create2DGameHarness();
 
-  assert.equal(game.stageManager.maxStage, 32);
+  assert.equal(game.stageManager.maxStage, 33);
 
   // Verify Stage 18: The Stronghold right before The End
   controller.jumpToStage(18, { freshStart: true });
@@ -251,33 +252,38 @@ test('2D Expansion [3] 32-Stage Campaign + 11-Boss Trophy Room: Stronghold (18) 
   assert.equal(game.stageManager.theme, 'desert_pyramid');
   assert.equal(game.stageManager.stageName, 'Desert Pyramid Interior');
 
-  // Verify Stage 25: Minecraft Overworld (Village)
+  // Verify Stage 25: Minecraft Overworld (Village) & Stage 26: The Far Lands
   controller.jumpToStage(25);
   assert.equal(game.stageManager.currentStage, 25);
   assert.equal(game.stageManager.theme, 'overworld');
 
-  // Verify Stage 30: Outside Rocket Corp immediately precedes Stage 31: Rocket Corp HQ
-  controller.jumpToStage(30);
-  assert.equal(game.stageManager.currentStage, 30);
+  controller.jumpToStage(26);
+  assert.equal(game.stageManager.currentStage, 26);
+  assert.equal(game.stageManager.theme, 'far_lands');
+  assert.equal(game.stageManager.stageName, 'The Far Lands');
+
+  // Verify Stage 31: Outside Rocket Corp immediately precedes Stage 32: Rocket Corp HQ
+  controller.jumpToStage(31);
+  assert.equal(game.stageManager.currentStage, 31);
   assert.equal(game.stageManager.theme, 'rocket_corp_exterior');
   assert.equal(game.stageManager.stageName, 'Outside Rocket Corp');
 
-  // Verify Stage 31: Rocket Corp HQ (4 Mercenaries) immediately precedes Stage 32: Zero-Day (H4C3R)
-  controller.jumpToStage(31);
+  // Verify Stage 32: Rocket Corp HQ (4 Mercenaries) immediately precedes Stage 33: Zero-Day (H4C3R)
+  controller.jumpToStage(32);
   advanceWaveSpawns(game, 4.0);
-  assert.equal(game.stageManager.currentStage, 31);
+  assert.equal(game.stageManager.currentStage, 32);
   assert.equal(game.stageManager.theme, 'rocket_corp');
   const mercs = waves.zombies.filter((z) => z instanceof MercenaryBoss);
-  assert.equal(mercs.length, 4, 'Stage 31 must spawn Agent, Ballista, Primal, and Hazard');
+  assert.equal(mercs.length, 4, 'Stage 32 must spawn Agent, Ballista, Primal, and Hazard');
 
-  controller.jumpToStage(32);
-  advanceWaveSpawns(game, 2.0);
-  assert.equal(game.stageManager.currentStage, 32);
-  assert.equal(game.stageManager.theme, 'zero_day');
-  assert.ok(waves.zombies.some((z) => z.type === 'h4c3r'), 'Stage 32 must spawn H4C3R');
-
-  // Verify Stage 33: Trophy Room Epilogue with all 11 Boss Monuments
   controller.jumpToStage(33);
+  advanceWaveSpawns(game, 2.0);
+  assert.equal(game.stageManager.currentStage, 33);
+  assert.equal(game.stageManager.theme, 'zero_day');
+  assert.ok(waves.zombies.some((z) => z.type === 'h4c3r'), 'Stage 33 must spawn H4C3R');
+
+  // Verify Stage 34: Trophy Room Epilogue with all 11 Boss Monuments
+  controller.jumpToStage(34);
   assert.equal(game.stageManager.isTrophyRoom, true);
   assert.equal(game.stageManager.desktopIcons.length, 11, 'Trophy Room must honor all 11 campaign bosses');
 
@@ -288,10 +294,10 @@ test('2D Expansion [4] Pure 2D Canvas Rendering & Gaze-Freeze: all new arenas, v
   resetGlobalSystems();
   const { game, controller, ctx, calls } = create2DGameHarness();
 
-  // Render Stages 7, 18..33 through full game.render()
-  for (const stage of [7, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]) {
+  // Render Stages 7, 18..34 through full game.render()
+  for (const stage of [7, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]) {
     controller.jumpToStage(stage, { freshStart: stage === 7 });
-    if (stage < 33) advanceWaveSpawns(game, 2.5);
+    if (stage < 34) advanceWaveSpawns(game, 2.5);
     calls.save = 0;
     calls.restore = 0;
     game.update(1 / 60);
@@ -565,7 +571,7 @@ test('2D Expansion [8] Depth-of-Field, Cached Offscreen Far/Mid Blur, Parallax, 
   resetGlobalSystems();
 
   // 1. Theme depth profiles cover classic, open-edge, Stronghold, App Gauntlet, Outside Rocket Corp, and expanded biomes cleanly
-  for (const theme of ['desktop', 'minecraft', 'stronghold', 'the_end', 'aether', 'ancient_city', 'pale_garden', 'overworld', 'youtube', 'chrome', 'spotify', 'slides', 'rocket_corp_exterior', 'rocket_corp', 'zero_day', 'trophy']) {
+  for (const theme of ['desktop', 'minecraft', 'stronghold', 'the_end', 'aether', 'ancient_city', 'pale_garden', 'ice_caves', 'desert_pyramid', 'overworld', 'far_lands', 'youtube', 'chrome', 'spotify', 'slides', 'rocket_corp_exterior', 'rocket_corp', 'zero_day', 'trophy']) {
     const profile = getDepthProfile2D(theme);
     assert.ok(profile.farTint && profile.midTint && profile.bokehTint, `theme ${theme} must provide full depth palette`);
   }
@@ -779,7 +785,7 @@ test('2D Expansion [9] Crisp 16x16 Voxel Block Pixel-Art Textures & Selector Syn
     assert.ok(!signatures.has(sig), `${texKey} pixel-art texture must be visually distinct from every other block`);
     signatures.add(sig);
   }
-  assert.equal(signatures.size, 25, 'all 25 2D Creative voxel block types must produce unique pixel-art textures');
+  assert.equal(signatures.size, 27, 'all 27 2D Creative voxel block types must produce unique pixel-art textures');
 
   // Calling placeCreativeBlock() with no explicit arg uses sandbox.selectedBlock and preserves texKey
   const { game, controller } = create2DGameHarness();
@@ -851,8 +857,8 @@ test('2D Expansion [10] Creative Mob & Boss Spawner On-Screen Visibility Across 
   assert.ok(inwardMob.x < game.player.x && inwardMob.x >= -870, 'spawning near right arena boundary must flip inward onto safe floor');
   assert.equal(inwardMob.facing, 1, 'mob spawned to the left of Orange must face right toward Orange');
 
-  // 4. Spawning inside Stage 33 (Trophy Room, where waves start inactive) activates waves and updates spawned mobs
-  controller.jumpToStage(33, { creative: true });
+  // 4. Spawning inside Stage 34 (Trophy Room, where waves start inactive) activates waves and updates spawned mobs
+  controller.jumpToStage(34, { creative: true });
   assert.equal(waves.isWaveActive, false, 'Trophy Room starts with waves inactive');
   game.player.x = 0;
   game.player.facing = 1;
@@ -938,11 +944,11 @@ test('2D Expansion [11] Stage 10 AvA 8 Showdown Lake Arena: Outernet Lake, Water
   resetGlobalSystems();
 });
 
-test('2D Expansion [12] All 25 Placed Block Voxel Textures, KeyV Isolation & E-Key Voxel SketchBlocks', () => {
+test('2D Expansion [12] All 27 Placed Block Voxel Textures, KeyV Isolation & E-Key Voxel SketchBlocks', () => {
   resetGlobalSystems();
 
-  // 1. Rasterize all 25 16x16 voxel block sprites into an exact 16x16 pixel grid and verify richness + uniqueness
-  assert.equal(CREATIVE_BLOCK_TYPES_2D.length, 25, 'All 25 Creative block types must be registered');
+  // 1. Rasterize all 27 16x16 voxel block sprites into an exact 16x16 pixel grid and verify richness + uniqueness
+  assert.equal(CREATIVE_BLOCK_TYPES_2D.length, 27, 'All 27 Creative block types must be registered');
   const signatures = new Map();
   for (const key of CREATIVE_BLOCK_TYPES_2D) {
     const grid = new Array(16 * 16).fill('');
@@ -977,7 +983,7 @@ test('2D Expansion [12] All 25 Placed Block Voxel Textures, KeyV Isolation & E-K
     }
     signatures.set(key, sig);
   }
-  assert.equal(signatures.size, 25);
+  assert.equal(signatures.size, 27);
 
   // 2. Verify KeyV in Creative Mode places each of the 19 blocks WITHOUT double-spawning a flat #1c1b29 SketchBlock
   const { game, controller, ctx } = create2DGameHarness();
@@ -1059,13 +1065,13 @@ test('2D Expansion [12] All 25 Placed Block Voxel Textures, KeyV Isolation & E-K
   resetGlobalSystems();
 });
 
-test('2D Expansion [13] Dedicated App Levels (Stages 26–29): YouTube, Chrome, Spotify & Slides Arenas, Vertical Equalizer Lifts, Eraser Pickup & Depth Motifs', () => {
+test('2D Expansion [13] Dedicated App Levels (Stages 27–30): YouTube, Chrome, Spotify & Slides Arenas, Vertical Equalizer Lifts, Eraser Pickup & Depth Motifs', () => {
   resetGlobalSystems();
   const { game, controller, calls } = create2DGameHarness();
 
   const expectedApps = [
     {
-      stage: 26,
+      stage: 27,
       theme: 'youtube',
       stageName: 'YouTube Studio',
       motif: 'youtube_ui',
@@ -1076,7 +1082,7 @@ test('2D Expansion [13] Dedicated App Levels (Stages 26–29): YouTube, Chrome, 
       uiSnippet: 'YouTube'
     },
     {
-      stage: 27,
+      stage: 28,
       theme: 'chrome',
       stageName: 'Google Chrome',
       motif: 'chrome_tabs',
@@ -1087,7 +1093,7 @@ test('2D Expansion [13] Dedicated App Levels (Stages 26–29): YouTube, Chrome, 
       uiSnippet: 'chrome.google.com/stick-vs-zombies/arena'
     },
     {
-      stage: 28,
+      stage: 29,
       theme: 'spotify',
       stageName: 'Spotify Player',
       motif: 'spotify_eq',
@@ -1098,7 +1104,7 @@ test('2D Expansion [13] Dedicated App Levels (Stages 26–29): YouTube, Chrome, 
       uiSnippet: 'Spotify'
     },
     {
-      stage: 29,
+      stage: 30,
       theme: 'slides',
       stageName: 'Google Slides',
       motif: 'slides_deck',
@@ -1140,9 +1146,9 @@ test('2D Expansion [13] Dedicated App Levels (Stages 26–29): YouTube, Chrome, 
     assert.equal(bakedCount, 2, `${app.theme} (${app.motif}) must bake both Far and Mid blurred depth planes cleanly`);
   }
 
-  // 2. Jump to each App Stage (26..29), verify layouts, wave counts, UI rendering, and taskbar suppression
+  // 2. Jump to each App Stage (27..30), verify layouts, wave counts, UI rendering, and taskbar suppression
   for (const app of expectedApps) {
-    controller.jumpToStage(app.stage, { freshStart: app.stage === 26 });
+    controller.jumpToStage(app.stage, { freshStart: app.stage === 27 });
     assert.equal(game.stageManager.currentStage, app.stage);
     assert.equal(game.stageManager.theme, app.theme);
     assert.equal(game.stageManager.stageName, app.stageName);
@@ -1153,11 +1159,11 @@ test('2D Expansion [13] Dedicated App Levels (Stages 26–29): YouTube, Chrome, 
     const totalQueuedAndActive = waves.zombies.length + waves.spawnQueue.length;
     assert.equal(totalQueuedAndActive, app.waveTotal, `${app.stageName} must queue ${app.waveTotal} enemies`);
 
-    if (app.stage === 26) {
-      assert.equal(game.stageManager.laserHazards.length, 1, 'Stage 26 YouTube must feature the red skip-ad/buffering laser hazard');
+    if (app.stage === 27) {
+      assert.equal(game.stageManager.laserHazards.length, 1, 'Stage 27 YouTube must feature the red skip-ad/buffering laser hazard');
     }
-    if (app.stage === 29) {
-      assert.ok(game.weaponPickup && game.weaponPickup.type === 'eraser', 'Stage 29 Google Slides must spawn the Giant Pink Eraser pickup');
+    if (app.stage === 30) {
+      assert.ok(game.weaponPickup && game.weaponPickup.type === 'eraser', 'Stage 30 Google Slides must spawn the Giant Pink Eraser pickup');
     }
 
     calls.save = 0;
@@ -1178,8 +1184,8 @@ test('2D Expansion [13] Dedicated App Levels (Stages 26–29): YouTube, Chrome, 
     );
   }
 
-  // 3. Verify Stage 28 Spotify's vertical bouncing equalizer lift (`axis: 'y'`) carries Orange smoothly upward & downward
-  controller.jumpToStage(28);
+  // 3. Verify Stage 29 Spotify's vertical bouncing equalizer lift (`axis: 'y'`) carries Orange smoothly upward & downward
+  controller.jumpToStage(29);
   const bassLift = game.stageManager.movingPlatforms[0];
   assert.equal(bassLift.title, 'Equalizer_Bass_W');
   assert.equal(bassLift.axis, 'y');
@@ -1345,8 +1351,8 @@ test('2D Expansion [15] How You Died Attribution & Game Over Death Banner: Zombi
     else globalThis.document = prevDoc;
   }
 
-  // 3. End-to-end Stage 26 YouTube Skip-Ad Laser kill -> records YouTube Skip-Ad Laser death cause
-  controller.jumpToStage(26, { freshStart: true, creative: false });
+  // 3. End-to-end Stage 27 YouTube Skip-Ad Laser kill -> records YouTube Skip-Ad Laser death cause
+  controller.jumpToStage(27, { freshStart: true, creative: false });
   controller.nukeAllEnemies();
   const laser = game.stageManager.laserHazards[0];
   assert.ok(laser);
@@ -1596,19 +1602,19 @@ test('2D Expansion [17] TNT Blows Up The Ground: Ground TNT carves 2D craters, s
   resetGlobalSystems();
 });
 
-test('2D Expansion [18] Stage 18 The Stronghold (Before The End) & Stage 30 Outside Rocket Corp (Before Rocket Corp HQ): Arenas, Depth Motifs, Hazards & Stone Bricks Block', () => {
+test('2D Expansion [18] Stage 18 The Stronghold (Before The End) & Stage 31 Outside Rocket Corp (Before Rocket Corp HQ): Arenas, Depth Motifs, Hazards & Stone Bricks Block', () => {
   resetGlobalSystems();
   const { game, controller, ctx, calls } = create2DGameHarness();
 
   // 1. Campaign ordering & selector checks
   const opt18 = STAGE_OPTIONS_2D.find((o) => o.value === 18);
   const opt19 = STAGE_OPTIONS_2D.find((o) => o.value === 19);
-  const opt30 = STAGE_OPTIONS_2D.find((o) => o.value === 30);
   const opt31 = STAGE_OPTIONS_2D.find((o) => o.value === 31);
+  const opt32 = STAGE_OPTIONS_2D.find((o) => o.value === 32);
   assert.ok(opt18 && opt18.label.includes('Stronghold'), 'Stage 18 selector must be The Stronghold');
   assert.ok(opt19 && opt19.label.includes('The End'), 'Stage 19 selector must be The End right after The Stronghold');
-  assert.ok(opt30 && opt30.label.includes('Outside Rocket Corp'), 'Stage 30 selector must be Outside Rocket Corp');
-  assert.ok(opt31 && opt31.label.includes('Rocket Corp HQ'), 'Stage 31 selector must be Rocket Corp HQ right after Outside Rocket Corp');
+  assert.ok(opt31 && opt31.label.includes('Outside Rocket Corp'), 'Stage 31 selector must be Outside Rocket Corp');
+  assert.ok(opt32 && opt32.label.includes('Rocket Corp HQ'), 'Stage 32 selector must be Rocket Corp HQ right after Outside Rocket Corp');
 
   assert.equal(getDepthProfile2D('stronghold').motif, 'stronghold_vault', 'stronghold theme must use stronghold_vault depth motif');
   assert.equal(getDepthProfile2D('rocket_corp_exterior').motif, 'rocket_skyline', 'rocket_corp_exterior theme must use rocket_skyline depth motif');
@@ -1663,9 +1669,9 @@ test('2D Expansion [18] Stage 18 The Stronghold (Before The End) & Stage 30 Outs
   assert.equal(game.player.isDead, true);
   assert.equal(controller.getLastDeathReason(), 'The Second Coming tried to swim in lava');
 
-  // 3. Stage 30: Outside Rocket Corp — perimeter plaza platforms, hover drone, security laser gate, skyscraper background & ground craters
-  controller.jumpToStage(30, { freshStart: true, creative: false });
-  assert.equal(game.stageManager.currentStage, 30);
+  // 3. Stage 31: Outside Rocket Corp — perimeter plaza platforms, hover drone, security laser gate, skyscraper background & ground craters
+  controller.jumpToStage(31, { freshStart: true, creative: false });
+  assert.equal(game.stageManager.currentStage, 31);
   assert.equal(game.stageManager.theme, 'rocket_corp_exterior');
   assert.equal(game.stageManager.stageName, 'Outside Rocket Corp');
   assert.equal(game.stageManager.platforms.length, 3, 'Outside Rocket Corp must have Gatehouse, Overpass, and Armored Van platforms');
@@ -2158,25 +2164,25 @@ test('2D Expansion [23] Tag-Team Ally Combo Synergies & Interactive Stage Toys +
   assert.ok(Math.abs(cart.vx) > 200, 'Minecart must roll forward when kicked');
   assert.ok(bowlingTarget.hp < hpBeforeCart, 'Rolling Minecart must bowl through zombies');
 
-  // 3. Stage 26 YouTube Pause, Stage 28 Spotify Skip, Stage 29 Slides Present
-  controller.jumpToStage(26);
+  // 3. Stage 27 YouTube Pause, Stage 29 Spotify Skip, Stage 30 Slides Present
+  controller.jumpToStage(27);
   const ytPause = mega.stageToys.find((t) => t.kind === 'app_pause_btn');
-  assert.ok(ytPause, 'Stage 26 YouTube must spawn interactive Pause button');
+  assert.ok(ytPause, 'Stage 27 YouTube must spawn interactive Pause button');
   const frozenFoe = controller.spawnCreativeEntity('walker');
   mega.triggerStageToy(ytPause, game.player, [frozenFoe], game.camera, 0);
   assert.equal(mega.videoPauseTimer, 3.5, 'Hitting YouTube Pause must set 3.5s video freeze timer');
   assert.ok(frozenFoe.freezeTimer > 0, 'YouTube Pause must freeze enemies');
 
-  controller.jumpToStage(28);
+  controller.jumpToStage(29);
   const spSkip = mega.stageToys.find((t) => t.kind === 'app_skip_btn');
-  assert.ok(spSkip, 'Stage 28 Spotify must spawn interactive Skip button');
+  assert.ok(spSkip, 'Stage 29 Spotify must spawn interactive Skip button');
   const stunnedFoe = controller.spawnCreativeEntity('brute');
   mega.triggerStageToy(spSkip, game.player, [stunnedFoe], game.camera, 0);
   assert.ok(stunnedFoe.stunTimer > 0, 'Spotify Skip must stun enemies with a bass drop');
 
-  controller.jumpToStage(29);
+  controller.jumpToStage(30);
   const slPresent = mega.stageToys.find((t) => t.kind === 'app_present_btn');
-  assert.ok(slPresent, 'Stage 29 Slides must spawn interactive Present button');
+  assert.ok(slPresent, 'Stage 30 Slides must spawn interactive Present button');
   mega.triggerStageToy(slPresent, game.player, [], game.camera, 0);
   assert.equal(mega.slideWipeX, -960, 'Slides Present button must launch the slide wipe curtain');
 
@@ -2185,9 +2191,9 @@ test('2D Expansion [23] Tag-Team Ally Combo Synergies & Interactive Stage Toys +
   mega.drawStageToys2D(game.ctx, 0.5, 0);
   assert.equal(calls.save, calls.restore, 'drawStageToys2D must balance ctx.save/ctx.restore');
 
-  // 4. Interactive Trophy Room Boss Rematch (Stage 33 -> Stage 10 Dark Lord via KeyE)
+  // 4. Interactive Trophy Room Boss Rematch (Stage 34 -> Stage 10 Dark Lord via KeyE)
   assert.equal(TROPHY_MONUMENT_BOSSES.length, 11);
-  controller.jumpToStage(33);
+  controller.jumpToStage(34);
   assert.equal(game.stageManager.isTrophyRoom, true);
   game.player.x = -685; // Dark Lord monument
   mega.updateStageToys(1 / 60, game.player, [], game.camera, game.stageManager, 0);
@@ -2424,6 +2430,97 @@ test('2D Expansion [25] Stage 23 Ice Caves & Stage 24 Desert Pyramid Interior (2
     'Stage 24 must paint DUNGEON://DESERT_PYRAMID_INTERIOR header'
   );
   assert.ok(!calls.fillText.some((t) => t.includes('🪟 START')), 'Stage 24 Desert Pyramid Interior must suppress Windows taskbar');
+
+  resetGlobalSystems();
+});
+
+test('2D Expansion [26] Stage 26 The Far Lands (X: 12,550,821): Swiss-Cheese Cliff Arena, X+Y Jitter Chunks, Glitch Blocks, Depth Motif & Ground Craters', () => {
+  resetGlobalSystems();
+  const { game, controller, ctx, calls } = create2DGameHarness();
+
+  // 1. Verify campaign placement: Overworld Village (25) -> The Far Lands (26) -> YouTube Studio (27)
+  const opt25 = STAGE_OPTIONS_2D.find((o) => o.value === 25);
+  const opt26 = STAGE_OPTIONS_2D.find((o) => o.value === 26);
+  const opt27 = STAGE_OPTIONS_2D.find((o) => o.value === 27);
+  assert.ok(opt25 && opt25.label.includes('Minecraft Overworld'));
+  assert.ok(opt26 && opt26.label.includes('The Far Lands'), 'Stage 26 must be The Far Lands');
+  assert.ok(opt27 && opt27.label.includes('YouTube Studio'), 'Stage 27 must be YouTube Studio right after The Far Lands');
+
+  // Verify Stage 25 clue points into The Far Lands
+  controller.jumpToStage(25, { freshStart: true, creative: false });
+  assert.match(String(game.stageManager.campaignBeat?.clue || ''), /FAR LANDS/i);
+
+  // Verify Depth-of-Field profile & offscreen plane baking for far_lands_wall motif
+  assert.equal(getDepthProfile2D('far_lands').motif, 'far_lands_wall');
+  let baked = 0;
+  const depth = new Depth2DRenderer({
+    createCanvas: (w, h) => ({
+      width: w,
+      height: h,
+      getContext: () => {
+        baked += 1;
+        return createCanvasMock().ctx;
+      }
+    })
+  });
+  depth.drawBackgroundDepthPlanes(
+    createCanvasMock().ctx,
+    { currentStage: 26, theme: 'far_lands', isTrophyRoom: false, bounds: { minX: -1200, maxX: 1200, minY: -620 } },
+    { x: 0, y: -140 },
+    0,
+    false
+  );
+  assert.equal(baked, 2, 'far_lands must bake both Far and Mid blurred depth planes');
+
+  // 2. Jump to Stage 26: The Far Lands — verify platforms, X & Y moving jitter chunks, wave count & pre-spawned glitch blocks
+  controller.jumpToStage(26, { freshStart: true, creative: false });
+  assert.equal(game.stageManager.currentStage, 26);
+  assert.equal(game.stageManager.theme, 'far_lands');
+  assert.equal(game.stageManager.stageName, 'The Far Lands');
+  assert.match(String(game.stageManager.campaignBeat?.clue || ''), /YOUTUBE/i);
+  assert.equal(game.stageManager.platforms.length, 3);
+  assert.equal(game.stageManager.movingPlatforms.length, 2);
+  assert.equal(game.stageManager.movingPlatforms[0]?.title, 'Jitter_Chunk_Alpha');
+  assert.equal(game.stageManager.movingPlatforms[0]?.axis, 'x');
+  assert.equal(game.stageManager.movingPlatforms[1]?.title, 'Drifting_Strata_Beta');
+  assert.equal(game.stageManager.movingPlatforms[1]?.axis, 'y');
+  assert.equal(waves.zombies.length + waves.spawnQueue.length, 17, 'The Far Lands must queue 17 enemies');
+
+  assert.equal(
+    controller.sandbox.blocks.length,
+    FAR_LANDS_GLITCH_BLOCKS.length,
+    'Stage 26 The Far Lands must pre-spawn its 5 glitch voxel blocks'
+  );
+  assert.ok(controller.sandbox.blocks.some((b) => b.texKey === 'far_lands_stone'), 'Far Lands props must include far_lands_stone');
+  assert.ok(controller.sandbox.blocks.some((b) => b.texKey === 'glitch_bedrock'), 'Far Lands props must include glitch_bedrock');
+  assert.ok(controller.sandbox.blocks.some((b) => b.texKey === 'tnt_block'), 'Far Lands props must include armed-on-hit TNT');
+  assert.ok(controller.sandbox.blocks.some((b) => b.texKey === 'lucky_block'), 'Far Lands props must include a Lucky Block');
+
+  // Creative block placement for far_lands_stone & glitch_bedrock
+  const flBlock = controller.placeCreativeBlock('far_lands_stone');
+  const gbBlock = controller.placeCreativeBlock('glitch_bedrock');
+  assert.equal(flBlock.texKey, 'far_lands_stone');
+  assert.equal(gbBlock.texKey, 'glitch_bedrock');
+
+  // Ground craters balance save/restore on far_lands
+  controller.carveGroundCrater2D(-260, 0);
+  calls.save = 0;
+  calls.restore = 0;
+  drawGroundCraters2D(ctx, controller.sandbox.groundHoles, 0, 'far_lands', 1.2);
+  assert.equal(calls.save, calls.restore, 'drawGroundCraters2D for far_lands must balance save/restore');
+  controller.clearCreativeBlocks();
+
+  // 3. Full 2D Canvas render check + coordinate overflow text + taskbar suppression
+  calls.save = 0;
+  calls.restore = 0;
+  calls.fillText.length = 0;
+  game.update(1 / 60);
+  game.render();
+  assert.equal(calls.save, calls.restore, 'Stage 26 The Far Lands must balance ctx.save and ctx.restore');
+  assert.equal(game.reportedLayerErrors.size, 0, 'Stage 26 The Far Lands must render with zero layer errors');
+  assert.ok(calls.fillText.some((t) => t.includes('BIOME://THE_FAR_LANDS')), 'Stage 26 must paint BIOME://THE_FAR_LANDS header');
+  assert.ok(calls.fillText.some((t) => t.includes('12,550,821')), 'Stage 26 must paint iconic X: 12,550,821 overflow readout');
+  assert.ok(!calls.fillText.some((t) => t.includes('🪟 START')), 'Stage 26 The Far Lands must suppress Windows taskbar');
 
   resetGlobalSystems();
 });

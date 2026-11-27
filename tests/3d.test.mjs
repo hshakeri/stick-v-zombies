@@ -134,12 +134,13 @@ import {
   to3DX,
   to3DY,
   to3DZ
-} from '../3d/js/arena3d.js?v=10.9';
+} from '../3d/js/arena3d.js?v=11.0';
 import {
   extendCampaignFor3D,
   CAMPAIGN_BEATS_3D,
   OVERWORLD_OUTPOST_BLOCKS,
   DESERT_PYRAMID_TRAP_BLOCKS,
+  FAR_LANDS_GLITCH_BLOCKS,
   formatAttackerDeathMessage,
   formatProjectileDeathMessage,
   resolvePlayerDeathCause,
@@ -147,9 +148,9 @@ import {
   MercenaryBoss,
   WardenBoss,
   CreakingBoss
-} from '../3d/js/campaign3d.js?v=10.9';
-import { getVoxelTexture, getThemeFloorTextureKey, drawPixelBlock } from '../3d/js/textures3d.js?v=10.8';
-import { Game3D } from '../3d/js/game3d.js?v=11.8';
+} from '../3d/js/campaign3d.js?v=11.0';
+import { getVoxelTexture, getThemeFloorTextureKey, drawPixelBlock } from '../3d/js/textures3d.js?v=10.9';
+import { Game3D } from '../3d/js/game3d.js?v=11.9';
 import { Player } from '../js/entities/player.js?v=9.8';
 import { allies } from '../js/entities/allies.js?v=9.8';
 import { projectiles } from '../js/entities/projectiles.js?v=9.8';
@@ -157,7 +158,7 @@ import { waves } from '../js/systems/waves.js?v=9.8';
 import {
   OLD_UPDATES_ARCHIVE,
   installPurpleAllySystem
-} from '../3d/js/purple_ally.js?v=11.0';
+} from '../3d/js/purple_ally.js?v=11.1';
 import {
   HerobrineBoss,
   VictimBoss
@@ -167,7 +168,7 @@ import {
   PLAYABLE_CHARACTERS,
   BOSS_WEAPON_CATALOG,
   BOSS_RUSH_ROSTER
-} from '../3d/js/gameplay_features.js?v=11.0';
+} from '../3d/js/gameplay_features.js?v=11.1';
 
 // ----------------------------------------------------------------------------
 // Local Verification Helpers for Resource Disposal Protocol
@@ -1311,7 +1312,7 @@ test('Tier 4 [Scenario 5] Lucky Orb Mystery Encounter: Spinning Cage & Prize Dro
   assert.equal(orbEntity.rollResolved, true, 'prize drop resolves after telegraph completes');
 });
 
-test('Tier 4 [Scenario 6] Full 32-Stage Campaign Routing & 11-Trophy Victory Room', () => {
+test('Tier 4 [Scenario 6] Full 33-Stage Campaign Routing & 11-Trophy Victory Room', () => {
   const stageManager = {
     stages: [],
     customStages: new Map(),
@@ -1329,9 +1330,9 @@ test('Tier 4 [Scenario 6] Full 32-Stage Campaign Routing & 11-Trophy Victory Roo
   };
 
   extendCampaignFor3D(stageManager, waveDirector);
-  assert.equal(stageManager.maxStage, 32, 'extendCampaignFor3D must set maxStage to 32');
+  assert.equal(stageManager.maxStage, 33, 'extendCampaignFor3D must set maxStage to 33');
 
-  // Check 3D custom late-game, Stronghold, Ice Caves, Desert Pyramid Interior, Minecraft Overworld, App Gauntlet & Outside Rocket Corp campaign beats
+  // Check 3D custom late-game, Stronghold, Ice Caves, Desert Pyramid Interior, Minecraft Overworld, The Far Lands, App Gauntlet & Outside Rocket Corp campaign beats
   assert.ok(CAMPAIGN_BEATS_3D[18], 'stage 18 (The Stronghold) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[19], 'stage 19 (The End) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[20], 'stage 20 (The Aether) must exist in CAMPAIGN_BEATS_3D');
@@ -1340,13 +1341,14 @@ test('Tier 4 [Scenario 6] Full 32-Stage Campaign Routing & 11-Trophy Victory Roo
   assert.ok(CAMPAIGN_BEATS_3D[23], 'stage 23 (Ice Caves) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[24], 'stage 24 (Desert Pyramid Interior) must exist in CAMPAIGN_BEATS_3D');
   assert.ok(CAMPAIGN_BEATS_3D[25], 'stage 25 (Minecraft Overworld) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[26], 'stage 26 (YouTube Studio) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[27], 'stage 27 (Google Chrome) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[28], 'stage 28 (Spotify Player) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[29], 'stage 29 (Google Slides) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[30], 'stage 30 (Outside Rocket Corp) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[31], 'stage 31 (Rocket Corp HQ) must exist in CAMPAIGN_BEATS_3D');
-  assert.ok(CAMPAIGN_BEATS_3D[32], 'stage 32 (Zero-Day Mainframe) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[26], 'stage 26 (The Far Lands) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[27], 'stage 27 (YouTube Studio) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[28], 'stage 28 (Google Chrome) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[29], 'stage 29 (Spotify Player) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[30], 'stage 30 (Google Slides) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[31], 'stage 31 (Outside Rocket Corp) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[32], 'stage 32 (Rocket Corp HQ) must exist in CAMPAIGN_BEATS_3D');
+  assert.ok(CAMPAIGN_BEATS_3D[33], 'stage 33 (Zero-Day Mainframe) must exist in CAMPAIGN_BEATS_3D');
 
   assert.equal(CAMPAIGN_BEATS_3D[18].mission, 'LIGHT THE STRONGHOLD END PORTAL');
   assert.equal(CAMPAIGN_BEATS_3D[19].bossLabel, 'ENDER DRAGON');
@@ -1359,13 +1361,14 @@ test('Tier 4 [Scenario 6] Full 32-Stage Campaign Routing & 11-Trophy Victory Roo
   assert.equal(CAMPAIGN_BEATS_3D[23].mission, 'SURVIVE THE FROZEN ICE CAVES');
   assert.equal(CAMPAIGN_BEATS_3D[24].mission, 'RAID THE DESERT PYRAMID INTERIOR');
   assert.equal(CAMPAIGN_BEATS_3D[25].mission, 'DEFEND THE OVERWORLD VILLAGE');
-  assert.equal(CAMPAIGN_BEATS_3D[26].mission, 'SURVIVE THE VIRAL STREAM');
-  assert.equal(CAMPAIGN_BEATS_3D[27].mission, 'CLEAR THE BROWSER TABS');
-  assert.equal(CAMPAIGN_BEATS_3D[28].mission, 'RIDE THE BASS DROP');
-  assert.equal(CAMPAIGN_BEATS_3D[29].mission, 'CRASH THE PRESENTATION');
-  assert.equal(CAMPAIGN_BEATS_3D[30].mission, 'BREACH THE ROCKET CORP GATES');
-  assert.equal(CAMPAIGN_BEATS_3D[31].bossLabel, 'AGENT · BALLISTA · PRIMAL · HAZARD');
-  assert.equal(CAMPAIGN_BEATS_3D[32].bossLabel, 'H4C3R');
+  assert.equal(CAMPAIGN_BEATS_3D[26].mission, 'BREACH THE GLITCHED FAR LANDS');
+  assert.equal(CAMPAIGN_BEATS_3D[27].mission, 'SURVIVE THE VIRAL STREAM');
+  assert.equal(CAMPAIGN_BEATS_3D[28].mission, 'CLEAR THE BROWSER TABS');
+  assert.equal(CAMPAIGN_BEATS_3D[29].mission, 'RIDE THE BASS DROP');
+  assert.equal(CAMPAIGN_BEATS_3D[30].mission, 'CRASH THE PRESENTATION');
+  assert.equal(CAMPAIGN_BEATS_3D[31].mission, 'BREACH THE ROCKET CORP GATES');
+  assert.equal(CAMPAIGN_BEATS_3D[32].bossLabel, 'AGENT · BALLISTA · PRIMAL · HAZARD');
+  assert.equal(CAMPAIGN_BEATS_3D[33].bossLabel, 'H4C3R');
 
   // 11-Trophy victory room roster
   stageManager.enterTrophyRoom();
@@ -4715,9 +4718,9 @@ test('Ancient City [5] Creative Sandbox & Title Quick-Jump UI: 3d/index.html exp
   assert.ok(html.includes('value="sculk"'), '3d/index.html must include sculk in Creative block select');
   assert.ok(html.includes('value="deepslate_tiles"'), '3d/index.html must include deepslate_tiles in Creative block select');
   assert.ok(html.includes('data-jump-stage="21">🔊 21: Ancient City (The Warden)'), 'Title screen must include Stage 21 Ancient City quick-jump pill');
-  assert.ok(html.includes('data-jump-stage="30">🏢 30: Outside Rocket Corp'), 'Outside Rocket Corp pill must be Stage 30 right before Stage 31 Rocket Corp');
-  assert.ok(html.includes('data-jump-stage="31">🕶️ 31: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must be Stage 31 right before Stage 32 H4C3R');
-  assert.ok(html.includes('data-jump-stage="32">⌁ 32: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 32');
+  assert.ok(html.includes('data-jump-stage="31">🏢 31: Outside Rocket Corp'), 'Outside Rocket Corp pill must be Stage 31 right before Stage 32 Rocket Corp');
+  assert.ok(html.includes('data-jump-stage="32">🕶️ 32: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must be Stage 32 right before Stage 33 H4C3R');
+  assert.ok(html.includes('data-jump-stage="33">⌁ 33: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 33');
 });
 
 // ============================================================================
@@ -4790,7 +4793,7 @@ test('Pale Garden [2] Stage 22 Arena3DBuilder: builds Center Ancient Pale Oak & 
   assert.ok(arena.paleGardenHeartShrine.heartMat.emissiveIntensity >= 0.4, 'Creaking Heart emissive must pulse');
   assert.notEqual(arena.paleGardenHeartShrine.resinRing.rotation.z, prevRingRot, 'Resin ring around Creaking Heart must rotate');
 
-  // Verify clean rebuild transition to Stage 23 (Ice Caves), Stage 24 (Desert Pyramid Interior), Stage 25 (Minecraft Overworld), Stage 26 (YouTube Studio), Stage 30 (Outside Rocket Corp), and Stage 31 (Rocket Corp HQ)
+  // Verify clean rebuild transition to Stage 23 (Ice Caves), Stage 24 (Desert Pyramid Interior), Stage 25 (Minecraft Overworld), Stage 26 (The Far Lands), Stage 27 (YouTube Studio), Stage 31 (Outside Rocket Corp), and Stage 32 (Rocket Corp HQ)
   stageManager.loadStage(23);
   assert.equal(stageManager.stageName, 'Ice Caves');
   arena.rebuildForStage();
@@ -4800,10 +4803,12 @@ test('Pale Garden [2] Stage 22 Arena3DBuilder: builds Center Ancient Pale Oak & 
   stageManager.loadStage(25);
   assert.equal(stageManager.stageName, 'Minecraft Overworld');
   stageManager.loadStage(26);
+  assert.equal(stageManager.stageName, 'The Far Lands');
+  stageManager.loadStage(27);
   assert.equal(stageManager.stageName, 'YouTube Studio');
-  stageManager.loadStage(30);
-  assert.equal(stageManager.stageName, 'Outside Rocket Corp');
   stageManager.loadStage(31);
+  assert.equal(stageManager.stageName, 'Outside Rocket Corp');
+  stageManager.loadStage(32);
   assert.equal(stageManager.stageName, 'Rocket Corp HQ');
 });
 
@@ -4941,8 +4946,8 @@ test('Pale Garden [5] Creative Sandbox, Title Quick-Jump UI & Speech Aliases: 3d
   assert.ok(html.includes('value="pale_oak_log"'), '3d/index.html must include pale_oak_log in Creative block select');
   assert.ok(html.includes('value="creaking_heart"'), '3d/index.html must include creaking_heart in Creative block select');
   assert.ok(html.includes('data-jump-stage="22">🪵 22: Pale Garden (The Creaking)'), 'Title screen must include Stage 22 Pale Garden quick-jump pill');
-  assert.ok(html.includes('data-jump-stage="31">🕶️ 31: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must remain immediately before Zero-Day H4C3R');
-  assert.ok(html.includes('data-jump-stage="32">⌁ 32: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 32');
+  assert.ok(html.includes('data-jump-stage="32">🕶️ 32: Rocket Corp (Mercenaries)'), 'Rocket Corp pill must remain immediately before Zero-Day H4C3R');
+  assert.ok(html.includes('data-jump-stage="33">⌁ 33: Zero-Day (H4C3R)'), 'Zero-Day H4C3R pill must be Stage 33');
 
   if (speech3dModule) {
     assert.ok(speech3dModule.SPEAKER_BADGES.creaking_boss, 'SPEAKER_BADGES must define creaking_boss');
@@ -5024,7 +5029,7 @@ test('AvA 8 Showdown Lake [1] Stage 10 Arena3DBuilder & Title Pill: builds Outer
   );
 });
 
-test('Voxel Block Parity [1] All 25 Creative Placed Blocks Render Distinct 16x16 Pixel-Art Textures', () => {
+test('Voxel Block Parity [1] All 27 Creative Placed Blocks Render Distinct 16x16 Pixel-Art Textures', () => {
   const creativeBlockKeys = [
     'command_block',
     'obsidian',
@@ -5037,6 +5042,8 @@ test('Voxel Block Parity [1] All 25 Creative Placed Blocks Render Distinct 16x16
     'sandstone',
     'chiseled_sandstone',
     'terracotta_orange',
+    'far_lands_stone',
+    'glitch_bedrock',
     'oak_planks',
     'crafting_table',
     'tnt_block',
@@ -5090,7 +5097,7 @@ test('Voxel Block Parity [1] All 25 Creative Placed Blocks Render Distinct 16x16
     }
     signatures.set(key, sig);
   }
-  assert.equal(signatures.size, 25);
+  assert.equal(signatures.size, 27);
 });
 
 // ============================================================================
@@ -5170,9 +5177,9 @@ test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop An
   extendCampaignFor3D(stageManager, waveDirector);
   const arena = new Arena3DBuilder(scene, stageManager);
 
-  // 1. Stage 26: YouTube Studio
-  stageManager.loadStage(26);
-  waveDirector.generateWaveQueue(26);
+  // 1. Stage 27: YouTube Studio
+  stageManager.loadStage(27);
+  waveDirector.generateWaveQueue(27);
   assert.equal(stageManager.stageName, 'YouTube Studio');
   assert.equal(stageManager.theme, 'youtube');
   assert.equal(stageManager.laserHazards.length, 1, 'YouTube Studio must spawn 1 red skip-ad/buffering laser');
@@ -5183,9 +5190,9 @@ test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop An
   arena.update(0.2);
   assert.notEqual(arena.youtubePlayMonument.playPrism.scale.x, 1, 'YouTube Play Button prism must pulse during update');
 
-  // 2. Stage 27: Google Chrome
-  stageManager.loadStage(27);
-  waveDirector.generateWaveQueue(27);
+  // 2. Stage 28: Google Chrome
+  stageManager.loadStage(28);
+  waveDirector.generateWaveQueue(28);
   assert.equal(stageManager.stageName, 'Google Chrome');
   assert.equal(stageManager.theme, 'chrome');
   assert.equal(stageManager.platforms.length, 4, 'Chrome must feature 4 Google-colored tab platforms');
@@ -5198,9 +5205,9 @@ test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop An
   arena.update(0.25);
   assert.notEqual(arena.chromeLogoGroup.rotation.z, prevChromeRot, 'Chrome 4-color ring must spin during update');
 
-  // 3. Stage 28: Spotify Player
-  stageManager.loadStage(28);
-  waveDirector.generateWaveQueue(28);
+  // 3. Stage 29: Spotify Player
+  stageManager.loadStage(29);
+  waveDirector.generateWaveQueue(29);
   assert.equal(stageManager.stageName, 'Spotify Player');
   assert.equal(stageManager.theme, 'spotify');
   assert.equal(stageManager.movingPlatforms.length, 2, 'Spotify must feature 2 vertical equalizer lifts');
@@ -5216,9 +5223,9 @@ test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop An
   assert.notEqual(arena.spotifyVinylDisc.rotation.y, prevVinylRot, 'Spotify vinyl turntable must spin during update');
   assert.ok(arena.spotifyEqualizerBars[0].barMesh.scale.y > 1.0, 'Spotify 3D equalizer bars must bounce dynamically');
 
-  // 4. Stage 29: Google Slides
-  stageManager.loadStage(29);
-  waveDirector.generateWaveQueue(29);
+  // 4. Stage 30: Google Slides
+  stageManager.loadStage(30);
+  waveDirector.generateWaveQueue(30);
   assert.equal(stageManager.stageName, 'Google Slides');
   assert.equal(stageManager.theme, 'slides');
   assert.equal(stageManager.platforms.length, 4, 'Slides must feature 4 presentation slide platforms');
@@ -5234,32 +5241,33 @@ test('App Gauntlet [2] 3D Arenas, Monitor Backdrops, Wave Recipes & Live Prop An
   verifyDisposeHierarchy(arena.group, true);
 });
 
-test('App Gauntlet [3] 3D HTML Quick-Jump Pills & Game3D Integration: 3d/index.html & game3d.js expose Stages 18–32 + Trophy 33 + Ice/Pyramid/Stronghold/Overworld Blocks + Death Banner', () => {
+test('App Gauntlet [3] 3D HTML Quick-Jump Pills & Game3D Integration: 3d/index.html & game3d.js expose Stages 18–33 + Trophy 34 + Far Lands/Ice/Pyramid/Stronghold/Overworld Blocks + Death Banner', () => {
   const htmlPath = fileURLToPath(new URL('../3d/index.html', import.meta.url));
   const html = readFileSync(htmlPath, 'utf8');
-  assert.ok(html.includes('32 Stages'), '3d/index.html tagline must announce 32 Stages');
+  assert.ok(html.includes('33 Stages'), '3d/index.html tagline must announce 33 Stages');
   assert.ok(html.includes('data-jump-stage="18">🏰 18: Stronghold'), '3d/index.html must include Stage 18 Stronghold pill');
   assert.ok(html.includes('data-jump-stage="19">🐉 19: The End (Ender Dragon)'), '3d/index.html must include Stage 19 The End pill');
   assert.ok(html.includes('data-jump-stage="23">🧊 23: Ice Caves'), '3d/index.html must include Stage 23 Ice Caves pill');
   assert.ok(html.includes('data-jump-stage="24">🏜️ 24: Desert Pyramid'), '3d/index.html must include Stage 24 Desert Pyramid pill');
   assert.ok(html.includes('data-jump-stage="25">⛏️ 25: Overworld'), '3d/index.html must include Stage 25 Overworld pill');
-  assert.ok(html.includes('data-jump-stage="26">▶️ 26: YouTube'), '3d/index.html must include Stage 26 YouTube pill');
-  assert.ok(html.includes('data-jump-stage="27">🌐 27: Chrome'), '3d/index.html must include Stage 27 Chrome pill');
-  assert.ok(html.includes('data-jump-stage="28">🎧 28: Spotify'), '3d/index.html must include Stage 28 Spotify pill');
-  assert.ok(html.includes('data-jump-stage="29">📊 29: Slides'), '3d/index.html must include Stage 29 Slides pill');
-  assert.ok(html.includes('data-jump-stage="30">🏢 30: Outside Rocket Corp'), '3d/index.html must include Stage 30 Outside Rocket Corp pill');
-  assert.ok(html.includes('data-jump-stage="31">🕶️ 31: Rocket Corp (Mercenaries)'), '3d/index.html must include Stage 31 Rocket Corp pill');
-  assert.ok(html.includes('data-jump-stage="32">⌁ 32: Zero-Day (H4C3R)'), '3d/index.html must include Stage 32 Zero-Day pill');
-  assert.ok(html.includes('src="js/game3d.js?v=11.8"'), '3d/index.html must load game3d.js?v=11.8');
+  assert.ok(html.includes('data-jump-stage="26">🌀 26: Far Lands'), '3d/index.html must include Stage 26 Far Lands pill');
+  assert.ok(html.includes('data-jump-stage="27">▶️ 27: YouTube'), '3d/index.html must include Stage 27 YouTube pill');
+  assert.ok(html.includes('data-jump-stage="28">🌐 28: Chrome'), '3d/index.html must include Stage 28 Chrome pill');
+  assert.ok(html.includes('data-jump-stage="29">🎧 29: Spotify'), '3d/index.html must include Stage 29 Spotify pill');
+  assert.ok(html.includes('data-jump-stage="30">📊 30: Slides'), '3d/index.html must include Stage 30 Slides pill');
+  assert.ok(html.includes('data-jump-stage="31">🏢 31: Outside Rocket Corp'), '3d/index.html must include Stage 31 Outside Rocket Corp pill');
+  assert.ok(html.includes('data-jump-stage="32">🕶️ 32: Rocket Corp (Mercenaries)'), '3d/index.html must include Stage 32 Rocket Corp pill');
+  assert.ok(html.includes('data-jump-stage="33">⌁ 33: Zero-Day (H4C3R)'), '3d/index.html must include Stage 33 Zero-Day pill');
+  assert.ok(html.includes('src="js/game3d.js?v=11.9"'), '3d/index.html must load game3d.js?v=11.9');
   assert.ok(html.includes('id="gameover-death-reason"'), '3d/index.html must include #gameover-death-reason banner');
   assert.ok(html.includes('id="gameover-death-text"'), '3d/index.html must include #gameover-death-text span');
-  for (const key of ['grass_block', 'cobblestone', 'stone_bricks', 'packed_ice', 'blue_ice', 'sandstone', 'chiseled_sandstone', 'terracotta_orange', 'oak_planks', 'crafting_table']) {
+  for (const key of ['grass_block', 'cobblestone', 'stone_bricks', 'packed_ice', 'blue_ice', 'sandstone', 'chiseled_sandstone', 'terracotta_orange', 'far_lands_stone', 'glitch_bedrock', 'oak_planks', 'crafting_table']) {
     assert.ok(html.includes(`<option value="${key}">`), `3d/index.html Creative palette must include ${key}`);
   }
 
   const game3dSrc = readFileSync(fileURLToPath(new URL('../3d/js/game3d.js', import.meta.url)), 'utf8');
-  assert.match(game3dSrc, /33: 🏆 Trophy Room Epilogue/, 'game3d.js must expose Option 33 Trophy Room Epilogue');
-  assert.match(game3dSrc, /stage === 29/, 'game3d.js must spawn the Giant Pink Eraser pickup on Stage 29 Google Slides');
+  assert.match(game3dSrc, /34: 🏆 Trophy Room Epilogue/, 'game3d.js must expose Option 34 Trophy Room Epilogue');
+  assert.match(game3dSrc, /stage === 30/, 'game3d.js must spawn the Giant Pink Eraser pickup on Stage 30 Google Slides');
   assert.match(game3dSrc, /stage === 25/, 'game3d.js must spawn the Block Staff pickup on Stage 25 Minecraft Overworld');
 });
 
@@ -5757,7 +5765,7 @@ test('TNT Ground Crater Destruction 3D [4]: Ground TNT slices genuine 3D open ch
   }
 });
 
-test('Stronghold & Outside Rocket Corp 3D [5]: Stage 18 Stronghold End Portal Sanctum & Stage 30 Outside Rocket Corp Skyscraper Plaza build, animate, attribute hazards, and dispose cleanly', () => {
+test('Stronghold & Outside Rocket Corp 3D [5]: Stage 18 Stronghold End Portal Sanctum & Stage 31 Outside Rocket Corp Skyscraper Plaza build, animate, attribute hazards, and dispose cleanly', () => {
   assert.equal(getThemeFloorTextureKey('stronghold'), 'stone_bricks', 'Stronghold floor must use stone_bricks 16x16 voxel texture');
   assert.equal(getThemeFloorTextureKey('rocket_corp_exterior'), 'rocket_plaza_asphalt', 'Outside Rocket Corp floor must use rocket_plaza_asphalt texture');
   for (const texKey of ['stone_bricks', 'end_portal_frame', 'rocket_plaza_asphalt']) {
@@ -5807,7 +5815,7 @@ test('Stronghold & Outside Rocket Corp 3D [5]: Stage 18 Stronghold End Portal Sa
   };
 
   extendCampaignFor3D(stageManager, waveDirector);
-  assert.equal(stageManager.maxStage, 32);
+  assert.equal(stageManager.maxStage, 33);
 
   const arena = new Arena3DBuilder(scene, stageManager);
 
@@ -5835,12 +5843,12 @@ test('Stronghold & Outside Rocket Corp 3D [5]: Stage 18 Stronghold End Portal Sa
   assert.notEqual(arena.strongholdEndPortal.eyeMat.emissiveIntensity, prevEyeEmissive, 'Socketed Eyes of Ender must pulse during update');
   assert.notEqual(arena.strongholdEndPortal.riftMat.opacity, prevRiftOpacity, 'Starry End Portal rift must shimmer during update');
 
-  // 2. Stage 30: Outside Rocket Corp (Before Stage 31: Rocket Corp HQ)
-  stageManager.loadStage(30);
-  waveDirector.generateWaveQueue(30);
+  // 2. Stage 31: Outside Rocket Corp (Before Stage 32: Rocket Corp HQ)
+  stageManager.loadStage(31);
+  waveDirector.generateWaveQueue(31);
   assert.equal(stageManager.stageName, 'Outside Rocket Corp');
   assert.equal(stageManager.theme, 'rocket_corp_exterior');
-  assert.equal(queuedTotal, 18, 'Stage 30 Outside Rocket Corp wave recipe must queue 18 enemies');
+  assert.equal(queuedTotal, 18, 'Stage 31 Outside Rocket Corp wave recipe must queue 18 enemies');
   assert.equal(stageManager.platforms.length, 3, 'Outside Rocket Corp must feature Security Gatehouse, Plaza Overpass, and Transport Bay');
   assert.equal(stageManager.movingPlatforms.length, 1, 'Outside Rocket Corp must feature Patrol_Hover_Drone moving platform');
   assert.equal(stageManager.laserHazards.length, 1, 'Outside Rocket Corp must feature 1 perimeter security laser gate');
@@ -6016,6 +6024,126 @@ test('Ice Caves & Desert Pyramid Interior 3D [6]: Stage 23 Ice Caves & Stage 24 
   arena.rebuildForStage();
   assert.equal(arena.desertPyramidSunbeams.length, 0, 'Desert Pyramid sunbeam refs must clear on rebuild');
   assert.equal(arena.desertPyramidFlames.length, 0, 'Desert Pyramid flame refs must clear on rebuild');
+
+  verifyDisposeHierarchy(arena.group, true);
+});
+
+test('The Far Lands 3D [7]: Stage 26 The Far Lands (X: 12,550,821) builds Swiss-Cheese Monolith Wall, Cascades, Jittering Chunks, Overflow Beacon, Glitch Blocks & disposes cleanly', () => {
+  // 1. Verify Far Lands 16x16 voxel textures & theme floor key
+  assert.equal(getThemeFloorTextureKey('far_lands'), 'far_lands_stone', 'Far Lands floor must use far_lands_stone texture');
+  const flTexKeys = ['far_lands_stone', 'glitch_bedrock'];
+  const sigs = new Set();
+  for (const texKey of flTexKeys) {
+    const tex = getVoxelTexture(texKey);
+    assert.ok(tex && tex.image, `getVoxelTexture('${texKey}') must return a valid CanvasTexture`);
+    assert.equal(tex.magFilter, THREE.NearestFilter, `${texKey} texture must use crisp NearestFilter`);
+    const ops = [];
+    const mockCtx = {
+      fillStyle: '#000',
+      fillRect(x, y, w, h) {
+        ops.push(`${this.fillStyle}@${x},${y},${w},${h}`);
+      }
+    };
+    drawPixelBlock(mockCtx, texKey);
+    const sig = ops.join('|');
+    assert.ok(!sigs.has(sig), `${texKey} must produce a visually unique 16x16 pixel texture`);
+    sigs.add(sig);
+  }
+  assert.equal(sigs.size, 2);
+
+  const scene = new THREE.Scene();
+  const stageManager = {
+    currentStage: 1,
+    maxStage: 33,
+    stageName: 'Main Desktop',
+    theme: 'desktop',
+    stageTime: 0,
+    isObjectiveComplete: false,
+    isWhiteVoid: false,
+    isTrophyRoom: false,
+    platforms: [],
+    movingPlatforms: [],
+    laserHazards: [],
+    lavaHazards: [],
+    errorPopups: [],
+    desktopIcons: [],
+    entranceDoor: { x: -930, y: 0 },
+    exitDoor: { x: 890, y: 0, isOpen: false },
+    loadStage: () => {},
+    enterTrophyRoom: () => {},
+    update: () => {},
+    getAllSolidPlatforms: function () {
+      return [...this.platforms, ...this.movingPlatforms];
+    }
+  };
+  let queuedTotal = 0;
+  const waveDirector = {
+    spawnQueue: [],
+    zombies: [],
+    bossZombie: null,
+    usesAuthoredRecipe: false,
+    generateWaveQueue: () => {},
+    queueWaveRecipe: (r) => {
+      queuedTotal = r.total;
+    },
+    spawnZombie: () => {},
+    update: () => {},
+    getSafeSpawnX: () => 520
+  };
+
+  extendCampaignFor3D(stageManager, waveDirector);
+  const arena = new Arena3DBuilder(scene, stageManager);
+
+  // 2. Load Stage 26: The Far Lands (immediately after Stage 25 Overworld Village)
+  stageManager.loadStage(26);
+  waveDirector.generateWaveQueue(26);
+  assert.equal(stageManager.stageName, 'The Far Lands');
+  assert.equal(stageManager.theme, 'far_lands');
+  assert.equal(queuedTotal, 17, 'Stage 26 The Far Lands wave recipe must queue 17 enemies');
+  assert.equal(stageManager.platforms.length, 3);
+  assert.equal(stageManager.movingPlatforms.length, 2);
+  assert.equal(stageManager.movingPlatforms[0].title, 'Jitter_Chunk_Alpha');
+  assert.equal(stageManager.movingPlatforms[0].axis, 'x');
+  assert.equal(stageManager.movingPlatforms[1].title, 'Drifting_Strata_Beta');
+  assert.equal(stageManager.movingPlatforms[1].axis, 'y');
+  assert.equal(FAR_LANDS_GLITCH_BLOCKS.length, 5, 'FAR_LANDS_GLITCH_BLOCKS must define 5 glitch voxel blocks');
+  assert.ok(FAR_LANDS_GLITCH_BLOCKS.some((b) => b.texKey === 'tnt_block' && b.armedOnHit), 'Far Lands must include hit-ignitable TNT');
+  assert.ok(FAR_LANDS_GLITCH_BLOCKS.some((b) => b.texKey === 'lucky_block'), 'Far Lands must include a Lucky Block');
+
+  // 3. Build 3D arena & verify landmarks + live animations
+  arena.rebuildForStage();
+  assert.equal(arena.standNeck.visible, false, 'Far Lands biome must hide desktop monitor stand neck');
+  assert.ok(arena.group.getObjectByName('farLandsMonolithWall'), 'Far Lands 3D arena must build Swiss-cheese monolith wall');
+  assert.ok(arena.group.getObjectByName('farLandsCascades'), 'Far Lands 3D arena must build water & lava cascades');
+  assert.ok(arena.group.getObjectByName('farLandsCoordBeacon'), 'Far Lands 3D arena must build X: 12,550,821 overflow beacon');
+  assert.equal(arena.farLandsJitterChunks.length, 12, 'Far Lands 3D arena must build 12 floating jittering chunk slices');
+  assert.ok(arena.farLandsCascades.length >= 2, 'Far Lands 3D arena must animate water & lava cascades');
+  assert.ok(arena.farLandsBeacon?.glitchRing, 'Far Lands beacon must include rotating glitch ring');
+
+  const prevChunkX = arena.farLandsJitterChunks[0].mesh.position.x;
+  const prevRingZ = arena.farLandsBeacon.glitchRing.rotation.z;
+  stageManager.stageTime = 0.85;
+  arena.update(0.25);
+  assert.notEqual(arena.farLandsJitterChunks[0].mesh.position.x, prevChunkX, 'Far Lands floating chunks must jitter during update');
+  assert.notEqual(arena.farLandsBeacon.glitchRing.rotation.z, prevRingZ, 'Far Lands overflow beacon ring must rotate during update');
+
+  // 4. Verify Game3D spawns FAR_LANDS_GLITCH_BLOCKS in far_lands theme
+  const { game } = createHeadlessGame3DHarness('far_lands');
+  game.spawnStageVoxelProps3D();
+  assert.equal(game.creativeBlocks.length, FAR_LANDS_GLITCH_BLOCKS.length, 'Game3D must spawn 5 Far Lands glitch voxel blocks');
+  assert.ok(game.creativeBlocks.some((b) => b.texKey === 'far_lands_stone'), 'Far Lands props must include far_lands_stone');
+  assert.ok(game.creativeBlocks.some((b) => b.texKey === 'glitch_bedrock'), 'Far Lands props must include glitch_bedrock');
+  assert.ok(game.creativeBlocks.some((b) => b.texKey === 'tnt_block' && b.fuseTimer === null), 'Far Lands TNT must wait unlit until struck');
+  verifyDisposeHierarchy(game.dynamicGroup, false);
+
+  // 5. Transition to Stage 27 (YouTube Studio) clears Far Lands refs cleanly
+  stageManager.loadStage(27);
+  assert.equal(stageManager.stageName, 'YouTube Studio');
+  assert.equal(stageManager.theme, 'youtube');
+  arena.rebuildForStage();
+  assert.equal(arena.farLandsJitterChunks.length, 0, 'Far Lands jitter chunks must clear on rebuild');
+  assert.equal(arena.farLandsCascades.length, 0, 'Far Lands cascades must clear on rebuild');
+  assert.equal(arena.farLandsBeacon, null, 'Far Lands beacon ref must clear on rebuild');
 
   verifyDisposeHierarchy(arena.group, true);
 });

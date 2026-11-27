@@ -1,14 +1,14 @@
 // ============================================================================
 // Stick vs Zombies — 2D Full Campaign, Creative Sandbox, Physics & Speech
 // Expansion Module (2d/expansion2d.js)
-//   - 32-Stage Campaign + 11-Boss Trophy Room (Stages 18–32: Stronghold,
+//   - 33-Stage Campaign + 11-Boss Trophy Room (Stages 18–33: Stronghold,
 //     The End, Aether, Ancient City + Warden, Pale Garden + Creaking,
-//     Ice Caves, Desert Pyramid Interior, Minecraft Overworld, YouTube Studio,
-//     Google Chrome, Spotify Player, Google Slides, Outside Rocket Corp,
-//     Rocket Corp HQ + Mercenaries, Zero-Day + H4C3R)
+//     Ice Caves, Desert Pyramid Interior, Minecraft Overworld, The Far Lands,
+//     YouTube Studio, Google Chrome, Spotify Player, Google Slides,
+//     Outside Rocket Corp, Rocket Corp HQ + Mercenaries, Zero-Day + H4C3R)
 //   - Prominent Level Selector (Title Screen, Top HUD & Pause Menu)
 //   - Full 2D Creative Sandbox Mode (God Mode, 2D Flight, Freeze AI, 8 Weapons,
-//     25 Voxel Blocks w/ Destructible TNT Blasting, Boss & Zombie Spawner)
+//     27 Voxel Blocks w/ Destructible TNT Blasting, Boss & Zombie Spawner)
 //   - Full Death-Cause Attribution Banner (Game Over Modal + On-Canvas Callout)
 //   - Swept Vertical Platform Contact, Floating Island Void Plunge & Lava Burn
 //   - Expressive 2D Comic Speech Bubbles & Team/Boss Banter (Zero Three.js!)
@@ -32,11 +32,12 @@ import {
   CAMPAIGN_BEATS_3D,
   OVERWORLD_OUTPOST_BLOCKS,
   DESERT_PYRAMID_TRAP_BLOCKS,
+  FAR_LANDS_GLITCH_BLOCKS,
   formatAttackerDeathMessage,
   formatProjectileDeathMessage,
   resolvePlayerDeathCause,
   extendCampaignFor3D
-} from '../3d/js/campaign3d.js?v=10.9';
+} from '../3d/js/campaign3d.js?v=11.0';
 import {
   ISLAND_FLOOR_BOUNDS,
   VOID_FALL_THRESHOLD,
@@ -60,7 +61,7 @@ import {
   installPurpleAllySystem,
   installOldUpdatesMenu,
   isKingOrangeWithPlayer
-} from '../3d/js/purple_ally.js?v=11.0';
+} from '../3d/js/purple_ally.js?v=11.1';
 import {
   BOSS_WEAPON_CATALOG,
   PLAYABLE_CHARACTERS,
@@ -73,7 +74,7 @@ import {
   installSecretBossesOnWaves,
   MegaFeaturesController,
   mountMegaFeaturesUI
-} from '../3d/js/gameplay_features.js?v=11.0';
+} from '../3d/js/gameplay_features.js?v=11.1';
 
 import {
   CREATIVE_BLOCK_TYPES_2D,
@@ -87,9 +88,9 @@ import {
   drawBossFloorTelegraphs2D,
   drawCustomStagePlatforms2D,
   drawGroundCraters2D
-} from './arenas2d.js?v=10.7';
-import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=10.4';
-import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=10.7';
+} from './arenas2d.js?v=10.8';
+import { install2DBossAndWeaponRenderers } from './bosses2d.js?v=10.5';
+import { depth2d, DEPTH_PARALLAX } from './depth2d.js?v=10.8';
 
 export const STAGE_OPTIONS_2D = Object.freeze([
   { value: 1, label: '1: Main Desktop' },
@@ -117,17 +118,18 @@ export const STAGE_OPTIONS_2D = Object.freeze([
   { value: 23, label: '23: 🧊 Ice Caves — Frozen Cavern' },
   { value: 24, label: '24: 🏜️ Desert Pyramid Interior — Temple Vault' },
   { value: 25, label: '25: ⛏️ Minecraft Overworld' },
-  { value: 26, label: '26: ▶️ YouTube Studio' },
-  { value: 27, label: '27: 🌐 Google Chrome' },
-  { value: 28, label: '28: 🎧 Spotify Player' },
-  { value: 29, label: '29: 📊 Google Slides' },
-  { value: 30, label: '30: 🏢 Outside Rocket Corp' },
-  { value: 31, label: '31: 🕶️ Rocket Corp HQ — The Mercenaries' },
-  { value: 32, label: '32: ⌁ Zero-Day Mainframe — H4C3R' },
-  { value: 33, label: '33: 🏆 Trophy Room Epilogue (11 Bosses)' }
+  { value: 26, label: '26: 🌀 The Far Lands — X: 12,550,821' },
+  { value: 27, label: '27: ▶️ YouTube Studio' },
+  { value: 28, label: '28: 🌐 Google Chrome' },
+  { value: 29, label: '29: 🎧 Spotify Player' },
+  { value: 30, label: '30: 📊 Google Slides' },
+  { value: 31, label: '31: 🏢 Outside Rocket Corp' },
+  { value: 32, label: '32: 🕶️ Rocket Corp HQ — The Mercenaries' },
+  { value: 33, label: '33: ⌁ Zero-Day Mainframe — H4C3R' },
+  { value: 34, label: '34: 🏆 Trophy Room Epilogue (11 Bosses)' }
 ]);
 
-const BOSS_STAGES_2D = new Set([5, 10, 11, 15, 16, 17, 19, 21, 22, 31, 32]);
+const BOSS_STAGES_2D = new Set([5, 10, 11, 15, 16, 17, 19, 21, 22, 32, 33]);
 
 const EXPANDED_LESSONS_2D = Object.freeze({
   1: 'MOVE · JUMP · Q COMBO · ROLL',
@@ -151,13 +153,14 @@ const EXPANDED_LESSONS_2D = Object.freeze({
   23: 'WATCH FROST SPIKES · RIDE DRIFTING ICE FLOE!',
   24: 'MIND THE PYRAMID TNT TRAP · BLAST SANDSTONE BLOCKS!',
   25: 'DEFEND VILLAGE · PUNCH TNT TO BLAST BLOCKS!',
-  26: 'RIDE TIMELINE SCRUBBER · LEAP RED BUFFER BEAM',
-  27: 'HOP BROWSER TABS · CLEAR THE OMNIBOX',
-  28: 'RIDE VERTICAL EQUALIZER LIFTS · DROP THE BASS',
-  29: 'GRAB GIANT PINK ERASER · CRASH THE SLIDE DECK',
-  30: 'LEAP SECURITY LASER · BREACH ROCKET PLAZA',
-  31: '4 MERCENARIES · DIVIDE AND CONQUER',
-  32: 'FINAL ROOT PATCH · UNLEASH R AWAKENING!'
+  26: 'X: 12,550,821 · RIDE JITTER CHUNKS & BLAST GLITCH BLOCKS!',
+  27: 'RIDE TIMELINE SCRUBBER · LEAP RED BUFFER BEAM',
+  28: 'HOP BROWSER TABS · CLEAR THE OMNIBOX',
+  29: 'RIDE VERTICAL EQUALIZER LIFTS · DROP THE BASS',
+  30: 'GRAB GIANT PINK ERASER · CRASH THE SLIDE DECK',
+  31: 'LEAP SECURITY LASER · BREACH ROCKET PLAZA',
+  32: '4 MERCENARIES · DIVIDE AND CONQUER',
+  33: 'FINAL ROOT PATCH · UNLEASH R AWAKENING!'
 });
 
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -196,7 +199,7 @@ function inferStyleForSpeaker(speakerKey, priority = 1) {
 function ensure2DExpansionDOM() {
   if (typeof document === 'undefined') return;
 
-  // 0. Title Quick-Jump Pills for Stage 10, Stage 18 (Stronghold), Ice Caves (23), Desert Pyramid (24), Overworld (25), Apps (26..29) & Stage 30 (Outside Rocket Corp)
+  // 0. Title Quick-Jump Pills for Stage 10, Stage 18 (Stronghold), Ice Caves (23), Desert Pyramid (24), Overworld (25), Far Lands (26), Apps (27..30) & Stage 31 (Outside Rocket Corp)
   const quickPills = document.querySelector('.quick-stage-pills');
   if (quickPills) {
     if (!quickPills.querySelector('[data-jump-stage="10"]')) {
@@ -217,16 +220,17 @@ function ensure2DExpansionDOM() {
       if (anchor19) quickPills.insertBefore(pill18, anchor19);
       else quickPills.appendChild(pill18);
     }
-    const anchor31 = quickPills.querySelector('[data-jump-stage="31"]') || quickPills.querySelector('[data-jump-stage="29"]');
+    const anchor32 = quickPills.querySelector('[data-jump-stage="32"]') || quickPills.querySelector('[data-jump-stage="31"]');
     const extraPills = [
       { stage: '23', label: '🧊 23: Ice Caves' },
       { stage: '24', label: '🏜️ 24: Desert Pyramid' },
       { stage: '25', label: '⛏️ 25: Overworld' },
-      { stage: '26', label: '▶️ 26: YouTube' },
-      { stage: '27', label: '🌐 27: Chrome' },
-      { stage: '28', label: '🎧 28: Spotify' },
-      { stage: '29', label: '📊 29: Slides' },
-      { stage: '30', label: '🏢 30: Outside Rocket Corp' }
+      { stage: '26', label: '🌀 26: Far Lands' },
+      { stage: '27', label: '▶️ 27: YouTube' },
+      { stage: '28', label: '🌐 28: Chrome' },
+      { stage: '29', label: '🎧 29: Spotify' },
+      { stage: '30', label: '📊 30: Slides' },
+      { stage: '31', label: '🏢 31: Outside Rocket Corp' }
     ];
     for (const entry of extraPills) {
       if (!quickPills.querySelector(`[data-jump-stage="${entry.stage}"]`)) {
@@ -235,7 +239,7 @@ function ensure2DExpansionDOM() {
         pill.className = 'quick-stage-btn';
         pill.setAttribute('data-jump-stage', entry.stage);
         pill.textContent = entry.label;
-        if (anchor31) quickPills.insertBefore(pill, anchor31);
+        if (anchor32) quickPills.insertBefore(pill, anchor32);
         else quickPills.appendChild(pill);
       }
     }
@@ -371,6 +375,8 @@ function ensure2DExpansionDOM() {
             <option value="sandstone">🏜️ Sandstone (Desert Pyramid)</option>
             <option value="chiseled_sandstone">🏛️ Chiseled Sandstone (Pyramid)</option>
             <option value="terracotta_orange">🟧 Orange Terracotta (Pyramid)</option>
+            <option value="far_lands_stone">🌀 Far Lands Block (Glitch Strata)</option>
+            <option value="glitch_bedrock">👾 Glitch Bedrock (Far Lands)</option>
             <option value="oak_planks">🪵 Oak Planks</option>
             <option value="crafting_table">🛠️ Crafting Table</option>
             <option value="purpur_block">🟪 Purpur Block</option>
@@ -642,6 +648,7 @@ export function install2DExpansion(game) {
         stageManager.theme === 'ice_caves' ||
         stageManager.theme === 'desert_pyramid' ||
         stageManager.theme === 'overworld' ||
+        stageManager.theme === 'far_lands' ||
         stageManager.theme === 'youtube' ||
         stageManager.theme === 'chrome' ||
         stageManager.theme === 'spotify' ||
@@ -729,6 +736,7 @@ export function install2DExpansion(game) {
       stageManager.theme === 'ice_caves' ||
       stageManager.theme === 'desert_pyramid' ||
       stageManager.theme === 'overworld' ||
+      stageManager.theme === 'far_lands' ||
       stageManager.theme === 'youtube' ||
       stageManager.theme === 'chrome' ||
       stageManager.theme === 'spotify' ||
@@ -916,7 +924,9 @@ export function install2DExpansion(game) {
   function spawnStageVoxelProps() {
     const specs = stageManager.theme === 'overworld'
       ? OVERWORLD_OUTPOST_BLOCKS
-      : (stageManager.theme === 'desert_pyramid' ? DESERT_PYRAMID_TRAP_BLOCKS : null);
+      : (stageManager.theme === 'desert_pyramid'
+        ? DESERT_PYRAMID_TRAP_BLOCKS
+        : (stageManager.theme === 'far_lands' ? FAR_LANDS_GLITCH_BLOCKS : null));
     if (!specs) return;
     for (let i = 0; i < specs.length; i++) {
       const spec = specs[i];
@@ -1374,7 +1384,7 @@ export function install2DExpansion(game) {
   // --------------------------------------------------------------------------
   function syncStageSelectors() {
     if (typeof document === 'undefined') return;
-    const currentVal = String(stageManager.isTrophyRoom ? 33 : stageManager.currentStage);
+    const currentVal = String(stageManager.isTrophyRoom ? 34 : stageManager.currentStage);
     for (const id of ['title-stage-select', 'hud-stage-select', 'pause-stage-select']) {
       const sel = document.getElementById(id);
       if (!sel) continue;
@@ -1413,7 +1423,7 @@ export function install2DExpansion(game) {
   }
 
   function launchSecretBoss(bossType) {
-    const targetStage = bossType === 'herobrine_boss' ? 25 : 31;
+    const targetStage = bossType === 'herobrine_boss' ? 25 : 32;
     jumpToStage(targetStage, { freshStart: game.state === 'TITLE', creative: false, suppressModeReset: false });
     waves.spawnQueue.length = 0;
     waves.zombies.length = 0;
@@ -1435,7 +1445,7 @@ export function install2DExpansion(game) {
 
     clearCreativeBlocks();
 
-    if (requested === 33) {
+    if (requested === 34) {
       stageManager.isTrophyRoom = false;
       game.enterTrophyRoom();
       decoratePlayerInstance(game.player);
@@ -1445,7 +1455,7 @@ export function install2DExpansion(game) {
       return;
     }
 
-    const targetStage = clamp(Math.trunc(requested), 1, 32);
+    const targetStage = clamp(Math.trunc(requested), 1, 33);
     if (game.state === 'TITLE' || options.freshStart) {
       game.startGame({ stage: targetStage, creative: sandbox.enabled, suppressModeReset: Boolean(options.suppressModeReset) });
     } else {
@@ -1459,7 +1469,7 @@ export function install2DExpansion(game) {
   // --------------------------------------------------------------------------
   const origPrepareWeaponPickup = game.prepareWeaponPickup.bind(game);
   game.prepareWeaponPickup = (stage) => {
-    origPrepareWeaponPickup(stage === 25 ? 7 : (stage === 29 ? 12 : stage));
+    origPrepareWeaponPickup(stage === 25 ? 7 : (stage === 30 ? 12 : stage));
   };
 
   game.getStageLesson = (stage) => EXPANDED_LESSONS_2D[stage] || 'CHAIN MOVES · WATCH RINGS';
@@ -1496,7 +1506,7 @@ export function install2DExpansion(game) {
     const checkpoint = options.fromCheckpoint ? save.data.checkpoint : null;
     const requestedStage = Number.isFinite(Number(options.stage)) ? Math.trunc(Number(options.stage)) : null;
 
-    if (requestedStage === 33) {
+    if (requestedStage === 34) {
       stageManager.isTrophyRoom = false;
       game.enterTrophyRoom();
       if (options.creative) setCreativeMode(true);
@@ -1505,8 +1515,8 @@ export function install2DExpansion(game) {
     }
 
     const stage = requestedStage
-      ? clamp(requestedStage, 1, 32)
-      : (checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 32 ? checkpoint.stage : 1);
+      ? clamp(requestedStage, 1, 33)
+      : (checkpoint && checkpoint.stage >= 1 && checkpoint.stage <= 33 ? checkpoint.stage : 1);
 
     clearCreativeBlocks();
     sandbox.lastComboMilestone = 0;
@@ -1586,7 +1596,7 @@ export function install2DExpansion(game) {
   };
 
   game.advanceStage = (nextStage, options = {}) => {
-    const clampedNext = clamp(Math.trunc(Number(nextStage) || 1), 1, 32);
+    const clampedNext = clamp(Math.trunc(Number(nextStage) || 1), 1, 33);
     clearCreativeBlocks();
     sandbox.lastDamageCause = '';
     sandbox.lastDeathReason = '';
@@ -1663,7 +1673,7 @@ export function install2DExpansion(game) {
     origEnterTrophyRoom();
     decoratePlayerInstance(game.player);
     resetMegaStageState(false);
-    game.showMissionStrip(32, 'EPILOGUE');
+    game.showMissionStrip(33, 'EPILOGUE');
     syncStageSelectors();
   };
 

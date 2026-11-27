@@ -1576,7 +1576,7 @@ export class CreakingBoss {
 }
 
 // ============================================================================
-// 5. 3D CAMPAIGN EXTENSION (18: Stronghold, 19: The End .. 23: Ice Caves, 24: Desert Pyramid Interior, 25: Overworld .. 30: Outside Rocket Corp, 31: Rocket Corp, 32: H4C3R)
+// 5. 3D CAMPAIGN EXTENSION (18: Stronghold, 19: The End .. 23: Ice Caves, 24: Desert Pyramid Interior, 25: Overworld, 26: The Far Lands .. 31: Outside Rocket Corp, 32: Rocket Corp, 33: H4C3R)
 // ============================================================================
 export const CAMPAIGN_BEATS_3D = Object.freeze({
   ...CAMPAIGN_BEATS,
@@ -1656,11 +1656,19 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     act: 'VI - MINECRAFT EXPANSION',
     mission: 'DEFEND THE OVERWORLD VILLAGE',
     clearText: 'OVERWORLD SECURED!',
-    clue: 'APP GAUNTLET: YOUTUBE.COM',
+    clue: 'WORLD EDGE OVERFLOW: THE FAR LANDS',
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'blue', line: 'FRESH AIR! WATCH FOR CREEPERS & TNT!' })
   }),
   26: Object.freeze({
+    act: 'VI - MINECRAFT EXPANSION',
+    mission: 'BREACH THE GLITCHED FAR LANDS',
+    clearText: 'WORLD EDGE CROSSED!',
+    clue: 'APP GAUNTLET: YOUTUBE.COM',
+    bossLabel: null,
+    allyReaction: Object.freeze({ ally: 'yellow', line: 'X = 12,550,821?! THE CHUNKS ARE MELTING!' })
+  }),
+  27: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'SURVIVE THE VIRAL STREAM',
     clearText: 'STREAM MONETIZED!',
@@ -1668,7 +1676,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'green', line: 'SMASH THAT SUBSCRIBE BUTTON!' })
   }),
-  27: Object.freeze({
+  28: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'CLEAR THE BROWSER TABS',
     clearText: 'CACHE PURGED!',
@@ -1676,7 +1684,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'yellow', line: 'WATCH THE RAM USAGE!' })
   }),
-  28: Object.freeze({
+  29: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'RIDE THE BASS DROP',
     clearText: 'PLAYLIST MASTERED!',
@@ -1684,7 +1692,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'green', line: 'THIS BEAT DROPS HARD!' })
   }),
-  29: Object.freeze({
+  30: Object.freeze({
     act: 'VII - DESKTOP APP GAUNTLET',
     mission: 'CRASH THE PRESENTATION',
     clearText: 'SLIDE DECK PRESENTED!',
@@ -1692,7 +1700,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'blue', line: 'NEXT SLIDE, PLEASE!' })
   }),
-  30: Object.freeze({
+  31: Object.freeze({
     act: 'VIII - ROCKET CORP CONTAINMENT',
     mission: 'BREACH THE ROCKET CORP GATES',
     clearText: 'PERIMETER BREACHED!',
@@ -1700,7 +1708,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: null,
     allyReaction: Object.freeze({ ally: 'chosen', line: 'THAT TOWER... THEY ARE INSIDE.' })
   }),
-  31: Object.freeze({
+  32: Object.freeze({
     act: 'VIII - ROCKET CORP CONTAINMENT',
     mission: 'DEFEAT THE MERCENARIES',
     clearText: 'THE BOX BREACHED!',
@@ -1708,7 +1716,7 @@ export const CAMPAIGN_BEATS_3D = Object.freeze({
     bossLabel: 'AGENT · BALLISTA · PRIMAL · HAZARD',
     allyReaction: Object.freeze({ ally: 'chosen', line: 'NOT GOING BACK IN THE BOX.' })
   }),
-  32: Object.freeze({
+  33: Object.freeze({
     act: 'IX - ZERO-DAY FINALE',
     mission: 'LOG OUT H4C3R',
     clearText: 'SYSTEM RESTORED!',
@@ -1732,6 +1740,14 @@ export const DESERT_PYRAMID_TRAP_BLOCKS = Object.freeze([
   Object.freeze({ x: 340, y: 0, z: 0, texKey: 'tnt_block', armedOnHit: true }),
   Object.freeze({ x: 408, y: 0, z: 0, texKey: 'terracotta_orange', armedOnHit: false }),
   Object.freeze({ x: 408, y: -68, z: 0, texKey: 'gold_block', armedOnHit: false })
+]);
+
+export const FAR_LANDS_GLITCH_BLOCKS = Object.freeze([
+  Object.freeze({ x: 272, y: 0, z: 0, texKey: 'far_lands_stone', armedOnHit: false }),
+  Object.freeze({ x: 272, y: -68, z: 0, texKey: 'grass_block', armedOnHit: false }),
+  Object.freeze({ x: 340, y: 0, z: 0, texKey: 'tnt_block', armedOnHit: true }),
+  Object.freeze({ x: 408, y: 0, z: 0, texKey: 'glitch_bedrock', armedOnHit: false }),
+  Object.freeze({ x: 408, y: -68, z: 0, texKey: 'lucky_block', armedOnHit: true })
 ]);
 
 export function formatAttackerDeathMessage(attacker) {
@@ -1910,7 +1926,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   const origEnterTrophy = stageManager.enterTrophyRoom ? stageManager.enterTrophyRoom.bind(stageManager) : () => {};
   const origGetBeat = stageManager.getCampaignBeat ? stageManager.getCampaignBeat.bind(stageManager) : (s) => CAMPAIGN_BEATS_3D[s] || {};
 
-  stageManager.maxStage = 32;
+  stageManager.maxStage = 33;
   stageManager.lavaHazards = stageManager.currentStage === 7 ? [
     { x: -360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 },
     { x: 360, y: 0, z: 0, width: 160, height: 10, depth3d: 220, damage: 20 }
@@ -1928,17 +1944,17 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   }
 
   stageManager.getCampaignBeat = (stageNum = stageManager.currentStage) => {
-    const stage = Math.max(1, Math.min(32, Math.trunc(Number(stageNum)) || 1));
+    const stage = Math.max(1, Math.min(33, Math.trunc(Number(stageNum)) || 1));
     return CAMPAIGN_BEATS_3D[stage] || origGetBeat(stage);
   };
 
   stageManager.loadStage = (stageNum) => {
     const numericStage = Number.isFinite(stageNum) ? Math.trunc(stageNum) : 1;
-    const stage = Math.max(1, Math.min(32, numericStage));
+    const stage = Math.max(1, Math.min(33, numericStage));
 
     if (stage <= 17) {
       origLoadStage(stage);
-      stageManager.maxStage = 32;
+      stageManager.maxStage = 33;
       stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
       if (stage === 7) {
         stageManager.lavaHazards = [
@@ -1959,20 +1975,20 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       return;
     }
 
-    if (stage === 32) {
-      // Stage 32 is Zero-Day Mainframe (H4C3R), built from original stage 18
+    if (stage === 33) {
+      // Stage 33 is Zero-Day Mainframe (H4C3R), built from original stage 18
       origLoadStage(18);
-      stageManager.currentStage = 32;
-      stageManager.maxStage = 32;
-      stageManager.campaignBeat = CAMPAIGN_BEATS_3D[32];
+      stageManager.currentStage = 33;
+      stageManager.maxStage = 33;
+      stageManager.campaignBeat = CAMPAIGN_BEATS_3D[33];
       stageManager.lavaHazards = [];
       return;
     }
 
-    // Reset common state via stage 1 then customize for Stages 18..31
+    // Reset common state via stage 1 then customize for Stages 18..32
     origLoadStage(1);
     stageManager.currentStage = stage;
-    stageManager.maxStage = 32;
+    stageManager.maxStage = 33;
     stageManager.campaignBeat = CAMPAIGN_BEATS_3D[stage];
     stageManager.platforms = [];
     stageManager.movingPlatforms = [];
@@ -2211,7 +2227,50 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 800, y: -125, label: 'Diamond_Pick', icon: '⛏️', color: '#38bdf8' }
       ];
     } else if (stage === 26) {
-      // STAGE 26: YOUTUBE STUDIO (Animation vs. YouTube — Viral Player Arena)
+      // STAGE 26: THE FAR LANDS (X = 12,550,821 World-Edge Noise Overflow — Swiss-Cheese Cliffs & Jittering Chunks!)
+      stageManager.stageName = 'The Far Lands';
+      stageManager.theme = 'far_lands';
+      stageManager.platforms = [
+        { x: -630, y: -165, width: 245, height: 22, title: 'Chunk_Slice_12550821', appType: 'far_lands' },
+        { x: 0, y: -285, width: 315, height: 24, title: 'Swiss_Cheese_Overhang', appType: 'far_lands' },
+        { x: 630, y: -165, width: 245, height: 22, title: 'Corner_Far_Lands_Spire', appType: 'far_lands' }
+      ];
+      stageManager.movingPlatforms = [
+        {
+          x: -240,
+          y: -155,
+          width: 175,
+          height: 20,
+          title: 'Jitter_Chunk_Alpha',
+          appType: 'far_lands',
+          minX: -410,
+          maxX: 60,
+          speed: 145,
+          dir: 1,
+          axis: 'x'
+        },
+        {
+          x: 260,
+          y: -205,
+          width: 175,
+          height: 20,
+          title: 'Drifting_Strata_Beta',
+          appType: 'far_lands',
+          minY: -265,
+          maxY: -120,
+          speed: 118,
+          dir: -1,
+          axis: 'y'
+        }
+      ];
+      stageManager.desktopIcons = [
+        { x: -810, y: -125, label: 'X_12550821', icon: '🌀', color: '#e879f9' },
+        { x: -330, y: -345, label: 'Chunk_Overflow', icon: '⚠️', color: '#22d3ee' },
+        { x: 330, y: -345, label: 'Swiss_Cheese', icon: '🧱', color: '#4ade80' },
+        { x: 810, y: -125, label: 'World_Edge', icon: '👾', color: '#c084fc' }
+      ];
+    } else if (stage === 27) {
+      // STAGE 27: YOUTUBE STUDIO (Animation vs. YouTube — Viral Player Arena)
       stageManager.stageName = 'YouTube Studio';
       stageManager.theme = 'youtube';
       stageManager.platforms = [
@@ -2243,8 +2302,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 320, y: -340, label: 'Live_Chat', icon: '💬', color: '#f8fafc' },
         { x: 800, y: -125, label: 'Skip_Ad_5s', icon: '⏭', color: '#facc15' }
       ];
-    } else if (stage === 27) {
-      // STAGE 27: GOOGLE CHROME (Multi-Tab Browser & Offline Dino Arena)
+    } else if (stage === 28) {
+      // STAGE 28: GOOGLE CHROME (Multi-Tab Browser & Offline Dino Arena)
       stageManager.stageName = 'Google Chrome';
       stageManager.theme = 'chrome';
       stageManager.platforms = [
@@ -2275,8 +2334,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 330, y: -345, label: 'Extensions', icon: '🧩', color: '#34a853' },
         { x: 810, y: -125, label: 'New_Tab (+)', icon: '🌐', color: '#4285f4' }
       ];
-    } else if (stage === 28) {
-      // STAGE 28: SPOTIFY PLAYER (Equalizer Spectrum & Vinyl Turntable Arena)
+    } else if (stage === 29) {
+      // STAGE 29: SPOTIFY PLAYER (Equalizer Spectrum & Vinyl Turntable Arena)
       stageManager.stageName = 'Spotify Player';
       stageManager.theme = 'spotify';
       stageManager.platforms = [
@@ -2318,8 +2377,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 330, y: -350, label: 'Audio_Spectrum', icon: 'ılı', color: '#1db954' },
         { x: 810, y: -125, label: 'Loop_Track', icon: '🔁', color: '#86efac' }
       ];
-    } else if (stage === 29) {
-      // STAGE 29: GOOGLE SLIDES (Presentation Deck & Live Chart Arena)
+    } else if (stage === 30) {
+      // STAGE 30: GOOGLE SLIDES (Presentation Deck & Live Chart Arena)
       stageManager.stageName = 'Google Slides';
       stageManager.theme = 'slides';
       stageManager.platforms = [
@@ -2349,8 +2408,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 330, y: -345, label: 'Shape_Insert', icon: '◇', color: '#4285f4' },
         { x: 810, y: -125, label: 'Laser_Pointer', icon: '✦', color: '#34a853' }
       ];
-    } else if (stage === 30) {
-      // STAGE 30: OUTSIDE ROCKET CORP (Outernet Perimeter Plaza & Towering Rocket Corp HQ Exterior!)
+    } else if (stage === 31) {
+      // STAGE 31: OUTSIDE ROCKET CORP (Outernet Perimeter Plaza & Towering Rocket Corp HQ Exterior!)
       stageManager.stageName = 'Outside Rocket Corp';
       stageManager.theme = 'rocket_corp_exterior';
       stageManager.platforms = [
@@ -2382,8 +2441,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
         { x: 330, y: -345, label: 'Searchlight', icon: '🔦', color: '#38bdf8' },
         { x: 810, y: -125, label: 'Mercenary_Van', icon: '🚐', color: '#94a3b8' }
       ];
-    } else if (stage === 31) {
-      // STAGE 31: ROCKET CORP HQ (Mercenaries Boss Squad: Agent, Ballista, Primal, Hazard)
+    } else if (stage === 32) {
+      // STAGE 32: ROCKET CORP HQ (Mercenaries Boss Squad: Agent, Ballista, Primal, Hazard)
       stageManager.stageName = 'Rocket Corp HQ';
       stageManager.theme = 'rocket_corp';
       stageManager.platforms = [
@@ -2405,8 +2464,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
 
   stageManager.enterTrophyRoom = () => {
     origEnterTrophy();
-    stageManager.maxStage = 32;
-    stageManager.currentStage = 32;
+    stageManager.maxStage = 33;
+    stageManager.currentStage = 33;
     stageManager.lavaHazards = [];
     stageManager.desktopIcons = [
       { x: -900, y: -105, label: 'TITAN', icon: 'T', color: '#8cff66' },
@@ -2423,7 +2482,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
     ];
   };
 
-  // Extend WaveDirector for Stages 18..32
+  // Extend WaveDirector for Stages 18..33
   activeWaveDirector = waveDirector;
   const origGenerateWaveQueue = waveDirector.generateWaveQueue.bind(waveDirector);
   const origSpawnZombie = waveDirector.spawnZombie.bind(waveDirector);
@@ -2484,6 +2543,17 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
     ])
   });
 
+  const FAR_LANDS_RECIPE = Object.freeze({
+    total: 17,
+    bossHelpers: 0,
+    packs: Object.freeze([
+      Object.freeze({ gap: 0.9, enemies: Object.freeze(['stalker', 'runner', 'boom_bug', 'crawler']) }),
+      Object.freeze({ gap: 1.0, enemies: Object.freeze(['stalker', 'spitter', 'shieldbearer', 'boom_bug']) }),
+      Object.freeze({ gap: 1.08, enemies: Object.freeze(['brute', 'stalker', 'spitter', 'runner']) }),
+      Object.freeze({ gap: 1.16, enemies: Object.freeze(['warden', 'stalker', 'brute', 'boom_bug', 'spitter']) })
+    ])
+  });
+
   const YOUTUBE_RECIPE = Object.freeze({
     total: 16,
     bossHelpers: 0,
@@ -2540,7 +2610,7 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
   });
 
   waveDirector.generateWaveQueue = (wave) => {
-    const stage = Math.max(1, Math.min(32, Math.trunc(Number(wave)) || 1));
+    const stage = Math.max(1, Math.min(33, Math.trunc(Number(wave)) || 1));
     if (stage <= 17) {
       origGenerateWaveQueue(stage);
       return;
@@ -2589,32 +2659,37 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       return;
     }
     if (stage === 26) {
-      // Stage 26: YouTube Studio — Viral Stream Wave
-      waveDirector.queueWaveRecipe(YOUTUBE_RECIPE);
+      // Stage 26: The Far Lands — Glitched World-Edge Overflow Ambush Wave
+      waveDirector.queueWaveRecipe(FAR_LANDS_RECIPE);
       return;
     }
     if (stage === 27) {
-      // Stage 27: Google Chrome — Multi-Tab Browser Wave
-      waveDirector.queueWaveRecipe(CHROME_RECIPE);
+      // Stage 27: YouTube Studio — Viral Stream Wave
+      waveDirector.queueWaveRecipe(YOUTUBE_RECIPE);
       return;
     }
     if (stage === 28) {
-      // Stage 28: Spotify Player — Bass Drop Wave
-      waveDirector.queueWaveRecipe(SPOTIFY_RECIPE);
+      // Stage 28: Google Chrome — Multi-Tab Browser Wave
+      waveDirector.queueWaveRecipe(CHROME_RECIPE);
       return;
     }
     if (stage === 29) {
-      // Stage 29: Google Slides — Presentation Deck Wave
-      waveDirector.queueWaveRecipe(SLIDES_RECIPE);
+      // Stage 29: Spotify Player — Bass Drop Wave
+      waveDirector.queueWaveRecipe(SPOTIFY_RECIPE);
       return;
     }
     if (stage === 30) {
-      // Stage 30: Outside Rocket Corp — Perimeter Security Checkpoint Wave
-      waveDirector.queueWaveRecipe(ROCKET_EXTERIOR_RECIPE);
+      // Stage 30: Google Slides — Presentation Deck Wave
+      waveDirector.queueWaveRecipe(SLIDES_RECIPE);
       return;
     }
     if (stage === 31) {
-      // Stage 31: Rocket Corp HQ — All 4 Mercenaries from AvA Season 3!
+      // Stage 31: Outside Rocket Corp — Perimeter Security Checkpoint Wave
+      waveDirector.queueWaveRecipe(ROCKET_EXTERIOR_RECIPE);
+      return;
+    }
+    if (stage === 32) {
+      // Stage 32: Rocket Corp HQ — All 4 Mercenaries from AvA Season 3!
       waveDirector.usesAuthoredRecipe = true;
       const mercs = ['mercenary_agent', 'mercenary_ballista', 'mercenary_primal', 'mercenary_hazard'];
       mercs.forEach((type, idx) => {
@@ -2627,8 +2702,8 @@ export function extendCampaignFor3D(stageManager, waveDirector) {
       });
       return;
     }
-    if (stage === 32) {
-      // Stage 32: Zero-Day Mainframe — H4C3R
+    if (stage === 33) {
+      // Stage 33: Zero-Day Mainframe — H4C3R
       waveDirector.queueWaveRecipe(WAVE_RECIPES[18]);
     }
   };

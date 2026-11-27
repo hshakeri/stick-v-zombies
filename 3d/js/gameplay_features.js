@@ -17,7 +17,7 @@ import { combat } from '../../js/systems/combat.js?v=9.8';
 import { save } from '../../js/systems/save.js?v=9.8';
 import { projectiles } from '../../js/entities/projectiles.js?v=9.8';
 import { speech3d } from './speech3d.js?v=10.3';
-import { drawPurpleElytraWings2D } from './purple_ally.js?v=11.0';
+import { drawPurpleElytraWings2D } from './purple_ally.js?v=11.1';
 import { HerobrineBoss, VictimBoss } from './secret_bosses.js?v=10.9';
 
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -192,10 +192,10 @@ export const BOSS_RUSH_ROSTER = Object.freeze([
   { round: 7, stage: 19, bossType: 'ender_dragon', label: 'ENDER DRAGON' },
   { round: 8, stage: 21, bossType: 'warden_boss', label: 'THE WARDEN' },
   { round: 9, stage: 22, bossType: 'creaking_boss', label: 'THE CREAKING' },
-  { round: 10, stage: 31, bossType: 'mercenary_squad', label: 'ROCKET CORP MERCENARIES' },
-  { round: 11, stage: 32, bossType: 'h4c3r', label: 'H4C3R' },
+  { round: 10, stage: 32, bossType: 'mercenary_squad', label: 'ROCKET CORP MERCENARIES' },
+  { round: 11, stage: 33, bossType: 'h4c3r', label: 'H4C3R' },
   { round: 12, stage: 25, bossType: 'herobrine_boss', label: 'SECRET: HEROBRINE' },
-  { round: 13, stage: 31, bossType: 'victim_boss', label: 'SECRET FINALE: VICTIM' }
+  { round: 13, stage: 32, bossType: 'victim_boss', label: 'SECRET FINALE: VICTIM' }
 ]);
 
 export const ENDLESS_MUTATORS = Object.freeze([
@@ -207,7 +207,7 @@ export const ENDLESS_MUTATORS = Object.freeze([
   { id: 'ink_jackpot', name: 'INK JACKPOT', icon: '✒️', desc: '2× Ink drops & extra rare power-ups!' }
 ]);
 
-export const ENDLESS_ARENA_ROTATION = Object.freeze([1, 7, 10, 18, 20, 23, 24, 25, 26, 28, 30, 31]);
+export const ENDLESS_ARENA_ROTATION = Object.freeze([1, 7, 10, 18, 20, 23, 24, 25, 26, 27, 29, 31, 32]);
 
 export const ROGUELIKE_PERKS = Object.freeze([
   { id: 'explosive_dive', icon: '💥', name: 'Explosive Dive Kick', desc: 'Dive kicks & heavy landings erupt in a fiery 110-damage shockwave!' },
@@ -236,8 +236,8 @@ export const TROPHY_MONUMENT_BOSSES = Object.freeze([
   { x: 190, stage: 19, bossType: 'ender_dragon', label: 'Ender Dragon' },
   { x: 365, stage: 21, bossType: 'warden_boss', label: 'The Warden' },
   { x: 540, stage: 22, bossType: 'creaking_boss', label: 'The Creaking' },
-  { x: 715, stage: 31, bossType: 'mercenary_squad', label: 'Rocket Corp Mercenaries' },
-  { x: 890, stage: 32, bossType: 'h4c3r', label: 'H4C3R' }
+  { x: 715, stage: 32, bossType: 'mercenary_squad', label: 'Rocket Corp Mercenaries' },
+  { x: 890, stage: 33, bossType: 'h4c3r', label: 'H4C3R' }
 ]);
 
 export function computeStageRank(elapsedSeconds = 30, damageTaken = 0, maxCombo = 0) {
@@ -1762,7 +1762,7 @@ export class MegaFeaturesController {
       );
       callbacks.onStageRank?.(stageManager.currentStage, rankInfo);
       // Offer 1-of-3 Roguelike Perk after clearing a Boss Stage!
-      const bossStages = new Set([5, 10, 11, 15, 16, 17, 19, 21, 22, 31]);
+      const bossStages = new Set([5, 10, 11, 15, 16, 17, 19, 21, 22, 32]);
       if (bossStages.has(stageManager.currentStage) && this.pendingPerkBossRound !== stageManager.currentStage) {
         this.pendingPerkBossRound = stageManager.currentStage;
         callbacks.onOfferPerks?.(this.rollPerkChoices(3));

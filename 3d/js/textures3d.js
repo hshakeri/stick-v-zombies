@@ -1101,6 +1101,52 @@ export function drawPixelBlock(ctx, kind) {
       drawBevelBorder(ctx, '#6886cf', '#1e2c52');
       break;
     }
+    case 'far_lands_stone': {
+      // Glitched Minecraft Far Lands Swiss-Cheese Strata: fractured stone/dirt/grass + cyan/magenta overflow seams
+      fillNoisyPixels(ctx, '#64707d', 0.14, 525);
+      // Warped overhang grass strip & exposed dirt strata
+      ctx.fillStyle = '#4d9b2a';
+      ctx.fillRect(0, 0, 10, 3);
+      ctx.fillRect(12, 0, 4, 2);
+      ctx.fillStyle = '#85532f';
+      ctx.fillRect(0, 3, 9, 2);
+      ctx.fillRect(11, 2, 5, 3);
+      // Iconic Far Lands dark Swiss-cheese tunnel pockets
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(2, 6, 4, 3);
+      ctx.fillRect(10, 7, 4, 2);
+      ctx.fillRect(5, 11, 5, 3);
+      // Coordinate-overflow magenta & cyan pixel-shear seams
+      ctx.fillStyle = '#e879f9';
+      ctx.fillRect(1, 5, 5, 1);
+      ctx.fillRect(9, 10, 5, 1);
+      ctx.fillStyle = '#22d3ee';
+      ctx.fillRect(7, 6, 3, 1);
+      ctx.fillRect(2, 13, 4, 1);
+      ctx.fillRect(12, 13, 3, 1);
+      drawBevelBorder(ctx, '#86efac', '#1e293b');
+      break;
+    }
+    case 'glitch_bedrock': {
+      // Corrupted Far Lands Bedrock with high-contrast jagged static & overflow rift veins
+      fillNoisyPixels(ctx, '#272a30', 0.24, 535);
+      ctx.fillStyle = '#090b10';
+      ctx.fillRect(1, 2, 5, 3);
+      ctx.fillRect(9, 5, 5, 4);
+      ctx.fillRect(3, 10, 6, 4);
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(6, 1, 4, 2);
+      ctx.fillRect(1, 7, 5, 2);
+      ctx.fillRect(10, 11, 4, 2);
+      ctx.fillStyle = '#d946ef';
+      ctx.fillRect(4, 5, 4, 1);
+      ctx.fillRect(11, 9, 3, 1);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(8, 3, 3, 1);
+      ctx.fillRect(2, 13, 5, 1);
+      drawBevelBorder(ctx, '#64748b', '#05070c');
+      break;
+    }
     case 'rocket_plaza_asphalt': {
       fillNoisyPixels(ctx, '#1e2430', 0.14, 445);
       // Concrete road expansion joints
@@ -1150,6 +1196,7 @@ export function getThemeFloorTextureKey(theme, isWhiteVoid = false) {
     case 'pale_garden': return 'pale_moss';
     case 'ice_caves': return 'packed_ice';
     case 'desert_pyramid': return 'sandstone';
+    case 'far_lands': return 'far_lands_stone';
     case 'youtube': return 'youtube_floor';
     case 'chrome': return 'chrome_floor';
     case 'spotify': return 'spotify_floor';

@@ -1,5 +1,5 @@
 import * as THREE from '../lib/three.module.min.js';
-import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.8';
+import { getVoxelTexture, getThemeFloorTextureKey } from './textures3d.js?v=10.9';
 import {
   StickRig3D,
   CreeperLordRig3D,
@@ -304,7 +304,11 @@ export class Arena3DBuilder {
     const rubbleMat = new THREE.MeshStandardMaterial({
       color: theme === 'overworld'
         ? 0x57534e
-        : (theme === 'ice_caves' ? 0x38bdf8 : (theme === 'desert_pyramid' ? 0xc9a66b : 0x1e293b)),
+        : (theme === 'ice_caves'
+          ? 0x38bdf8
+          : (theme === 'desert_pyramid'
+            ? 0xc9a66b
+            : (theme === 'far_lands' ? 0xa855f7 : 0x1e293b))),
       roughness: 0.85
     });
     const abyssMat = (!isFloating && !isLava)
@@ -376,6 +380,9 @@ export class Arena3DBuilder {
     this.iceCavesFrostMotes = [];
     this.desertPyramidSunbeams = [];
     this.desertPyramidFlames = [];
+    this.farLandsJitterChunks = [];
+    this.farLandsCascades = [];
+    this.farLandsBeacon = null;
     this.youtubePlayMonument = null;
     this.chromeLogoGroup = null;
     this.spotifyEqualizerBars = [];
@@ -401,6 +408,7 @@ export class Arena3DBuilder {
         theme !== 'pale_garden' &&
         theme !== 'ice_caves' &&
         theme !== 'desert_pyramid' &&
+        theme !== 'far_lands' &&
         theme !== 'overworld' &&
         theme !== 'dark_core';
     }
@@ -411,11 +419,12 @@ export class Arena3DBuilder {
       : (theme === 'stronghold' ? 'stone_bricks'
       : (theme === 'ice_caves' ? 'blue_ice'
       : (theme === 'desert_pyramid' ? 'chiseled_sandstone'
+      : (theme === 'far_lands' ? 'glitch_bedrock'
       : (theme === 'overworld' ? 'cobblestone'
       : (theme === 'ancient_city' || theme === 'dark_core' ? 'deepslate_tiles'
       : (theme === 'pale_garden' ? 'pale_oak_log'
       : (theme === 'aether' ? 'holystone'
-      : (theme === 'rocket_corp' || theme === 'rocket_corp_exterior' ? 'rocket_corp_wall' : 'anvil_iron'))))))));
+      : (theme === 'rocket_corp' || theme === 'rocket_corp_exterior' ? 'rocket_corp_wall' : 'anvil_iron')))))))));
     this.currentTheme = theme;
     this.currentFloorKey = floorKey;
     this.currentSubTexKey = subTexKey;
@@ -482,14 +491,16 @@ export class Arena3DBuilder {
       : (theme === 'rocket_corp' ? 'AIRLOCK IN'
       : (theme === 'rocket_corp_exterior' ? 'PLAZA GATE'
       : (theme === 'ice_caves' ? 'CAVE ENTRY'
-      : (theme === 'desert_pyramid' ? 'TOMB ENTRY' : 'START'))));
+      : (theme === 'desert_pyramid' ? 'TOMB ENTRY'
+      : (theme === 'far_lands' ? 'WORLD EDGE' : 'START')))));
     const exitLabel = sm.isTrophyRoom
       ? 'RESULTS'
       : (theme === 'rocket_corp' ? 'SECTOR EXIT'
       : (theme === 'rocket_corp_exterior' ? 'HQ LOBBY'
       : (theme === 'stronghold' ? 'END PORTAL'
       : (theme === 'ice_caves' ? 'PYRAMID GATE'
-      : (theme === 'desert_pyramid' ? 'VILLAGE EXIT' : 'EXIT')))));
+      : (theme === 'desert_pyramid' ? 'VILLAGE EXIT'
+      : (theme === 'far_lands' ? 'APP RIFT' : 'EXIT'))))));
     this.buildPortal(to3DX(sm.entranceDoor.x), -2.2, false, startLabel);
     this.buildPortal(to3DX(sm.exitDoor.x), -2.2, true, exitLabel);
 
@@ -584,6 +595,7 @@ export class Arena3DBuilder {
       ice_caves: 0x38bdf8,
       desert_pyramid: 0xf59e0b,
       overworld: 0x4ade80,
+      far_lands: 0xe879f9,
       youtube: 0xff0033,
       chrome: 0x4285f4,
       spotify: 0x1db954,
@@ -2261,6 +2273,177 @@ export class Arena3DBuilder {
     this.group.add(sarcophagus);
   }
 
+  buildFarLandsWall() {
+    const farStoneTex = getVoxelTexture('far_lands_stone', 2, 3);
+    farStoneTex.isShared = true;
+    const cobbleTex = getVoxelTexture('cobblestone', 2, 2);
+    cobbleTex.isShared = true;
+    const grassBlockTex = getVoxelTexture('grass_block', 2, 1);
+    grassBlockTex.isShared = true;
+    const bedrockTex = getVoxelTexture('glitch_bedrock', 2, 2);
+    bedrockTex.isShared = true;
+    const oakLogTex = getVoxelTexture('oak_log', 1, 2);
+    oakLogTex.isShared = true;
+    const oakLeavesTex = getVoxelTexture('oak_leaves', 2, 2);
+    oakLeavesTex.isShared = true;
+
+    const farStoneMat = new THREE.MeshStandardMaterial({ map: farStoneTex, roughness: 0.72 });
+    const cobbleMat = new THREE.MeshStandardMaterial({ map: cobbleTex, roughness: 0.8 });
+    const grassMat = new THREE.MeshStandardMaterial({ map: grassBlockTex, roughness: 0.65 });
+    const bedrockMat = new THREE.MeshStandardMaterial({
+      map: bedrockTex,
+      roughness: 0.45,
+      emissive: new THREE.Color(0x581c87),
+      emissiveIntensity: 0.25
+    });
+    const logMat = new THREE.MeshStandardMaterial({ map: oakLogTex, roughness: 0.78 });
+    const leafMat = new THREE.MeshStandardMaterial({ map: oakLeavesTex, roughness: 0.68 });
+    const magentaGlowMat = new THREE.MeshStandardMaterial({
+      color: 0xe879f9,
+      emissive: new THREE.Color(0xd946ef),
+      emissiveIntensity: 0.9,
+      roughness: 0.2
+    });
+    const cyanGlowMat = new THREE.MeshStandardMaterial({
+      color: 0x22d3ee,
+      emissive: new THREE.Color(0x06b6d4),
+      emissiveIntensity: 0.9,
+      roughness: 0.2
+    });
+
+    // 1. Towering Sheer Swiss-Cheese Far Lands Monolith Wall (perforated with authentic horizontal cave cavities!)
+    const wallGroup = new THREE.Group();
+    wallGroup.name = 'farLandsMonolithWall';
+
+    const colXs = [-27.2, -21.8, -16.4, -11.0, -5.6, 5.6, 11.0, 16.4, 21.8, 27.2];
+    colXs.forEach((cx, colIdx) => {
+      // Build 3 stacked cliff tiers per column with deliberate Swiss-cheese horizontal tunnel gaps between them!
+      const tiers = [
+        { y: 2.1, h: 4.2, z: -12.6, w: 3.8, mat: colIdx % 2 === 0 ? farStoneMat : cobbleMat },
+        { y: 7.4 + (colIdx % 3) * 0.45, h: 3.4, z: -12.2 + (colIdx % 2) * 0.6, w: 4.4, mat: farStoneMat },
+        { y: 12.6 + ((colIdx + 1) % 3) * 0.5, h: 3.6, z: -12.5, w: 4.2, mat: colIdx % 3 === 0 ? bedrockMat : farStoneMat }
+      ];
+      tiers.forEach((tier, tIdx) => {
+        const block = new THREE.Mesh(new THREE.BoxGeometry(tier.w, tier.h, 2.6), tier.mat);
+        block.position.set(cx, tier.y, tier.z);
+        block.castShadow = true;
+        block.receiveShadow = true;
+        wallGroup.add(block);
+        // Horizontal Swiss-cheese overhang lintels connecting adjacent monolith pillars
+        if (tIdx >= 1 && colIdx < colXs.length - 1 && (colIdx + tIdx) % 2 === 0) {
+          const spanX = (cx + colXs[colIdx + 1]) * 0.5;
+          const spanW = Math.abs(colXs[colIdx + 1] - cx) - 1.4;
+          if (spanW > 1.0 && spanW < 8.0) {
+            const bridge = new THREE.Mesh(new THREE.BoxGeometry(spanW, 1.35, 2.2), grassMat);
+            bridge.position.set(spanX, tier.y + tier.h * 0.35, tier.z + 0.3);
+            wallGroup.add(bridge);
+          }
+        }
+      });
+
+      // Uneven grass-block cliff crown cap + crooked oak tree perched on high Far Lands ledges
+      const topY = 14.7 + ((colIdx + 1) % 3) * 0.5;
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.95, 2.9), grassMat);
+      cap.position.set(cx, topY, -12.4);
+      wallGroup.add(cap);
+
+      if (colIdx % 3 === 1) {
+        const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.75, 2.6, 0.75), logMat);
+        trunk.position.set(cx, topY + 1.65, -12.2);
+        const crown = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.8, 2.3), leafMat);
+        crown.position.set(cx, topY + 3.25, -12.2);
+        wallGroup.add(trunk, crown);
+      }
+    });
+    this.group.add(wallGroup);
+
+    // 2. Glitched Waterfall & Lavafall Ribbons Spilling Out of Swiss-Cheese Wall Cavities
+    const cascadeGroup = new THREE.Group();
+    cascadeGroup.name = 'farLandsCascades';
+    this.farLandsCascades = [
+      { x: -13.7, y: 6.2, h: 12.2, isLava: false },
+      { x: 13.7, y: 6.6, h: 13.0, isLava: true },
+      { x: -24.5, y: 5.4, h: 10.6, isLava: false },
+      { x: 24.5, y: 5.2, h: 10.2, isLava: false }
+    ].map((spec) => {
+      const tex = getVoxelTexture(spec.isLava ? 'lava' : 'water_still', 1, 5).clone();
+      tex.needsUpdate = true;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(1, 5);
+      const mat = new THREE.MeshStandardMaterial({
+        map: tex,
+        color: spec.isLava ? 0xff5500 : 0x38bdf8,
+        emissive: new THREE.Color(spec.isLava ? 0xff4500 : 0x0284c7),
+        emissiveIntensity: spec.isLava ? 0.85 : 0.42,
+        transparent: !spec.isLava,
+        opacity: spec.isLava ? 1.0 : 0.84,
+        roughness: 0.25
+      });
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(1.45, spec.h, 0.45), mat);
+      strip.position.set(spec.x, spec.y, -10.8);
+      cascadeGroup.add(strip);
+      return { mesh: strip, mat, speed: spec.isLava ? 0.28 : 0.65 };
+    });
+    this.group.add(cascadeGroup);
+
+    // 3. Centerpiece: Coordinate Overflow Boundary Monolith (X: 12,550,821 // Z: 12,550,821)
+    const beaconGroup = new THREE.Group();
+    beaconGroup.name = 'farLandsCoordBeacon';
+    beaconGroup.position.set(0, 0, -10.4);
+
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(6.8, 1.0, 3.2), bedrockMat);
+    plinth.position.y = 0.5;
+    const monolith = new THREE.Mesh(new THREE.BoxGeometry(3.2, 8.2, 2.0), bedrockMat);
+    monolith.position.y = 4.6;
+    monolith.castShadow = true;
+    const seamL = new THREE.Mesh(new THREE.BoxGeometry(0.24, 7.6, 2.15), magentaGlowMat);
+    seamL.position.set(-1.55, 4.6, 0);
+    const seamR = new THREE.Mesh(new THREE.BoxGeometry(0.24, 7.6, 2.15), cyanGlowMat);
+    seamR.position.set(1.55, 4.6, 0);
+
+    const glitchRing = new THREE.Mesh(
+      new THREE.TorusGeometry(2.6, 0.16, 8, 24),
+      magentaGlowMat
+    );
+    glitchRing.position.set(0, 6.2, 1.15);
+
+    const signTex = makeTextSignTexture('X: 12,550,821', 'FAR LANDS OVERFLOW', '#120824', '#e879f9', '#67e8f9');
+    const signBoard = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.4, 1.25),
+      new THREE.MeshBasicMaterial({ map: signTex })
+    );
+    signBoard.position.set(0, 9.5, 0.4);
+
+    beaconGroup.add(plinth, monolith, seamL, seamR, glitchRing, signBoard);
+    this.farLandsBeacon = { group: beaconGroup, glitchRing, magentaGlowMat, cyanGlowMat };
+    this.group.add(beaconGroup);
+
+    // 4. Detached Floating & Subtly Jittering Glitched Far Lands Chunk Cubes
+    const chunkMats = [farStoneMat, grassMat, bedrockMat, cobbleMat];
+    this.farLandsJitterChunks = Array.from({ length: 12 }, (_, idx) => {
+      const sizeX = 1.25 + (idx % 3) * 0.55;
+      const sizeY = 1.15 + ((idx + 1) % 3) * 0.45;
+      const chunk = new THREE.Mesh(
+        new THREE.BoxGeometry(sizeX, sizeY, 1.35),
+        chunkMats[idx % chunkMats.length]
+      );
+      chunk.name = 'farLandsJitterChunk';
+      const baseX = -24 + idx * 4.35;
+      const baseY = 3.2 + ((idx * 2.9) % 8.4);
+      const baseZ = -8.8 + (idx % 3) * 1.4;
+      chunk.position.set(baseX, baseY, baseZ);
+      this.group.add(chunk);
+      return {
+        mesh: chunk,
+        baseX,
+        baseY,
+        baseZ,
+        phase: idx * 1.37
+      };
+    });
+  }
+
   buildBiomeColumns(theme, accentHex) {
     if (theme === 'stronghold') {
       this.buildStrongholdSanctum();
@@ -2272,6 +2455,10 @@ export class Arena3DBuilder {
     }
     if (theme === 'desert_pyramid') {
       this.buildDesertPyramidInterior();
+      return;
+    }
+    if (theme === 'far_lands') {
+      this.buildFarLandsWall();
       return;
     }
     if (theme === 'rocket_corp_exterior') {
@@ -2772,6 +2959,7 @@ export class Arena3DBuilder {
     const isPaleGarden = theme === 'pale_garden';
     const isIceCaves = theme === 'ice_caves';
     const isDesertPyramid = theme === 'desert_pyramid';
+    const isFarLands = theme === 'far_lands';
     const isOverworld = theme === 'overworld';
     const frameMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(
@@ -2782,7 +2970,8 @@ export class Arena3DBuilder {
           : (isPaleGarden ? 'pale_oak_log'
           : (isIceCaves ? 'blue_ice'
           : (isDesertPyramid ? 'chiseled_sandstone'
-          : (isOverworld ? 'oak_log' : 'obsidian')))))),
+          : (isFarLands ? 'glitch_bedrock'
+          : (isOverworld ? 'oak_log' : 'obsidian'))))))),
         1,
         2
       ),
@@ -2825,7 +3014,8 @@ export class Arena3DBuilder {
         : (isPaleGarden ? 'PALE GARDEN'
         : (isIceCaves ? 'ICE CAVES'
         : (isDesertPyramid ? 'DESERT PYRAMID'
-        : (isOverworld ? 'OVERWORLD' : (isExit ? 'PORTAL' : 'SPAWN')))))))),
+        : (isFarLands ? 'FAR LANDS'
+        : (isOverworld ? 'OVERWORLD' : (isExit ? 'PORTAL' : 'SPAWN'))))))))),
       '#0f172a',
       isRocketCorp
         ? '#ff6b00'
@@ -2834,7 +3024,8 @@ export class Arena3DBuilder {
         : (isPaleGarden ? '#fb923c'
         : (isIceCaves ? '#38bdf8'
         : (isDesertPyramid ? '#f59e0b'
-        : (isOverworld ? '#4ade80' : (isExit ? '#10b981' : '#38bdf8')))))))
+        : (isFarLands ? '#e879f9'
+        : (isOverworld ? '#4ade80' : (isExit ? '#10b981' : '#38bdf8'))))))))
     );
     const signMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2.4, 0.9),
@@ -2863,6 +3054,7 @@ export class Arena3DBuilder {
       : (theme === 'stronghold' ? 'stone_bricks'
       : (theme === 'ice_caves' ? (isMoving ? 'blue_ice' : 'packed_ice')
       : (theme === 'desert_pyramid' ? (isMoving ? 'chiseled_sandstone' : 'sandstone')
+      : (theme === 'far_lands' ? (isMoving ? 'glitch_bedrock' : 'far_lands_stone')
       : (theme === 'overworld' ? (isMoving ? 'cobblestone' : 'oak_planks')
       : (theme === 'the_end' ? 'purpur_block'
       : (theme === 'aether' ? 'holystone'
@@ -2874,7 +3066,7 @@ export class Arena3DBuilder {
       : (theme === 'slides' ? 'slides_floor'
       : (theme === 'rocket_corp' || theme === 'rocket_corp_exterior' ? 'rocket_corp_wall'
       : (theme === 'lucky_orb' ? 'lucky_block'
-      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron'))))))))))))))));
+      : (theme === 'trophy' ? 'trophy_floor' : 'anvil_iron')))))))))))))))));
 
     const bodyMat = new THREE.MeshStandardMaterial({
       map: getVoxelTexture(texKey, Math.max(2, Math.round(w / 2)), 2),
@@ -2903,7 +3095,7 @@ export class Arena3DBuilder {
           map: getVoxelTexture('rocket_corp_hazard', Math.max(4, Math.round(w)), 1),
           roughness: 0.35
         })
-      : (theme === 'overworld' && !isMoving
+      : ((theme === 'overworld' || theme === 'far_lands') && !isMoving
         ? new THREE.MeshStandardMaterial({
             map: getVoxelTexture('grass_top', Math.max(2, Math.round(w / 2)), 2),
             roughness: 0.55
@@ -3715,6 +3907,8 @@ export class Arena3DBuilder {
       this.drawIceCavesMonitorBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'desert_pyramid') {
       this.drawDesertPyramidMonitorBackdrop(ctx, w, h, sm);
+    } else if (sm.theme === 'far_lands') {
+      this.drawFarLandsMonitorBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'overworld') {
       this.drawOverworldMonitorBackdrop(ctx, w, h, sm);
     } else if (sm.theme === 'dark_core') {
@@ -4273,6 +4467,88 @@ export class Arena3DBuilder {
     ctx.fillText(sm.isObjectiveComplete ? 'TOMB SEAL: BROKEN' : 'TEMPLE GUARDIANS: ACTIVE', w - 28, h - 22);
   }
 
+  drawFarLandsMonitorBackdrop(ctx, w, h, sm) {
+    // 1. Surreal World-Edge Glitch Twilight Sky
+    const grad = typeof ctx.createLinearGradient === 'function' ? ctx.createLinearGradient(0, 0, 0, h) : null;
+    if (grad && typeof grad.addColorStop === 'function') {
+      grad.addColorStop(0, '#0f172a');
+      grad.addColorStop(0.45, '#2e1065');
+      grad.addColorStop(0.75, '#0c4a6e');
+      grad.addColorStop(1, '#1e293b');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = '#2e1065';
+    }
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Iconic Towering Swiss-Cheese Far Lands Cliff Wall Silhouette with Hollow Cave Cavities
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(0, 152, w, h - 212);
+    ctx.fillStyle = '#22c55e';
+    for (let gx = 0; gx < w; gx += 64) {
+      const gh = 14 + ((gx / 64) % 3) * 6;
+      ctx.fillRect(gx, 148 - (gh - 14), 56, gh);
+    }
+    // Dark horizontal Swiss-cheese tunnel cutouts
+    ctx.fillStyle = '#090d16';
+    for (let row = 0; row < 4; row++) {
+      const cy = 184 + row * 68;
+      for (let col = 0; col < 7; col++) {
+        if ((row + col) % 2 === 0) {
+          const cx = 36 + col * 144 + ((row * 37) % 42);
+          ctx.fillRect(cx, cy, 88, 36);
+        }
+      }
+    }
+    // Cascading Waterfall & Lavafall strips
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(190, 184, 24, h - 244);
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(w - 226, 200, 24, h - 260);
+    // Floating-point coordinate glitch scanlines
+    ctx.fillStyle = 'rgba(232, 121, 249, 0.22)';
+    for (let gy = 166; gy < h - 80; gy += 54) {
+      ctx.fillRect(0, gy, w, 3);
+    }
+
+    // 3. Far Lands Coordinate Overflow Telemetry Banner
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#120824';
+    ctx.fillRect(w / 2 - 446, 18, 892, 130);
+    ctx.strokeStyle = '#e879f9';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(w / 2 - 446, 18, 892, 130);
+
+    ctx.fillStyle = '#67e8f9';
+    ctx.font = 'bold 21px monospace';
+    ctx.fillText('ACT VI // STAGE 26: THE FAR LANDS — X: 12,550,821 OVERFLOW', w / 2, 52);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 31px monospace';
+    ctx.fillText(
+      sm.isObjectiveComplete ? '✓ WORLD EDGE BREACHED — APP RIFT OPEN!' : '🌀 SURVIVE THE GLITCHED FAR LANDS MONOLITHS!',
+      w / 2,
+      94
+    );
+
+    ctx.fillStyle = '#f0abfc';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('NOISE GENERATOR OVERFLOW  •  JITTERING CHUNKS & SWISS-CHEESE CLIFFS  •  NEXT: YOUTUBE', w / 2, 128);
+
+    // 4. Corrupted Bedrock Footer Bar
+    ctx.fillStyle = '#090b10';
+    ctx.fillRect(0, h - 60, w, 60);
+    ctx.fillStyle = '#e879f9';
+    ctx.fillRect(0, h - 60, w, 5);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f5d0fe';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('🌀 THE FAR LANDS // X = 12,550,821  •  CHUNK PRECISION LOSS', 28, h - 22);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#67e8f9';
+    ctx.fillText(sm.isObjectiveComplete ? 'WORLD BOUNDARY: BROKEN' : 'GLITCH SWARM: ACTIVE', w - 28, h - 22);
+  }
+
   drawStrongholdMonitorBackdrop(ctx, w, h, sm) {
     // 1. Subterranean Cracked & Mossy Stone-Brick Vault Wall
     ctx.fillStyle = '#1e2229';
@@ -4446,7 +4722,7 @@ export class Arena3DBuilder {
 
     ctx.fillStyle = '#38bdf8';
     ctx.font = 'bold 21px monospace';
-    ctx.fillText('ACT VIII // STAGE 30: OUTSIDE ROCKET CORP — PERIMETER PLAZA', w / 2, 50);
+    ctx.fillText('ACT VIII // STAGE 31: OUTSIDE ROCKET CORP — PERIMETER PLAZA', w / 2, 50);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 30px monospace';
@@ -4599,6 +4875,35 @@ export class Arena3DBuilder {
         const s = 0.88 + Math.sin(t * 10.5 + flame.phase) * 0.18;
         flame.mesh.scale.set(1, s, 1);
         flame.mesh.position.y = flame.baseY + (s - 1) * 0.14;
+      }
+    }
+
+    // Animate Far Lands Jittering Chunks, Flowing Cascades & Overflow Beacon
+    if (this.farLandsJitterChunks && this.farLandsJitterChunks.length > 0) {
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+      const stepTick = Math.floor(t * 7);
+      for (const chunk of this.farLandsJitterChunks) {
+        // Subtle 32-bit floating-point coordinate stutter + vertical bob
+        const jitterX = Math.sin(stepTick * 2.1 + chunk.phase) * 0.16;
+        chunk.mesh.position.x = chunk.baseX + jitterX;
+        chunk.mesh.position.y = chunk.baseY + Math.sin(t * 2.3 + chunk.phase) * 0.35;
+      }
+    }
+    if (this.farLandsCascades && this.farLandsCascades.length > 0) {
+      for (const cas of this.farLandsCascades) {
+        if (cas.mat?.map?.offset) {
+          cas.mat.map.offset.y = (cas.mat.map.offset.y + dt * cas.speed) % 1;
+        }
+      }
+    }
+    if (this.farLandsBeacon) {
+      const t = (sm && typeof sm.stageTime === 'number') ? sm.stageTime : (this._portalTime = (this._portalTime || 0) + dt);
+      if (this.farLandsBeacon.glitchRing) {
+        this.farLandsBeacon.glitchRing.rotation.z += dt * 1.4;
+        this.farLandsBeacon.glitchRing.rotation.y = Math.sin(t * 1.8) * 0.45;
+      }
+      if (this.farLandsBeacon.magentaGlowMat) {
+        this.farLandsBeacon.magentaGlowMat.emissiveIntensity = 0.78 + Math.sin(t * 5.2) * 0.25;
       }
     }
 

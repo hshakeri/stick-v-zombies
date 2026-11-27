@@ -877,7 +877,7 @@ export function installOldUpdatesMenu(options = {}) {
         </div>
         <div class="current-update-banner">
           <span class="current-update-pill">✨ CURRENT (LATEST)</span>
-          <span>32 Stages • Ice Caves • Desert Pyramid • Purple Elytra Ally (7) • Stronghold • Outside Rocket Corp • TNT Craters • Creative Sandbox</span>
+          <span>33 Stages • The Far Lands • Ice Caves • Desert Pyramid • Purple Elytra Ally (7) • Stronghold • Outside Rocket Corp • TNT Craters • Creative Sandbox</span>
         </div>
         <div class="modal-content">
           <div class="old-updates-grid">
